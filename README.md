@@ -4,7 +4,7 @@ NextGen is an Updated Version of Estrella C# Emulator project for Fiesta Online 
 ## Client Support (Not Yet)
 Client currently supported: Fiesta Gamigo NA (2016 or latest )
 
-# Credits
+## Credits
 This open source repository is directly from DragonFiesta (https://github.com/DragonFiestaTeam/DragonFiesta),
 which so were derived from Zepheus (https://github.com/Zepheus/Zepheus_Fiesta).
 
