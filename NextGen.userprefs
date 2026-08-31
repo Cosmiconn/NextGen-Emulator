@@ -1,0 +1,13 @@
+﻿<Properties>
+  <StartupItems>
+    <String>NextGen.Login\NextGen.Login.csproj</String>
+    <String>NextGen.Zone\NextGen.Zone.csproj</String>
+    <String>NextGen.World\NextGen.World.csproj</String>
+  </StartupItems>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.Workbench />
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
