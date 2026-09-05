@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Data;
 
 namespace NextGen.FiestaLib.Shn
@@ -65,6 +65,14 @@ namespace NextGen.FiestaLib.Shn
                     return typeof(SByte);
                 case 0x16:
                     return typeof(Int32);
+                case 29:
+                    // Empirisch verifiziert gegen 5 Spalten in zwei echten NA2016-
+                    // Client-Dateien (ItemActionCondition.shn, ItemActionEffect.shn):
+                    // Length ist in allen Faellen exakt 8 Bytes. Die Feldnamen
+                    // (SubjectTarget/ObjectTarget/ConditionActivity/EffectTarget/
+                    // EffectActivity) deuten auf 64-Bit-Bitmasken hin, analog zu den
+                    // bereits bekannten 32-Bit-UInt-Typen 3/11/18/27.
+                    return typeof(UInt64);
                 case 0x18:
                 case 0x1a:
                 case 9:

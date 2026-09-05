@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using System.IO;
 using System.Data;
@@ -51,6 +51,20 @@ namespace NextGen.FiestaLib.Shn
                 CryptHeader = reader.ReadBytes(32);
                 int Length = reader.ReadInt32() - 36; //minus int + header
                 data = reader.ReadBytes(Length);
+                if (data.Length != Length)
+                {
+                    // Empirischer Fund (NA2016-Client, QuestData.shn): bei mindestens
+                    // einer Datei stimmt die im Header deklarierte Laenge nicht mit der
+                    // tatsaechlichen Dateigroesse ueberein (Faktor ~3,4x zu gross).
+                    // Vorher fuehrte das zu einer nichtssagenden IndexOutOfRangeException
+                    // tief in FileCrypto.Crypt. Jetzt: klare Fehlermeldung statt stiller
+                    // Bounds-Verletzung. Ob QuestData.shn ein abweichendes Format (z.B.
+                    // Kompression) nutzt, ist ungeklaert - siehe DOCUMENTATION.md.
+                    throw new InvalidDataException(string.Format(
+                        "SHN-Header deklariert {0} Bytes Nutzdaten, tatsaechlich verfuegbar sind nur {1} Bytes. " +
+                        "Datei moeglicherweise beschaedigt oder nutzt ein abweichendes Format ({2}).",
+                        Length, data.Length, FileName));
+                }
                 FileCrypto.Crypt(data, 0, Length);
                 //File.WriteAllBytes("Output.dat", data); //debug purpose
             }
@@ -167,6 +181,9 @@ namespace NextGen.FiestaLib.Shn
                         case 22:
                             writer.Write((int)row[colIndex]);
                             break;
+                        case 29:
+                            writer.Write((ulong)row[colIndex]);
+                            break;
                         case 26:
                             string tmp = (string)row[colIndex];
                             unkLength += (short)tmp.Length;
@@ -246,6 +263,9 @@ namespace NextGen.FiestaLib.Shn
                              break;
                          case 22:
                              values[j] = reader.ReadInt32();
+                             break;
+                         case 29:
+                             values[j] = reader.ReadUInt64();
                              break;
                          case 26:       // TODO: Should be read until first null byte, to support more than 1 this kind of column
                              values[j] = reader.ReadPaddedString((int)(RowLength - DefaultRecordLength + 1));
