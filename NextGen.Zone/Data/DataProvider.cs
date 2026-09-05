@@ -4,6 +4,7 @@ using NextGen.FiestaLib;
 using NextGen.FiestaLib.Data;
 using NextGen.Util;
 using NextGen.Database;
+using MySqlConnector;
 using System.Data;
 using NextGen.Zone.Game;
 using NextGen.Zone.Data;
@@ -38,6 +39,13 @@ namespace NextGen.Zone.Data
         public Dictionary<ushort,MasterRewardState> MasterRewardStates  { get; private set; }
         public Dictionary<int, Guild> GuildsByID { get; private set; }
         public Dictionary<string, Guild> GuildsByName { get; private set; }
+        public Dictionary<ushort, AbStateInfo> AbStatesByID { get; private set; }
+        public Dictionary<ushort, PassiveSkillInfo> PassiveSkillsByID { get; private set; }
+        public Dictionary<string, PassiveSkillInfo> PassiveSkillsByName { get; private set; }
+        public Dictionary<uint, TitleCategoryInfo> TitleCategoriesByType { get; private set; }
+        public Dictionary<uint, QuestDialogInfo> QuestDialogsByID { get; private set; }
+        public List<GuildTournamentSkillInfo> GuildTournamentSkills { get; private set; }
+        public Dictionary<string, AbStateInfo> AbStatesByName { get; private set; }
 
 		public static DataProvider Instance { get; private set; }
 
@@ -58,6 +66,11 @@ namespace NextGen.Zone.Data
 			LoadVendors();
             LoadMounts();
             LoadMasterRewardStates();
+            LoadAbStates();
+            LoadPassiveSkills();
+            LoadTitleCategories();
+            LoadQuestDialogs();
+            LoadGuildTournamentSkills();
   
 		}
 
@@ -278,6 +291,160 @@ namespace NextGen.Zone.Data
 			}
 			Log.WriteLine(LogLevel.Info, "Loaded {0} ActiveSkills.", ActiveSkillsByID.Count);
 		}
+		// Laedt AbState (Buff/Debuff-Definitionen) + SubAbState (Staerke-Stufen)
+		// aus fiesta_data und verknuepft sie ueber AbState.SubAbState (String) ==
+		// SubAbstateInfo.InxName. Beide Tabellen mit echten Daten aus dem
+		// NA2016-Client befuellt, siehe sql/data/data_abstate.sql /
+		// data_subabstate.sql und DOCUMENTATION.md Abschnitt 15. War zuvor
+		// aufgerufen, aber nie implementiert (echter, vorher unbemerkter
+		// Compile-Fehler - CS0103 - im ausgelieferten Code).
+		private void LoadAbStates()
+		{
+			AbStatesByID = new Dictionary<ushort, AbStateInfo>();
+			AbStatesByName = new Dictionary<string, AbStateInfo>();
+
+			DataTable subAbStateData = null;
+			DataTable abStateData = null;
+			DataTable abStateViewData = null;
+			using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+			{
+				subAbStateData = dbClient.ReadDataTable("SELECT * FROM data_subabstate");
+				abStateData = dbClient.ReadDataTable("SELECT * FROM data_abstate");
+				abStateViewData = dbClient.ReadDataTable("SELECT * FROM data_abstateview");
+			}
+
+			// Erst alle SubAbstateInfo laden und nach InxName gruppieren (ein
+			// AbState kann mehrere Staerke-Stufen/"Strength" haben, siehe
+			// DOCUMENTATION.md Abschnitt 15).
+			var subStatesByName = new Dictionary<string, Dictionary<uint, SubAbstateInfo>>();
+			if (subAbStateData != null)
+			{
+				foreach (DataRow row in subAbStateData.Rows)
+				{
+					SubAbstateInfo sub = SubAbstateInfo.LoadFromDatabase(row);
+					if (!subStatesByName.TryGetValue(sub.InxName, out var byStrength))
+					{
+						byStrength = new Dictionary<uint, SubAbstateInfo>();
+						subStatesByName.Add(sub.InxName, byStrength);
+					}
+					if (!byStrength.ContainsKey(sub.Strength))
+						byStrength.Add(sub.Strength, sub);
+				}
+			}
+
+			// Buff/Debuff-Klassifizierung + Klartextbeschreibung aus
+			// data_abstateview (AbStateView.shn, Spalte IconSort) - siehe
+			// DOCUMENTATION.md Abschnitt 19. 776 von 777 AbStates abgedeckt.
+			var viewByName = new Dictionary<string, (bool IsBuff, string Description)>();
+			if (abStateViewData != null)
+			{
+				foreach (DataRow row in abStateViewData.Rows)
+				{
+					string name = (string)row["inxName"];
+					string iconSort = (string)row["IconSort"];
+					string descript = (string)row["Descript"];
+					// Default true (Buff) falls IconSort weder BUFF noch DEBUFF ist.
+					bool isBuff = !string.Equals(iconSort, "DEBUFF", StringComparison.OrdinalIgnoreCase);
+					if (!viewByName.ContainsKey(name))
+						viewByName.Add(name, (isBuff, descript));
+				}
+			}
+
+			if (abStateData != null)
+			{
+				foreach (DataRow row in abStateData.Rows)
+				{
+					AbStateInfo info = AbStateInfo.LoadFromDatabase(row);
+
+					if (subStatesByName.TryGetValue(info.SubAbStateLinkName, out var byStrength))
+						info.SubAbStates = byStrength;
+					else if (!string.IsNullOrEmpty(info.SubAbStateLinkName) && info.SubAbStateLinkName != "-")
+						Log.WriteLine(LogLevel.Warn, "AbState '{0}' verweist auf unbekannten SubAbState '{1}'.", info.InxName, info.SubAbStateLinkName);
+
+					if (viewByName.TryGetValue(info.InxName, out var viewInfo))
+					{
+						info.IsBuff = viewInfo.IsBuff;
+						info.Description = viewInfo.Description;
+					}
+					else
+					{
+						Log.WriteLine(LogLevel.Warn, "Keine AbStateView-Klassifizierung (Buff/Debuff) fuer '{0}' gefunden - Default: Buff.", info.InxName);
+					}
+
+					if (AbStatesByID.ContainsKey(info.ID) || AbStatesByName.ContainsKey(info.InxName))
+					{
+						Log.WriteLine(LogLevel.Warn, "Duplicate AbState found: {0} ({1})", info.ID, info.InxName);
+						continue;
+					}
+					AbStatesByID.Add(info.ID, info);
+					AbStatesByName.Add(info.InxName, info);
+				}
+			}
+			Log.WriteLine(LogLevel.Info, "Loaded {0} AbStates.", AbStatesByID.Count);
+		}
+		private void LoadPassiveSkills()
+		{
+			PassiveSkillsByID = new Dictionary<ushort, PassiveSkillInfo>();
+			PassiveSkillsByName = new Dictionary<string, PassiveSkillInfo>();
+			using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+			{
+				DataTable data = dbClient.ReadDataTable("SELECT * FROM data_passiveskill");
+				if (data == null) return;
+				foreach (DataRow row in data.Rows)
+				{
+					var info = PassiveSkillInfo.Load(row);
+					if (!PassiveSkillsByID.ContainsKey(info.ID))
+						PassiveSkillsByID.Add(info.ID, info);
+					if (!PassiveSkillsByName.ContainsKey(info.InxName))
+						PassiveSkillsByName.Add(info.InxName, info);
+				}
+			}
+			Log.WriteLine(LogLevel.Info, "Loaded {0} PassiveSkills.", PassiveSkillsByID.Count);
+		}
+		private void LoadTitleCategories()
+		{
+			TitleCategoriesByType = new Dictionary<uint, TitleCategoryInfo>();
+			using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+			{
+				DataTable data = dbClient.ReadDataTable("SELECT * FROM data_charactertitle");
+				if (data == null) return;
+				foreach (DataRow row in data.Rows)
+				{
+					var info = TitleCategoryInfo.Load(row);
+					if (!TitleCategoriesByType.ContainsKey(info.Type))
+						TitleCategoriesByType.Add(info.Type, info);
+				}
+			}
+			Log.WriteLine(LogLevel.Info, "Loaded {0} TitleCategories.", TitleCategoriesByType.Count);
+		}
+		private void LoadQuestDialogs()
+		{
+			QuestDialogsByID = new Dictionary<uint, QuestDialogInfo>();
+			using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+			{
+				DataTable data = dbClient.ReadDataTable("SELECT * FROM data_questdialog");
+				if (data == null) return;
+				foreach (DataRow row in data.Rows)
+				{
+					var info = QuestDialogInfo.Load(row);
+					if (!QuestDialogsByID.ContainsKey(info.DialogID))
+						QuestDialogsByID.Add(info.DialogID, info);
+				}
+			}
+			Log.WriteLine(LogLevel.Info, "Loaded {0} QuestDialogs.", QuestDialogsByID.Count);
+		}
+		private void LoadGuildTournamentSkills()
+		{
+			GuildTournamentSkills = new List<GuildTournamentSkillInfo>();
+			using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+			{
+				DataTable data = dbClient.ReadDataTable("SELECT * FROM data_guildtournamentskill");
+				if (data == null) return;
+				foreach (DataRow row in data.Rows)
+					GuildTournamentSkills.Add(GuildTournamentSkillInfo.Load(row));
+			}
+			Log.WriteLine(LogLevel.Info, "Loaded {0} GuildTournamentSkills.", GuildTournamentSkills.Count);
+		}
 		private void LoadRecallCoordinates()
 		{
 			RecallCoordinates = new Dictionary<string, RecallCoordinate>();
@@ -421,7 +588,8 @@ namespace NextGen.Zone.Data
 				DataTable baseData = null;
 				using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
 				{
-					baseData = dbClient.ReadDataTable("SELECT  * FROM BaseStats WHERE Class='" + kvp.Value + "'");
+					baseData = dbClient.ReadDataTable("SELECT  * FROM BaseStats WHERE Class=@class",
+						new MySqlParameter("@class", kvp.Value));
 				}
 				if (baseData != null)
 				{
@@ -579,7 +747,8 @@ namespace NextGen.Zone.Data
 				DataTable blockData = null;
 				using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
 				{
-					blockData = dbClient.ReadDataTable("SELECT  *FROM blockinfo WHERE MapID='" + map.ID + "'");
+					blockData = dbClient.ReadDataTable("SELECT  *FROM blockinfo WHERE MapID=@mapId",
+						new MySqlParameter("@mapId", map.ID));
 				}
 				if (blockData != null)
 				{
@@ -635,7 +804,8 @@ namespace NextGen.Zone.Data
 						DataTable vendorData = null;
 						using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
 						{
-							vendorData = dbClient.ReadDataTable("SELECT *FROM Vendors WHERE NPCID='" + npc.MobID + "'");
+							vendorData = dbClient.ReadDataTable("SELECT *FROM Vendors WHERE NPCID=@npcId",
+								new MySqlParameter("@npcId", npc.MobID));
 						}
 						if (vendorData != null)
 						{
