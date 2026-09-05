@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NextGen.InterLib;
 using NextGen.InterLib.Networking;
 using NextGen.World.Data;

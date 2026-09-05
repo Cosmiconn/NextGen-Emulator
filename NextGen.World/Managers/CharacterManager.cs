@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Data;
 using System.Collections.Generic;
 using NextGen.World.Data;
@@ -7,6 +7,7 @@ using NextGen.Util;
 using NextGen.Database.DataStore;
 using NextGen.Database.Storage;
 using NextGen.Database;
+using MySqlConnector;
 namespace NextGen.World.Managers
 {
     public delegate void CharacterEvent(WorldCharacter Character);
@@ -57,8 +58,10 @@ namespace NextGen.World.Managers
         public static void OneLoadGuildInCharacter(WorldCharacter pChar)
         {
          DatabaseClient dbClient = Program.DatabaseManager.GetClient();
-         int GuildID = dbClient.ReadInt32("SELECT GuildID FROM guildmembers WHERE CharID='" + pChar.ID + "'");
-         int AcademyID = dbClient.ReadInt32("SELECT GuildID FROM guildacademymembers WHERE CharID='" + pChar.ID + "'");
+         int GuildID = dbClient.ReadInt32("SELECT GuildID FROM guildmembers WHERE CharID=@charId",
+             new MySqlParameter("@charId", pChar.ID));
+         int AcademyID = dbClient.ReadInt32("SELECT GuildID FROM guildacademymembers WHERE CharID=@charId",
+             new MySqlParameter("@charId", pChar.ID));
             if(AcademyID > 0 && GuildID == 0)
             {
                 Data.Guilds.Guild g;

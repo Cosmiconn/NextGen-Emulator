@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NextGen.FiestaLib;
 using NextGen.InterLib;
 using NextGen.World.InterServer;
