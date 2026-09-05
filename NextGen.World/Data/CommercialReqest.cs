@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NextGen.World.Networking;
 namespace NextGen.World.Data
 {

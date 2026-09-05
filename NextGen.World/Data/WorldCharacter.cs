@@ -14,6 +14,7 @@ using NextGen.World.Managers;
 using NextGen.World.Data.Guilds;
 using NextGen.World.Data.Guilds.Academy;
 using NextGen.InterLib.Networking;
+using MySqlConnector;
 
 namespace NextGen.World.Data
 {
@@ -88,8 +89,10 @@ namespace NextGen.World.Data
 
 			using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
 			{
-				frenddata = dbClient.ReadDataTable("SELECT * FROM friends WHERE CharID='" + this.Character.ID + "'");
-				frenddataby = dbClient.ReadDataTable("SELECT * FROM friends WHERE FriendID='"+this.Character.ID+"'");
+				frenddata = dbClient.ReadDataTable("SELECT * FROM friends WHERE CharID=@charId",
+					new MySqlParameter("@charId", this.Character.ID));
+				frenddataby = dbClient.ReadDataTable("SELECT * FROM friends WHERE FriendID=@charId",
+					new MySqlParameter("@charId", this.Character.ID));
 			}
 
 			if (frenddata != null)
@@ -111,7 +114,8 @@ namespace NextGen.World.Data
 				DataTable frendsdata = null;
 				using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
 				{
-					frendsdata = dbClient.ReadDataTable("SELECT * FROM Characters WHERE CharID='" + friend.ID + "'");
+					frendsdata = dbClient.ReadDataTable("SELECT * FROM Characters WHERE CharID=@charId",
+						new MySqlParameter("@charId", friend.ID));
 				}
 				if (frenddata != null)
 				{
@@ -126,7 +130,8 @@ namespace NextGen.World.Data
 				DataTable frendsdata = null;
 				using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
 				{
-					frendsdata = dbClient.ReadDataTable("SELECT * FROM Characters WHERE CharID='" + friend.ID + "'");
+					frendsdata = dbClient.ReadDataTable("SELECT * FROM Characters WHERE CharID=@charId",
+						new MySqlParameter("@charId", friend.ID));
 				}
 				if (frenddata != null)
 				{
@@ -144,7 +149,8 @@ namespace NextGen.World.Data
             DataTable Masterdata = null;
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
-                Masterdata = dbClient.ReadDataTable("SELECT * FROM Masters WHERE CharID='" + this.ID + "'");
+                Masterdata = dbClient.ReadDataTable("SELECT * FROM Masters WHERE CharID=@charId",
+                    new MySqlParameter("@charId", this.ID));
             }
             if (Masterdata != null)
             {
@@ -224,7 +230,9 @@ namespace NextGen.World.Data
         public void UpdateMasterJoin()
         {
             this.Character.MasterJoin = DateTime.Now;
-            Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE characters SET MasterJoin='" + DateTime.Now.ToString("yyyy-MM-dd hh:mm") + "' WHERE CharID='" + this.ID + "'");
+            Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE characters SET MasterJoin=@masterJoin WHERE CharID=@charId",
+                new MySqlParameter("@masterJoin", DateTime.Now.ToString("yyyy-MM-dd hh:mm")),
+                new MySqlParameter("@charId", this.ID));
         }
         public void SendPacketToAllOnlineMasters(Packet packet)
         {
@@ -241,15 +249,27 @@ namespace NextGen.World.Data
 			Friend friend = Friend.Create(pChar);
 			if (pFrend != null)
 			{
-				Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO Friends (CharID,FriendID,Pending) VALUES ('" + pChar.Character.ID + "','" + this.Character.ID + "','1')");
+				Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO Friends (CharID,FriendID,Pending) VALUES (@charId,@friendId,'1')",
+					new MySqlParameter("@charId", pChar.Character.ID),
+					new MySqlParameter("@friendId", this.Character.ID));
 
 			}
 			if (pFrendby == null)
 			{
 				this.friendsby.Add(friend);
 			}
-			Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO Friends (CharID,FriendID) VALUES ('" + this.Character.ID + "','" + pChar.Character.ID + "')");
+			Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO Friends (CharID,FriendID) VALUES (@charId,@friendId)",
+				new MySqlParameter("@charId", this.Character.ID),
+				new MySqlParameter("@friendId", pChar.Character.ID));
 			friends.Add(friend);
+			// FRIEND_COUNT (Titel-Kategorie 34) - Zaehlung hier im World-
+			// Server, tatsaechliche Titel-/Fame-Vergabe erfolgt erst beim
+			// naechsten Zone-Login (siehe ZoneCharacter.
+			// CatchUpFriendTitleProgress). Siehe DOCUMENTATION.md Abschnitt 50.
+			this.Character.FriendCount++;
+			Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET FriendCount=@friendCount WHERE CharID=@charId",
+				new MySqlParameter("@friendCount", this.Character.FriendCount),
+				new MySqlParameter("@charId", this.Character.ID));
 
 			return friend;
 		}
@@ -264,10 +284,14 @@ namespace NextGen.World.Data
 				{
 					if (friendsby != null)
 					{
-						Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM friends WHERE CharID=" + friend.ID + " AND FriendID=" + this.ID);
+						Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM friends WHERE CharID=@charId AND FriendID=@friendId",
+							new MySqlParameter("@charId", friend.ID),
+							new MySqlParameter("@friendId", this.ID));
                         this.friendsby.Remove(friendby);
 					}
-					Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM friends WHERE CharID=" + this.ID + " AND FriendID=" + friend.ID);
+					Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM friends WHERE CharID=@charId AND FriendID=@friendId",
+						new MySqlParameter("@charId", this.ID),
+						new MySqlParameter("@friendId", friend.ID));
 				}
 				UpdateFriendStates();
 				return result;
@@ -319,7 +343,9 @@ namespace NextGen.World.Data
             MasterMember Master = this.MasterList.Find(m => m.IsMaster == true);
             if (Master != null)
             {
-                Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE character SET ReviveCoper=" + RecviveCoperMaster + " WHERE CharID =" + Master.CharID + "");
+                Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE character SET ReviveCoper=@revive WHERE CharID =@charId",
+                    new MySqlParameter("@revive", RecviveCoperMaster),
+                    new MySqlParameter("@charId", Master.CharID));
             }
 
         }
@@ -423,9 +449,9 @@ namespace NextGen.World.Data
 		{
 			this.Group = null;
 			this.GroupMember = null;
-			string query = string.Format(
-                "UPDATE `characters` SET GroupID = 'NULL' WHERE CharID =  '{0}'", this.ID);
-			Program.DatabaseManager.GetClient().ExecuteQuery(query);
+			Program.DatabaseManager.GetClient().ExecuteQuery(
+                "UPDATE `characters` SET GroupID = NULL WHERE CharID = @charId",
+                new MySqlParameter("@charId", this.ID));
 		}
 
 		public bool Delete()
@@ -433,7 +459,8 @@ namespace NextGen.World.Data
 			if (IsDeleted) return false;
 			try
 			{
-				Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM characters WHERE CharID='" + this.Character.ID + "'");
+				Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM characters WHERE CharID=@charId",
+					new MySqlParameter("@charId", this.Character.ID));
 			 
 				IsDeleted = true;
 				return true;
@@ -474,31 +501,41 @@ namespace NextGen.World.Data
 		{
 			Character.QuickBar = pData;
 			string data = ByteArrayToStringForBlobSave(Character.QuickBar) ?? ByteArrayToStringForBlobSave(new byte[1024]);
-			Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET QuickBar='" +data+ "' WHERE CharID='" + Character.ID + "';");
+			Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET QuickBar=@data WHERE CharID=@charId;",
+				new MySqlParameter("@data", data),
+				new MySqlParameter("@charId", Character.ID));
 		}
 		public void SetQuickBarStateData(byte[] pData)
 		{
 			Character.QuickBarState = pData;
 			string data = ByteArrayToStringForBlobSave(Character.QuickBarState) ?? ByteArrayToStringForBlobSave(new byte[24]);
-			 Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET QuickBarState='"+data+"' WHERE CharID='" + Character.ID + "'");
+			 Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET QuickBarState=@data WHERE CharID=@charId",
+				new MySqlParameter("@data", data),
+				new MySqlParameter("@charId", Character.ID));
 		}
 		public void SetGameSettingsData(byte[] pData)
 		{
 			Character.GameSettings = pData;
 			string data =  ByteArrayToStringForBlobSave(Character.GameSettings) ?? ByteArrayToStringForBlobSave(new byte[64]);
-			Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET GameSettings='" + data + "' WHERE CharID='" + Character.ID + "';");
+			Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET GameSettings=@data WHERE CharID=@charId;",
+				new MySqlParameter("@data", data),
+				new MySqlParameter("@charId", Character.ID));
 		}
 		public void SetClientSettingsData(byte[] pData)
 		{
 			Character.ClientSettings = pData;
 			string data = ByteArrayToStringForBlobSave(Character.ClientSettings) ?? ByteArrayToStringForBlobSave(new byte[392]);
-			 Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET ClientSettings='"+data + "' WHERE CharID='" + Character.ID + "';");
+			 Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET ClientSettings=@data WHERE CharID=@charId;",
+				new MySqlParameter("@data", data),
+				new MySqlParameter("@charId", Character.ID));
 		}
 		public void SetShortcutsData(byte[] pData)
 		{
 			Character.Shortcuts = pData;
 			string data = ByteArrayToStringForBlobSave(Character.Shortcuts) ?? ByteArrayToStringForBlobSave(new byte[308]);
-			 Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET Shortcuts='" + data+ "' WHERE CharID='" + Character.ID + "';");
+			 Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Characters SET Shortcuts=@data WHERE CharID=@charId;",
+				new MySqlParameter("@data", data),
+				new MySqlParameter("@charId", Character.ID));
 		}
         internal void OnGotIngame()
         {

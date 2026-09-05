@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Data;
 using System.Collections.Generic;
 using System.Threading;
 using NextGen.Database;
+using MySqlConnector;
 
 namespace NextGen.World.Data
 {
@@ -44,7 +45,8 @@ namespace NextGen.World.Data
                 DataTable equips = null;
                 using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
                 {
-                    equips = dbClient.ReadDataTable("SELECT * FROM equips WHERE Owner=" + pChar.ID + " AND Slot < 0");
+                    equips = dbClient.ReadDataTable("SELECT * FROM equips WHERE Owner=@owner AND Slot < 0",
+                        new MySqlParameter("@owner", pChar.ID));
                 }
                 if (equips != null)
                 {

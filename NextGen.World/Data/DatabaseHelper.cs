@@ -1,12 +1,14 @@
-﻿namespace NextGen.World.Data
+using MySqlConnector;
+
+namespace NextGen.World.Data
 {
 	public static class DatabaseHelper
 	{
 		#region Queries
 
-		public const string RemoveCharacterGroupQuery = "UPDATE `characters` SET GroupID = NULL WHERE Name = \'{0}\'";
+		public const string RemoveCharacterGroupQuery = "UPDATE `characters` SET GroupID = NULL WHERE Name = @name";
 		public const string UpdateCharacterGroupQuery =
-			"UPDATE `characters` SET GroupID = '{0}' , IsGroupMaster = '{1}' WHERE Name = \'{2}\'";
+			"UPDATE `characters` SET GroupID = @groupId , IsGroupMaster = @isGroupMaster WHERE Name = @name";
 
 		#endregion
 
@@ -16,19 +18,17 @@
 		{
 			using (var con = Program.DatabaseManager.GetClient())
 			{
-				string q = string.Format(RemoveCharacterGroupQuery, pName);
-				con.ExecuteQuery(q);
+				con.ExecuteQuery(RemoveCharacterGroupQuery, new MySqlParameter("@name", pName));
 			}
 		}
 		public static void UpdateCharacterGroup(GroupMember pMember)
 		{
 			using (var client = Program.DatabaseManager.GetClient())
 			{
-				string q = string.Format(UpdateCharacterGroupQuery,
-							pMember.Group.Id,
-							pMember.Role == GroupRole.Master,
-							pMember.Character.ID);
-				client.ExecuteQuery(q);
+				client.ExecuteQuery(UpdateCharacterGroupQuery,
+					new MySqlParameter("@groupId", pMember.Group.Id),
+					new MySqlParameter("@isGroupMaster", pMember.Role == GroupRole.Master),
+					new MySqlParameter("@name", pMember.Character.ID));
 			}
 		}
 
