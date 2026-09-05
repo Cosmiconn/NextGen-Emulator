@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NextGen.Zone.Game;
 using NextGen.Zone.Networking;
 namespace NextGen.Zone.Data
