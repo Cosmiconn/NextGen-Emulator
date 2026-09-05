@@ -1,4 +1,4 @@
-﻿
+
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
 using NextGen.Zone.Networking;
@@ -14,8 +14,11 @@ namespace NextGen.Zone.Handlers
             if (packet.TryReadShort(out Amount))
             {
                 client.Character.ChangeMoney(client.Character.Character.Money -= client.Character.BaseStats.PriceHPStone);
-                short am = Amount += client.Character.StonesSP;
-                client.Character.StonesSP = am;
+                // War: StonesSP statt StonesHP gelesen/geschrieben - der
+                // HP-Stein-Kauf-Handler aenderte faelschlich die SP-Steine.
+                // Siehe DOCUMENTATION.md Abschnitt 36.
+                short am = Amount += client.Character.StonesHP;
+                client.Character.StonesHP = am;
                 using (var p = new Packet(SH20Type.ChangeHPStones))
                 {
                     p.WriteShort(am);
@@ -31,8 +34,10 @@ namespace NextGen.Zone.Handlers
             if (packet.TryReadShort(out Amount))
             {
                 client.Character.ChangeMoney(client.Character.Character.Money -= client.Character.BaseStats.PriceSPStone);
+                // War: das Ergebnis wurde faelschlich in StonesHP statt
+                // StonesSP geschrieben. Siehe DOCUMENTATION.md Abschnitt 36.
                 short Am = Amount += client.Character.StonesSP;
-                client.Character.StonesHP = Am;
+                client.Character.StonesSP = Am;
                 using (var p = new Packet(SH20Type.ChangeSPStones))
                 {
                     p.WriteShort(Am);

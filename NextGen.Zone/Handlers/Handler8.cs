@@ -514,7 +514,18 @@ namespace NextGen.Zone.Handlers
 			}
 
 			double distance = Vector2.Distance(newX, oldX, newY, oldY);
-			if ((run && distance > 500d) || (!run && distance > 400d)) //TODO: mounts don't check with these speeds
+			// Buffs.MoveSpeed floss bisher nicht in die Speedhack-Pruefung
+			// ein - ein Lauftempo-Buff/-Debuff haette hier also fälschlich
+			// als Cheat erkannt (bei Buff) oder ermoeglicht (bei fehlendem
+			// Debuff-Effekt) werden koennen. Schwelle wird jetzt proportional
+			// zum MoveSpeed-Bonus skaliert (Prozent-Annahme wie bei anderen
+			// RATE-Feldern, siehe DOCUMENTATION.md Abschnitt 23.3), mit einer
+			// Untergrenze von 20% der Basisschwelle gegen extreme Debuffs.
+			// Siehe DOCUMENTATION.md Abschnitt 51.
+			int speedBonus = Math.Max(-80, character.GetMoveSpeedBuff());
+			double baseThreshold = run ? 500d : 400d;
+			double threshold = baseThreshold * (100 + speedBonus) / 100.0;
+			if (distance > threshold) //TODO: mounts don't check with these speeds
 			{
 				character.CheatTracker.AddCheat(CheatTypes.Speedwalk, 50);
 				return;

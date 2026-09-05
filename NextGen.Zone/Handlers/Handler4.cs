@@ -1,4 +1,4 @@
-﻿using NextGen.FiestaLib;
+using NextGen.FiestaLib;
 using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
 using NextGen.Util;
@@ -265,11 +265,18 @@ namespace NextGen.Zone.Handlers
             else
             {
                 // LETS DO ET
+                // Reihenfolge per echtem Paket-Mitschnitt korrigiert: der
+                // reale Client sendet fuer "Punkt in Ausdauer" den Wert 1,
+                // nicht 2 wie zuvor angenommen. Echte Reihenfolge Str,End,
+                // Dex,Int,Spr (deckt sich mit der Reihenfolge, die im Rest
+                // des Codes durchgaengig verwendet wird, z.B. CharacterStats/
+                // Buffs.cs) - vorher waren End und Dex vertauscht. Siehe
+                // DOCUMENTATION.md Abschnitt 33.
                 switch (stat)
                 {
                     case 0: client.Character.Str++; break;
-                    case 1: client.Character.Dex++; break;
-                    case 2: client.Character.End++; break;
+                    case 1: client.Character.End++; break;
+                    case 2: client.Character.Dex++; break;
                     case 3: client.Character.Int++; break;
                     case 4: client.Character.Spr++; break;
                     default:

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
 using NextGen.Util;
@@ -50,12 +50,20 @@ namespace NextGen.Zone.Handlers
         [PacketHandler(CH9Type.AttackEntityMelee)]
         public static void AttackMeleeHandler(ZoneClient client, Packet packet)
         {
+            // CanAct prueft IsStunned/IsFeared (ActionIndex 19/25/38, siehe
+            // DOCUMENTATION.md Abschnitt 23) - waehrend Betaeubung/Furcht
+            // kein Angriff moeglich.
+            if (!client.Character.CanAct) return;
             client.Character.Attack(null);
         }
 
         [PacketHandler(CH9Type.AttackEntitySkill)]
         public static void AttackSkillHandler(ZoneClient client, Packet packet)
         {
+            // Silence (ActionIndex 42) blockiert nur Skills, nicht den
+            // Nahkampf - daher zusaetzlich zu CanAct separat geprueft.
+            // Siehe DOCUMENTATION.md Abschnitt 38.
+            if (!client.Character.CanAct || client.Character.IsSilenced) return;
             ushort skill;
             if (!packet.TryReadUShort(out skill))
             {
@@ -81,6 +89,7 @@ namespace NextGen.Zone.Handlers
         [PacketHandler(CH9Type.UseSkillWithTarget)]
         public static void UseSkillWithTargetHandler(ZoneClient client, Packet packet)
         {
+            if (!client.Character.CanAct || client.Character.IsSilenced) return;
             ushort skillid, victimid;
             if (!packet.TryReadUShort(out skillid) || !packet.TryReadUShort(out victimid))
             {
@@ -117,6 +126,10 @@ namespace NextGen.Zone.Handlers
                 }
 
                 zc.HP += amount;
+                // Buff-Anteil ans Heilziel (zc, oft ein Verbuendeter statt
+                // des Anwenders selbst), Debuff-Anteil (falls vorhanden, z.B.
+                // ein Selbstkosten-Heilzauber) an den Anwender.
+                self.ApplySkillAbStates(skill.Info, zc, self);
 
                 ushort id = self.UpdateCounter;
                 SendSkillStartSelf(self, skillid, victimid, id);
@@ -126,12 +139,50 @@ namespace NextGen.Zone.Handlers
                 // Damage as heal val :D
                 SendSkill(self, id, victimid, amount, zc.HP, zc.UpdateCounter);
             }
+            else if (victim == self)
+            {
+                // Selbstziel-Skills (z.B. FitBlood01: ein AbState-Slot ein
+                // vermutlicher Selbstbuff "StaFitBlood", der andere ein
+                // Lauftempo-Debuff "StaFitMoveDown" - beide auf denselben
+                // Anwender). DemandType hat 15 verschiedene Werte in den
+                // echten Daten und bestimmt offenbar das Ziel, nicht die
+                // Wertigkeit (positiv/negativ) der einzelnen Slots - eine
+                // zuverlaessige Zuordnung "DemandType X = Selbstziel" ist
+                // nicht verifiziert (siehe DOCUMENTATION.md Abschnitt 18).
+                // Stattdessen laufzeitbasiert erkannt: loest sich victimid
+                // auf den Anwender selbst auf, werden alle AbState-Slots
+                // dieses Skills einheitlich auf sich selbst angewendet -
+                // unabhaengig davon, ob sie einzeln Buff oder Debuff sind.
+                self.ApplySkillAbStates(skill.Info, self, self);
+
+                ushort id = self.UpdateCounter;
+                SendSkillStartSelf(self, skillid, victimid, id);
+                SendSkillStartOthers(self, skillid, victimid, id);
+                SendSkillOK(self);
+                SendSkillAnimationForPlayer(self, skillid, id);
+                // Kein Schaden/Heilbetrag zu melden - Paketstruktur an den
+                // Heilzweig angelehnt (amount=0), exakte Struktur fuer reine
+                // Selbstziel-Skills nicht gegen einen echten Client verifiziert.
+                SendSkill(self, id, victimid, 0, self.HP, self.UpdateCounter);
+            }
             else
             {
                 if (!(victim is Mob)) return;
-                uint dmgmin = (uint)self.GetWeaponDamage(true);
-                uint dmgmax = (uint)(self.GetWeaponDamage(true) + (self.GetWeaponDamage(true) % 3));
+                // Gleicher Fix wie in ZoneCharacter.AttackSkill() (siehe
+                // DOCUMENTATION.md Abschnitt 46): Magie-Skills nutzten
+                // faelschlich GetWeaponDamage() statt GetMagicDamage().
+                bool isMagic = skill.Info.IsMagic;
+                uint dmgmin = isMagic ? (uint)self.GetMagicDamage(true) : (uint)self.GetWeaponDamage(true);
+                uint dmgmax = isMagic
+                    ? (uint)(self.GetMagicDamage(true) + (self.GetMagicDamage(true) % 3))
+                    : (uint)(self.GetWeaponDamage(true) + (self.GetWeaponDamage(true) % 3));
                 uint amount = (uint)Program.Randomizer.Next((int)dmgmin, (int)dmgmax);
+                // SAA_MRSHIELDRATE (102) / SAA_ACSHIELDRATE (103), siehe
+                // DOCUMENTATION.md Abschnitt 46 - Chance, schadensart-
+                // spezifisch komplett zu ignorieren.
+                int ignoreChance = isMagic ? victim.GetIgnoreMagicDamagePercent() : victim.GetIgnorePhysicalDamagePercent();
+                if (ignoreChance > 0 && Program.Randomizer.Next(0, 100) < ignoreChance)
+                    amount = 0;
                 if (amount > victim.HP)
                 {
                     victim.HP = 0;
@@ -139,6 +190,11 @@ namespace NextGen.Zone.Handlers
                 else {
                     victim.HP -= amount;
                 }
+                // Buffs = positive Effekte auf den Anwender, Debuffs =
+                // negative Effekte auf den Gegner (Design-Vorgabe, siehe
+                // DOCUMENTATION.md Abschnitt 17/19 - jetzt datenbasiert ueber
+                // AbStateInfo.IsBuff/IsDebuff statt geraten).
+                self.ApplySkillAbStates(skill.Info, self, victim);
 
                 ushort id = self.UpdateCounter;
                 SendSkillStartSelf(self, skillid, victimid, id);
@@ -157,6 +213,7 @@ namespace NextGen.Zone.Handlers
         [PacketHandler(CH9Type.UseSkillWithPosition)]
         public static void UseSkillWithPositionHandler(ZoneClient client, Packet packet)
         {
+            if (!client.Character.CanAct || client.Character.IsSilenced) return;
             ushort skillid;
             uint x, y;
             if (!packet.TryReadUShort(out skillid) || !packet.TryReadUInt(out x) || !packet.TryReadUInt(out y))
@@ -192,7 +249,12 @@ namespace NextGen.Zone.Handlers
         }
 
 
-        public static void SendAttackAnimation(MapObject from, ushort objectID, ushort attackspeed, byte stance)
+        // Struktur per echtem Paket-Mitschnitt korrigiert: die letzten beiden
+        // Byte waren hartkodiert 4/100, sind im echten Protokoll aber ein
+        // Treffer-Sequenzzaehler (im Mitschnitt sauber 1,1 / 2,2 / 3,3 / 4,4
+        // pro Treffer - passt zum selben Zaehler wie in SendAttackDamage).
+        // Siehe DOCUMENTATION.md Abschnitt 32.
+        public static void SendAttackAnimation(MapObject from, ushort objectID, ushort attackspeed, byte stance, ushort counter)
         {
             using (var packet = new Packet(SH9Type.AttackAnimation))
             {
@@ -202,24 +264,35 @@ namespace NextGen.Zone.Handlers
 
                 packet.WriteUShort(attackspeed);
 
-                packet.WriteByte(4);
-                packet.WriteByte(100);
+                packet.WriteByte((byte)counter);
+                packet.WriteByte((byte)counter);
                 from.MapSector.Broadcast(packet);
             }
         }
 
-        public static void SendAttackDamage(MapObject from, ushort objectID, ushort damage, bool crit, uint hpleft, ushort counter)
+        // Struktur per echtem Paket-Mitschnitt korrigiert (2016er Client
+        // gegen Original-Server, echter Kampf gegen Schleime). Vorher: 15
+        // Body-Byte (1-Byte-Crit, 4-Byte-HP, 2 feste Byte 4/100 am Ende).
+        // Echte Struktur: 16 Body-Byte, HP nur 2 Byte, kein erkennbares
+        // 1-Byte-Crit-Feld an dieser Stelle. Empirisch bestaetigt: der
+        // "Schaden"-Wert stimmte exakt mit einem vom Nutzer real erlittenen
+        // Treffer (12) ueberein, "RemainingHP" fiel bei mehreren
+        // aufeinanderfolgenden Treffern um exakt den Schadensbetrag.
+        // Die beiden mit "?" markierten Felder haben eine erkennbare
+        // Position/Groesse, aber keine sicher bestaetigte Bedeutung - siehe
+        // DOCUMENTATION.md Abschnitt 32. Bewusst 0 statt geraten.
+        public static void SendAttackDamage(MapObject from, ushort objectID, ushort damage, bool crit, ushort hpleft, ushort counter)
         {
             using (var packet = new Packet(SH9Type.AttackDamage))
             {
                 packet.WriteUShort(from.MapObjectID);
                 packet.WriteUShort(objectID);
-                packet.WriteBool(crit);
+                packet.WriteUShort(0); // ? - in fast allen echten Samples 0, ein Ausreisser zeigte 4
                 packet.WriteUShort(damage);
-                packet.WriteUInt(hpleft);
-                packet.WriteUShort(counter);
-                packet.WriteByte(4);
-                packet.WriteByte(100);
+                packet.WriteUShort(hpleft);
+                packet.WriteUShort(0); // ? - in allen echten Samples durchgehend 0
+                packet.WriteUShort(counter); // Treffer-Sequenz, im Mitschnitt sauber 1,2,3,4... pro Treffer
+                packet.WriteUShort(counter); // zweites Sequenzfeld - exakte Beziehung zum ersten nicht abschliessend geklaert
 
                 from.MapSector.Broadcast(packet);
             }
@@ -291,9 +364,16 @@ namespace NextGen.Zone.Handlers
 
         public static void SendUpdateSP(ZoneCharacter character)
         {
+            // War: WriteUInt (4 Byte) - echter Mitschnitt zeigt durchgehend
+            // 6 Byte Gesamtlaenge (4 Byte Body), waehrend das strukturell
+            // identische HealHP-Paket (SendUpdateHP oben) durchgehend 8 Byte
+            // (6 Byte Body, WriteUInt) zeigt. SP wird im echten Protokoll
+            // offenbar nur als 2-Byte-Wert uebertragen, HP als 4-Byte-Wert -
+            // asymmetrisch, aber empirisch eindeutig. Siehe DOCUMENTATION.md
+            // Abschnitt 37.
             using (var p = new Packet(SH9Type.HealSP))
             {
-                p.WriteUInt(character.SP);
+                p.WriteUShort((ushort)character.SP);
                 p.WriteUShort(character.UpdateCounter);
                 character.Client.SendPacket(p);
             }

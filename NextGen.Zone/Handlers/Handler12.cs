@@ -1,4 +1,4 @@
-﻿using NextGen.FiestaLib.Data;
+using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
 using NextGen.Util;
@@ -123,12 +123,14 @@ namespace NextGen.Zone.Handlers
             {
                 FiestaLib.Data.ItemInfo buyItem;
                 Data.DataProvider.Instance.ItemsByID.TryGetValue(buyItemID, out buyItem);
+                bool success = false;
                 if (amount < 255)
                 {
                     if (character.GiveItem(buyItemID, (byte)amount) != InventoryStatus.Full)
                     {
                         character.Inventory.Money -= amount * buyItem.BuyPrice;
                         character.ChangeMoney(character.Inventory.Money);
+                        success = true;
                     }
                 }
                 else
@@ -140,6 +142,7 @@ namespace NextGen.Zone.Handlers
                             character.Inventory.Money -= amount * buyItem.BuyPrice;
                             character.ChangeMoney(character.Inventory.Money);
                             character.CalculateMasterCopper(buyItem.BuyPrice);
+                            success = true;
                         }
                         if (amount < 255)
                         {
@@ -148,12 +151,18 @@ namespace NextGen.Zone.Handlers
                                 character.Inventory.Money -= amount * buyItem.BuyPrice;
                                 character.ChangeMoney(character.Inventory.Money);
                                 character.CalculateMasterCopper(buyItem.BuyPrice);
+                                success = true;
                             }
                             break;
                         }
                         amount -= 255;
                     }
                 }
+                // BUY_NPC_COUNT (Titel-Kategorie 24), siehe DOCUMENTATION.md
+                // Abschnitt 42 - einmal pro erfolgreichem Kaufvorgang, nicht
+                // pro gekauftem Gegenstand.
+                if (success)
+                    character.GiveNpcBuyTitleProgress();
             }
         }
         [PacketHandler(CH12Type.SellItem)]
@@ -186,6 +195,9 @@ namespace NextGen.Zone.Handlers
                         character.Inventory.InventoryItems.Remove(slot);
                         ResetInventorySlot(character, slot);
                     }
+                    // SELL_NPC_COUNT (Titel-Kategorie 23), siehe DOCUMENTATION.md
+                    // Abschnitt 42.
+                    character.GiveNpcSellTitleProgress();
                     System.Console.WriteLine(item.ItemInfo.Type);
                 }
             }
