@@ -1,4 +1,4 @@
-﻿/*File for this file Basic Copyright 2012 no0dl */
+/*File for this file Basic Copyright 2012 no0dl */
 using System;
 using System.Text;
 using System.Data;
@@ -137,7 +137,8 @@ namespace NextGen.World.Data.Guilds
             DataTable MemberData = null;
            using(DatabaseClient DBClient = Program.DatabaseManager.GetClient())
            {
-              MemberData = DBClient.ReadDataTable("SELECT * FROM GuildMembers WHERE GuildID = "+this.ID+"");
+              MemberData = DBClient.ReadDataTable("SELECT * FROM GuildMembers WHERE GuildID = @guildId",
+                  new MySqlParameter("@guildId", this.ID));
 
            }
 

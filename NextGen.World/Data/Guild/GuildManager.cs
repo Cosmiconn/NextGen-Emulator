@@ -1,10 +1,9 @@
-﻿/*File for this file Basic Copyright 2012 no0dl */
+/*File for this file Basic Copyright 2012 no0dl */
 using System;
 using System.Text;
 using System.Linq;
 using System.Data;
 using MySqlConnector;
-using System.Data.SqlClient;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using NextGen.FiestaLib.Networking;
@@ -409,7 +408,14 @@ namespace NextGen.World.Data.Guilds
                             cmd.Parameters.Add(new MySqlParameter("@pCreaterID", Client.Character.ID));
                             cmd.Parameters.Add(new MySqlParameter("@pCreateTime", createTime));
 
-                            var idParam = cmd.Parameters.Add(new MySqlParameter("@pID", SqlDbType.Int)
+                            // War: SqlDbType.Int (System.Data.SqlDbType, der SQL-Server-Typ-Enum).
+                            // Das kompilierte nur zufaellig, weil der genutzte
+                            // MySqlParameter-Konstruktor "object value" nimmt - der
+                            // Enum-Wert landete als Value, nicht als Typ-Info fuer den
+                            // Output-Parameter. Korrekt ist MySqlDbType.Int32, passend zu
+                            // "OUT pID INT" in sql/do-not-use/SQL scripts/Guild_Create.sql.
+                            // Gefunden und gefixt beim Vorbereiten der Setup-Anleitung.
+                            var idParam = cmd.Parameters.Add(new MySqlParameter("@pID", MySqlDbType.Int32)
                                 {
                                     Direction = ParameterDirection.Output
                                 });
