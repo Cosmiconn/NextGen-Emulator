@@ -1,9 +1,10 @@
-﻿
+
 using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
 using NextGen.Zone.Data;
 using NextGen.Database.Storage;
 using System;
+using MySqlConnector;
 
 namespace NextGen.Zone.Game
 {
@@ -38,7 +39,12 @@ namespace NextGen.Zone.Game
 			db.Upgrades = 0;
 			db.IsPassive = false;
 			db.Character = c.Character;
-			Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO Skillist (ID,Owner,SkillID,Upgrades,IsPassive) VALUES ('" + c.Character.ID + "','" + db.SkillID + "','" + db.Upgrades + "','" + Convert.ToInt32(IsPassive) + "')");
+			Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO Skillist (ID,Owner,SkillID,Upgrades,IsPassive) VALUES (@id,@owner,@skillId,@upgrades,@isPassive)",
+				new MySqlParameter("@id", c.Character.ID),
+				new MySqlParameter("@owner", c.Character.ID),
+				new MySqlParameter("@skillId", db.SkillID),
+				new MySqlParameter("@upgrades", db.Upgrades),
+				new MySqlParameter("@isPassive", Convert.ToInt32(IsPassive)));
 			skill = db;
 		}
 

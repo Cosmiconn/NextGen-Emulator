@@ -3,6 +3,7 @@ using System.Threading;
 using System.Data;
 using System.Collections.Generic;
 using System.Linq;
+using MySqlConnector;
 using NextGen.Database;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Data;
@@ -31,7 +32,6 @@ namespace NextGen.Zone.Game
 			{
 				Character = NextGen.Database.DataStore.ReadMethods.ReadCharObjectByIDFromDatabase(CharID, Program.CharDBManager);
 				if (Character == null) throw new Exception("Character not found.");
-				Buffs = new Buffs.Buffs(this);
                 this.Inventory = new Game.Inventory(this);
                 this.PremiumInventory = new PremiumInventory();
                 this.RewardInventory = new RewardInventory();
@@ -128,6 +128,7 @@ namespace NextGen.Zone.Game
 		// End of local variables
 		#region Stats
 		public int Fame { get { return Character.Fame; } set { Character.Fame = value; } }
+		public int KillPoints { get { return Character.KillPoints; } set { Character.KillPoints = value; } }
 		public byte Hair { get { return Character.LookInfo.Hair; } set { Character.LookInfo.Hair = value; } }
 		public byte HairColor { get { return Character.LookInfo.HairColor; } set { Character.LookInfo.HairColor = value; } }
 		public byte Face { get { return Character.LookInfo.Face; } set { Character.LookInfo.Face = value; } }
@@ -171,7 +172,6 @@ namespace NextGen.Zone.Game
 		public PlayerState State { get; set; }
 		public MapObject SelectedObject { get; set; }
 		public FiestaBaseStat BaseStats { get { return DataProvider.Instance.GetBaseStats(Job, Level); } }
-		private Buffs.Buffs Buffs { get; set; }
 		public House House { get; set; }
 		public MapObject CharacterInTarget { get; set; }
 		public Question Question { get; set; }
@@ -217,29 +217,55 @@ namespace NextGen.Zone.Game
                 }
 				Program.CharDBManager.GetClient().
 					ExecuteQuery(
-						"UPDATE Characters SET XPos=" + Character.PositionInfo.XPos 
-						+ ", YPos=" + Character.PositionInfo.YPos 
-						+ ", Map=" + Character.PositionInfo.Map 
-						+ ", Level=" + Character.CharLevel 
-						+ ", Job=" + Character.Job 
-						+ ", CurHP=" + Character.HP 
-						+ " , CurSP=" + Character.SP 
-						+ ", Exp=" + Character.Exp 
-						+ " , Money=" + Character.Money 
-						+ ", Hair=" + Character.LookInfo.Hair 
-						+ " , HairColor=" + Character.LookInfo.HairColor 
-						+ " , Face=" + Character.LookInfo.Face 
-						+ " , StatPoints=" + Character.StatPoints 
-						+ " , Str=" + Character.CharacterStats.StrStats 
-						+ " , End=" + Character.CharacterStats.EndStats 
-						+ " , Dex=" + Character.CharacterStats.DexStats 
-						+ " , StrInt=" + Character.CharacterStats.IntStats 
-						+ " , Spr=" + Character.CharacterStats.StrStats 
-						+ " , GuildID=" + Character.GuildID 
-						+ " , UsablePoints=" + Character.UsablePoints
-                        + " , MountID=" + MountID
-                        + " , MountFood=" + Mountfood
-						+ " WHERE CharID=" + Character.ID + "");
+						"UPDATE Characters SET XPos=@xPos, YPos=@yPos, Map=@map, Level=@level, Job=@job, " +
+						"CurHP=@curHP, CurSP=@curSP, Exp=@exp, Money=@money, Hair=@hair, HairColor=@hairColor, " +
+						"Face=@face, StatPoints=@statPoints, Str=@str, End=@end, Dex=@dex, StrInt=@strInt, " +
+						"Spr=@spr, GuildID=@guildId, UsablePoints=@usablePoints, MountID=@mountId, MountFood=@mountFood, " +
+						"KillPoints=@killPoints, TotalMobKills=@totalMobKills, MobKillTitleTier=@mobKillTitleTier, " +
+						"PvPKillTitleTier=@pvpKillTitleTier, NpcBuyCount=@npcBuyCount, NpcBuyTitleTier=@npcBuyTitleTier, " +
+						"NpcSellCount=@npcSellCount, NpcSellTitleTier=@npcSellTitleTier, " +
+						"FriendCount=@friendCount, FriendCountTitleTier=@friendCountTitleTier, " +
+						"TotalTitlesEarned=@totalTitlesEarned, FameCountTitleTier=@fameCountTitleTier " +
+						"WHERE CharID=@charId",
+						new MySqlParameter("@xPos", Character.PositionInfo.XPos),
+						new MySqlParameter("@yPos", Character.PositionInfo.YPos),
+						new MySqlParameter("@map", Character.PositionInfo.Map),
+						new MySqlParameter("@level", Character.CharLevel),
+						new MySqlParameter("@job", Character.Job),
+						new MySqlParameter("@curHP", Character.HP),
+						new MySqlParameter("@curSP", Character.SP),
+						new MySqlParameter("@exp", Character.Exp),
+						new MySqlParameter("@money", Character.Money),
+						new MySqlParameter("@hair", Character.LookInfo.Hair),
+						new MySqlParameter("@hairColor", Character.LookInfo.HairColor),
+						new MySqlParameter("@face", Character.LookInfo.Face),
+						new MySqlParameter("@statPoints", Character.StatPoints),
+						new MySqlParameter("@str", Character.CharacterStats.StrStats),
+						new MySqlParameter("@end", Character.CharacterStats.EndStats),
+						new MySqlParameter("@dex", Character.CharacterStats.DexStats),
+						new MySqlParameter("@strInt", Character.CharacterStats.IntStats),
+						// War: Character.CharacterStats.StrStats (Staerke statt
+						// Willenskraft) - echter, unabhaengig entdeckter Bug,
+						// siehe DOCUMENTATION.md Abschnitt 26. Spr waere nie
+						// korrekt gespeichert worden.
+						new MySqlParameter("@spr", Character.CharacterStats.SprStats),
+						new MySqlParameter("@guildId", Character.GuildID),
+						new MySqlParameter("@usablePoints", Character.UsablePoints),
+						new MySqlParameter("@mountId", MountID),
+						new MySqlParameter("@mountFood", Mountfood),
+						new MySqlParameter("@killPoints", Character.KillPoints),
+						new MySqlParameter("@totalMobKills", Character.TotalMobKills),
+						new MySqlParameter("@mobKillTitleTier", Character.MobKillTitleTier),
+						new MySqlParameter("@pvpKillTitleTier", Character.PvPKillTitleTier),
+						new MySqlParameter("@npcBuyCount", Character.NpcBuyCount),
+						new MySqlParameter("@npcBuyTitleTier", Character.NpcBuyTitleTier),
+						new MySqlParameter("@npcSellCount", Character.NpcSellCount),
+						new MySqlParameter("@npcSellTitleTier", Character.NpcSellTitleTier),
+						new MySqlParameter("@friendCount", Character.FriendCount),
+						new MySqlParameter("@friendCountTitleTier", Character.FriendCountTitleTier),
+						new MySqlParameter("@totalTitlesEarned", Character.TotalTitlesEarned),
+						new MySqlParameter("@fameCountTitleTier", Character.FameCountTitleTier),
+						new MySqlParameter("@charId", Character.ID));
 
 				TimeSpan savetime = DateTime.Now - start;
 				Log.WriteLine(LogLevel.Debug, "Saved character in {0}", savetime.TotalMilliseconds);
@@ -250,9 +276,84 @@ namespace NextGen.Zone.Game
 			return true;
 		}
 
+		// Gemeinsamer Kern fuer alle Titel-Kategorien (siehe DOCUMENTATION.md
+		// Abschnitt 41/42): prueft, ob eine oder mehrere neue Stufen erreicht
+		// wurden, vergibt die zugehoerige Fame-Summe und gibt die neue
+		// Stufe zurueck (Properties koennen nicht per ref uebergeben werden,
+		// daher Rueckgabewert statt In-Place-Aenderung).
+		private byte AdvanceTitleTier(uint titleType, byte tier, uint value)
+		{
+			if (!DataProvider.Instance.TitleCategoriesByType.TryGetValue(titleType, out var category))
+				return tier; // Titeldaten nicht geladen/exportiert
+			while (tier < 4 && value >= category.Tiers[tier].Value)
+			{
+				Fame += (int)category.Tiers[tier].Fame;
+				Log.WriteLine(LogLevel.Info, "{0} erreicht Titel '{1}' (+{2} Fame).", Name, category.Tiers[tier].Title, category.Tiers[tier].Fame);
+				// TODO: Client-Benachrichtigung - Opcode nicht bekannt (kein
+				// Mitschnitt einer echten Titelvergabe vorhanden).
+				tier++;
+				// FAME_COUNT (44) - selbstreferenzielle Meta-Kategorie:
+				// jede vergebene Titelstufe (ueber alle Kategorien) zaehlt
+				// selbst wieder. "titleType != 44"-Schutz verhindert
+				// direkte Rekursion in derselben Kategorie; die while-
+				// Schleife dort hat ohnehin nur 4 endliche Stufen, ein
+				// Aufschaukeln ist damit ausgeschlossen. Siehe
+				// DOCUMENTATION.md Abschnitt 50.
+				Character.TotalTitlesEarned++;
+				if (titleType != 44)
+					Character.FameCountTitleTier = AdvanceTitleTier(44, Character.FameCountTitleTier, Character.TotalTitlesEarned);
+			}
+			return tier;
+		}
+
+		// FRIEND_COUNT (34) - der eigentliche Zaehler laeuft im World-Server
+		// (WorldCharacter.AddFriend, siehe DOCUMENTATION.md Abschnitt 50),
+		// hier nur die Titel-/Fame-Vergabe beim naechsten Zone-Login
+		// nachgeholt.
+		public void CatchUpFriendTitleProgress()
+		{
+			Character.FriendCountTitleTier = AdvanceTitleTier(34, Character.FriendCountTitleTier, Character.FriendCount);
+		}
+
+		// Titel-Fortschritt fuer TOTAL_KILL_MOB (CharacterTitleData.shn Typ
+		// 11), siehe DOCUMENTATION.md Abschnitt 41. Einzige aktuell
+		// angebundene Titel-Kategorie von 127 moeglichen - die meisten
+		// anderen (Gildenkriege, Auktionshaus, Wuerfelspiele, ...) haben
+		// noch keine passende Zaehlstelle im Code.
+		public void GiveMobKillTitleProgress()
+		{
+			Character.TotalMobKills++;
+			Character.MobKillTitleTier = AdvanceTitleTier(11, Character.MobKillTitleTier, Character.TotalMobKills);
+		}
+
+		// KILL_GUILD (Typ 12) - PvP-Kills, dieselbe Zaehlstelle wie
+		// KillPoints (Abschnitt 26.2). Gibt laut echten Daten 0 Fame in
+		// allen 4 Stufen, aber die Titel selbst ("Guild War Champion" etc.)
+		// werden trotzdem vergeben.
+		public void GivePvPKillTitleProgress()
+		{
+			Character.PvPKillTitleTier = AdvanceTitleTier(12, Character.PvPKillTitleTier, (uint)KillPoints);
+		}
+
+		// BUY_NPC_COUNT (Typ 24) / SELL_NPC_COUNT (Typ 23) - NPC-Handel.
+		public void GiveNpcBuyTitleProgress()
+		{
+			Character.NpcBuyCount++;
+			Character.NpcBuyTitleTier = AdvanceTitleTier(24, Character.NpcBuyTitleTier, Character.NpcBuyCount);
+		}
+		public void GiveNpcSellTitleProgress()
+		{
+			Character.NpcSellCount++;
+			Character.NpcSellTitleTier = AdvanceTitleTier(23, Character.NpcSellTitleTier, Character.NpcSellCount);
+		}
+
 		public void GiveExp(uint amount, ushort mobid = (ushort) 0xFFFF)
 		{
 			if (Level == DataProvider.Instance.ExpTable.Count) return; // No overleveling
+			// ActionIndex 107 ("EXP-Bonus"), siehe DOCUMENTATION.md Abschnitt 20.
+			// ExpBonusPercent=10 bedeutet +10% auf die erhaltene Erfahrung.
+			if (Buffs.ExpBonusPercent != 0)
+				amount = (uint)(amount * (100 + Buffs.ExpBonusPercent) / 100);
 			if (Exp + amount < 0)
 			{
 				Exp = long.MaxValue;
@@ -316,6 +417,9 @@ namespace NextGen.Zone.Game
 			Handler4.SendQuestListDone(this);
 			Handler4.SendActiveSkillList(this);
 			Handler4.SendPassiveSkillList(this);
+			// FRIEND_COUNT-Titelfortschritt nachholen, siehe DOCUMENTATION.md
+			// Abschnitt 50 - der Zaehler laeuft im World-Server.
+			CatchUpFriendTitleProgress();
 			Handler4.SendEquippedList(this);
 			Handler4.SendInventoryList(this);
 			Handler4.SendHouseList(this);
@@ -467,7 +571,11 @@ namespace NextGen.Zone.Game
             {
               this.Client.SendPacket(packet);
             }
-            Program.CharDBManager.GetClient().ExecuteQuery("UPDATE Items SET fuelcount="+this.Mount.Food+" WHERE Owner="+this.ID+" AND ItemID="+this.Mount.ItemID+" AND Slot="+this.Mount.ItemSlot+";");
+            Program.CharDBManager.GetClient().ExecuteQuery("UPDATE Items SET fuelcount=@food WHERE Owner=@owner AND ItemID=@itemId AND Slot=@slot;",
+                new MySqlParameter("@food", this.Mount.Food),
+                new MySqlParameter("@owner", this.ID),
+                new MySqlParameter("@itemId", this.Mount.ItemID),
+                new MySqlParameter("@slot", this.Mount.ItemSlot));
             this.State = PlayerState.Normal;
             this.Mount = null;
             using (var packet = new Packet(SH8Type.MapUnmount))
@@ -604,7 +712,6 @@ namespace NextGen.Zone.Game
                 }
                 else if (item.ItemInfo.Class == ItemClass.SkillBook)
                 {
-                    //TODO: passive skills!
                     ActiveSkillInfo info;
                     if (DataProvider.Instance.ActiveSkillsByName.TryGetValue(item.ItemInfo.InxName, out info))
                     {
@@ -623,7 +730,12 @@ namespace NextGen.Zone.Game
                             dskill.IsPassive = false;
                             dskill.Upgrades = 0;
                             Character.SkillList.Add(dskill);
-                            Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO Skillist (ID,Owner,SkillID,Upgrades,IsPassive) VALUES ('" + dskill.ID + "','" + dskill.Character.ID + "','" + dskill.SkillID + "','" + dskill.Upgrades + "','" + Convert.ToInt32(dskill.IsPassive) + "')");
+                            Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO Skillist (ID,Owner,SkillID,Upgrades,IsPassive) VALUES (@id,@owner,@skillId,@upgrades,@isPassive)",
+                                new MySqlParameter("@id", dskill.ID),
+                                new MySqlParameter("@owner", dskill.Character.ID),
+                                new MySqlParameter("@skillId", dskill.SkillID),
+                                new MySqlParameter("@upgrades", dskill.Upgrades),
+                                new MySqlParameter("@isPassive", Convert.ToInt32(dskill.IsPassive)));
                             Save();
                             Skill skill = new Skill(dskill);
                             SkillsActive.Add(skill.ID, skill);
@@ -631,9 +743,45 @@ namespace NextGen.Zone.Game
                             //TODO: broadcast the animation of learning to others
                         }
                     }
+                    else if (DataProvider.Instance.PassiveSkillsByName.TryGetValue(item.ItemInfo.InxName, out var passiveInfo))
+                    {
+                        // Fix: Skillbuecher konnten bisher nur aktive Skills
+                        // lehren (IsPassive war hier hartkodiert false) - siehe
+                        // DOCUMENTATION.md Abschnitt 25/26. Gleicher Ablauf wie
+                        // oben fuer aktive Skills, aber IsPassive=true, Eintrag
+                        // in SkillsPassive statt SkillsActive, und die
+                        // permanente Wirkung wird sofort angewendet.
+                        if (SkillsPassive.ContainsKey(passiveInfo.ID))
+                        {
+                            Handler12.SendItemUsed(this, item, 1811);
+                        }
+                        else
+                        {
+                            Handler12.SendItemUsed(this, item);
+                            UseOneItemStack(item);
+                            DatabaseSkill dskill = new DatabaseSkill();
+                            dskill.Character = Character;
+                            dskill.SkillID = (short)passiveInfo.ID;
+                            dskill.IsPassive = true;
+                            dskill.Upgrades = 0;
+                            Character.SkillList.Add(dskill);
+                            Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO Skillist (ID,Owner,SkillID,Upgrades,IsPassive) VALUES (@id,@owner,@skillId,@upgrades,@isPassive)",
+                                new MySqlParameter("@id", dskill.ID),
+                                new MySqlParameter("@owner", dskill.Character.ID),
+                                new MySqlParameter("@skillId", dskill.SkillID),
+                                new MySqlParameter("@upgrades", dskill.Upgrades),
+                                new MySqlParameter("@isPassive", Convert.ToInt32(dskill.IsPassive)));
+                            Save();
+                            Skill skill = new Skill(dskill);
+                            SkillsPassive.Add(skill.ID, skill);
+                            AddPassiveSkill(passiveInfo);
+                            Handler18.SendSkillLearnt(this, skill.ID);
+                            //TODO: broadcast the animation of learning to others
+                        }
+                    }
                     else
                     {
-                        Log.WriteLine(LogLevel.Error, "Character tried to use skillbook but ActiveSkill does not exist.");
+                        Log.WriteLine(LogLevel.Error, "Character tried to use skillbook but neither ActiveSkill nor PassiveSkill exists for '{0}'.", item.ItemInfo.InxName);
                         Handler12.SendItemUsed(this, item, 1811);
                     }
                 }
@@ -653,8 +801,23 @@ namespace NextGen.Zone.Game
                     {
                         switch (effect.Type)
                         {
-                            case ItemUseEffectType.AbState: //TOOD: add buffs for itemuse
-                                continue;
+                            case ItemUseEffectType.AbState:
+                                {
+                                    if (string.IsNullOrEmpty(effects.AbState) || effects.AbState == "-")
+                                    {
+                                        Log.WriteLine(LogLevel.Warn, "ItemUseEffect fuer Item {0} hat AbState-Typ ohne AbState-Namen.", item.ID);
+                                        continue;
+                                    }
+                                    if (!DataProvider.Instance.AbStatesByName.TryGetValue(effects.AbState, out var abState))
+                                    {
+                                        Log.WriteLine(LogLevel.Warn, "Unbekannter AbState '{0}' fuer Item {1}.", effects.AbState, item.ID);
+                                        continue;
+                                    }
+                                    // effect.Value (aus UseValueA/B/C) traegt hier die Staerke-Stufe
+                                    // (Strength), analog zum SetBuff-InterPacket in BuffManager.cs.
+                                    AddBuff(abState, effect.Value);
+                                    continue;
+                                }
 
                             case ItemUseEffectType.HP:
                                 HealHP(effect.Value);
@@ -731,7 +894,15 @@ namespace NextGen.Zone.Game
 				{
 					HealSP((MaxSP / 1000 * House.Info.SPRecovery));
 					//TODO: also show this to people who have me selected.
-					NextSPRest = date.AddMilliseconds(House.Info.SPTick);
+					// SAA_LPAMOUNT (113) - siehe DOCUMENTATION.md Abschnitt
+					// 44.2/46. Erhoeht die Regenerationsrate, indem das naechste
+					// Tick-Intervall verkuerzt wird (100% Bonus = doppelt so
+					// oft). Vermutlich fuer Sentinel/Savior (Crusader/
+					// Templar) relevant, aber nicht klassenbeschraenkt
+					// umgesetzt - wirkt fuer jeden Charakter mit passendem Buff.
+					int regenBonus = Math.Max(-90, Buffs.SPRegenRatePercent); // Untergrenze verhindert Intervall<=0
+					uint spTick = (uint)(House.Info.SPTick * 100 / (100 + regenBonus));
+					NextSPRest = date.AddMilliseconds(spTick);
 				}
 			}
 		}
@@ -927,7 +1098,8 @@ namespace NextGen.Zone.Game
 			DataTable skilllistdata = null;
 			using (DatabaseClient dbClient = Program.CharDBManager.GetClient())
 			{
-				skilllistdata = dbClient.ReadDataTable("SELECT *FROM Skillist WHERE Owner='" + Character.ID + "'");
+				skilllistdata = dbClient.ReadDataTable("SELECT *FROM Skillist WHERE Owner=@owner",
+					new MySqlParameter("@owner", Character.ID));
 			}
 			SkillsActive = new Dictionary<ushort, Skill>();
 			SkillsPassive = new Dictionary<ushort, Skill>();
@@ -950,6 +1122,14 @@ namespace NextGen.Zone.Game
 				if (s.IsPassive)
 				{
 					SkillsPassive.Add(s.ID, s);
+					// Permanente Wirkung anwenden, siehe DOCUMENTATION.md
+					// Abschnitt 25. Unbekannte IDs (z.B. Skills ohne
+					// data_passiveskill-Eintrag) werden geloggt statt eine
+					// Exception zu riskieren.
+					if (DataProvider.Instance.PassiveSkillsByID.TryGetValue(s.ID, out var passiveInfo))
+						AddPassiveSkill(passiveInfo);
+					else
+						Log.WriteLine(LogLevel.Warn, "Passiver Skill {0} hat keinen data_passiveskill-Eintrag.", s.ID);
 				}
 				else
 				{
@@ -1371,9 +1551,14 @@ namespace NextGen.Zone.Game
 		}
 		public int GetAim(bool buffed = false)
 		{
-			return 15;
-			//TODO: basestats aim + dex?
-			//aim inc (calculate later based on dex)
+			// War: reiner Stub ("return 15", buffed-Parameter ignoriert, TODO
+			// "basestats aim + dex?"). Buffs.Aim ist jetzt real befuellt
+			// (ActionIndex 10/92, siehe DOCUMENTATION.md Abschnitt 19) -
+			// Basiswert 15 als Platzhalter beibehalten (echte Formel aus
+			// BaseStats/Dex weiterhin ungeklaert, das war schon vor dieser
+			// Aenderung offen), aber der Buff-Anteil wird jetzt addiert statt
+			// verworfen.
+			return 15 + (buffed ? Buffs.Aim : 0);
 		}
 		public ushort GetEquippedBySlot(ItemSlot pType)
 		{
@@ -1800,6 +1985,14 @@ namespace NextGen.Zone.Game
 				dmgmin += weapon.ItemInfo.MinMelee;
 				dmgmax += weapon.ItemInfo.MaxMelee;
 			}
+			// Buffs.AttackSpeed (ActionIndex 78, "Increased Attack Rate") wird
+			// hier als Verringerung der Millisekunden zwischen Angriffen
+			// interpretiert (schneller = kuerzeres Intervall) - Skalierung
+			// (1 Punkt = 1ms?) nicht gegen einen echten Client verifiziert,
+			// siehe DOCUMENTATION.md Abschnitt 20. Untergrenze 300ms, um ein
+			// unspielbar schnelles/negatives Intervall durch Buff-Stacking
+			// auszuschliessen.
+			attackspeed = (ushort)Math.Max(300, attackspeed - Buffs.AttackSpeed);
 
 			base.Attack(victim);
 			attackingSequence = new AttackSequence(this, victim, dmgmin, dmgmax, attackspeed);
@@ -1815,12 +2008,32 @@ namespace NextGen.Zone.Game
 
 			Item weapon;
 			this.Inventory.GetEquiptBySlot((byte)ItemSlot.Weapon, out weapon);
-			uint dmgmin = (uint)GetWeaponDamage(true);
-			uint dmgmax = (uint)(GetWeaponDamage(true) + (GetWeaponDamage(true) % 3));
-			if (weapon != null)
+			// Fix: vorher wurde fuer JEDEN Skill (auch Magie-Skills) die
+			// Nahkampf-Basis (GetWeaponDamage/MinMelee) verwendet - GetMagicDamage()
+			// und Item.MinMagic/MaxMagic existierten bereits, wurden aber
+			// nirgends gelesen. Jetzt anhand ActiveSkillInfo.IsMagic
+			// unterschieden. Siehe DOCUMENTATION.md Abschnitt 46.
+			bool isMagic = DataProvider.Instance.ActiveSkillsByID.TryGetValue(skillid, out var skillInfoForType) && skillInfoForType.IsMagic;
+			uint dmgmin, dmgmax;
+			if (isMagic)
 			{
-				dmgmin += weapon.ItemInfo.MinMelee;
-				dmgmax += weapon.ItemInfo.MaxMelee;
+				dmgmin = (uint)GetMagicDamage(true);
+				dmgmax = (uint)(GetMagicDamage(true) + (GetMagicDamage(true) % 3));
+				if (weapon != null)
+				{
+					dmgmin += weapon.ItemInfo.MinMagic;
+					dmgmax += weapon.ItemInfo.MaxMagic;
+				}
+			}
+			else
+			{
+				dmgmin = (uint)GetWeaponDamage(true);
+				dmgmax = (uint)(GetWeaponDamage(true) + (GetWeaponDamage(true) % 3));
+				if (weapon != null)
+				{
+					dmgmin += weapon.ItemInfo.MinMelee;
+					dmgmax += weapon.ItemInfo.MaxMelee;
+				}
 			}
 
 			attackingSequence = new AttackSequence(this, victim, dmgmin, dmgmax, skillid, true);
@@ -1842,13 +2055,27 @@ namespace NextGen.Zone.Game
 			attackingSequence = new AttackSequence(this, dmgmin, dmgmax, skillid, x, y);
 		}
 
-		public override void Damage(MapObject bully, uint amount, bool isSP = false)
+		public override void Damage(MapObject bully, uint amount, bool isSP = false, bool isReflected = false)
 		{
-			base.Damage(bully, amount, isSP);
+			base.Damage(bully, amount, isSP, isReflected);
 			if (IsDead)
 			{
 				State = PlayerState.Dead;
 				Handler4.SendReviveWindow(this.Client, 3);
+				// SAA_DEADHPSPRECOVRATE (24), siehe DOCUMENTATION.md
+				// Abschnitt 46. Heilt Party-Mitglieder (nicht sich selbst)
+				// beim eigenen Tod, falls ein passender Buff aktiv war.
+				if (Buffs.PartyDeathHealPermille > 0)
+				{
+					foreach (var member in Party.Values)
+					{
+						if (member.Character == this) continue;
+						uint healHp = (uint)(member.Character.MaxHP * (uint)Math.Min(1000, Buffs.PartyDeathHealPermille) / 1000);
+						uint healSp = (uint)(member.Character.MaxSP * (uint)Math.Min(1000, Buffs.PartyDeathHealPermille) / 1000);
+						member.Character.HealHP(healHp);
+						member.Character.HealSP(healSp);
+					}
+				}
 			}
 		}
 		public override string ToString()

@@ -1,9 +1,10 @@
-﻿using NextGen.Database.DataStore;
+using NextGen.Database.DataStore;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
 using NextGen.Zone.Data;
 using NextGen.Database.Storage;
+using MySqlConnector;
 
 namespace NextGen.Zone.Game
 {
@@ -18,11 +19,17 @@ namespace NextGen.Zone.Game
         public override ItemInfo ItemInfo { get { return DataProvider.Instance.GetItemInfo(this.ID); } }
         public  void AddToDatabase()
         {
-            Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO  Rewarditems (CharID,Slot,ItemID,PageID) VALUES ('" + this.CharID + "','" + this.Slot + "','" + this.ID + "','" + this.PageID + "')");
+            Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO  Rewarditems (CharID,Slot,ItemID,PageID) VALUES (@charId,@slot,@itemId,@pageId)",
+                new MySqlParameter("@charId", this.CharID),
+                new MySqlParameter("@slot", this.Slot),
+                new MySqlParameter("@itemId", this.ID),
+                new MySqlParameter("@pageId", this.PageID));
         }
         public void RemoveFromDatabase()
         {
-            Program.CharDBManager.GetClient().ExecuteQuery("DELETE FROM Rewarditems WHERE CharID='" + this.CharID + "' AND ItemID='" + this.ID + "'");
+            Program.CharDBManager.GetClient().ExecuteQuery("DELETE FROM Rewarditems WHERE CharID=@charId AND ItemID=@itemId",
+                new MySqlParameter("@charId", this.CharID),
+                new MySqlParameter("@itemId", this.ID));
         }
         public override void WriteInfo(Packet pPacket, bool WriteStats = true)
         {

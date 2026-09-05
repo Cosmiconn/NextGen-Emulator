@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
@@ -15,13 +15,25 @@ namespace NextGen.Zone.Game
         public bool Moving { get; set; }
 
         public MapObject Target { get; set; }
+        // SAA_DROPRATE (108), siehe DOCUMENTATION.md Abschnitt 46 - letzter
+        // Angreifer, um beim Tod dessen Buffs.DropRatePercent auf die
+        // Drop-Generierung anzuwenden.
+        public MapObject LastAttacker { get; set; }
+        // Erfasst den Angreifer fuer SAA_DROPRATE (108), siehe
+        // DOCUMENTATION.md Abschnitt 46. Nur bei echtem Schaden von aussen
+        // (bully != null, kein periodischer/reflektierter Schaden) gesetzt.
+        public override void Damage(MapObject bully, uint amount, bool isSP = false, bool isReflected = false)
+        {
+            if (bully != null && !isSP)
+                LastAttacker = bully;
+            base.Damage(bully, amount, isSP, isReflected);
+        }
         public const int MinMovement = 60;
         public const int MaxMovement = 180;
         private MobBreedLocation spawnplace;
         private bool deathTriggered;
         private bool DropState { get; set; }
         public MobInfo Info { get; private set; }
-
         public MobInfoServer InfoServer { get; private set; }
         public override uint MaxSP { get { if (InfoServer == null) return 100; return InfoServer.MaxSP; } set { return; } }
         public override uint MaxHP { get { if (Info == null) return 100; return Info.MaxHP; } set { return; } }
@@ -148,7 +160,13 @@ namespace NextGen.Zone.Game
             base.Attack(victim); // lol
 
             if (AttackingSequence != null) return;
-            AttackingSequence = new AttackSequence(this, victim, 0, InfoServer.Str, 1400);
+            // SAA_HIDEENEMY (65): Monster koennen unsichtbare Ziele nicht
+            // angreifen. Siehe DOCUMENTATION.md Abschnitt 46.
+            if (victim != null && victim.IsInvisible) return;
+            // Siehe ZoneCharacter.Attack() - gleiche Buffs.AttackSpeed-Anbindung,
+            // damit Debuffs (z.B. "Decreased Attack Rate") auch auf Mobs wirken.
+            ushort attackspeed = (ushort)Math.Max(300, 1400 - Buffs.AttackSpeed);
+            AttackingSequence = new AttackSequence(this, victim, 0, InfoServer.Str, attackspeed);
             Target = victim;
         }
 
@@ -203,6 +221,8 @@ namespace NextGen.Zone.Game
             {
                 return;
             }
+
+            TickBuffs(date);
 
             if (IsDead)
             {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NextGen.FiestaLib.Data;
 using NextGen.Util;
@@ -71,7 +71,9 @@ namespace NextGen.Zone.Game
         {
             this.x = x;
             this.y = y;
-            this.nextAction = Program.CurrentTime.AddMilliseconds(skillInfo.CastTime);
+            // SAA_CASTINGTIMEPLUS (29), siehe DOCUMENTATION.md Abschnitt 46.
+            double castTime = skillInfo.CastTime * (100 + att.GetCastingTimeBonusPercent()) / 100.0;
+            this.nextAction = Program.CurrentTime.AddMilliseconds(castTime);
             this.State = AnimationState.AoEShow;
         }
 
@@ -130,6 +132,7 @@ namespace NextGen.Zone.Game
                                 {
                                     uint exp = (v as Mob).InfoServer.MonExp;
                                     (attacker as ZoneCharacter).GiveExp(exp, v.MapObjectID);
+                                    (attacker as ZoneCharacter).GiveMobKillTitleProgress();
                                 }
                             }
 
@@ -169,15 +172,26 @@ namespace NextGen.Zone.Game
                 {
                     // Calculate some damage to do
                     ushort dmg = (ushort)Program.Randomizer.Next((int)minDamage, (int)maxDamage);
+                    // SAA_ACSHIELDRATE (103) - Nahkampf ist immer physisch.
+                    // Siehe DOCUMENTATION.md Abschnitt 46.
+                    if (victim.GetIgnorePhysicalDamagePercent() > 0 && Program.Randomizer.Next(0, 100) < victim.GetIgnorePhysicalDamagePercent())
+                        dmg = 0;
                     if (dmg > victim.HP)
                     {
                         victim.HP = 0;
                     }
-                    bool crit = Program.Randomizer.Next() % 100 >= 80;
+                    // War: hartkodierte 20% Kritchance (Program.Randomizer.Next() % 100 >= 80),
+                    // unabhaengig von jeglichem Charakterwert. CriticalRate aus
+                    // Buffs (ActionIndex 34/80, siehe DOCUMENTATION.md
+                    // Abschnitt 19/20) senkt/erhoeht jetzt die Schwelle.
+                    // Geklemmt auf 1-99, damit weder garantiertes Treffen noch
+                    // garantiertes Nicht-Treffen durch Buff-Stacking entsteht.
+                    int critThreshold = Math.Max(1, Math.Min(99, 80 - attacker.GetCriticalRateBuff()));
+                    bool crit = Program.Randomizer.Next() % 100 >= critThreshold;
                     byte stance = (byte)(Program.Randomizer.Next(0, 3));
                     victim.Damage(attacker, dmg);
-                    Handler9.SendAttackAnimation(attacker, victim.MapObjectID, attackspeed, stance);
-                    Handler9.SendAttackDamage(attacker, victim.MapObjectID, dmg, crit, victim.HP, victim.UpdateCounter);
+                    Handler9.SendAttackAnimation(attacker, victim.MapObjectID, attackspeed, stance, victim.UpdateCounter);
+                    Handler9.SendAttackDamage(attacker, victim.MapObjectID, dmg, crit, (ushort)victim.HP, victim.UpdateCounter);
 
                     if (victim.IsDead)
                     {
@@ -185,8 +199,19 @@ namespace NextGen.Zone.Game
                         {
                             uint exp = (victim as Mob).InfoServer.MonExp;
                             (attacker as ZoneCharacter).GiveExp(exp, victim.MapObjectID);
+                            (attacker as ZoneCharacter).GiveMobKillTitleProgress();
                         }
-                        
+                        else if (victim is ZoneCharacter && attacker is ZoneCharacter)
+                        {
+                            // PvP-Kill Points, siehe DOCUMENTATION.md Abschnitt 26.
+                            // Betrag (1 Punkt/Kill) nicht verifiziert - keine
+                            // Belegstelle im Code oder den FH-Docs fuer die
+                            // tatsaechliche Fiesta-Online-Formel gefunden. Bewusst
+                            // simpel gehalten statt eine Zahl zu erfinden.
+                            (attacker as ZoneCharacter).KillPoints += 1;
+                            (attacker as ZoneCharacter).GivePvPKillTitleProgress();
+                        }
+
                         Handler9.SendDieAnimation(attacker, victim.MapObjectID);
                         victim = null;
                         State = AnimationState.Ended;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using NextGen.Zone.Handlers;
 
@@ -86,8 +86,8 @@ namespace NextGen.Zone.Game
 				bool crit = seed >= 80;
 				stance = (byte)(Program.Randomizer.Next(0, 3));
 				to.Damage(from, damage);
-				Handler9.SendAttackAnimation(from, toID, attackSpeed, stance);
-				Handler9.SendAttackDamage(from, toID, damage, crit, GetHPLeft(), to.UpdateCounter);
+				Handler9.SendAttackAnimation(from, toID, attackSpeed, stance, to.UpdateCounter);
+				Handler9.SendAttackDamage(from, toID, damage, crit, (ushort)GetHPLeft(), to.UpdateCounter);
 
 				if (to.IsDead)
 				{

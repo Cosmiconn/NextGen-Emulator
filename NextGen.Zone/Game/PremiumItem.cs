@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Data;
+using MySqlConnector;
 using NextGen.Database.DataStore;
 using NextGen.FiestaLib.Networking;
 using NextGen.Zone.Game;
@@ -24,11 +25,17 @@ namespace NextGen.Zone
         }
         public virtual void RemoveFromDatabase()
         {
-            Program.CharDBManager.GetClient().ExecuteQuery("DELETE FROM PremiumItem WHERE CharID='" + this.CharID + "' AND UniqueID='" + this.UniqueID + "'");
+            Program.CharDBManager.GetClient().ExecuteQuery("DELETE FROM PremiumItems WHERE CharID=@charId AND UniqueID=@uniqueId",
+                new MySqlParameter("@charId", this.CharID),
+                new MySqlParameter("@uniqueId", this.UniqueID));
         }
         public virtual void AddToDatabase()
         {
-            Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO PremiumItems (CharID,ShopID,UniqueID,PageID) VALUES ('"+this.CharID+"','"+this.ShopID+"','"+this.UniqueID+"','"+this.PageID+"')");
+            Program.CharDBManager.GetClient().ExecuteQuery("INSERT INTO PremiumItems (CharID,ShopID,UniqueID,PageID) VALUES (@charId,@shopId,@uniqueId,@pageId)",
+                new MySqlParameter("@charId", this.CharID),
+                new MySqlParameter("@shopId", this.ShopID),
+                new MySqlParameter("@uniqueId", this.UniqueID),
+                new MySqlParameter("@pageId", this.PageID));
         }
         public static PremiumItem LoadFromDatabase(DataRow row)
         {

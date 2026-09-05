@@ -1,13 +1,14 @@
-﻿using System;
+using System;
+using System.Data;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using MySqlConnector;
 using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
 using NextGen.Util;
 using NextGen.Zone.Data;
 using NextGen.Zone.Handlers;
-using System.Data;
 using NextGen.Database;
 using NextGen.Database.DataStore;
 
@@ -69,7 +70,8 @@ namespace NextGen.Zone.Game
 			DataTable data = null;
 			using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
 			{
-				data = dbClient.ReadDataTable("SELECT  *FROM `"+Settings.Instance.zoneMysqlDatabase+"`.`Mobspawn` WHERE MapID='" + this.MapInfo.ID + "'");
+				data = dbClient.ReadDataTable("SELECT  *FROM `"+Settings.Instance.zoneMysqlDatabase+"`.`Mobspawn` WHERE MapID=@mapId",
+					new MySqlParameter("@mapId", this.MapInfo.ID));
 			}
 
 			if (data != null)
@@ -105,7 +107,12 @@ namespace NextGen.Zone.Game
 			foreach (var mobspawn in this.MobBreeds)
 			{
 
-				Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO `" + Settings.Instance.zoneMysqlDatabase + "`.`Mobspawn` (MobID,MapID,PosX,PosY,InstanceID) VALUES ('" + mobspawn.MobID + "','" + mobspawn.MapID + "','" + mobspawn.Position.X + "','" + mobspawn.Position.Y + "','" + mobspawn.InstanceID + "')");
+				Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO `" + Settings.Instance.zoneMysqlDatabase + "`.`Mobspawn` (MobID,MapID,PosX,PosY,InstanceID) VALUES (@mobId,@mapId,@posX,@posY,@instanceId)",
+					new MySqlParameter("@mobId", mobspawn.MobID),
+					new MySqlParameter("@mapId", mobspawn.MapID),
+					new MySqlParameter("@posX", mobspawn.Position.X),
+					new MySqlParameter("@posY", mobspawn.Position.Y),
+					new MySqlParameter("@instanceId", mobspawn.InstanceID));
 			}
 		}
 

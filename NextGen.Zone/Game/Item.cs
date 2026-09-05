@@ -63,7 +63,9 @@ namespace NextGen.Zone.Game
         {
             if (this.UniqueID > 0)
             {
-                Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM items WHERE ID=" + this.UniqueID + " AND Slot='" + this.Slot + "'");
+                Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM items WHERE ID=@id AND Slot=@slot",
+                    new MySqlParameter("@id", this.UniqueID),
+                    new MySqlParameter("@slot", this.Slot));
                 UniqueID = 0;
                 Owner = 0;
                 return true;

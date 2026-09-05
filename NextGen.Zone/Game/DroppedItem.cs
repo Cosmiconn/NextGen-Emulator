@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using NextGen.FiestaLib.Data;
 using NextGen.Zone.Data;

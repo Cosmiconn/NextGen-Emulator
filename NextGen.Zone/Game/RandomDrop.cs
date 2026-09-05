@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,10 +11,15 @@ namespace NextGen.Zone.Game
         private Random ran = new Random();
         private Mob Monster { get; set; }
         private byte dropcounter { get; set; }
+        // SAA_DROPRATE (108), siehe DOCUMENTATION.md Abschnitt 46 - Bonus
+        // des letzten Angreifers, falls bekannt.
+        private readonly float dropRateMultiplier;
         public RandomDrop(Mob mob)
         {
             this.dropcounter = 0;
             this.Monster = mob;
+            int bonus = mob.LastAttacker?.GetDropRateBonusPercent() ?? 0;
+            this.dropRateMultiplier = (100 + bonus) / 100.0f;
             GenerateDrop();
         }
         void GenerateDrop()
@@ -23,7 +28,7 @@ namespace NextGen.Zone.Game
             {
                 float rate = (float)(this.ran.NextDouble() * this.Monster.Info.Drops.Count);
                 float RandomRate = rate * 100.0f / this.Monster.Info.Drops.Count;
-                    if (RandomRate < DropInfo.Rate)
+                    if (RandomRate < DropInfo.Rate * dropRateMultiplier)
                     {
                         if (dropcounter >= DropInfo.Group.MaxCount) return;
                         DropItems(DropInfo.Group.Items, DropInfo.Rate, DropInfo.Group.MinCount, DropInfo.Group.MaxCount);
@@ -43,7 +48,7 @@ namespace NextGen.Zone.Game
                 int index = (int)(ran.NextDouble() * Items.Count);
                 float rate = (float)(ran.NextDouble() * Items.Count);
                 float RandomRate = rate * 100.0f / Items.Count;
-                if (RandomRate < Rate)
+                if (RandomRate < Rate * dropRateMultiplier)
                 {
                     if (litem.Type != ItemType.Equip)
                     {
