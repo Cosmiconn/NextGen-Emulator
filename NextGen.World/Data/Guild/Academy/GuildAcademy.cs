@@ -1,4 +1,4 @@
-﻿/*File for this file Basic Copyright 2012 no0dl */
+/*File for this file Basic Copyright 2012 no0dl */
 using System;
 using System.Data;
 using NextGen.World.Networking;
@@ -59,8 +59,10 @@ namespace NextGen.World.Data.Guilds.Academy
                 DataTable MemberData = null;
            using(DatabaseClient DBClient = Program.DatabaseManager.GetClient())
            {
-               AcademyData = DBClient.ReadDataTable("SELECT * FROM GuildAcademy WHERE GuildID = "+Guild.ID+"");
-              MemberData = DBClient.ReadDataTable("SELECT * FROM GuildAcademyMembers WHERE GuildID = "+Guild.ID+"");
+               AcademyData = DBClient.ReadDataTable("SELECT * FROM GuildAcademy WHERE GuildID = @guildId",
+                   new MySqlParameter("@guildId", Guild.ID));
+              MemberData = DBClient.ReadDataTable("SELECT * FROM GuildAcademyMembers WHERE GuildID = @guildId",
+                  new MySqlParameter("@guildId", Guild.ID));
 
            }
 
