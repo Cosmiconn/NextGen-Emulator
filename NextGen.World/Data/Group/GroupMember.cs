@@ -1,4 +1,4 @@
-﻿using MySqlConnector;
+using MySqlConnector;
 using NextGen.World.Networking;
 
 namespace NextGen.World.Data

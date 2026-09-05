@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -207,12 +207,12 @@ namespace NextGen.World.Data
             const string updateGroupTableQuery =
                 "UPDATE `groups` " +
                 "SET " +
-                    "`Member1` = {1} ," +
-                    "`Member2` = {2} ," +
-                    "`Member3` = {3} ," +
-                    "`Member4` = {4} ," +
-                    "`Member5` = {5} " +
-                "WHERE `Id` = {0}";
+                    "`Member1` = @member1 ," +
+                    "`Member2` = @member2 ," +
+                    "`Member3` = @member3 ," +
+                    "`Member4` = @member4 ," +
+                    "`Member5` = @member5 " +
+                "WHERE `Id` = @id";
 
             //--------------------------------------------------
             // Update table
@@ -220,14 +220,13 @@ namespace NextGen.World.Data
 
             using (var client = Program.DatabaseManager.GetClient())
             {
-                string query = string.Format(updateGroupTableQuery,
-                                this.Id,
-                                this.Members[0].CharId,
-                                (this.Members.Count >= 2 ? this.Members[1].CharId.ToString() : "NULL"),
-                                (this.Members.Count >= 3 ? this.Members[2].CharId.ToString() : "NULL"),
-                                (this.Members.Count >= 4 ? this.Members[3].CharId.ToString() : "NULL"),
-                                (this.Members.Count >= 5 ? this.Members[4].CharId.ToString() : "NULL"));
-                client.ExecuteQuery(query);
+                client.ExecuteQuery(updateGroupTableQuery,
+                    new MySqlParameter("@id", this.Id),
+                    new MySqlParameter("@member1", this.Members[0].CharId),
+                    new MySqlParameter("@member2", this.Members.Count >= 2 ? (object)this.Members[1].CharId : DBNull.Value),
+                    new MySqlParameter("@member3", this.Members.Count >= 3 ? (object)this.Members[2].CharId : DBNull.Value),
+                    new MySqlParameter("@member4", this.Members.Count >= 4 ? (object)this.Members[3].CharId : DBNull.Value),
+                    new MySqlParameter("@member5", this.Members.Count >= 5 ? (object)this.Members[4].CharId : DBNull.Value));
             }
         }
         internal void UpdateMembersInDatabase()
@@ -238,9 +237,9 @@ namespace NextGen.World.Data
             const string update_character_table_query =
                 "UPDATE `characters` " +
                 "SET " +
-                    "`GroupID` = {1} ," +
-                    "`IsGroupMaster` = {2} " +
-                "WHERE `CharID` = {0}";
+                    "`GroupID` = @groupId ," +
+                    "`IsGroupMaster` = @isGroupMaster " +
+                "WHERE `CharID` = @charId";
 
             //--------------------------------------------------
             // Update table
@@ -249,11 +248,10 @@ namespace NextGen.World.Data
             {
                 foreach (var member in this.Members)
                 {
-                    string query = string.Format(update_character_table_query,
-                                member.Character.ID,
-                                this.Id,
-                                member.Character.GroupMember.Role == GroupRole.Master);
-                    client.ExecuteQuery(query);
+                    client.ExecuteQuery(update_character_table_query,
+                        new MySqlParameter("@charId", member.Character.ID),
+                        new MySqlParameter("@groupId", this.Id),
+                        new MySqlParameter("@isGroupMaster", member.Character.GroupMember.Role == GroupRole.Master));
                 }
             }
         }
@@ -267,21 +265,20 @@ namespace NextGen.World.Data
                 "INSERT INTO `groups` " +
                     "(`Id`, `Member1`, `Member2`, `Member3`, `Member4`, `Member5`) " +
                 "VALUES " +
-                    "({0}, {1}, {2}, {3}, {4}, {5})";
+                    "(@id, @member1, @member2, @member3, @member4, @member5)";
             //--------------------------------------------------
             // create entry in table
             //--------------------------------------------------
             using (var client = Program.DatabaseManager.GetClient())
             {
-                string query = string.Format(create_group_query,
-                                this.Id,
-                                this.Members.Count > 0 ? this.Members[0].CharId.ToString() : "NULL",
-                                this.Members.Count > 1 ? this.Members[1].CharId.ToString() : "NULL",
-                                this.Members.Count > 2 ? this.Members[2].CharId.ToString() : "NULL",
-                                this.Members.Count > 3 ? this.Members[3].CharId.ToString() : "NULL",
-                                this.Members.Count > 4 ? this.Members[4].CharId.ToString() : "NULL");
-                using (var cmd = new MySqlCommand(query, client.GetConnection()))
+                using (var cmd = new MySqlCommand(create_group_query, client.GetConnection()))
                 {
+                    cmd.Parameters.AddWithValue("@id", this.Id);
+                    cmd.Parameters.AddWithValue("@member1", this.Members.Count > 0 ? (object)this.Members[0].CharId : DBNull.Value);
+                    cmd.Parameters.AddWithValue("@member2", this.Members.Count > 1 ? (object)this.Members[1].CharId : DBNull.Value);
+                    cmd.Parameters.AddWithValue("@member3", this.Members.Count > 2 ? (object)this.Members[2].CharId : DBNull.Value);
+                    cmd.Parameters.AddWithValue("@member4", this.Members.Count > 3 ? (object)this.Members[3].CharId : DBNull.Value);
+                    cmd.Parameters.AddWithValue("@member5", this.Members.Count > 4 ? (object)this.Members[4].CharId : DBNull.Value);
                     cmd.ExecuteNonQuery();
                 }
             }
@@ -295,7 +292,8 @@ namespace NextGen.World.Data
             DataTable gdata = null;
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
-                gdata = dbClient.ReadDataTable("SELECT * FROM `groups` WHERE Id = " + pId + "");
+                gdata = dbClient.ReadDataTable("SELECT * FROM `groups` WHERE Id = @id",
+                    new MySqlParameter("@id", pId));
             }
 
             if (gdata != null)
@@ -379,13 +377,13 @@ namespace NextGen.World.Data
             const string break_group_query =
                 "UPDATE `groups` " +
                 "SET `Exists` = 0 " +
-                "WHERE `Id` = '{0}'";
+                "WHERE `Id` = @id";
 
             const string reset_char_group_query =
                 "UPDATE `characters` " +
                 "SET `GroupID` = NULL, " +
                     "`IsGroupMaster` = NULL " +
-                "WHERE `GroupId` = '{0}'";
+                "WHERE `GroupId` = @id";
 
             //--------------------------------------------------
             // Execute queries
@@ -393,11 +391,8 @@ namespace NextGen.World.Data
 
             using (var client = Program.DatabaseManager.GetClient())
             {
-                string query = string.Format(break_group_query, this.Id);
-                client.ExecuteQuery(query);
-
-                query = string.Format(reset_char_group_query, this.Id);
-                client.ExecuteQuery(query);
+                client.ExecuteQuery(break_group_query, new MySqlParameter("@id", this.Id));
+                client.ExecuteQuery(reset_char_group_query, new MySqlParameter("@id", this.Id));
             }
 
         }
@@ -412,14 +407,13 @@ namespace NextGen.World.Data
                     "GroupID = NULL, " +
                     "IsGroupMaster = NULL " +
                 "WHERE " +
-                "CharId = {0}";
+                "CharId = @charId";
             //--------------------------------------------------
             // removing the data.
             //--------------------------------------------------
-            string query = string.Format(remove_group_data_query, pCharId);
             using(var client = Program.DatabaseManager.GetClient())
             {
-                client.ExecuteQuery(query);
+                client.ExecuteQuery(remove_group_data_query, new MySqlParameter("@charId", pCharId));
             }
         }
         private void ChangeMaster(GroupMember pFrom, GroupMember pTo)
