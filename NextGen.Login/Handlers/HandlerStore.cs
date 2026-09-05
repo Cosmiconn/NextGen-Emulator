@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NextGen.FiestaLib.Networking;
@@ -9,45 +9,75 @@ namespace NextGen.Login.Handlers
     [ServerModule(Util.InitializationStage.Metadata)]
     public class HandlerStore
     {
-        private static Dictionary<byte, Dictionary<byte, MethodInfo>> handlers;
+        // Pro (Header, Type) koennen mehrere Handler mit unterschiedlichen,
+        // sich nicht ueberschneidenden Versionsbereichen registriert sein -
+        // z.B. ein generischer Fallback (MinVersion=0, MaxVersion=max) plus
+        // ein spezifischerer Handler fuer eine einzelne Client-Version.
+        private struct VersionedHandler
+        {
+            public ushort MinVersion;
+            public ushort MaxVersion;
+            public MethodInfo Method;
+        }
+
+        private static Dictionary<byte, Dictionary<byte, List<VersionedHandler>>> handlers;
 
         [InitializerMethod]
         public static bool Load()
         {
-            handlers = new Dictionary<byte, Dictionary<byte, MethodInfo>>();
+            handlers = new Dictionary<byte, Dictionary<byte, List<VersionedHandler>>>();
             foreach (var info in Reflector.FindMethodsByAttribute<PacketHandlerAttribute>())
             {
                 PacketHandlerAttribute attribute = info.First;
                 MethodInfo method = info.Second;
                 if (!handlers.ContainsKey(attribute.Header))
-                    handlers.Add(attribute.Header, new Dictionary<byte, MethodInfo>());
-                if (handlers[attribute.Header].ContainsKey(attribute.Type))
+                    handlers.Add(attribute.Header, new Dictionary<byte, List<VersionedHandler>>());
+                if (!handlers[attribute.Header].ContainsKey(attribute.Type))
+                    handlers[attribute.Header].Add(attribute.Type, new List<VersionedHandler>());
+
+                var list = handlers[attribute.Header][attribute.Type];
+                bool overlaps = list.Exists(h => attribute.MinVersion <= h.MaxVersion && attribute.MaxVersion >= h.MinVersion);
+                if (overlaps)
                 {
-                    Log.WriteLine(LogLevel.Warn, "Duplicate handler found: {0}:{1}", attribute.Header, attribute.Type);
-                    handlers[attribute.Header].Remove(attribute.Type);
+                    Log.WriteLine(LogLevel.Warn, "Duplicate/ueberlappender Handler gefunden: {0}:{1} (Version {2}-{3})", attribute.Header, attribute.Type, attribute.MinVersion, attribute.MaxVersion);
                 }
-                handlers[attribute.Header].Add(attribute.Type, method);
+                list.Add(new VersionedHandler { MinVersion = attribute.MinVersion, MaxVersion = attribute.MaxVersion, Method = method });
             }
-            
+
             int count = 0;
             foreach (var dict in handlers.Values)
-                count += dict.Count;
+                foreach (var list in dict.Values)
+                    count += list.Count;
             Log.WriteLine(LogLevel.Info, "{0} Handlers loaded.", count);
             return true;
         }
 
-        public static MethodInfo GetHandler(byte header, byte type)
+        // clientVersion=0 (nicht gemeldet/nicht relevant) matcht immer den
+        // Default-Bereich (0..ushort.MaxValue) - bestehendes Verhalten fuer
+        // alle unversionierten Handler bleibt dadurch unveraendert.
+        public static MethodInfo GetHandler(byte header, byte type, ushort clientVersion = 0)
         {
-            Dictionary<byte, MethodInfo> dict;
-            MethodInfo meth;
-            if (handlers.TryGetValue(header, out dict))
+            Dictionary<byte, List<VersionedHandler>> dict;
+            List<VersionedHandler> list;
+            if (!handlers.TryGetValue(header, out dict) || !dict.TryGetValue(type, out list))
+                return null;
+
+            // Spezifischste (schmalste) passende Version bevorzugen, damit ein
+            // versionsspezifischer Handler einen generischen Fallback
+            // ueberstimmt, statt von der Registrierungsreihenfolge abzuhaengen.
+            VersionedHandler? best = null;
+            uint bestRange = uint.MaxValue;
+            foreach (var h in list)
             {
-                if (dict.TryGetValue(type, out meth))
+                if (clientVersion < h.MinVersion || clientVersion > h.MaxVersion) continue;
+                uint range = (uint)h.MaxVersion - h.MinVersion;
+                if (range < bestRange)
                 {
-                    return meth;
+                    best = h;
+                    bestRange = range;
                 }
             }
-            return null;
+            return best?.Method;
         }
 
         public static Action GetCallback(MethodInfo method, params object[] parameters)
