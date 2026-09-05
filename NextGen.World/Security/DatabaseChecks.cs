@@ -1,4 +1,4 @@
-﻿using NextGen.Database;
+using NextGen.Database;
 using System.Data;
 
 namespace NextGen.World.Security
