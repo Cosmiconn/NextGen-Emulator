@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace NextGen.FiestaLib.Networking
 {
@@ -7,6 +7,13 @@ namespace NextGen.FiestaLib.Networking
     {
         public byte Header { get; private set; }
         public byte Type { get; private set; }
+
+        // Optional per Named-Argument gesetzt, z.B.
+        // [PacketHandler(CH3Type.Login, MinVersion = 5)]
+        // Default deckt "jede Version" ab, aendert also nichts am Verhalten
+        // fuer alle bisherigen, unversionierten Handler.
+        public ushort MinVersion { get; set; } = 0;
+        public ushort MaxVersion { get; set; } = ushort.MaxValue;
 
         private PacketHandlerAttribute(byte header, byte type)
         {

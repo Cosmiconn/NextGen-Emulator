@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
@@ -27,6 +27,17 @@ namespace NextGen.FiestaLib.Networking
         public string Host { get; private set; }
         public event EventHandler<PacketReceivedEventArgs> OnPacket;
         public event EventHandler<SessionCloseEventArgs> OnDisconnect;
+
+        // Vom Client per CH3Type.Version-Paket gemeldete Version (siehe
+        // LoginHandler.VersionInfo). Default 0 bedeutet "noch nicht gemeldet"
+        // bzw. fuer World/Zone-Verbindungen, die keinen eigenen
+        // Version-Handshake durchfuehren (die Pruefung passiert zentral am
+        // Login-Server; World/Zone vertrauen dem bereits gepruepften Transfer).
+        // 0 matcht bei der Handler-Aufloesung immer den Default-Bereich
+        // (MinVersion=0..MaxVersion=ushort.MaxValue), aendert also nichts am
+        // Verhalten fuer bisher unversionierte Handler.
+        public ushort ClientYear { get; set; }
+        public ushort ClientVersion { get; set; }
 
         public Client(Socket socket)
         {
