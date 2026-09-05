@@ -1,4 +1,4 @@
-﻿namespace NextGen.FiestaLib.Data
+namespace NextGen.FiestaLib.Data
 {
 	public sealed class GateInfo
         {

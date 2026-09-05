@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NextGen.Database.DataStore;
 using System.Collections.Generic;
 using System.Data;
