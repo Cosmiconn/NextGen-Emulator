@@ -11,6 +11,7 @@ using NextGen.Util;
 using NextGen.World.Data;
 using NextGen.World.Handlers;
 using NextGen.Database.DataStore;
+using MySqlConnector;
 
 namespace NextGen.World.Networking
 {
@@ -46,7 +47,7 @@ namespace NextGen.World.Networking
 		void WorldClient_OnPacket(object sender, PacketReceivedEventArgs e)
 		{
 			if (!Authenticated && !(e.Packet.Header == 3 && e.Packet.Type == 15)) return; //do not handle packets if not authenticated!
-			MethodInfo method = HandlerStore.GetHandler(e.Packet.Header, e.Packet.Type);
+			MethodInfo method = HandlerStore.GetHandler(e.Packet.Header, e.Packet.Type, this.ClientVersion);
 			if (method != null)
 			{
 				Action action = HandlerStore.GetCallback(method, this, e.Packet);
@@ -67,7 +68,8 @@ namespace NextGen.World.Networking
                 DataTable charData = null;
                 using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
                 {
-                    charData = dbClient.ReadDataTable("SELECT * FROM Characters WHERE AccountID='" + this.AccountID + "'");
+                    charData = dbClient.ReadDataTable("SELECT * FROM Characters WHERE AccountID=@accountId",
+                        new MySqlParameter("@accountId", this.AccountID));
                 }
 
                 if (charData != null)
@@ -179,22 +181,17 @@ namespace NextGen.World.Networking
                  "(`AccountID`,`Name`,`MasterJoin`,`Slot`,`Job`,`Male`,`Hair`,`HairColor`,`Face`," +
                  " `QuickBar`, `QuickBarState`, `ShortCuts`, `GameSettings`, `ClientSettings`) " +
                  "VALUES " +
-                     "('" + newchar.AccountID +
-                     "', '" + newchar.Name +
-                     "', '" + DateTime.Now.ToDBString() +
-						"', " +		newchar.Slot +
-						", " +		newchar.Job  +
-						", " +		Convert.ToByte(newchar.LookInfo.Male) +
-						", " +		newchar.LookInfo.Hair +
-						", " +		newchar.LookInfo.HairColor +
-						", " +		newchar.LookInfo.Face +
-                        ", " +      "0" +
-                        ", " +      "0" +
-                        ", " +      "0" +
-                        ", " +      "0" +
-                        ", " +      "0" +
-						")";
-				client.ExecuteQuery(query);
+                 "(@accountId, @name, @masterJoin, @slot, @job, @male, @hair, @hairColor, @face, 0, 0, 0, 0, 0)";
+				client.ExecuteQuery(query,
+					new MySqlParameter("@accountId", newchar.AccountID),
+					new MySqlParameter("@name", newchar.Name),
+					new MySqlParameter("@masterJoin", DateTime.Now.ToDBString()),
+					new MySqlParameter("@slot", newchar.Slot),
+					new MySqlParameter("@job", newchar.Job),
+					new MySqlParameter("@male", Convert.ToByte(newchar.LookInfo.Male)),
+					new MySqlParameter("@hair", newchar.LookInfo.Hair),
+					new MySqlParameter("@hairColor", newchar.LookInfo.HairColor),
+					new MySqlParameter("@face", newchar.LookInfo.Face));
 			
 			WorldCharacter tadaa = new WorldCharacter(newchar,this);
             ushort begineqp = GetBeginnerEquip(job);
@@ -204,7 +201,10 @@ namespace NextGen.World.Networking
                 sbyte eqp_slot = (sbyte)((job == Job.Archer) ? -10 : -12); //, (job == Job.Archer) ? (byte)12 : (byte)10, begineqp)
                 Equip eqp = new Equip((uint)newchar.ID, begineqp, eqp_slot);
                 tadaa.Inventory.AddToEquipped(eqp);
-                client.ExecuteQuery("INSERT INTO equips (owner,slot,EquipID) VALUES ('"+tadaa.ID+"','"+eqp_slot+"','"+eqp.EquipID+"')");
+                client.ExecuteQuery("INSERT INTO equips (owner,slot,EquipID) VALUES (@owner,@slot,@equipId)",
+                    new MySqlParameter("@owner", tadaa.ID),
+                    new MySqlParameter("@slot", eqp_slot),
+                    new MySqlParameter("@equipId", eqp.EquipID));
             }
 			Characters.Add(slot, tadaa);
 			return tadaa;
