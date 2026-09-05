@@ -1,204 +1,171 @@
-﻿﻿/*File for this file Basic Copyright 2012 no0dl */
+﻿/*File for this file Basic Copyright 2012 no0dl */
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using NextGen.FiestaLib.Data;
-using System.Collections;
 
 namespace NextGen.Zone.Game.Buffs
 {
-    public class Buff
+    /// <summary>
+    /// Eine aktive Buff/Debuff-Instanz auf einem Charakter: ein konkreter
+    /// AbState in einer konkreten Staerke-Stufe (SubAbstateInfo), mit
+    /// Start-/Ablaufzeit. Ersetzt die vorherige, komplett auskommentierte
+    /// Fassung dieser Datei (referenzierte nicht-existente Typen wie
+    /// LivingObject/BuffAction/StatsAction) durch eine Implementierung gegen
+    /// die tatsaechlich im Projekt vorhandenen Typen.
+    /// </summary>
+    public sealed class Buff
     {
-       /* /// <summary>
-        /// The ID of this buff. Only used if its saved in database.
-        /// </summary>
-        public long ID { get; set; }
+        // KORREKTUR (siehe DOCUMENTATION.md Abschnitt 23): ActionIndex 26 ist
+        // KEIN periodischer Schadens-/Heilbetrag, sondern das Tick-Intervall
+        // selbst, in Millisekunden. Empirisch bestaetigt: 26 bleibt ueber
+        // alle Staerke-Stufen einer Faehigkeit hinweg KONSTANT (z.B. immer
+        // 1000 bei "PoisonShot"), waehrend 27/30 sauber mit der Staerke
+        // skalieren (z.B. PoisonShot: 39->49->58->...->778). Die
+        // tatsaechlichen periodischen Betraege stecken in 27 (ueblicherweise
+        // Schaden) und 30 (ueblicherweise Heilung) - Richtung wird wie ueberall
+        // ueber AbState.IsBuff/IsDebuff bestimmt, nicht durch den Index selbst.
+        private static readonly uint[] PeriodicAmountActionIndices = { 27, 30 };
+        private const uint PeriodicIntervalActionIndex = 26;
 
+        // ActionIndex 19 = SAA_NOMOVE, 25 = SAA_NOATTACK (autoritative Enum,
+        // siehe DOCUMENTATION.md Abschnitt 23 - vorherige Beschriftung als
+        // "Stunned" war eine empirische Annaeherung, nicht die exakten
+        // Enum-Namen). Beide zusammen ergeben praktisch eine Betaeubung;
+        // da es kein Bewegungssystem gibt (NOMOVE waere ohnehin wirkungslos),
+        // werden beide vereinfacht auf dieselbe IsStunned-Flag abgebildet.
+        // 38 = SAA_FEAR.
+        private static readonly uint[] StunActionIndices = { 19, 25 };
+        private const uint FearActionIndex = 38;
+        // SAA_SILIENCE (Fiesta-Heroes-Doku-Schreibweise, nicht korrigiert) -
+        // dritter Crowd-Control-Zustand, siehe DOCUMENTATION.md Abschnitt 38.
+        private const uint SilenceActionIndex = 42;
+        // SAA_HIDEENEMY (65) - Unsichtbarkeit, siehe DOCUMENTATION.md
+        // Abschnitt 46. Vereinfacht als "unsichtbar fuer Monster-Aggro"
+        // umgesetzt statt der engeren, belegten Bedeutung ("nur gegenueber
+        // gegnerischer Gilde") - Gilden-PvP-Sichtbarkeit ist in diesem
+        // Projekt kein bestehendes Konzept.
+        private const uint HideEnemyActionIndex = 65;
 
-        /// <summary>
-        /// The object to which this buff belongs.
-        /// </summary>
-        public LivingObject MapObject { get; private set; }
+        public static TimeSpan PeriodicInterval { get; set; } = TimeSpan.FromSeconds(1);
 
-        /// <summary>
-        /// The abstate info of this buff.
-        /// </summary>
-        public AbStateInfo AbStateInfo { get; private set; }
-        /// <summary>
-        /// The strength of this buff. Used for getting sub abstate infos.
-        /// </summary>
-        public uint Strength { get; private set; }
-        /// <summary>
-        /// The sub abstate info of this buff.
-        /// </summary>
-        public SubAbstateInfo SubAbStateInfo { get; private set; }
+        public MapObject Character { get; private set; }
+        // Wer diesen Buff/Debuff verursacht hat (z.B. fuer ausgehende
+        // DoT-Schadensverstaerker wie SAA_ADDALLDOTDMG, siehe
+        // DOCUMENTATION.md Abschnitt 24) - null, wenn unbekannt (z.B. bei
+        // World-seitig per InterServer gesendeten Buffs ohne Caster-Info).
+        public MapObject Caster { get; private set; }
+        public AbStateInfo AbState { get; private set; }
+        public SubAbstateInfo SubState { get; private set; }
+        public DateTime StartTime { get; private set; }
+        public DateTime ExpireTime { get; private set; }
+        private DateTime lastPeriodicTick;
+        // Aus ActionIndex 26 dieses konkreten SubState extrahiert, falls
+        // vorhanden - sonst Fallback auf das globale, konfigurierbare
+        // PeriodicInterval (Zone.PeriodicBuffTickMs).
+        private readonly TimeSpan periodicInterval;
 
-        /// <summary>
-        /// A list with all actions of the sub abstate.
-        /// </summary>
-        public ReadOnlyCollection<BuffAction> Actions { get { return ActionList.AsReadOnly(); } }
-        private List<BuffAction> ActionList;
-
-
-        public DateTime StartTime { get; set; }
-        public DateTime ExpireTime { get; set; }
-
-
-        public bool IsDisposed { get { return IsDisposedInt > 0; } }
-        private int IsDisposedInt;
-
-
-
-
-        private bool HaveStatsChangerActions;
-
-
-
-        public Buff(LivingObject MapObject, AbStateInfo AbStateInfo, uint Strength)
+        public Buff(MapObject character, AbStateInfo abState, SubAbstateInfo subState, MapObject caster = null)
         {
-            this.MapObject = MapObject;
-            this.AbStateInfo = AbStateInfo;
-            this.Strength = Strength;
+            Character = character;
+            Caster = caster;
+            AbState = abState;
+            SubState = subState;
+            StartTime = DateTime.UtcNow;
+            ExpireTime = StartTime + subState.KeepTime;
+            lastPeriodicTick = StartTime;
 
-
-            ActionList = new List<BuffAction>();
-
-            UpdateSubAbState(Strength);
+            var intervalAction = subState.Actions.FirstOrDefault(a => a.ActionIndex == PeriodicIntervalActionIndex);
+            periodicInterval = intervalAction != null
+                ? TimeSpan.FromMilliseconds(intervalAction.ActionArg)
+                : PeriodicInterval;
         }
-        public void Dispose()
+
+        // SAA_AWAY (49, Knockback) / SAA_AWAYBACKSPOT (109, Pull) - einmalige
+        // Ausloeser, nicht Teil des additiven Resolver-Musters. Siehe
+        // DOCUMENTATION.md Abschnitt 47.
+        private const uint KnockbackActionIndex = 49;
+        private const uint PullActionIndex = 109;
+
+        public void Activate(Buffs owner)
         {
-            if (Interlocked.CompareExchange(ref IsDisposedInt, 1, 0) == 0)
+            foreach (var action in SubState.Actions)
             {
-                MapObject = null;
-                AbStateInfo = null;
-                SubAbStateInfo = null;
-
-
-                ActionList.ForEach(a => a.Dispose());
-                ActionList.Clear();
-                ActionList = null;
-            }
-        }
-        ~Buff()
-        {
-            Dispose();
-        }
-
-
-
-
-
-        public void Activate()
-        {
-            lock (ActionList)
-            {
-                foreach (var action in ActionList)
+                if (StunActionIndices.Contains(action.ActionIndex) || action.ActionIndex == FearActionIndex || action.ActionIndex == SilenceActionIndex || action.ActionIndex == HideEnemyActionIndex)
+                    continue; // siehe IsStun/IsFear/IsSilence/IsInvisible - berechnet, nicht gesetzt
+                if (action.ActionIndex == KnockbackActionIndex)
                 {
-                    action.Activate();
+                    Character.ForceMove(Caster ?? Character, (int)action.ActionArg, false);
+                    continue;
                 }
-
-                if (HaveStatsChangerActions)
-                    MapObject.Stats.Update();
-            }
-        }
-        public void Deactivate()
-        {
-            lock (ActionList)
-            {
-                foreach (var action in ActionList)
+                if (action.ActionIndex == PullActionIndex)
                 {
-                    action.Deactivate();
+                    Character.ForceMove(Caster ?? Character, (int)action.ActionArg, true);
+                    continue;
                 }
-
-                if (HaveStatsChangerActions)
-                    MapObject.Stats.Update();
+                if (IsPeriodic(action.ActionIndex))
+                    continue; // siehe TickPeriodic(), nicht einmalig anwenden
+                BuffActionResolver.Apply(owner, AbState, action, true);
             }
         }
 
-
-
-
-
-        public void UpdateSubAbState(uint Strength)
+        public void Deactivate(Buffs owner)
         {
-            SubAbstateInfo subState;
-            if (!AbStateInfo.SubAbStates.TryGetValue(Strength, out subState))
-                throw new InvalidOperationException(String.Format("Can't find sub abstate for abstate '{0}' with strength '{1}'", AbStateInfo.InxName, Strength));
-
-            SubAbStateInfo = subState;
-            this.Strength = Strength;
-
-
-            //refresh actions
-            lock (ActionList)
+            foreach (var action in SubState.Actions)
             {
-                ActionList.ForEach(a => a.Dispose());
-                ActionList.Clear();
+                if (StunActionIndices.Contains(action.ActionIndex) || action.ActionIndex == FearActionIndex || action.ActionIndex == SilenceActionIndex || action.ActionIndex == HideEnemyActionIndex)
+                    continue;
+                if (action.ActionIndex == KnockbackActionIndex || action.ActionIndex == PullActionIndex)
+                    continue; // einmaliger Ausloeser, nichts rueckgaengig zu machen
+                if (IsPeriodic(action.ActionIndex))
+                    continue;
+                BuffActionResolver.Apply(owner, AbState, action, false);
+            }
+        }
 
-                HaveStatsChangerActions = false;
+        // Berechnet statt beim Activate()/Deactivate() gesetzt: verhindert,
+        // dass ein ablaufender Stun-Debuff faelschlich IsStunned loescht,
+        // waehrend ein ZWEITER, andersartiger Stun-Debuff noch aktiv ist
+        // (zwei verschiedene AbStates koennen gleichzeitig aktiv sein, siehe
+        // Buffs.AddBuff - nur derselbe AbState wird ersetzt, nicht gestapelt).
+        public bool IsStun { get { return SubState.Actions.Any(a => StunActionIndices.Contains(a.ActionIndex)); } }
+        public bool IsSilence { get { return SubState.Actions.Any(a => a.ActionIndex == SilenceActionIndex); } }
+        public bool IsFear { get { return SubState.Actions.Any(a => a.ActionIndex == FearActionIndex); } }
+        public bool IsInvisible { get { return SubState.Actions.Any(a => a.ActionIndex == HideEnemyActionIndex); } }
 
-                foreach (var action in SubAbStateInfo.Actions)
+        private static bool IsPeriodic(uint actionIndex)
+        {
+            return actionIndex == PeriodicIntervalActionIndex || PeriodicAmountActionIndices.Contains(actionIndex);
+        }
+
+        // Von Buffs.Tick() aufgerufen. Wendet periodische HP-Effekte (27/30)
+        // an, wenn seit dem letzten Tick genug Zeit vergangen ist (per-Buff-
+        // Intervall aus ActionIndex 26, siehe Konstruktor). Debuff = Schaden
+        // (ueber Character.Damage(), bully=null - kein Gegenangriff, aber
+        // korrekter HP-Sync), Buff = Heilung (ueber Character.Heal()).
+        // Schadensbetrag wird um den DoT-Schadensbonus des Verursachers
+        // (Caster) skaliert, falls bekannt - siehe DOCUMENTATION.md
+        // Abschnitt 24 (SAA_ADDALLDOTDMG/SAA_ADDPOISONDMG etc.).
+        public void TickPeriodic(DateTime now)
+        {
+            if (now - lastPeriodicTick < periodicInterval)
+                return;
+            lastPeriodicTick = now;
+
+            foreach (var action in SubState.Actions)
+            {
+                if (!PeriodicAmountActionIndices.Contains(action.ActionIndex))
+                    continue;
+
+                uint amount = action.ActionArg;
+                if (AbState.IsDebuff)
                 {
-                    if (action.Type == SubAbStateActionType.None)
-                        continue;
-
-
-                    BuffAction buffAction;
-                    if (!CreateBuffAction(this, action, out buffAction))
-                    {
-                        Log.Write(LogType.Debug, "Unsupported buff action type: " + action.Type);
-                        continue;
-                    }
-
-                    if (buffAction is StatsAction)
-                    {
-                        HaveStatsChangerActions = true;
-                    }
-
-
-                    ActionList.Add(buffAction);
+                    if (Caster != null)
+                        amount = (uint)(amount * (100 + Caster.GetDotDamageBonusPercent(AbState)) / 100);
+                    Character.Damage(null, amount);
                 }
+                else
+                    Character.Heal(amount);
             }
         }
-        private static bool CreateBuffAction(Buff Buff, SubAbStateAction Action, out BuffAction BuffAction)
-        {
-            switch (Action.Type)
-            {
-                case SubAbStateActionType.DamageIncrease:
-                case SubAbStateActionType.DamageIncrease2:
-                case SubAbStateActionType.DamageDefenseIncrease:
-                case SubAbStateActionType.DefenseIncrease:
-                case SubAbStateActionType.DefenseIncrease2:
-                case SubAbStateActionType.ChangeDex:
-                case SubAbStateActionType.ChangeAim:
-                case SubAbStateActionType.ChangeEvasion:
-                case SubAbStateActionType.MagicDamageDefenseIncrease:
-                case SubAbStateActionType.MagicDefenseDecrease:
-                case SubAbStateActionType.MagicDefenseIncrease:
-                case SubAbStateActionType.IncreaseShieldBlockRate:
-                case SubAbStateActionType.SpeedIncrease:
-                case SubAbStateActionType.DecreaseAtkSpeed:
-                case SubAbStateActionType.IncreaseHP:
-                case SubAbStateActionType.IncreaseHP2:
-                case SubAbStateActionType.IncreaseSP:
-                case SubAbStateActionType.IncreaseSP2:
-                case SubAbStateActionType.IncreasePoisionResistance:
-                case SubAbStateActionType.IncreaseDebuffResistance:
-                case SubAbStateActionType.IncreaseCurseResistance:
-                case SubAbStateActionType.IncreaseCrit:
-                case SubAbStateActionType.IncreaseInt:
-                case SubAbStateActionType.IncreaseAllStats:
-                    BuffAction = new StatsAction(Buff, Action);
-                    break;
-
-
-                case SubAbStateActionType.None:
-                default:
-                    BuffAction = null;
-                    break;
-            }
-
-
-            return (BuffAction != null);
-        }*/
     }
 }
