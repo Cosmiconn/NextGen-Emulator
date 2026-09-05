@@ -1,4 +1,4 @@
-﻿using NextGen.FiestaLib;
+using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
 using NextGen.World.Networking;
 

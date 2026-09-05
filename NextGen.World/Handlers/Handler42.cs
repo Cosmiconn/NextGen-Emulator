@@ -1,8 +1,9 @@
-﻿
+
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
 using NextGen.World.Networking;
 using System;
+using MySqlConnector;
 
 namespace NextGen.World.Handlers
 {
@@ -22,7 +23,9 @@ namespace NextGen.World.Handlers
                     pp.WriteUShort(0);//unk
                     client.SendPacket(pp);
                 }
-                Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO BlockUser (CharID,BlockCharname) VALUES ('" + client.Character.ID + "','" + AddBlockname + "')");
+                Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO BlockUser (CharID,BlockCharname) VALUES (@charId,@blockName)",
+                    new MySqlParameter("@charId", client.Character.ID),
+                    new MySqlParameter("@blockName", AddBlockname));
             }
         }
         [PacketHandler(CH42Type.RemoveFromBlockList)]
@@ -39,7 +42,9 @@ namespace NextGen.World.Handlers
                         pack.WriteString(removename, 16);
                         client.SendPacket(pack);
                     }
-                    Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM BlockUser WHERE CharID = '" + client.Character.ID + "' AND BlockCharname= '" + removename + "'");
+                    Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM BlockUser WHERE CharID = @charId AND BlockCharname = @blockName",
+                        new MySqlParameter("@charId", client.Character.ID),
+                        new MySqlParameter("@blockName", removename));
                     client.Character.BlocketUser.Remove(removename);
                 }
             }
@@ -53,7 +58,8 @@ namespace NextGen.World.Handlers
                 pp.WriteUShort(7200);//unk
                 client.SendPacket(packet);
             }
-            Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM BlockUser WHERE CharID = '" + client.Character.ID + "'");
+            Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM BlockUser WHERE CharID = @charId",
+                new MySqlParameter("@charId", client.Character.ID));
             client.Character.BlocketUser.Clear();
         }
     }
