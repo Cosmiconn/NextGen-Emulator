@@ -9,6 +9,7 @@ using NextGen.Zone.Handlers;
 using NextGen.Zone.InterServer;
 using NextGen.Zone.Networking;
 using NextGen.FiestaLib;
+using MySqlConnector;
 
 namespace NextGen.Zone
 {
@@ -366,7 +367,8 @@ namespace NextGen.Zone
             {
                 if (param[1] == "current")
                 {
-                    Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM `" + Settings.Instance.zoneMysqlDatabase + "`.`Mobspawn` WHERE MapID='" + character.MapID + "'");
+                    Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM `" + Settings.Instance.zoneMysqlDatabase + "`.`Mobspawn` WHERE MapID=@mapId",
+                        new MySqlParameter("@mapId", character.MapID));
                     character.Map.SaveMobBreeds();
                 }
                 else if (param[1] == "all")

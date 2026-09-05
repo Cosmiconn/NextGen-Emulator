@@ -3,46 +3,41 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using System.IO;
-using Microsoft.Extensions.Configuration;
 using NextGen.Database;
 using NextGen.FiestaLib.Data;
 using NextGen.Util;
 using NextGen.Zone.InterServer;
 using NextGen.Zone.Networking;
-
+using System.Security.Permissions;
+using System.IO;
 namespace NextGen.Zone
 {
     class Program
     {
         public static ZoneData ServiceInfo { get { return Zones[0]; } set { Zones[0] = value; } }
         public static ConcurrentDictionary<byte, ZoneData> Zones { get; set; }
+        //public static WorldEntity Entity { get; set; }
         public static Random Randomizer { get; set; }
         public static DateTime CurrentTime { get; set; }
         public static bool Shutdown { get; private set; }
         public static DatabaseManager DatabaseManager;
         public static DatabaseManager CharDBManager;
-        public static IConfiguration Configuration { get; private set; }
-
+        [SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlAppDomain)]
         static void Main(string[] args)
         {
-            Log.Initialize("NextGen.Zone");
-
-            Configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .Build();
-
             AppDomain currentDomain = AppDomain.CurrentDomain;
             currentDomain.UnhandledException += MyHandler;
             Console.Title = "NextGen.Zone[Registering]";
+            Console.WindowWidth = 90;
 #if DEBUG
+            // so the startup works
             Thread.Sleep(TimeSpan.FromSeconds(3));
 #endif
             Zones = new ConcurrentDictionary<byte, ZoneData>();
             Zones.TryAdd(0, new ZoneData());
             if (Load())
             {
+                // Start Worker thread.
                 Worker.Load();
                 Worker.Instance.AddCallback(GroupManager.Instance.Update);
                 while (true)
@@ -51,7 +46,7 @@ namespace NextGen.Zone
                     string[] arguments = cmd.Split(' ');
                     switch (arguments[0])
                     {
-                        case "shutdown":
+                        case "shutdown": 
                             Shutdown = true;
                             Log.WriteLine(LogLevel.Info, "Disconnecting from world.");
                             WorldConnector.Instance.Disconnect();
@@ -62,6 +57,7 @@ namespace NextGen.Zone
                             Log.WriteLine(LogLevel.Info, "Disconnecting all clients");
                             ClientManager.Instance.DisconnectAll();
                             Log.WriteLine(LogLevel.Info, "Saving everything a last time");
+                           // Entity.SaveChanges();
                             Log.WriteLine(LogLevel.Info, "Bay.");
                             Environment.Exit(1);
                             break;
@@ -77,40 +73,40 @@ namespace NextGen.Zone
 
         private static bool Load()
         {
-            if (!Settings.Load(Configuration))
+
+            NextGen.InterLib.Settings.Initialize();
+            if (!Settings.Load())
             {
-                Log.WriteLine(LogLevel.Error, "Failed to load settings from appsettings.json. Falling back to Config.cfg...");
-                if (!Settings.Load(null))
-                    return false;
+                Log.WriteLine(LogLevel.Error, "Zone-Settings konnten nicht geladen werden - Server-Start abgebrochen. Siehe vorherige Fehlermeldung fuer die Ursache (meist ein fehlender Key in Config.cfg).");
+                return false;
             }
-
-            DatabaseManager = new DatabaseManager(
-                Settings.Instance.ZoneDatabase.Server,
-                (uint)Settings.Instance.ZoneDatabase.Port,
-                Settings.Instance.ZoneDatabase.User,
-                Settings.Instance.ZoneDatabase.Password,
-                Settings.Instance.ZoneDatabase.Database,
-                Settings.Instance.ZoneDatabase.MinPoolSize,
-                Settings.Instance.ZoneDatabase.MaxPoolSize,
-                Settings.Instance.ZoneDatabase.QueryCachePerClient,
-                Settings.Instance.ZoneDatabase.OverloadFlags);
-            DatabaseManager.GetClient();
-
-            CharDBManager = new DatabaseManager(
-                Settings.Instance.WorldDatabase.Server,
-                (uint)Settings.Instance.WorldDatabase.Port,
-                Settings.Instance.WorldDatabase.User,
-                Settings.Instance.WorldDatabase.Password,
-                Settings.Instance.WorldDatabase.Database,
-                Settings.Instance.WorldDatabase.MinPoolSize,
-                Settings.Instance.WorldDatabase.MaxPoolSize,
-                Settings.Instance.WorldDatabase.QueryCachePerClient,
-                Settings.Instance.WorldDatabase.OverloadFlags);
-            CharDBManager.GetClient();
-
+            DatabaseManager DbMgr, CharDb;
+            try
+            {
+                DbMgr = new DatabaseManager(Settings.Instance.zoneMysqlServer, (uint)Settings.Instance.zoneMysqlPort, Settings.Instance.zoneMysqlUser, Settings.Instance.zoneMysqlPassword, Settings.Instance.zoneMysqlDatabase, Settings.Instance.ZoneDBMinPoolSize, Settings.Instance.ZoneDBMaxPoolSize, 10, 1);
+                DbMgr.GetClient(); //testclient
+                CharDb = new DatabaseManager(Settings.Instance.WorldMysqlServer, (uint)Settings.Instance.WorldMysqlPort, Settings.Instance.WorldMysqlUser, Settings.Instance.WorldMysqlPassword, Settings.Instance.WorldMysqlDatabase, Settings.Instance.WorldDBMinPoolSizeZoneWorld, Settings.Instance.WorldDBMaxPoolSizeZoneWorld, Settings.Instance.QuerCachePerClientZoneWorld, Settings.Instance.OverloadFlagsZoneWorld);
+                CharDb.GetClient();
+            }
+            catch (Exception ex)
+            {
+                // War: DatabaseManager-Konstruktion/GetClient() lagen ausserhalb
+                // jedes Try/Catch - ein Verbindungsfehler (falsches Passwort,
+                // MySQL nicht erreichbar, fiesta_data/fiesta_world fehlt) fiel
+                // dadurch als nackte, unklare Unhandled Exception auf, ohne
+                // erkennbare Ursache. Siehe DOCUMENTATION.md Abschnitt 26.
+                Log.WriteLine(LogLevel.Exception, "Datenbankverbindung fehlgeschlagen (Data/World). Pruefe MySQL-Zugangsdaten in Config.cfg und ob fiesta_data/fiesta_world existieren und erreichbar sind: {0}", ex);
+                return false;
+            }
+            DatabaseManager = DbMgr;
+            CharDBManager = CharDb;
+            Log.SetLogToFile(string.Format(@"Logs\Zone\{0}.log", DateTime.Now.ToString("yyyy-MM-dd HHmmss")));
             Randomizer = new Random();
             Log.IsDebug = Settings.Instance.Debug;
-
+            // Siehe Buff.cs (PeriodicInterval) - ueber Config.cfg einstellbar,
+            // Default 1000ms.
+            Game.Buffs.Buff.PeriodicInterval = TimeSpan.FromMilliseconds(Settings.Instance.PeriodicBuffTickMs);
+      
             try
             {
                 if (Reflector.GetInitializerMethods().Any(method => !method.Invoke()))
@@ -118,7 +114,7 @@ namespace NextGen.Zone
                     Log.WriteLine(LogLevel.Error, "Server could not be started. Errors occured.");
                     return false;
                 }
-                return true;
+                else return true;
             }
             catch (Exception ex)
             {
@@ -126,14 +122,37 @@ namespace NextGen.Zone
                 return false;
             }
         }
-
         static void MyHandler(object sender, UnhandledExceptionEventArgs args)
         {
             Exception e = (Exception)args.ExceptionObject;
-            Log.WriteLine(LogLevel.Exception, "Unhandled Exception : " + e.ToString());
+
+            #region Logging
+            #region Write Errors to a log file
+            // Create a writer and open the file:
+            StreamWriter log;
+
+            if (!File.Exists("errorlog.txt"))
+            {
+                log = new StreamWriter("errorlog.txt");
+            }
+            else
+            {
+                log = File.AppendText("errorlog.txt");
+            }
+
+            // Write to the file:
+            log.WriteLine(DateTime.Now);
+            log.WriteLine(e.ToString());
+            log.WriteLine();
+
+            // Close the stream:
+            log.Close();
+            #endregion
+            #endregion
+
+          Log.WriteLine(LogLevel.Exception,"Unhandled Exception : " + e.ToString());
             Console.ReadKey(true);
         }
-
         public static ZoneData GetZoneForMap(ushort mapid)
         {
             foreach (var v in Zones.Values)
@@ -148,7 +167,10 @@ namespace NextGen.Zone
             foreach (var v in Zones.Values)
             {
                 MapInfo mi = v.MapsToLoad.Find(m => m.ID == mapid);
-                if (mi != null) return mi;
+                if (mi != null)
+                {
+                    return mi;
+                }
             }
             return null;
         }
@@ -159,7 +181,7 @@ namespace NextGen.Zone
             {
                 return ServiceInfo.MapsToLoad.Count(m => m.ID == mapid) > 0;
             }
-            catch { return false; }
+            catch (Exception ex) { Log.WriteLine(LogLevel.Exception, "Fehler bei IsLoaded({0}): {1}", mapid, ex); return false; }
         }
     }
 }

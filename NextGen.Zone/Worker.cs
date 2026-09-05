@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using NextGen.Util;
@@ -35,7 +35,7 @@ namespace NextGen.Zone
                 Instance.sleep = Settings.Instance.WorkInterval;
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { Log.WriteLine(LogLevel.Exception, "Fehler beim Starten des Zone-Workers: {0}", ex); return false; }
         }
 
         public void AddCallback(Action pCallback)
@@ -112,6 +112,15 @@ namespace NextGen.Zone
                         if (TicksPerSecond <= 100)
                         {
                             Log.WriteLine(LogLevel.Warn, "Server overload! Only {0} ticks per second!", TicksPerSecond);
+                        }
+
+                        // Am bestehenden 1-Sekunden-Takt mitlaufen lassen, nicht am
+                        // 30s-Rhythmus von UpdateMountTicks - SubAbState.KeepTime
+                        // (Buff-Laufzeit) liegt teils nur bei 20 Sekunden, siehe
+                        // DOCUMENTATION.md Abschnitt 15.
+                        if (ClientManager.Instance != null)
+                        {
+                            ClientManager.Instance.UpdateBuffTicks(now);
                         }
                     }
 
