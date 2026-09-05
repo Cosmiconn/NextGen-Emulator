@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.IO;
-using Microsoft.Extensions.Configuration;
+using System.Security.Permissions;
 using NextGen.Database;
 using NextGen.Util;
 
@@ -9,20 +9,16 @@ namespace NextGen.Login
 {
     class Program
     {
-        internal static DatabaseManager DatabaseManager { get; set; }
-        public static IConfiguration Configuration { get; private set; }
-
+        internal static  DatabaseManager DatabaseManager { get; set; }
+        [SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlAppDomain)]
         static void Main(string[] args)
         {
-            Log.Initialize("NextGen.Login");
-            
-            Configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .Build();
-
             AppDomain currentDomain = AppDomain.CurrentDomain;
             currentDomain.UnhandledException += new UnhandledExceptionEventHandler(MyHandler);
+            //if debug we always start with default settings :)
+#if DEBUG
+            //File.Delete("Login.xml");
+#endif
             
             Console.Title = "NextGen.Login";
             if (Load())
@@ -37,43 +33,56 @@ namespace NextGen.Login
                 Console.ReadLine();
             }
         }
-
         static void MyHandler(object sender, UnhandledExceptionEventArgs args)
         {
             Exception e = (Exception)args.ExceptionObject;
+
+            #region Logging
+            #region Write Errors to a log file
+            // Create a writer and open the file:
+            StreamWriter log;
+
+            if (!File.Exists("errorlog.txt"))
+            {
+                log = new StreamWriter("errorlog.txt");
+            }
+            else
+            {
+                log = File.AppendText("errorlog.txt");
+            }
+
+            // Write to the file:
+            log.WriteLine(DateTime.Now);
+            log.WriteLine(e.ToString());
+            log.WriteLine();
+
+            // Close the stream:
+            log.Close();
+            #endregion
+            #endregion
+
             Log.WriteLine(LogLevel.Exception, "Unhandled Exception : " + e.ToString());
             Console.ReadKey(true);
         }
-
         public static bool Load()
         {
-            if (!Settings.Load(Configuration))
+            NextGen.InterLib.Settings.Initialize();
+            if (!Settings.Load())
             {
-                Log.WriteLine(LogLevel.Error, "Failed to load settings from appsettings.json. Falling back to Config.cfg...");
-                if (!Settings.Load(null))
-                    return false;
+                Log.WriteLine(LogLevel.Error, "Login-Settings konnten nicht geladen werden - Server-Start abgebrochen. Siehe vorherige Fehlermeldung fuer die Ursache (meist ein fehlender Key in Config.cfg).");
+                return false;
             }
-
-            DatabaseManager = new DatabaseManager(
-                Settings.Instance.Database.Server,
-                (uint)Settings.Instance.Database.Port,
-                Settings.Instance.Database.User,
-                Settings.Instance.Database.Password,
-                Settings.Instance.Database.Database,
-                Settings.Instance.Database.MinPoolSize,
-                Settings.Instance.Database.MaxPoolSize,
-                Settings.Instance.Database.QueryCachePerClient,
-                Settings.Instance.Database.OverloadFlags);
-            
-            DatabaseManager.GetClient();
-            Log.IsDebug = Settings.Instance.Debug;
+            DatabaseManager = new DatabaseManager(Settings.Instance.LoginMysqlServer, (uint)Settings.Instance.LoginMysqlPort, Settings.Instance.LoginMysqlUser, Settings.Instance.LoginMysqlPassword, Settings.Instance.LoginMysqlDatabase, Settings.Instance.LoginDBMinPoolSize, Settings.Instance.LoginDBMaxPoolSize,Settings.Instance.QuerCachePerClient,Settings.Instance.OverloadFlags);
+            DatabaseManager.GetClient(); //testclient
+    
+            Log.SetLogToFile(string.Format(@"Logs\Login\{0}.log", DateTime.Now.ToString("d_M_yyyy HH_mm_ss")));
 
             if (Reflector.GetInitializerMethods().Any(method => !method.Invoke()))
             {
                 Log.WriteLine(LogLevel.Error, "Server could not be started. Errors occured.");
                 return false;
             }
-            return true;
+            else return true;
         }
     }
 }

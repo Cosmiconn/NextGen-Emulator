@@ -1,22 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>NextGen.Login</RootNamespace>
     <AssemblyName>NextGen.Login</AssemblyName>
-    <OutputType>Exe</OutputType>
-    <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <OutputType>Exe</OutputType>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
-    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,5 +20,24 @@
     <ProjectReference Include="..\NextGen.InterLib\NextGen.InterLib.csproj" />
     <ProjectReference Include="..\NextGen.Util\NextGen.Util.csproj" />
   </ItemGroup>
+
+  <!--
+    Config.cfg wird zur Laufzeit im selben Verzeichnis wie die .exe/.dll
+    gesucht (siehe NextGen.InterLib/Settings.cs). Eine einzige Konfiguration
+    an der Repo-Wurzel ist die Quelle der Wahrheit und wird bei jedem Build
+    automatisch neben die Login-Binary kopiert.
+  -->
+  <ItemGroup>
+    <None Include="..\Config.cfg" Link="Config.cfg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    System.ServiceModel, System.IdentityModel(.Selectors) und System.Data.Entity
+    waren im alten .csproj referenziert, wurden im Code aber nachweislich nirgends
+    genutzt (grep-verifiziert) - toter Balast aus einem offenbar nie fertig
+    umgesetzten WCF/EF6-Ansatz. Bewusst NICHT mit uebernommen; wuerden unter
+    .NET 10 ohnehin ein CoreWCF-Aequivalent bzw. eine EF-Core-Migration
+    voraussetzen.
+  -->
 
 </Project>
