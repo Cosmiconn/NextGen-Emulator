@@ -1,22 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>NextGen.Database</RootNamespace>
     <AssemblyName>NextGen.Database</AssemblyName>
-    <OutputType>Library</OutputType>
-    <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.1.79" />
-    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <!-- Ersetzt das alte, per HintPath eingebundene MySql.Data.dll (2013). -->
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NextGen.Util\NextGen.Util.csproj" />
+  </ItemGroup>
+
+  <!--
+    Storage/User.cs existierte im Original nicht in der Compile-Include-Liste
+    und wurde nie mitkompiliert. Bewusst weiterhin ausgeschlossen, siehe
+    DOCUMENTATION.md, Abschnitt "Bislang ausgeschlossene Dateien".
+  -->
+  <ItemGroup>
+    <Compile Remove="Storage\User.cs" />
   </ItemGroup>
 
 </Project>

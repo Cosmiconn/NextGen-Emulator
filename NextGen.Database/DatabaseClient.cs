@@ -15,12 +15,11 @@ namespace NextGen.Database
 
         private DatabaseManager Manager;
 
+        private MySqlConnection Connection;
         private MySqlCommand Command;
         public PriorityQueue<MySqlCommand> Commands = new PriorityQueue<MySqlCommand>();
         public int CommandCacheCount;
         public bool IsBussy = false;
-
-        public MySqlConnection Connection { get; private set; }
 
 
         public bool IsAnonymous
@@ -188,6 +187,51 @@ namespace NextGen.Database
                 Log.WriteLine(LogLevel.Error,e + "\n (" + sQuery + ")");
             }
         }
+
+        // Parametrisierte Variante fuer schreibende Zugriffe (INSERT/UPDATE/DELETE)
+        // mit nutzergesteuerten Werten. Nutzt MySqlParameter statt String-
+        // Verkettung, um SQL-Injection auszuschliessen. Beispiel:
+        //
+        //   dbClient.ExecuteQuery(
+        //       "DELETE FROM friends WHERE CharID = @charId AND FriendID = @friendId",
+        //       new MySqlParameter("@charId", charId),
+        //       new MySqlParameter("@friendId", friendId));
+        public void ExecuteQuery(string sQuery, params MySqlParameter[] pParams)
+        {
+            try
+            {
+                Command.CommandText = sQuery;
+                Command.Parameters.Clear();
+                Command.Parameters.AddRange(pParams);
+
+                if (this.Connection.State == ConnectionState.Closed)
+                {
+                    this.PushCommand(Command);
+                }
+                else
+                {
+                    this.IsBussy = true;
+                    Command.Connection = this.Connection;
+                    this.PushCommand(Command);
+                    for (int i = 0; i < Commands.Count; i++)
+                    {
+                        MySqlCommand cmd = this.Commands.Dequeue();
+                        cmd.Connection = Command.Connection;
+                        cmd.ExecuteScalar();
+                        this.CommandCacheCount--;
+                        Console.WriteLine("Ramm Kacke..");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WriteLine(LogLevel.Error, e + "\n (" + sQuery + ")");
+            }
+            finally
+            {
+                Command.Parameters.Clear();
+            }
+        }
         public void PushCommand(MySqlCommand command)
         {
             lock (command)
@@ -291,6 +335,42 @@ namespace NextGen.Database
             }
         }
 
+        // Parametrisierte Variante fuer lesende Zugriffe mit
+        // nutzergesteuerten Werten (z.B. Login-Username). Nutzt
+        // MySqlParameter statt String-Verkettung, um SQL-Injection
+        // auszuschliessen. Beispiel:
+        //
+        //   dbClient.ReadDataTable(
+        //       "SELECT * FROM accounts WHERE Username = @username",
+        //       new MySqlParameter("@username", username));
+        public DataTable ReadDataTable(string query, params MySqlParameter[] pParams)
+        {
+            try
+            {
+                this.IsBussy = true;
+                DataTable dataTable = new DataTable();
+                Command.CommandText = query;
+                Command.Parameters.Clear();
+                Command.Parameters.AddRange(pParams);
+
+                using (MySqlDataAdapter adapter = new MySqlDataAdapter(Command))
+                {
+                    adapter.Fill(dataTable);
+                }
+
+                return dataTable;
+            }
+            catch (DatabaseException ex)
+            {
+                Log.WriteLine(LogLevel.Error, ex.ToString());
+                return null;
+            }
+            finally
+            {
+                Command.Parameters.Clear();
+            }
+        }
+
         public DataRow ReadDataRow(string query)
         {
             try
@@ -361,6 +441,24 @@ namespace NextGen.Database
             Int32 result = Convert.ToInt32(Command.ExecuteScalar());
            // Command.CommandText = null;
             return result;
+        }
+
+        // Parametrisierte Variante, siehe ReadDataTable(string, MySqlParameter[]).
+        public Int32 ReadInt32(string query, params MySqlParameter[] pParams)
+        {
+            try
+            {
+                this.IsBussy = true;
+                Command.CommandText = query;
+                Command.Parameters.Clear();
+                Command.Parameters.AddRange(pParams);
+                Int32 result = Convert.ToInt32(Command.ExecuteScalar());
+                return result;
+            }
+            finally
+            {
+                Command.Parameters.Clear();
+            }
         }
 
         public byte[] GetBlob(MySqlCommand pCommand)
