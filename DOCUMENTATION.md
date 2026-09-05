@@ -2927,3 +2927,416 @@ gefunden (entweder echte eindeutige ID-Spalte oder nur 1-2 Zeilen, bei
 denen ein Duplikat unwahrscheinlich/harmlos ist).
 
 Kompiliert - 0 Fehler, unveraenderte 17 Warnungen.
+
+## 53. Vierter/fünfter Mitschnitt: Kingdom-Quest-Liste, Gambling-Opcodes, Crusader/LP bestaetigt
+
+Zwei neue, sehr umfangreiche Mitschnitte (versuch_4, versuch_5) mit
+detaillierter Beschreibung erhalten - decken Kingdom Quests (Liste,
+Anmeldung, echte Session inkl. Fail-Zustand), Gluecksspielhaus,
+Gildendialog, Lager, Titel, Freundesliste u.v.m. ab.
+
+### 53.1 `SH22Type.KingdomQuestList` (Typ 29) - Struktur weitgehend entschluesselt
+
+**Laeuft ueber den WORLD-Server** (Port 9013 in diesem Mitschnitt), NICHT
+Zone - wichtige Korrektur/Praezisierung gegenueber der bisherigen
+Vermutung. 5 einzelne Pakete pro Listen-Oeffnung (7477/7477/1132/850/145
+Byte) statt eines Blocks - vermutlich unterschiedliche Unterlisten
+("alle"/"meine Liste"/Team-Daten). Enthaelt Klartext-KQ-Namen, u.a.
+**exakt** "Mara Pirates' Rage" und "Lost Mini Dragon[A]/[B]/(Hardcore)[A]/[B]"
+- beide vom Nutzer tatsaechlich angeklickt/angemeldet, in beiden
+Mitschnitten uebereinstimmend.
+
+Durch Vergleich zweier fast identischer Eintraege (Lost Mini Dragon[A]
+vs. [B]) praezise isoliert:
+- Ca. 50 Byte gemeinsamer Header vor dem Namen, bei beiden Varianten
+  **byte-identisch**.
+- Ein 2-Byte-Feld direkt vor dem eigentlichen "Namenszaehler+Name"
+  unterscheidet sich (0x03ec=1004 vs. 0x03ef=1007) - vermutlich eine
+  Instanz-/Eintrags-ID.
+- Name selbst: NUL-terminiert, davor ein 2-Byte-Feld (`05 00` bei Lost
+  Mini Dragon, `01 00` bei Mara Pirates - vermutlich KQ-Typ/Kategorie,
+  nicht Namenslaenge).
+- Nach dem Namen: mehrere Byte identisch zwischen A/B (`38 4a 00 0c e0
+  fb 05 00 00 00 00 23 88 dc 76`), dann 4 individuelle Byte pro Instanz
+  (vermutlich Zeitstempel oder Instanz-Hash).
+
+**Weiterhin nicht vollstaendig geklaert**: die exakte Bedeutung mehrerer
+Header-Felder vor dem Instanz-Block, sowie die genaue Aufteilung der 5
+Pakete auf "alle"/"meine Liste". Deutlich mehr verstanden als vorher
+("Existenz bestaetigt, Struktur unbekannt" -> "Kernstruktur groesstenteils
+entschluesselt").
+
+### 53.2 Gambling-Opcodes (Header 47) entdeckt - eigene Zone-Verbindung fuer das Gluecksspielhaus
+
+Der Besuch des "Lucky House" loest eine **eigene, zusaetzliche Zone-
+Verbindung** aus (Zonenwechsel-Muster wie bereits bekannt, `CH6Type.
+TransferKey` am Anfang bestaetigt). Darin mehrere Header-47-Interaktionen
+beobachtet und mit vorlaeufigen Namen versehen (Opcode-Nummer sicher,
+exakte Semantik aus Kontext erschlossen, nicht einzeln verifiziert):
+
+- Typ 23/24 (CLI 4 Byte / SRV 11 Byte) - mehrfach wiederholt, vermutlich
+  "Automat/Tisch ansprechen".
+- Typ 200/201 - einmalig, vermutlich "Spiel betreten".
+- Typ 216 (SRV, 21 Byte) - **periodisch alle 10 Sekunden** ohne
+  Client-Anfrage, vermutlich ein Jackpot-/Timer-Update.
+- Typ 202/203 - kurze Interaktion.
+- Typ 100/101 (SRV 52 Byte, reichhaltig) - vermutlich Hauptspieldaten
+  (aktueller Einsatz, Wuerfelwerte).
+- Typ 104/105 - vermutlich "Spiel verlassen".
+
+Noch nicht in Code umgesetzt (Opcode-Namen nicht sicher genug fuer eine
+Implementierung, nur fuer eine kuenftige gezieltere Verifikation
+dokumentiert).
+
+### 53.3 Crusader/LP-Mechanik nutzerseitig bestaetigt
+
+Mitschnitt-Beschreibung bestaetigt explizit: "es gibt keine sp/lp steine
+in dieser klasse! lp regeneriert sich automatisch" und (Mitschnitt 5)
+"lp (verhaellt sich definitiv nicht wie sp) voll" nach Rast - **widerspricht
+der bisherigen Abschnitt-44.2-Vermutung** ("LP = SP nur umbenannt fuer
+Sentinel/Savior") load. LP scheint eine eigene, automatisch (auch ohne
+Rast) regenerierende Ressource zu sein, kein reines Alias fuer SP.
+Nicht weiter verifiziert (keine Paketdaten dazu ausgewertet in dieser
+Runde) - Vermutung aus 44.2 zurueckgezogen, echte Mechanik bleibt offen.
+
+Kein Code fuer 53.2/53.3 geaendert - nur 53.1 (neuer Enum-Wert).
+Kompiliert - 0 Fehler, unveraenderte 17 Warnungen.
+
+### 53.4 Sehr viel weiteres Material in diesen zwei Mitschnitten unausgewertet
+
+Guild-Manager-Dialog (Gildenerstellung, -liste, -akademie), Inventar mit
+6 Taschen (2 aktiv, Auto-Sortierung, Belohnungs-/Cashshop-Tasche),
+Lager-NPC (4 Seiten, kontogebunden, geteiltes Lager bei Heirat), Titel-
+Auswahlfenster, Karten-Sammlung, Freundesliste/Community-Fenster,
+Emote-Fenster, vollstaendige Respawn-UI mit Timer, echte KQ-Session
+(Anmeldung, Teleport, Tod, Fail-Zustand bei 0 verbleibenden Respawns) -
+keines davon in dieser Antwort ausgewertet.
+
+## 54. Automatisierte pcap-Analyse-Pipeline gebaut, NpcDialogMenu vollstaendig
+    entschluesselt, echte KQ-Fail-Session rekonstruiert, Revive-Bug gefunden
+
+Fortsetzung von Abschnitt 53.4. Neues Werkzeug gebaut (siehe 54.6), damit
+systematisch durch versuch_4/versuch_5 durchgegangen und mehrere der dort
+als offen markierten Punkte bearbeitet.
+
+### 54.1 SH17Type.NpcDialogMenu vollstaendig entschluesselt und gegen
+     QuestDialog.shn kreuzverifiziert
+
+Die in Abschnitt 36/48.3 offene Frage nach der "Dialog-Baum-ID" ist jetzt
+geklärt - mit einer wichtigen Korrektur der urspruenglichen Hypothese.
+
+**Byte-Layout (Typ-1, 105-Byte-Paket, Normalfall):**
+```
+[0-1]   u16 LE  Sequenzzaehler (erhoeht sich pro NpcDialogMenu-Paket um 1,
+                wird vom Client in CH17Type.NpcDialogResponse unveraendert
+                zurueckgeschickt - dient der Antwortkorrelation, ist KEIN
+                Dialog-Identifikator)
+[2-5]   u32 LE  Seitentyp (2 = normale Text-/Buttonseite in allen
+                beobachteten Faellen)
+[6]     byte    0x00 (Padding/hoeheres Byte eines eigentlich 24-Bit-Feldes?)
+[7-8]   u16 LE  DialogID aus QuestDialog.shn (sql/data/data_questdialog.sql)
+[9-10]  u16 LE  0x0000
+[11-14] u32 LE  0x00000000
+[15-16] u16 LE  Stabile NPC-Dialogbaum-ID (siehe unten)
+[17...] Nullen (Rest)
+```
+
+**Kreuzverifikation, bytegenau:** Im Mitschnitt versuch_4 laufen die
+Sequenzzaehlerwerte 0x0acc bis 0x0ad1 (2764-2769) durch eine komplette
+Tiros-Questsequenz. Das DialogID-Feld (Byte 7-8) durchlaeuft dabei exakt
+0xcce4 bis 0xccec (52452-52460) - **byte-fuer-byte identisch** mit neun
+aufeinanderfolgenden Zeilen aus `data_questdialog.sql`:
+
+- 52452: "Welcome! I don't know how long I've waited for this day to
+  come..." [BUTTON]=[Start Quest][1]
+- 52453 bis 52459: die Zwischendialogzeilen ("You've accomplished much,
+  o teacher of glorious light, Tiros!" usw., alle mit [NEXT])
+- 52460: "OK then. Now listen very carefully to what I say!"
+  [BUTTON]=[End Quest][1][SHOW_REWARD][MENU]
+
+Eine zweite, spaetere Sequenz im selben Mitschnitt (Sequenzzaehler 0x0acd
+0x003e-0x0046, DialogID-Feld 0xcd3e = 52542) trifft ebenso exakt auf
+`data_questdialog.sql`-Eintrag 52542 ("I'm now going to teach you the
+most important skill of all...") - das ist die Questzeile fuer den
+Skill "Advent", passend zur Beschreibung "questliste... quest special
+skill angeklickt". Diese Seite hat einen laengeren Body mit zusaetzlichen
+8 Byte am Ende (`07000000 01000000`) - vermutlich eine Skill-/Icon-
+Referenz fuer die per [SHOW_REWARD] gelehrte Faehigkeit, nicht weiter
+entschluesselt.
+
+**Die eigentliche stabile "Dialog-Baum-ID"** sitzt NICHT im Sequenzzaehler
+(Byte 0-1), sondern in Byte 15-16: konstant `0x2746` (**10054**) ueber
+ALLE Tiros-Dialogseiten hinweg, unabhaengig von der jeweiligen DialogID.
+Das bestaetigt die in Abschnitt 36/48.3 geaeusserte Vermutung einer
+stabilen Baum-/NPC-ID (dort 10113 fuer Sera/Julia gefunden) mit einem
+zweiten, unabhaengigen Datenpunkt im gleichen Wertebereich (10000er) fuer
+einen anderen NPC (Tiros). **Korrektur gegenueber der urspruenglichen
+Vermutung:** der zuvor als moeglicher ID-Kandidat gehandelte, sich
+aendernde Wert war tatsaechlich der oben beschriebene Sequenzzaehler, kein
+Bestandteil der Baum-ID selbst.
+
+**CH17Type.NpcDialogResponse** (9-Byte-Body): `[Sequenzzaehler-Echo, 2
+Byte][0x02][gewaehlter Button-Index, 1 Byte][000000]`. In diesem
+Mitschnitt immer Index 1 (alle beobachteten Tiros-Dialoge waren
+Einzelbutton-"Weiter"-Seiten) - eine echte Verzweigung mit Index 2 wurde
+nicht aufgezeichnet, bleibt fuer einen kuenftigen Mitschnitt offen.
+
+Zwei zusaetzliche, laengere Begleitpakete (Body-Typ 6 bzw. 10 statt 2,
+jeweils mit dem gleichen Sequenzzaehler wie die zugehoerige Typ-2-Seite)
+werden bei [SHOW_REWARD]-Seiten mitgeschickt. Sie enthalten unter anderem
+ein Muster, das wie ein Unix-Zeitstempel aussieht (~0x639...), und mehrere
+sich wiederholende 4-Byte-Gruppen - nicht abschliessend entschluesselt,
+vermutlich Belohnungsitem-/Skillroll-Metadaten.
+
+`PacketTypeServer.cs` (SH17Type-Kommentar) entsprechend aktualisiert.
+
+### 54.2 Revive-Mechanik entschluesselt - Diskrepanz zum eigenen Code
+     gefunden
+
+**SH9Type.HealHP** (6-Byte-Body): `[u32 LE Heilbetrag][u16 LE
+Sequenzzaehler]`. Bytegenau bestaetigt: unmittelbar nach dem ersten
+Revive in versuch_5 (Uruga-Feld, t=566.66s) zeigt das Paket exakt
+**459** - identisch mit der vom Nutzer notierten Beobachtung "459hp...
+wieder hergestellt".
+
+**SH4Type.Revive** (10-Byte-Body) enthaelt entgegen der urspruenglichen
+Mutmassung KEINE HP-Werte, sondern eine Zielposition: `[u16 LE
+RespawnPointID][u32 LE X][u32 LE Y]`. Beleg: beim zweiten Revive
+(KQ-Fail-Rueckteleport nach Elderine, t=847.67s) liefert das Paket voellig
+andere Werte (RespawnPointID 134 statt 17, X/Y ~1487/1517 statt
+~5835/6397) - konsistent mit zwei unterschiedlichen Zielorten, nicht mit
+HP.
+
+**SH4Type.ReviveWindow** (9-Byte-Body: `[u32 LE][u32 LE][byte]`) zeigt an
+BEIDEN unabhaengigen Toden exakt dieselben Werte (180, 50, 0) - vermutlich
+feste Server-Konstanten (z.B. Revival-Fenster-Timeout in einer noch
+unbekannten Zeiteinheit, und/oder eine Revival-Gebuehr), keine
+situationsabhaengigen Werte.
+
+**Wichtiger Fund - Diskrepanz zum eigenen `MapObject.Revive()`:** Das per
+zwei unabhaengigen Paketen (`CharacterInfo`/`DetailedCharacterInfo`
+unmittelbar vor dem Tod, `HealHP` unmittelbar danach) im selben Mitschnitt
+bestaetigte MaxHP des Charakters zum Zeitpunkt des ersten Revives betrug
+**2432** (nicht 1532, wie in der Mitschnitt-Beschreibung notiert - dieser
+Wert stammt vermutlich von einem anderen, im gleichen Satz erwaehnten
+Stat wie Max-LP/Max-SP). Daraus ergibt sich eine reale
+Revive-Heilrate ohne aktiven Buff von 459/2432 ≈ **18,9 %**.
+
+Der aktuelle Code (`MapObject.Revive()`, `NextGen.Zone/Game/MapObject.cs`)
+faellt ohne `SAA_REVIVEHEALRATE`-Buff auf einen hartkodierten Flat-Wert
+`HP = 50` zurueck (Kommentar dort fragt bereits rhetorisch "Why not take
+e.g. 10% of your MaxHp?"). Der reale Client verwendet nachweislich einen
+prozentualen Wert um die 19 %, keinen Flat-Betrag und auch nicht die im
+Kommentar vorgeschlagenen 10 %. **Nicht in dieser Antwort geaendert** -
+ein einzelner Messpunkt reicht nicht, um die exakte Formel (fester
+Prozentsatz vs. level-/klassenabhaengig) sicher abzuleiten; dafuer waere
+ein zweiter Todesfall mit einem anderen MaxHP-Wert hilfreich. Als
+TODO-Kommentar im Code ergaenzt.
+
+`PacketTypeServer.cs` (SH4Type/SH9Type-Kommentare) entsprechend
+aktualisiert, `MapObject.cs` um einen Verweis auf diesen Abschnitt
+ergaenzt (siehe 54.7).
+
+### 54.3 Echte KQ-Fail-Session vollstaendig rekonstruiert
+
+versuch_5 enthaelt die komplette Sequenz einer gescheiterten Kingdom
+Quest ("Lost Mini Dragon (Hardcore)[B]", Instanz-ID 969) - Registrierung,
+Countdown, Zonenwechsel in die Instanz, Tod, Fail-Signal,
+Rueckteleport-Countdown, verzoegerter manueller Rueckteleport. Wichtige
+Praezisierung der Architektur: die KQ-Instanzkarte laeuft NICHT ueber
+den zuvor bereits verbundenen Zone-Server (Port 9019/9022), sondern ueber
+eine dritte, komplett neue Zone-Verbindung mit eigenem Handshake
+(`SH2Type.SetXorKeyPosition` + `CH6Type.TransferKey`), hier auf Port 9025
+- dem gleichen Port, den in versuch_4 das Gluecksspielhaus benutzt hat.
+Das ist vermutlich Zufall (naechster freier Port aus dem Server-seitigen
+Pool fuer "temporaere Sub-Instanz-Karten"), keine feste Zuordnung
+Port-zu-Feature.
+
+**Ablauf (World-Server-Stream, Zeiten aus versuch_5):**
+
+| t (s)   | Richtung | Paket                                  | Bedeutung |
+|---------|----------|-----------------------------------------|-----------|
+| 636.56  | c2s      | CH22Type Typ3, `[u32 969]`             | Instanz-Detailanfrage |
+| 636.57  | s2c      | SH22Type Typ4, `[u32 969][u16 2]`      | Antwort (Status/Anzahl) |
+| 638.12  | c2s      | CH22Type Typ5, `[u32 969]`             | **Anmeldung fuer die KQ** |
+| 638.12  | s2c      | SH22Type Typ50 (26 Byte, mit Platz-halter-String "text") | Anmeldebestaetigung (unlokalisiert!) |
+| 638.12  | s2c      | SH22Type Typ6, `[u32 969][u16 0x0991]`| weitere Bestaetigung |
+| 638.80/650.82/661.83 | s2c | SH22Type Typ31, `[u16 1][u32 969][u16 wachsend: 2,3,4]` | periodisches Rekrutierungs-Update |
+| 651.83  | s2c      | **SH22Type Typ11** (Klartext): "Kingdom Quest - Lost Mini Dragon (Hardcore)[B] will begin in  10 seconds." | Countdown-Ankuendigung |
+| 651.83-660.83 | s2c | SH22Type Typ37 fuer Instanz 969, exakt 10x im 1-Sekunden-Takt | Countdown-Tick (Wert selbst blieb konstant) |
+| 661.98  | s2c      | SH6Type.ChangeZone -> Port 9025        | Teleport in die Instanzkarte |
+
+**In der Instanzkarte (Port 9025, Map "KDHDragon"):**
+
+| t (s)   | Ereignis |
+|---------|----------|
+| 663.58  | Zoneneintritt, GM-Level-Broadcasts ("From 127.0.0.1", "Admin level is 100" - lokale Testserver-Eigenheit, kein Gameplay-Fund) |
+| 765.54  | `SH4Type.ReviveWindow` - Tod durch Mob-Aggro (deckt sich mit "durch die mobs getötet worden") |
+| 766.33  | **`SH22Type.KingdomQuestFailed` (Typ 19, leerer Payload)** - neuer Opcode, feuert einmalig exakt beim Scheitern |
+| 766.83 - 791.82 | `SH8Type.GmNotice`: "Move to Elderine in 30/20/10/5 seconds." | Rueckteleport-Countdown |
+| ab 791.82 | **Kein automatischer Teleport** - der Countdown laeuft aus, ohne dass etwas passiert, weil der Charakter noch tot ist. Deckt sich exakt mit der Nutzerbeobachtung "timer um nichts passiert da ich noch tot bin". |
+| 847.65  | `CH4Type.ReviveToTown` (manuell "move to respawn point" gewaehlt) |
+| 847.67  | `SH4Type.Revive` -> Elderine-Umgebung |
+
+Das ist ein konkreter, bytegenau belegter Verhaltensfund: **der
+automatische KQ-Fail-Rueckteleport wird nicht ausgeloest, solange der
+Charakter im toten Zustand ist** - der Spieler muss zuerst manuell
+respawnen. Ob das im echten NA2016-Server beabsichtigtes Verhalten war
+oder ein Client-/Server-Bug im Original ist, laesst sich aus dem
+Mitschnitt allein nicht sagen; fuer den NextGen-Emulator aber wichtig zu
+wissen, falls die KQ-Fail-Logik implementiert wird (siehe 54.7).
+
+`SH22Type` und `CH22Type` um alle hier gefundenen Typen ergaenzt (siehe
+54.4 fuer weitere Details zu Typ 30/37/38/58).
+
+### 54.4 SH22Type-Familie: volle Instanzliste (Typ 38) entschluesselt,
+     CH22Type.GotIngame-Hypothese korrigiert
+
+Zusaetzlich zu den KQ-Session-Paketen aus 54.3 wurden im World-Stream
+mehrere periodische Broadcasts identifiziert, die offenbar den globalen
+Zustand ALLER aktiven KQ-Instanzen synchron halten:
+
+- **Typ 37** (6 Byte: `[u32 InstanzID][u16 Statuswert]`): Delta-Update
+  fuer eine einzelne Instanz. Normalerweise im Minutentakt fuer
+  verschiedene Instanz-IDs, aber fuer die eigene registrierte Instanz im
+  letzten 10-Sekunden-Countdown exakt im 1-Sekunden-Takt (siehe 54.3) -
+  der Statuswert selbst aendert sich dabei NICHT, ist also vermutlich
+  eine Karten-/Typreferenz und kein Timer.
+- **Typ 30** (6 oder 10 Byte: `[u16 Anzahl][u32 InstanzID] * Anzahl`):
+  begleitet Typ 37 fast immer im selben Sende-Burst, offenbar eine
+  Gruppierung "diese instanzen haben sich gerade geaendert".
+- **Typ 38** (variable Laenge, TLV-Liste): voller Resync aller aktiven
+  Instanzen. Layout: `[u16 LE Anzahl][{u32 LE InstanzID, u16 LE
+  Statuswert (identisch zum Typ-37-Wert derselben Instanz), u16 LE
+  zweiter Wert}] * Anzahl`. Der zweite Wert wiederholt sich fuer mehrere
+  Instanzen mit gleichem Statuswert - passt zu einer gemeinsamen
+  Karten-/Dungeon-ID pro KQ-Typ. Ueber die 20-minuetige Session hinweg
+  schrumpfte die Anzahl der gelisteten Instanzen kontinuierlich (16 -> 16
+  -> 5 -> 3 -> 2) - konsistent mit ablaufenden/geschlossenen Instanzen.
+- **Typ 58** (1 Byte): tritt zuverlaessig bei jedem Zonen-/Karteneintritt
+  auf, immer als Teil derselben Paketkaskade wie die in 54.4 unten
+  aufgefuehrten unregistrierten `SH4Type`/`SH6Type`-Zusatzpakete -
+  vermutlich eher ein allgemeiner Zone-Status als KQ-spezifisch, trotz
+  Header 22.
+
+**CH22Type.GotIngame (Typ 27) - Korrektur:** Der bestehende
+Code-Kommentar beschrieb dieses Paket als einmaliges 27-Byte-Ereignis bei
+der Charaktererstellung. Der reale Mitschnitt zeigt stattdessen ein 2-3
+Byte kleines Paket, das WIEDERHOLT auftritt - typischerweise alle 5-10s,
+und deutlich gehaeuft (fast im Sekundentakt) waehrend einer aktiven
+KQ-Rekrutierungsphase. Die urspruengliche Namensgebung/Annahme war also
+zumindest unvollstaendig; plausibler ist ein leichtgewichtiger
+"Bereit/aktiv"-Heartbeat des KQ-Subsystems. Kommentar in
+`PacketTypeClient.cs` entsprechend korrigiert, Name vorerst beibehalten
+(erstes Vorkommen pro Session passt weiterhin zum Zonen-Eintritt).
+
+**Wiederkehrende "Zonen-Eintritt-Paketkaskade" bestaetigt:** Die in
+Abschnitt davor als Einzelfund vermerkten unregistrierten Pakete
+`SH4Type` Typ 35/198/206/212/215/228/231/234, `SH6Type` Typ 39/43 sowie
+`SH22Type` Typ 58 wurden in versuch_5 an INSGESAMT DREI unabhaengigen
+Zoneneintritten (Uruga-Zone, KQ-Instanz) im exakt gleichen Bündel
+reproduziert - kein Einzelfund mehr, sondern ein stabiles, reproduzierbares
+Muster. Inhaltlich weiterhin nicht entschluesselt (die meisten Bodies sind
+1-8 Byte, ohne lesbaren Text).
+
+**Neuer, weiterhin unbekannter Header 36** in versuch_4 bestaetigt (kein
+`CH36Type`/`SH36Type` existiert im Code) - 1-Byte-Body, zweimal beobachtet
+(Werte 0 und 5, ca. 25s auseinander). Zu wenige Datenpunkte fuer eine
+Hypothese; als offener Punkt vermerkt statt spekuliert.
+
+### 54.5 Gluecksspielhaus (Header 47) - Objekt-Interaktion und Tischlimits
+     entschluesselt
+
+Praezisierung von Abschnitt 53.2 mit echten Payload-Daten aus versuch_4:
+
+- **Typ 23/24** (Objekt ansprechen): Anfrage `[u16 LE ObjektID]`, Antwort
+  `[byte Status][byte 0x26 konstant][u16 LE ObjektID-Echo][u32 LE
+  Objekttyp][byte Flag]`. Zwei verschiedene angesprochene Objekte
+  (ObjektID 0x4388/0x438a fuer den "Automaten", 0x4375 fuer den
+  "Wuerfeltisch") liefern unterschiedliche Objekttyp-Werte (2 bzw. 1) -
+  stimmt mit zwei unterschiedlichen, in der Mitschnitt-Beschreibung
+  genannten Objekten ueberein.
+- **Typ 216** (periodischer Broadcast, exakt alle 10s): Payload ist
+  zwischen zwei Beobachtungen BYTE-IDENTISCH - **widerlegt die bisherige
+  Vermutung eines Live-Jackpot-/Timer-Updates** (Abschnitt 53.2). Enthaelt
+  stattdessen die Werte 100 und 500, plausibler als Mindest-/
+  Hoechsteinsatz des Tisches.
+- **Typ 200/201** (Spiel betreten) und **Typ 100/101** (Einsatz/Wurf,
+  50-Byte-Antwort mit einem grossen Wert ~150000, evtl. Jackpot-Pool
+  oder Kontostand) und **Typ 104/105** (Spiel verlassen, leerer
+  Anfrage-Payload) strukturell grob erfasst, nicht abschliessend
+  verifiziert.
+
+`CH47Type` (bisher nicht existent) und `SH47Type` in den Enum-Dateien
+ergaenzt.
+
+### 54.6 Neues Werkzeug: automatisierte pcap-Decodierungs-Pipeline
+
+`tools/pcap-analysis/decode_stream.py` (neu) automatisiert den kompletten
+Weg von der rohen `.pcapng`-Datei bis zur lesbaren Opcode-Liste:
+
+1. `tshark` extrahiert TCP-Nutzdaten je Stream und Richtung (mit
+   Zeitstempel und Frame-Nummer fuer Rueckverfolgbarkeit).
+2. Framing (Laengen-Praefix-Schema) wird auf dem ROHEN, noch
+   verschluesselten Client->Server-Strom angewendet, NICHT nach der
+   Entschluesselung - **eigener Fehler im ersten Anlauf dieser Session**:
+   `Client.cs` zeigt, dass das Laengen-Praefix vor der Entschluesselung
+   abgestreift wird, der XOR-Zaehler aber ueber Paketgrenzen hinweg
+   weiterlaeuft. Nach Korrektur stimmt die Pipeline exakt mit dem in
+   Abschnitt 27 dokumentierten Login-Handshake ueberein.
+3. `tools/pcap-analysis/parse_enums.py` (neu) parst `CH*Type`/`SH*Type`
+   direkt aus den echten C#-Enum-Dateien (inkl. mehrzeiliger
+   Kommentare), damit Opcode-Namen nie von Hand nachgepflegt werden
+   muessen.
+4. **Zweiter eigener Fehler gefunden und korrigiert**: `Packet.cs` zeigt
+   `this.Type = (byte)(opCode & 1023)` - der `(byte)`-Cast kappt Werte
+   ueber 255 MODULO 256. Der erste Pipeline-Durchlauf ignorierte das und
+   zeigte dadurch falsche Typwerte (z.B. T272 statt des tatsaechlich vom
+   Code verwendeten T16).
+
+Reproduzierbar getestet: die Pipeline bestaetigt eigenstaendig den
+kompletten Login-Handshake (Abschnitt 27) und `SH22Type.KingdomQuestList`
+(Abschnitt 53.1) byte-exakt, bevor sie fuer die neuen Funde in diesem
+Abschnitt verwendet wurde.
+
+### 54.7 Code-Aenderungen dieser Antwort
+
+- `NextGen.FiestaLib/PacketTypeServer.cs`: SH4Type (ReviveWindow/Revive),
+  SH8Type (GmNotice), SH9Type (HealHP), SH17Type (NpcDialogMenu), SH22Type
+  (7 neue Typen), SH47Type (5 neue Typen) - alles reine Kommentare bzw.
+  additive Enum-Werte, keine bestehenden Werte veraendert oder entfernt.
+- `NextGen.FiestaLib/PacketTypeClient.cs`: CH22Type (Kommentarkorrektur
+  GotIngame + 2 neue Typen), CH47Type (neu, 4 Typen) - ebenfalls rein
+  additiv.
+- `tools/pcap-analysis/decode_stream.py`, `parse_enums.py` (neu).
+- **Kompilierpruefung:** Volle Solution-Kompilierung war in dieser
+  Sandbox nicht moeglich (kein Zugriff auf `api.nuget.org` fuer den
+  `MySqlConnector`-Paket-Restore, anders als in frueheren Sitzungen).
+  Ersatzweise beide geaenderten Dateien in einem isolierten,
+  abhaengigkeitsfreien Projekt mit `dotnet build` (.NET 10 SDK)
+  syntaxgeprueft - 0 Fehler, 0 Warnungen. Da ausschliesslich Kommentare
+  und neue (nie umbenannte/entfernte) Enum-Werte geaendert wurden, ist das
+  Risiko einer Regression an anderer Stelle im Code minimal; eine volle
+  Solution-Kompilierung sollte trotzdem in einer Umgebung mit
+  NuGet-Zugriff nachgeholt werden, bevor weiterer Code auf den neuen
+  Opcodes aufbaut.
+
+### 54.8 Weiterhin offen
+
+- Belohnungs-/Skillroll-Metadaten in den langen NpcDialogMenu-Begleit-
+  paketen (Typ 6/10) nicht entschluesselt.
+- Reale Revive-Heilrate (54.2) nur an einem Datenpunkt (18,9 %) belegt -
+  zweiter Todesfall mit anderem MaxHP noetig, bevor die Formel im Code
+  geaendert wird.
+- `SH22Type` Typ 4/6/50 (KQ-Anmeldebestaetigung) nur grob erfasst, nicht
+  bytegenau vollstaendig; der Platzhaltertext "text" in Typ 50 verdient
+  eine gezielte Nachpruefung (fehlende Lokalisierung im Original-Client?).
+- Neuer Header 36 weiterhin komplett unbekannt (nur 2 Datenpunkte).
+- Gluecksspielhaus-Opcodes 100/101/200-203 nur grob strukturell erfasst.
+- Guild-Manager-Dialog, Inventar (6 Taschen), Lager-NPC, Titel-Fenster,
+  Karten-Sammlung, Freundesliste, Emote-Fenster aus Abschnitt 53.4 weiterhin
+  nicht ausgewertet - liefen im Zone-Stream durchweg ueber den generischen
+  `SH17Type.NpcDialogMenu`-Mechanismus oder gar nicht als eigener
+  Netzwerk-Request (vermutlich rein aus bereits beim Login geladenen
+  Daten wie `CharacterTitles` gespeist), was eine gezielte Analyse
+  schwieriger macht als angenommen.
