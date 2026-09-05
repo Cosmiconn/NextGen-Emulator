@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Sockets;
 using System.Reflection;
 using NextGen.FiestaLib.Networking;
@@ -39,7 +39,7 @@ namespace NextGen.Login.Networking
 
         void LoginClient_OnPacket(object sender, PacketReceivedEventArgs e)
         {
-            MethodInfo method = HandlerStore.GetHandler(e.Packet.Header, e.Packet.Type);
+            MethodInfo method = HandlerStore.GetHandler(e.Packet.Header, e.Packet.Type, this.ClientVersion);
             if (method != null)
             {
                 Action action = HandlerStore.GetCallback(method, this, e.Packet);
