@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Timers;
@@ -116,6 +116,23 @@ namespace NextGen.Zone
                            cclient.Character.UpdateMountFood();
                        }
                    }
+                }
+            }
+        }
+        // Prueft bei jedem verbundenen Charakter, ob aktive Buffs abgelaufen
+        // sind (siehe Buffs.Tick in NextGen.Zone/Game/Buffs/Buffs.cs). War
+        // zuvor nirgends aufgerufen - Buffs waeren nie automatisch abgelaufen.
+        // Gleiches Muster wie UpdateMountTicks oben, aus Worker.cs heraus mit
+        // hoeherer Frequenz aufgerufen (siehe dort), da Buff-Laufzeiten
+        // (SubAbState.KeepTime, teils nur 20 Sekunden) deutlich kuerzer sind
+        // als der 30-Sekunden-Mount-Rhythmus.
+        public void UpdateBuffTicks(DateTime now)
+        {
+            lock (clientsByName)
+            {
+                foreach (ZoneClient cclient in clientsByName.Values)
+                {
+                    cclient.Character.TickBuffs(now);
                 }
             }
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NextGen.Zone.Game;
 
 namespace NextGen.Zone.Managers

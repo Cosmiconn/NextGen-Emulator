@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NextGen.FiestaLib.Data;
 using NextGen.Util;
 using NextGen.Zone.Data;

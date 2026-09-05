@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NextGen.Zone.Game;
 using System.Linq;
 using System;
@@ -113,21 +113,23 @@ namespace NextGen.Zone
 			const string get_group_id_query = 
 				"SELECT `GroupId` " +
 				"FROM `characters` " +
-				"WHERE `CharId` = {0}";
+				"WHERE `CharId` = @charId";
 			//--------------------------------------------------
 			// Get group id and check if char haz group
 			//--------------------------------------------------
-			string query = string.Format(get_group_id_query, pCharId);
 			using(var client = Program.DatabaseManager.GetClient())
-			using(var cmd = new MySqlCommand(query, client.GetConnection()))
-			using(var reader = cmd.ExecuteReader())
+			using(var cmd = new MySqlCommand(get_group_id_query, client.GetConnection()))
 			{
-				long? id = null;
-				while(reader.Read())
-					id = reader.GetInt64(0);
+				cmd.Parameters.AddWithValue("@charId", pCharId);
+				using(var reader = cmd.ExecuteReader())
+				{
+					long? id = null;
+					while(reader.Read())
+						id = reader.GetInt64(0);
 
-				if(id == -1 || id == null)
-					return false;
+					if(id == -1 || id == null)
+						return false;
+				}
 			}
 			return true;
 		}
@@ -138,19 +140,21 @@ namespace NextGen.Zone
 			//--------------------------------------------------
 			const string get_group_id_query = 
 				"SELECT `GroupId` FROM `characters` " + 
-				"WHERE `CharId` = {0} ";
+				"WHERE `CharId` = @charId ";
 			
 			//--------------------------------------------------
 			// get group id
 			//--------------------------------------------------
-			string query = string.Format(get_group_id_query, pCharacter.ID);
 			long groupId = -1;
 			using(var client = Program.DatabaseManager.GetClient())
-			using(var cmd = new MySqlCommand(query, client.GetConnection()))
-			using(var reader = cmd.ExecuteReader())
+			using(var cmd = new MySqlCommand(get_group_id_query, client.GetConnection()))
 			{
-				while(reader.Read())
-					groupId = reader.GetInt64(0);
+				cmd.Parameters.AddWithValue("@charId", pCharacter.ID);
+				using(var reader = cmd.ExecuteReader())
+				{
+					while(reader.Read())
+						groupId = reader.GetInt64(0);
+				}
 			}
 
 			LoadGroupFromDatabase(groupId);
@@ -203,19 +207,22 @@ namespace NextGen.Zone
 			const string get_group_id_query = 
 				"USE `fiesta_world`; " +
 				"SELECT `GroupId` FROM `characters` " +
-				"WHERE `CharId` =  '{0}'";
+				"WHERE `CharId` =  @charId";
 
 			//--------------------------------------------------
 			// get groupId
 			//--------------------------------------------------
 			using (var client = Program.DatabaseManager.GetClient())
-			using (var cmd = new MySqlCommand(string.Format(get_group_id_query, pCharacterId), client.GetConnection()))
-			using (var reader = cmd.ExecuteReader())
-				while (reader.Read()){
-					if(reader.IsDBNull(0))
-						return -1;
-					return reader.GetInt64("GroupId");
-				}
+			using (var cmd = new MySqlCommand(get_group_id_query, client.GetConnection()))
+			{
+				cmd.Parameters.AddWithValue("@charId", pCharacterId);
+				using (var reader = cmd.ExecuteReader())
+					while (reader.Read()){
+						if(reader.IsDBNull(0))
+							return -1;
+						return reader.GetInt64("GroupId");
+					}
+			}
 			
 			return -1;
 		}
