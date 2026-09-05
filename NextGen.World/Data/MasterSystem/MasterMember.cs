@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Data;
 using NextGen.World.Networking;
 using NextGen.Database.DataStore;
@@ -56,19 +56,31 @@ namespace NextGen.World.Data
         }
         public void AddToDatabase()
         {
-            Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO Masters (CharID,MasterID,MemberName,Level,RegisterDate,isMaster) VALUES ('" + this.MasterID+ "','"+this.CharID+"','" + this.pMemberName + "','" + this.Level + "','" + this.RegisterDate.ToString("yyyy-MM-dd hh:mm") + "','"+Convert.ToByte(this.IsMaster)+"')");
+            Program.DatabaseManager.GetClient().ExecuteQuery("INSERT INTO Masters (CharID,MasterID,MemberName,Level,RegisterDate,isMaster) VALUES (@charId,@masterId,@memberName,@level,@registerDate,@isMaster)",
+                new MySqlParameter("@charId", this.CharID),
+                new MySqlParameter("@masterId", this.MasterID),
+                new MySqlParameter("@memberName", this.pMemberName),
+                new MySqlParameter("@level", this.Level),
+                new MySqlParameter("@registerDate", this.RegisterDate.ToString("yyyy-MM-dd hh:mm")),
+                new MySqlParameter("@isMaster", Convert.ToByte(this.IsMaster)));
         }
         public void RemoveFromDatabase()
         {
-            Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM Masters WHERE CharID ='" + this.CharID + "' AND MasterID ='"+this.MasterID+"'");
+            Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM Masters WHERE CharID =@charId AND MasterID =@masterId",
+                new MySqlParameter("@charId", this.CharID),
+                new MySqlParameter("@masterId", this.MasterID));
         }
         public void RemoveFromDatabase(int MasterID,string Charname)
         {
-            Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM Masters WHERE CharID ='" + MasterID + "' AND MasterID ='" +this.CharID + "'");
+            Program.DatabaseManager.GetClient().ExecuteQuery("DELETE FROM Masters WHERE CharID =@charId AND MasterID =@masterId",
+                new MySqlParameter("@charId", MasterID),
+                new MySqlParameter("@masterId", this.CharID));
         }
         public  static void UpdateLevel(byte level,string charame)
         {
-            Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE  Masters SET Level='"+level+"'WHERE binary `MemberName` ='" + charame+ "'");
+            Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE  Masters SET Level=@level WHERE binary `MemberName` =@memberName",
+                new MySqlParameter("@level", level),
+                new MySqlParameter("@memberName", charame));
         }
         public  void SetMemberStatus(bool Status,string name)
         {
