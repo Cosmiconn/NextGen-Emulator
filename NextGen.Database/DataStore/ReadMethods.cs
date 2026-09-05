@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using MySqlConnector;
 using NextGen.Util;
 using NextGen.Database.Storage;
@@ -139,7 +139,8 @@ namespace NextGen.Database.DataStore
             DataTable charData = null;
             using (DatabaseClient dbClient = dbmanager.GetClient())
             {
-                charData = dbClient.ReadDataTable("SELECT  *FROM `characters` WHERE  CharID= '" + ID + "'");
+                charData = dbClient.ReadDataTable("SELECT  *FROM `characters` WHERE  CharID= @charId",
+                    new MySqlParameter("@charId", ID));
             }
             if (charData != null)
             {
@@ -169,6 +170,18 @@ namespace NextGen.Database.DataStore
                     ch.UsablePoints = (byte)row["UsablePoints"];
                     ch.MasterJoin = DateTime.Parse(row["MasterJoin"].ToString());
                     ch.Fame = 0;
+                    ch.KillPoints = GetDataTypes.GetInt(row["KillPoints"]);
+                    ch.TotalMobKills = GetDataTypes.GetUint(row["TotalMobKills"]);
+                    ch.MobKillTitleTier = (byte)GetDataTypes.GetInt(row["MobKillTitleTier"]);
+                    ch.PvPKillTitleTier = (byte)GetDataTypes.GetInt(row["PvPKillTitleTier"]);
+                    ch.NpcBuyCount = GetDataTypes.GetUint(row["NpcBuyCount"]);
+                    ch.NpcBuyTitleTier = (byte)GetDataTypes.GetInt(row["NpcBuyTitleTier"]);
+                    ch.NpcSellCount = GetDataTypes.GetUint(row["NpcSellCount"]);
+                    ch.NpcSellTitleTier = (byte)GetDataTypes.GetInt(row["NpcSellTitleTier"]);
+                    ch.FriendCount = GetDataTypes.GetUint(row["FriendCount"]);
+                    ch.FriendCountTitleTier = (byte)GetDataTypes.GetInt(row["FriendCountTitleTier"]);
+                    ch.TotalTitlesEarned = GetDataTypes.GetUint(row["TotalTitlesEarned"]);
+                    ch.FameCountTitleTier = (byte)GetDataTypes.GetInt(row["FameCountTitleTier"]);
                     ch.GameSettings = DataStore.ReadMethods.GetGameSettings(ch.ID, dbmanager);
                     ch.ClientSettings = DataStore.ReadMethods.GetClientSettings(ch.ID, dbmanager);
                     ch.Shortcuts = DataStore.ReadMethods.GetShortcuts(ch.ID, dbmanager);
