@@ -1,6 +1,9 @@
-﻿using System.Data;
+using System;
+using System.Data;
 using System.Collections.Generic;
 using System.Threading;
+using NextGen.Util;
+using MySqlConnector;
 using NextGen.Database;
 
 namespace NextGen.Zone.Game
@@ -19,7 +22,8 @@ namespace NextGen.Zone.Game
                 DataTable Premiumdata = null;
                 using (DatabaseClient dbClient = Program.CharDBManager.GetClient())
                 {
-                    Premiumdata = dbClient.ReadDataTable("SELECT *FROM PremiumItem WHERE CharID='" + pChar + "'");
+                    Premiumdata = dbClient.ReadDataTable("SELECT *FROM PremiumItems WHERE CharID=@charId",
+                        new MySqlParameter("@charId", pChar));
                 }
                 if (Premiumdata != null)
                 {
@@ -95,7 +99,7 @@ namespace NextGen.Zone.Game
             {
                 this.locker.ReleaseMutex();
             }
-            catch { }
+            catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "PremiumInventory: Mutex-Freigabe ohne gehaltenen Lock (Programmierfehler-Indikator): {0}", ex); }
         }
     }
 }

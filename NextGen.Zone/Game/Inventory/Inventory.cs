@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
+using NextGen.Util;
 using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib;
 using MySqlConnector;
@@ -40,7 +42,7 @@ namespace NextGen.Zone.Game
             {
                 locker.ReleaseMutex();
             }
-            catch { }
+            catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Inventory: Mutex-Freigabe ohne gehaltenen Lock (Programmierfehler-Indikator): {0}", ex); }
         }
 
         public void LoadFull(ZoneCharacter pChar)
@@ -52,7 +54,8 @@ namespace NextGen.Zone.Game
                 DataTable items = null;
                   using (DatabaseClient dbClient = Program.CharDBManager.GetClient())
                 {
-                    items = dbClient.ReadDataTable("SELECT * FROM items WHERE Owner=" + pChar.ID + "");
+                    items = dbClient.ReadDataTable("SELECT * FROM items WHERE Owner=@owner",
+                        new MySqlParameter("@owner", pChar.ID));
                 }
                   //we load all equippeditem
 

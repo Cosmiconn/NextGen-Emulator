@@ -1,7 +1,10 @@
-﻿using System.Data;
+using System;
+using System.Data;
 using System.Linq;
 using System.Threading;
+using NextGen.Util;
 using System.Collections.Generic;
+using MySqlConnector;
 using NextGen.Database;
 
 namespace NextGen.Zone.Game
@@ -29,7 +32,8 @@ namespace NextGen.Zone.Game
                 DataTable Rewarddata = null;
                 using (DatabaseClient dbClient = Program.CharDBManager.GetClient())
                 {
-                    Rewarddata = dbClient.ReadDataTable("SELECT *FROM RewardItems WHERE CharID='" + pCharID + "'");
+                    Rewarddata = dbClient.ReadDataTable("SELECT *FROM RewardItems WHERE CharID=@charId",
+                        new MySqlParameter("@charId", pCharID));
                 }
                 if (Rewarddata != null)
                 {
@@ -111,7 +115,7 @@ namespace NextGen.Zone.Game
             {
                 locker.ReleaseMutex();
             }
-            catch { }
+            catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "RewardInventory: Mutex-Freigabe ohne gehaltenen Lock (Programmierfehler-Indikator): {0}", ex); }
         }
 
     }
