@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Sockets;
 using System.Reflection;
 using NextGen.FiestaLib.Networking;
@@ -32,7 +32,7 @@ namespace NextGen.Zone.Networking
         void ZoneClient_OnPacket(object sender, PacketReceivedEventArgs e)
         {
             if (!Authenticated && !(e.Packet.Header == 6 && e.Packet.Type == 1)) return; //do not handle packets if not authenticated!
-            MethodInfo method = HandlerStore.GetHandler(e.Packet.Header, e.Packet.Type);
+            MethodInfo method = HandlerStore.GetHandler(e.Packet.Header, e.Packet.Type, this.ClientVersion);
             if (method != null)
             {
                 Action action = HandlerStore.GetCallback(method, this, e.Packet);
