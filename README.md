@@ -1,13 +1,31 @@
-# NextGen-Emulator 
-NextGen is an Updated Version of Estrella C# Emulator project for Fiesta Online and Open Source.
+# NextGen-Emulator
 
-## Client Support (Not Yet)
-Client currently supported: Fiesta Gamigo NA (2016 or latest )
+NextGen-Emulator is an open source C# server emulator for Fiesta Online,
+modernized to .NET 10 (LTS).
 
-## Credits
-This open source repository is directly from DragonFiesta (https://github.com/DragonFiestaTeam/DragonFiesta),
-which so were derived from Zepheus (https://github.com/Zepheus/Zepheus_Fiesta).
+## Lineage
 
-Thanks to the DragonFiesta and Zepheus and all contributers there. 
+This project's codebase is directly descended from **Estrella**
+(github.com/Temperament/Estrella), which itself was derived from
+**DragonFiesta** (github.com/DragonFiestaTeam/DragonFiesta), which in turn
+was derived from **Zepheus** (github.com/Zepheus/Zepheus_Fiesta).
 
-This project is intended to update and build upon their framework to support the latest clients.
+Thanks to the Zepheus, DragonFiesta and Estrella authors and all
+contributors there.
+
+## Client Support
+
+Client currently targeted: Fiesta Gamigo NA 2016 (TeamNG client).
+Protocol/opcode compatibility against the real client is **not yet
+verified** — see `DOCUMENTATION.md`.
+
+## What changed vs. Estrella
+
+See `DOCUMENTATION.md` for the full, itemized changelog: SQL-injection
+remediation (all known string-concatenated queries parametrized), removal
+of dead EF6/WCF/WinForms code, the .NET Framework → .NET 10 SDK-style
+project migration, and the `MySql.Data` → `MySqlConnector` driver swap.
+
+**This modernization has not been build-verified with a real .NET SDK.**
+Read the "Verification status" section in `DOCUMENTATION.md` before
+relying on it.
