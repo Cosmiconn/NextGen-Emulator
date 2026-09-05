@@ -219,6 +219,15 @@ namespace NextGen.Zone.Game
             }
             else
             {
+                // TODO: Ein echter Mitschnitt (versuch_5, siehe
+                // DOCUMENTATION.md Abschnitt 54.2) zeigt fuer einen Revive
+                // ohne SAA_REVIVEHEALRATE-Buff eine tatsaechliche Heilrate
+                // von ca. 459/2432 = 18.9% MaxHP, nicht den hier
+                // hartkodierten Flat-Wert 50 und auch nicht die 10% aus
+                // der Notiz unten. Nur EIN Messpunkt vorhanden - bewusst
+                // noch nicht umgestellt, bis ein zweiter Todesfall mit
+                // anderem MaxHP die Formel (fester Prozentsatz vs.
+                // level-/klassenabhaengig) absichert.
                 // Note - Why not take e.g. 10% of your MaxHp?
                 // HP = MaxHP * 0.1;
                 HP = 50;
