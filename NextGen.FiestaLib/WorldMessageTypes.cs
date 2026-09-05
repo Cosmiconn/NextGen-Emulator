@@ -1,4 +1,4 @@
-﻿
+
 namespace NextGen.FiestaLib
 {
     public enum WorldMessageTypes : byte

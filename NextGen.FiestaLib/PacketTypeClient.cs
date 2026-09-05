@@ -1,4 +1,4 @@
-﻿
+
 namespace NextGen.FiestaLib {
 public enum CH2Type : byte {
     Pong = 5,
@@ -7,7 +7,10 @@ public enum CH2Type : byte {
 
 public enum CH3Type : byte {
     Version = 101,
-    Login = 56,
+    // Wert per echtem Paket-Mitschnitt (2016er Client gegen Original-Server)
+    // korrigiert: war faelschlich 56, der echte Client sendet 90. Siehe
+    // DOCUMENTATION.md Abschnitt 27.
+    Login = 90,
     FileHash = 4,
 
     WorldReRequest = 27,
@@ -126,6 +129,11 @@ public enum CH21Type : byte {
 }
 public enum CH22Type : byte {
     GotIngame = 27,
+    // Per echtem Paket-Mitschnitt entdeckt (Charaktererstellung, 27 Byte,
+    // unmittelbar vor der Server-Antwort mit dem neuen Charakternamen) -
+    // enthaelt keinen lesbaren Text, vermutlich Aussehens-/Klassenparameter.
+    // Struktur nicht im Detail bekannt. Siehe DOCUMENTATION.md Abschnitt 34.
+    CreateCharacter = 191,
 }
 public enum CH28Type : byte {
     GetQuickBar = 2,
@@ -184,5 +192,19 @@ public enum CH42Type : byte {
     AddToBlockList = 3,
     RemoveFromBlockList = 7,
     ClearBlockList = 11,
+}
+
+// Per echtem Paket-Mitschnitt entdeckt (2016er Client gegen Original-
+// Server, Quest-Abgabe-Sequenz bei NPC Julia) - noch nicht implementiert,
+// nur der Opcode dokumentiert. Siehe DOCUMENTATION.md Abschnitt 30.
+// Typ-2 (Antwort auf das NPC-Dialogmenue) beobachtet, 9 Byte.
+public enum CH17Type : byte {
+    NpcDialogResponse = 2,
+}
+// Folgt unmittelbar auf die Quest-Belohnungs-Paketkaskade (SH4Type.Money/
+// SH9Type.GainExp etc.) - vermutlich eine Quest-Log-Bestaetigung. Typ-37
+// beobachtet, 3 Byte.
+public enum CH16Type : byte {
+    Unknown37 = 37,
 }
 }

@@ -1,24 +1,33 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>NextGen.FiestaLib</RootNamespace>
     <AssemblyName>NextGen.FiestaLib</AssemblyName>
-    <OutputType>Library</OutputType>
-    <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="MySqlConnector" Version="2.4.0" />
-    <PackageReference Include="System.Buffers" Version="4.6.1" />
-    <PackageReference Include="System.IO.Pipelines" Version="10.0.11" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NextGen.Database\NextGen.Database.csproj" />
     <ProjectReference Include="..\NextGen.Util\NextGen.Util.csproj" />
+  </ItemGroup>
+
+  <!--
+    CharCreationError.cs und SpawnNPCPoint.cs standen im Original NICHT in
+    der alten Compile-Include-Liste und wurden nie mitkompiliert. Bewusst
+    weiterhin ausgeschlossen statt ungeprueft scharfzuschalten. Siehe
+    DOCUMENTATION.md, Abschnitt "Bislang ausgeschlossene Dateien".
+
+    Der SHN-Parser (SHN/*.cs) stand urspruenglich ebenfalls hier auf der
+    Ausschlussliste - wurde aber inzwischen gegen 130 echte .shn-Dateien aus
+    dem NA2016-Client empirisch verifiziert (129/130 laden korrekt, siehe
+    DOCUMENTATION.md) und ist jetzt regulaerer Bestandteil des Builds.
+  -->
+  <ItemGroup>
+    <Compile Remove="CharCreationError.cs" />
+    <Compile Remove="Data\SpawnNPCPoint.cs" />
   </ItemGroup>
 
 </Project>

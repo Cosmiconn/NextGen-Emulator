@@ -1,4 +1,4 @@
-﻿
+
 namespace NextGen.FiestaLib
 {
     // Named as SHXType , where X = header ID
@@ -214,6 +214,9 @@ namespace NextGen.FiestaLib
     public enum SH18Type : byte
     {
         LearnSkill = 4,
+        // Per echtem Paket-Mitschnitt entdeckt (trat exakt bei jedem
+        // Levelup auf), siehe DOCUMENTATION.md Abschnitt 35.
+        NewSkillsAvailable = 16,
     }
 
     public enum SH20Type : byte
@@ -326,5 +329,33 @@ namespace NextGen.FiestaLib
     public enum SH31Type : byte
     {
         LoadUnkown = 7,
+    }
+
+    // Per echtem Paket-Mitschnitt entdeckt (2016er Client gegen Original-
+    // Server, Quest-Abgabe-Sequenz bei NPC Julia) - noch nicht
+    // implementiert, nur der Opcode dokumentiert. Siehe DOCUMENTATION.md
+    // Abschnitt 30. Typ-1 (105 Byte) unmittelbar nach CH8Type.
+    // BeginInteraction beobachtet - vermutlich das NPC-Dialog-/Quest-Menue
+    // selbst.
+    public enum SH17Type : byte
+    {
+        NpcDialogMenu = 1,
+        // Per echtem Paket-Mitschnitt entdeckt, siehe DOCUMENTATION.md
+        // Abschnitt 35. QuestProgressUpdate trat exakt bei jedem
+        // Mob-Tod waehrend einer aktiven Kill-Quest auf.
+        QuestProgressUpdate = 13,
+        DialogSessionStart = 30,
+    }
+    // Unmittelbar nach der Quest-Belohnungs-Paketkaskade beobachtet
+    // (Typ 38, 4 Byte) - vermutlich Bestaetigung/Quest-Log-Update.
+    public enum SH16Type : byte
+    {
+        Unknown38 = 38,
+    }
+    // Bislang komplett unbekannte Familie, einmalig direkt im
+    // Belohnungs-Cluster beobachtet (Typ 5, 10 Byte).
+    public enum SH47Type : byte
+    {
+        Unknown5 = 5,
     }
 }
