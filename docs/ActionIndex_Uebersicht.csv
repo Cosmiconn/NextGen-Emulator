@@ -1,0 +1,122 @@
+ActionIndex;EnumName (Fiesta-Heroes-Doku);Status;Details / Zuordnung
+0;SAA_NONE;Offen;
+1;SAA_STRRATE;Implementiert;-> Buffs.Str
+2;SAA_STRPLUS;Implementiert;-> Buffs.Str
+3;SAA_WCPLUS;Implementiert;-> Buffs.WeaponDamage
+4;SAA_WCRATE;Implementiert;-> Buffs.WeaponDamage
+5;SAA_ACPLUS;Implementiert;-> Buffs.WeaponDefense
+6;SAA_ACRATE;Implementiert;-> Buffs.WeaponDefense
+7;SAA_DEXPLUS;Implementiert;-> Buffs.Dex
+8;SAA_TBPLUS;Implementiert;-> Buffs.Evasion
+9;SAA_TBRATE;Implementiert;-> Buffs.Evasion
+10;SAA_THPLUS;Implementiert;-> Buffs.Aim
+11;SAA_THRATE;Implementiert;-> Buffs.Aim
+12;SAA_INTPLUS;Implementiert;-> Buffs.Int
+13;SAA_MAPLUS;Implementiert;-> Buffs.MagicDamage
+14;SAA_MENTALPLUS;Implementiert;-> Buffs.Spr
+15;SAA_MRPLUS;Implementiert;-> Buffs.MagicDefense
+16;SAA_MRRATE;Implementiert;-> Buffs.MagicDefense
+17;SAA_SHIELDAMOUNT;Implementiert;-> Buffs.ShieldAmount
+18;SAA_SHIELDACRATE;Implementiert;-> Buffs.BlockRate
+19;SAA_NOMOVE;Sonderbehandlung (Crowd Control);CanAct-Sperre (mit 25 kombiniert), x107
+20;SAA_SPEEDRATE;Implementiert;-> Buffs.MoveSpeed
+21;SAA_ATTACKSPEEDRATE;Implementiert;-> Buffs.AttackSpeed
+22;SAA_MAXHPRATE;Implementiert;-> Buffs.MaxHP
+23;SAA_MAXSPRATE;Implementiert;-> Buffs.MaxSP
+24;SAA_DEADHPSPRECOVRATE;Bedeutung bestaetigt, kein Konsument;Party HP/SP Recovery bei Tod, x13 verifiziert (500-1100)
+25;SAA_NOATTACK;Sonderbehandlung (Crowd Control);CanAct-Sperre (mit 19 kombiniert), x149
+26;SAA_TICK;Sonderbehandlung (periodisch);TickPeriodic(): Intervall (ms), x418 verifiziert
+27;SAA_DOTDAMAGE;Sonderbehandlung (periodisch);TickPeriodic(): periodischer Schaden, x296
+28;SAA_CONHEAL;Offen (unbelegt);Kein Vorkommen in ActionIndexA-D in allen 5 SHN-Dateien
+29;SAA_CASTINGTIMEPLUS;Bedeutung bestaetigt, kein Konsument;Increased Casting Time, x3 verifiziert (2000-4000ms)
+30;SAA_HEALAMOUNT;Sonderbehandlung (periodisch);TickPeriodic(): periodische Heilung, x95
+31;SAA_POISONRESISTRATE;Implementiert;-> Buffs.PoisonResistance
+32;SAA_DISEASERESISTRATE;Implementiert;-> Buffs.DiseaseResistance
+33;SAA_CURSERESISTRATE;Implementiert;-> Buffs.CurseResistance
+34;SAA_CRITICALRATE;Implementiert;-> Buffs.CriticalRate
+35;SAA_MAXHPPLUS;Implementiert;-> Buffs.MaxHP
+36;SAA_MAXSPPLUS;Implementiert;-> Buffs.MaxSP
+37;SAA_INTRATE;Implementiert;-> Buffs.Int
+38;SAA_FEAR;Sonderbehandlung (Crowd Control);CanAct-Sperre (IsFeared), x26
+39;SAA_ALLSTATEPLUS;Implementiert;-> Buffs.Str+End+Dex+Int+Spr
+40;SAA_REVIVEHEALRATE;Implementiert;-> Buffs.ReviveHealRatePermille
+41;SAA_COUNT;Offen;
+42;SAA_SILIENCE;Sonderbehandlung (Crowd Control);Skill-Sperre (IsSilenced) - 0 Datenbelege, rein code-seitig
+43;SAA_DEADLYBLESSING;Offen (unbelegt);Kein Vorkommen in ActionIndexA-D in allen 5 SHN-Dateien
+44;SAA_DAMAGERATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+45;SAA_TARGETENEMY;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+46;SAA_MARATE;Implementiert;-> Buffs.MagicDamage
+47;SAA_HEALRATE;Offen;
+48;SAA_DOTRATE;Offen (unbelegt);Kein Vorkommen in ActionIndexA-D in allen 5 SHN-Dateien
+49;SAA_AWAY;Bedeutung bestaetigt, kein Konsument;Knockback, x16 verifiziert (Distanz 100-300)
+50;SAA_TOTALDAMAGERATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+51;SAA_DISPELSPEEDRATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+52;SAA_SETABSTATEME;Widerspruch zu Vermutung;WIDERSPROCHEN: Vermutung war Folge-AbState - echte Belege zeigen Drop-Rate-Bonus
+53;SAA_SETABSTATEFRIEND;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+54;SAA_SETABSTATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+55;SAA_AREA;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+56;SAA_GTIRESISTRATE;Implementiert;-> Buffs.MissRatePercent (skaliert, geringe Konfidenz)
+57;SAA_MAXHPRATEDAMAGE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+58;SAA_METAABILITY;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+59;SAA_METASKIN;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+60;SAA_MISSRATE;Implementiert;-> Buffs.MissRatePercent
+61;SAA_REFLECTDAMAGE;Implementiert;-> Buffs.ReflectDamagePercent
+62;SAA_RELESEACTION;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+63;SAA_SCANENEMYUSER;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+64;SAA_TARGETALL;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+65;SAA_HIDEENEMY;Bedeutung bestaetigt, kein Konsument;Unsichtbarkeit ggue. Gildenfeinden, x1 verifiziert
+66;SAA_TARGETNOTME;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+67;SAA_DOTDIEDAMAGE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+68;SAA_ADDALLDOTDMG;Implementiert;-> Buffs.DotDamageBonusPercent
+69;SAA_ADDBLOODINGDMG;Implementiert;-> Buffs.BloodingDamageBonusPercent
+70;SAA_ADDPOISONDMG;Implementiert;-> Buffs.PoisonDamageBonusPercent
+71;SAA_EVASIONAMOUNT;Implementiert;-> Buffs.Evasion
+72;SAA_USESPRATE;Bedeutung bestaetigt, kein Konsument;Increased SP Consumption, x6 verifiziert (150-190)
+73;SAA_ACMINUS;Implementiert;-> Buffs.WeaponDefense
+74;SAA_ACDOWNRATE;Implementiert;-> Buffs.WeaponDefense
+75;SAA_SUBTRACTALLDOTDMG;Implementiert;-> Buffs.DotDamageBonusPercent
+76;SAA_SUBTRACTBLOODINGDMG;Implementiert;-> Buffs.BloodingDamageBonusPercent
+77;SAA_SUBTRACTPOISONDMG;Implementiert;-> Buffs.PoisonDamageBonusPercent
+78;SAA_ATKSPEEDDOWNRATE;Implementiert;-> Buffs.AttackSpeed
+79;SAA_AWAYBACK;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+80;SAA_CRITICALDOWNRATE;Implementiert;-> Buffs.CriticalRate
+81;SAA_DEXMINUS;Implementiert;-> Buffs.Dex
+82;SAA_HEALAMOUNTMINUS;Offen (unbelegt);Kein Vorkommen in ActionIndexA-D in allen 5 SHN-Dateien
+83;SAA_MAMINUS;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+84;SAA_MADOWNRATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+85;SAA_MAXHPDOWNRATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+86;SAA_MRMINUS;Implementiert;-> Buffs.MagicDefense
+87;SAA_MRDOWNRATE;Implementiert;-> Buffs.MagicDefense
+88;SAA_SPEEDDOWNRATE;Implementiert;-> Buffs.MoveSpeed
+89;SAA_STRMINUS;Implementiert;-> Buffs.Str
+90;SAA_TBMINUS;Implementiert;-> Buffs.Evasion
+91;SAA_TBDOWNRATE;Implementiert;-> Buffs.Evasion
+92;SAA_THMINUS;Implementiert;-> Buffs.Aim
+93;SAA_THDOWNRATE;Implementiert;-> Buffs.Aim
+94;SAA_WCMINUS;Implementiert;-> Buffs.WeaponDamage
+95;SAA_WCDOWNRATE;Implementiert;-> Buffs.WeaponDamage
+96;SAA_DOTWCRATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+97;SAA_TARGETNUMVER;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+98;SAA_DOTMARATE;Offen (unbelegt);Kein Vorkommen in ActionIndexA-D in allen 5 SHN-Dateien
+99;SAA_MENDOWNRATE;Implementiert;-> Buffs.Spr
+100;SAA_USESPDOWN;Bedeutung bestaetigt, kein Konsument;Reduced SP Consumption, x25 verifiziert (60-240)
+101;SAA_CRIUPRATE;Offen (unbelegt);Kein Vorkommen in ActionIndexA-D in allen 5 SHN-Dateien
+102;SAA_MRSHIELDRATE;Bedeutung bestaetigt, kein Konsument;Ignore Magic Damage, x1 verifiziert
+103;SAA_ACSHIELDRATE;Bedeutung bestaetigt, kein Konsument;Ignore Physical Damage, x1 verifiziert
+104;SAA_MONSTERSTICK;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+105;SAA_SETACTIVESKILL;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+106;SAA_HPRATEDAMAGE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+107;SAA_EXPRATE;Implementiert;-> Buffs.ExpBonusPercent
+108;SAA_DROPRATE;Bedeutung bestaetigt, kein Konsument;Drop-Rate-Bonus, x13 verifiziert
+109;SAA_AWAYBACKSPOT;Bedeutung bestaetigt, kein Konsument;"Pull-Effekt (""Pulled to the eye of storm""), x1 verifiziert - kein Bewegungs-Mechanismus"
+110;SAA_STOPANI;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+111;SAA_DOTDMGDOWNRATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+112;SAA_SHIELDRATE;Bedeutung bestaetigt, kein Konsument;Absorbs damage, x16 verifiziert (250-280)
+113;SAA_LPAMOUNT;Bedeutung bestaetigt, kein Konsument;LP vermutlich = SP fuer Sentinel/Savior (Crusader/Templar), keine eigene Ressource - aber kein SP-Regenerationsraten-Mechanismus im Code vorhanden
+114;SAA_MINHP;Implementiert;-> Buffs.MinHP
+115;SAA_DMGDOWNRATE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+116;SAA_SPEEDRESISTRATE;Bedeutung bestaetigt, kein Konsument;Speed-Down-Immunitaet, x1 verifiziert
+117;SAA_MELEE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+118;SAA_RANGE;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
+119;SAA_ALLSTATPLUS;Implementiert;-> Buffs.Str+End+Dex+Int+Spr
+120;SAA_RANGEOVER;Existenz belegt, Wirkung unklar (vollstaendig nachgeprueft);Keine Einzel-Slot-Klarheit gefunden - entweder keine Beschreibung oder nicht darstellbare Kodierung (CJK)
