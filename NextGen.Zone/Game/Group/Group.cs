@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -50,7 +50,7 @@ namespace NextGen.Zone.Game
 				"USE `fiesta_world`; "	+				
 				"SELECT `Id`, `Member1`, `Member2`, `Member3`, `Member4`, `Member5` " +
 				"FROM `groups` " +
-				"WHERE Id = {0}";
+				"WHERE Id = @id";
 
 			//--------------------------------------------------
 			// Reading the group out of the database
@@ -61,16 +61,18 @@ namespace NextGen.Zone.Game
 
 			using (var client = Program.DatabaseManager.GetClient())
 			{
-				string query = string.Format(read_group_query, pId);
-				using(var cmd = new MySqlCommand(query, client.GetConnection()))
-				using(var reader = cmd.ExecuteReader())
-		 	    {
-					while(reader.Read ())
+				using(var cmd = new MySqlCommand(read_group_query, client.GetConnection()))
+				{
+					cmd.Parameters.AddWithValue("@id", pId);
+					using(var reader = cmd.ExecuteReader())
 					{
-						for(int i = 1; i < 6; i++)
+						while(reader.Read ())
 						{
-							if(!reader.IsDBNull(i))
-								grp.Members.Add(ReadGroupMemberFromDatabase(reader.GetInt64(i)));
+							for(int i = 1; i < 6; i++)
+							{
+								if(!reader.IsDBNull(i))
+									grp.Members.Add(ReadGroupMemberFromDatabase(reader.GetInt64(i)));
+							}
 						}
 					}
 				}
@@ -183,7 +185,7 @@ namespace NextGen.Zone.Game
 			const string get_groupmem_query =
 							"SELECT `Name`, `IsGroupMaster` " +
                             "FROM `fiesta_world`.`characters` " +
-							"WHERE `CharID` = '{0}'";
+							"WHERE `CharID` = @charId";
 
 			//--------------------------------------------------
 			// Read member from database.
@@ -193,16 +195,19 @@ namespace NextGen.Zone.Game
 			bool isMaster = false;
 
 			using (var client = Program.DatabaseManager.GetClient())
-			using (var cmd = new MySqlCommand(string.Format(get_groupmem_query, pCharId), client.GetConnection()))
-			using (var reader = cmd.ExecuteReader())
+			using (var cmd = new MySqlCommand(get_groupmem_query, client.GetConnection()))
 			{
-				while (reader.Read())
+				cmd.Parameters.AddWithValue("@charId", pCharId);
+				using (var reader = cmd.ExecuteReader())
 				{
-					name = reader.GetString("Name");
+					while (reader.Read())
+					{
+						name = reader.GetString("Name");
                     if (reader.IsDBNull(reader.GetOrdinal("IsGroupMaster")))
                         isMaster = false;
                     else
 					    isMaster = reader.GetBoolean("IsGroupMaster");
+					}
 				}
 			}
 

@@ -1,4 +1,4 @@
-﻿using NextGen.Zone.Game;
+using NextGen.Zone.Game;
 
 namespace NextGen.Zone.Game
 {
