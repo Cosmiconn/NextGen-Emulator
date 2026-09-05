@@ -1,4 +1,4 @@
-﻿/*    This file is part of NextGen Emulator
+/*    This file is part of NextGen Emulator
 
     NextGen Emulator is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,8 +25,13 @@ namespace NextGen.InterLib
     [ServerModule(InitializationStage.Settings)]
     public class Settings
     {
-        private const string ConfigName = "\\Config.cfg";
-        private static readonly string configPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) + ConfigName;
+        private const string ConfigName = "Config.cfg";
+        // Path.Combine statt String-Verkettung mit hartkodiertem "\\":
+        // Unter Linux/macOS ist Backslash kein Pfadtrenner, die alte
+        // Verkettung "<Verzeichnis>" + "\\Config.cfg" ergab dort einen
+        // ungueltigen Pfad und liess das Laden der Konfiguration lautlos
+        // fehlschlagen. Gefunden beim Vorbereiten der Setup-Anleitung.
+        private static readonly string configPath = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), ConfigName);
 
         private static readonly Settings instance = new Settings();
         public static string Comments { get { return comments; } }
@@ -125,6 +130,22 @@ namespace NextGen.InterLib
             return instance.properties[key].ToString();
         }
 
+        /// <summary>
+        /// Wie GetString, aber ohne Exception falls der Key fehlt - fuer
+        /// optionale Config-Werte mit sinnvollem Default-Verhalten.
+        /// </summary>
+        public static bool TryGetString(string key, out string value)
+        {
+            object raw;
+            if (instance.properties.TryGetValue(key, out raw))
+            {
+                value = raw.ToString();
+                return true;
+            }
+            value = null;
+            return false;
+        }
+
         #endregion
 
         /// <summary>
@@ -138,7 +159,13 @@ namespace NextGen.InterLib
 
             foreach (string entry in lines.Select(line => line.Trim()).Where(line => line.Length > 0))
             {
-                if (!entry.Contains("#"))
+                // War: entry.Contains("#") - das behandelte JEDE Zeile mit einem
+                // '#' irgendwo darin als reinen Kommentar, auch wenn es sich um
+                // einen Wert mit '#' handelte (z.B. ein Passwort). Ein solcher
+                // Eintrag wurde dadurch komplett verschluckt statt gespeichert.
+                // Jetzt: nur Zeilen, die tatsaechlich mit '#' BEGINNEN, gelten
+                // als Kommentar.
+                if (!entry.StartsWith("#"))
                 {
                     string[] parts = entry.Split('=');
                     if (parts.Length != 2) continue;
