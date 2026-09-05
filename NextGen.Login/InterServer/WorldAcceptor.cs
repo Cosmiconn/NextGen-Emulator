@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+using System;
+using System.Net.Sockets;
 using NextGen.InterLib.NetworkObjects;
 using NextGen.Util;
 
@@ -35,7 +36,7 @@ namespace NextGen.Login.InterServer
 				Instance = new WorldAcceptor(port);
 				return true;
 			}
-			catch { return false; }
+			catch (Exception ex) { Log.WriteLine(LogLevel.Exception, "Fehler beim Starten des World-Acceptors auf Port {0}: {1}", port, ex); return false; }
 		}
 
 	}

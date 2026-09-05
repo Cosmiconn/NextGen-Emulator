@@ -1,5 +1,6 @@
-﻿using NextGen.InterLib.Networking;
+using NextGen.InterLib.Networking;
 using NextGen.Util;
+using MySqlConnector;
 
 namespace NextGen.Login.InterServer
 {
@@ -48,7 +49,8 @@ namespace NextGen.Login.InterServer
             int acountid;
             if (packet.TryReadInt(out acountid))
             {
-                Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Accounts Set Blocked='1' WHERE ID="+acountid+"");
+                Program.DatabaseManager.GetClient().ExecuteQuery("UPDATE Accounts Set Blocked='1' WHERE ID=@id",
+                    new MySqlParameter("@id", acountid));
             }
         }
         public static void SendAssigned(WorldConnection wc)
