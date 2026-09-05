@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -11,7 +11,7 @@ namespace NextGen.Util
 			where TAttribute : Attribute
 		{
 			return (from method in AppDomain.CurrentDomain.GetAssemblies()
-						.Where(assembly => !assembly.IsDynamic)
+						.Where(assembly => !assembly.GlobalAssemblyCache)
 						.SelectMany(assembly => assembly.GetTypes())
 						.SelectMany(type => type.GetMethods())
 					let attribute = Attribute.GetCustomAttribute(method, typeof(TAttribute), false) as TAttribute
@@ -21,7 +21,7 @@ namespace NextGen.Util
 
 		public static IEnumerable<Func<bool>> GetInitializerMethods()
 		{
-			return (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic)
+			return (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.GlobalAssemblyCache)
 					from type in assembly.GetTypes()
 					let serverModuleAttribute = Attribute.GetCustomAttribute(type, typeof(ServerModuleAttribute)) as ServerModuleAttribute
 					where serverModuleAttribute != null
@@ -33,7 +33,7 @@ namespace NextGen.Util
 		}
 		public static IEnumerable<Action> GetCleanupMethods()
 		{
-			return (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic)
+			return (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.GlobalAssemblyCache)
 					from type in assembly.GetTypes()
 					let serverModuleAttribute = Attribute.GetCustomAttribute(type, typeof(ServerModuleAttribute)) as ServerModuleAttribute
 					where serverModuleAttribute != null

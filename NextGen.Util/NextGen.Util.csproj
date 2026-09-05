@@ -1,19 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>NextGen.Util</RootNamespace>
     <AssemblyName>NextGen.Util</AssemblyName>
-    <OutputType>Library</OutputType>
-    <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
 
+  <!--
+    Diese Datei existiert in der Original-Estrella-Codebasis nicht (alte
+    Compile-Include-Liste hat sie schlicht vergessen); sie ist im aktuellen
+    Build bewusst NICHT enthalten, um das bisherige Build-Verhalten exakt
+    beizubehalten. Siehe DOCUMENTATION.md, Abschnitt "Bislang ausgeschlossene
+    Dateien".
+  -->
   <ItemGroup>
-    <PackageReference Include="Serilog" Version="4.4.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
-    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <Compile Remove="SettingsEnum.cs" />
   </ItemGroup>
 
 </Project>

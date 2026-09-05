@@ -1,4 +1,4 @@
-﻿namespace NextGen.Util
+namespace NextGen.Util
 {
     public sealed class Pair<T1, T2>
     {
