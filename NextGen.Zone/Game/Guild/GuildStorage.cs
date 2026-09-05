@@ -1,7 +1,8 @@
-﻿using NextGen.Util;
+using NextGen.Util;
 using NextGen.Database;
 using System.Collections.Generic;
 using System.Data;
+using MySqlConnector;
 using NextGen.Zone.Data;
 using System.Collections;
 using NextGen.FiestaLib;
@@ -71,7 +72,8 @@ namespace NextGen.Zone.Game
             DataTable GuildItemData = null;
             using (DatabaseClient DBClient = Program.CharDBManager.GetClient())
             {
-                GuildItemData = DBClient.ReadDataTable("SELECT * FROM GuildStorage WHERE GuildID=" + GuildID + "");
+                GuildItemData = DBClient.ReadDataTable("SELECT * FROM GuildStorage WHERE GuildID=@guildId",
+                    new MySqlParameter("@guildId", GuildID));
             }
             if (GuildItemData != null)
             {

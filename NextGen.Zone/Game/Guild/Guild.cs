@@ -1,4 +1,4 @@
-﻿/*File for this file Basic Copyright 2012 no0dl */
+/*File for this file Basic Copyright 2012 no0dl */
 using System;
 using System.Text;
 using System.Data;

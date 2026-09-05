@@ -1,4 +1,4 @@
-﻿/*File for this file Basic Copyright 2012 no0dl */
+/*File for this file Basic Copyright 2012 no0dl */
 using System;
 using System.Data;
 using MySqlConnector;
@@ -44,8 +44,10 @@ namespace NextGen.Zone.Game.Guilds
             Guild g;
            using(Database.DatabaseClient dbclient = Program.CharDBManager.GetClient())
            {
-               int AcademyID = dbclient.ReadInt32("SELECT GuildID FROM guildacademymembers WHERE CharID=" + pChar.ID + "");
-               int GuildID = dbclient.ReadInt32("SELECT GuildID FROM guildmembers WHERE CharID=" + pChar.ID + "");
+               int AcademyID = dbclient.ReadInt32("SELECT GuildID FROM guildacademymembers WHERE CharID=@charId",
+                   new MySqlParameter("@charId", pChar.ID));
+               int GuildID = dbclient.ReadInt32("SELECT GuildID FROM guildmembers WHERE CharID=@charId",
+                   new MySqlParameter("@charId", pChar.ID));
                if(GuildID > 0)
                {
 
