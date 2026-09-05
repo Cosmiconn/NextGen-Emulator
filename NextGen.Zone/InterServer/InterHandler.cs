@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Data;
@@ -75,6 +75,51 @@ namespace NextGen.Zone.InterServer
 
             pClient.Character.GiveMasterRewardItem(ItemID, count);
 
+        }
+        // Empfaengt die von NextGen.World/Managers/BuffManager.cs gesendeten
+        // Broadcasts. Der Sender existierte bereits, dieser Handler fehlte
+        // bisher komplett - siehe DOCUMENTATION.md Abschnitt 15.
+        [InterPacketHandler(InterHeader.ZONE_CharacterSetBuff)]
+        public static void CharacterSetBuff(WorldConnector pConnector, InterPacket pPacket)
+        {
+            ushort abStateId;
+            uint strength;
+            uint keepTime;
+            int receiverCount;
+            if (!pPacket.TryReadUShort(out abStateId)) return;
+            if (!pPacket.TryReadUInt(out strength)) return;
+            if (!pPacket.TryReadUInt(out keepTime)) return;
+            if (!pPacket.TryReadInt(out receiverCount)) return;
+
+            if (!DataProvider.Instance.AbStatesByID.TryGetValue(abStateId, out var abState))
+            {
+                Log.WriteLine(LogLevel.Warn, "ZONE_CharacterSetBuff: unbekannter AbState {0}.", abStateId);
+                return;
+            }
+
+            for (int i = 0; i < receiverCount; i++)
+            {
+                int charId;
+                if (!pPacket.TryReadInt(out charId)) return;
+                ZoneClient pClient = ClientManager.Instance.GetClientByCharID(charId);
+                pClient?.Character.AddBuff(abState, strength);
+            }
+        }
+        [InterPacketHandler(InterHeader.ZONE_CharacterRemoveBuff)]
+        public static void CharacterRemoveBuff(WorldConnector pConnector, InterPacket pPacket)
+        {
+            ushort abStateId;
+            int receiverCount;
+            if (!pPacket.TryReadUShort(out abStateId)) return;
+            if (!pPacket.TryReadInt(out receiverCount)) return;
+
+            for (int i = 0; i < receiverCount; i++)
+            {
+                int charId;
+                if (!pPacket.TryReadInt(out charId)) return;
+                ZoneClient pClient = ClientManager.Instance.GetClientByCharID(charId);
+                pClient?.Character.RemoveBuff(abStateId);
+            }
         }
 		[InterPacketHandler(InterHeader.Assigned)]
 		public static void HandleAssigned(WorldConnector lc, InterPacket packet)
