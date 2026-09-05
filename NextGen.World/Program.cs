@@ -2,94 +2,110 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
-using System.IO;
-using Microsoft.Extensions.Configuration;
 using NextGen.Database;
 using NextGen.Util;
+using System.IO;
+using System.Security.Permissions;
 using NextGen.World.InterServer;
 
 namespace NextGen.World
 {
-    class Program
-    {
-        public static bool Maintenance { get; set; }
-        private static bool HandleCommands = true;
-        public static Database.DatabaseManager DatabaseManager { get; set; }
+	class Program
+	{
+		public static bool Maintenance { get; set; }
+		private static bool HandleCommands = true;
+		public static Database.DatabaseManager DatabaseManager { get; set; }
         public static DateTime CurrentTime { get; set; }
-        public static ConcurrentDictionary<byte, ZoneConnection> Zones { get; private set; }
-        public static IConfiguration Configuration { get; private set; }
-
-        static void Main(string[] args)
-        {
-            Log.Initialize("NextGen.World");
-
-            Configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .Build();
-
-            AppDomain currentDomain = AppDomain.CurrentDomain;
-            currentDomain.UnhandledException += new UnhandledExceptionEventHandler(MyHandler);
-            Console.Title = "NextGen.World";
+		public static ConcurrentDictionary<byte, ZoneConnection> Zones { get; private set; }
+		[SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlAppDomain)]
+		static void Main(string[] args)
+		{
+			AppDomain currentDomain = AppDomain.CurrentDomain;
+			currentDomain.UnhandledException += new UnhandledExceptionEventHandler(MyHandler);
+			Console.Title = "NextGen.World";
 #if DEBUG
-            Thread.Sleep(980);
+			Thread.Sleep(980);//give loginserver some time to start.
 #endif
-            if (Load())
-            {
-                Log.IsDebug = Settings.Instance.Debug;
-                Zones = new ConcurrentDictionary<byte, ZoneConnection>();
+			if (Load())
+			{
+				Log.IsDebug = Settings.Instance.Debug;
+				Zones = new ConcurrentDictionary<byte, ZoneConnection>();
 
-                while (HandleCommands)
-                {
-                    string line = Console.ReadLine();
-                    try
-                    {
-                        HandleCommand(line);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.WriteLine(LogLevel.Exception, "Could not parse: {0}; Error: {1}", line, ex.ToString());
-                    }
-                }
-                Log.WriteLine(LogLevel.Warn, "Shutting down the server..");
-                CleanUp();
-                Log.WriteLine(LogLevel.Info, "Server has been cleaned up. Program will now exit.");
-            }
-            else
-            {
-                Log.WriteLine(LogLevel.Error, "Errors occured starting server. Press RETURN to exit.");
-                Console.ReadLine();
-            }
-        }
 
-        private static void CleanUp()
-        {
-            foreach (var method in Reflector.GetCleanupMethods())
-            {
-                method();
-            }
-        }
+				while (HandleCommands)
+				{
+					string line = Console.ReadLine();
+					try
+					{
+						HandleCommand(line);
+					}
+					catch (Exception ex)
+					{
+						Log.WriteLine(LogLevel.Exception, "Could not parse: {0}; Error: {1}", line, ex.ToString());
+					}
+				}
+				Log.WriteLine(LogLevel.Warn, "Shutting down the server..");
+				CleanUp();
+				Log.WriteLine(LogLevel.Info, "Server has been cleaned up. Program will now exit.");
+			}
+			else
+			{
+				Log.WriteLine(LogLevel.Error, "Errors occured starting server. Press RETURN to exit.");
+				Console.ReadLine();
+			}
+		}
 
-        static void MyHandler(object sender, UnhandledExceptionEventArgs args)
-        {
-            Exception e = (Exception)args.ExceptionObject;
-            Log.WriteLine(LogLevel.Exception, "Unhandled Exception : " + e);
-            Console.ReadKey(true);
-        }
+		private static void CleanUp()
+		{
+			foreach (var method in Reflector.GetCleanupMethods())
+			{
+				method();
+			}
+		}
 
-        public static ZoneConnection GetZoneByMap(int id)
-        {
-            try
-            {
-                return Zones.Values.First(z => z.Maps.Count(m => m.ID == id) > 0);
-            }
-            catch
-            {
-                Log.WriteLine(LogLevel.Exception, "No zones are active at the moment.");
-                return null;
-            }
-        }
+		static void MyHandler(object sender, UnhandledExceptionEventArgs args)
+		{
+			Exception e = (Exception)args.ExceptionObject;
 
+			#region Logging
+			#region Write Errors to a log file
+			// Create a writer and open the file:
+			StreamWriter log;
+
+			if (!File.Exists("errorlog.txt"))
+			{
+				log = new StreamWriter("errorlog.txt");
+			}
+			else
+			{
+				log = File.AppendText("errorlog.txt");
+			}
+
+			// Write to the file:
+			log.WriteLine(DateTime.Now);
+			log.WriteLine(e.ToString());
+			log.WriteLine();
+
+			// Close the stream:
+			log.Close();
+			#endregion
+			#endregion
+
+			Log.WriteLine(LogLevel.Exception, "Unhandled Exception : " + e);
+			Console.ReadKey(true);
+		}
+		public static ZoneConnection GetZoneByMap(int id)
+		{
+			try
+			{
+				return Zones.Values.First(z => z.Maps.Count(m => m.ID == id) > 0);
+			}
+			catch
+			{
+				Log.WriteLine(LogLevel.Exception, "No zones are active at the moment.");
+				return null;
+			}
+		}
         public static ZoneConnection GetZoneByMapShortName(string Name)
         {
             try
@@ -102,73 +118,81 @@ namespace NextGen.World
                 return null;
             }
         }
+		public static void HandleCommand(string line)
+		{
+			string[] command = line.Split(' ');
+			switch (command[0].ToLower())
+			{
+				case "maintenance":
+					if (command.Length >= 2)
+					{
+						Maintenance = bool.Parse(command[1]);
+					}
+					break;
+				case "shutdown":
+					HandleCommands = false;
+					break;
+				case "exit":
+					HandleCommands = false;
+					break;
+				case "quit":
+					HandleCommands = false;
+					break;
+				default:
+					Console.WriteLine("Command not recognized.");
+					break;
+			}
+		}
 
-        public static void HandleCommand(string line)
-        {
-            string[] command = line.Split(' ');
-            switch (command[0].ToLower())
-            {
-                case "maintenance":
-                    if (command.Length >= 2)
-                    {
-                        Maintenance = bool.Parse(command[1]);
-                    }
-                    break;
-                case "shutdown":
-                case "exit":
-                case "quit":
-                    HandleCommands = false;
-                    break;
-                default:
-                    Console.WriteLine("Command not recognized.");
-                    break;
-            }
-        }
+		public static bool Load()
+		{
+			InterLib.Settings.Initialize();
+			if (!Settings.Load())
+			{
+				Log.WriteLine(LogLevel.Error, "World-Settings konnten nicht geladen werden - Server-Start abgebrochen. Siehe vorherige Fehlermeldung fuer die Ursache (meist ein fehlender Key in Config.cfg).");
+				return false;
+			}
+			try
+			{
+				DatabaseManager = new DatabaseManager(Settings.Instance.WorldMysqlServer, (uint)Settings.Instance.WorldMysqlPort, Settings.Instance.WorldMysqlUser, Settings.Instance.WorldMysqlPassword, Settings.Instance.WorldMysqlDatabase, Settings.Instance.WorldDBMinPoolSize, Settings.Instance.WorldDBMaxPoolSize, Settings.Instance.QuerCachePerClient,Settings.Instance.OverloadFlags);
+			}
+			catch (Exception ex)
+			{
+				// War: DatabaseManager-Konstruktion lag ausserhalb jedes
+				// Try/Catch - ein Verbindungsfehler fiel dadurch als nackte,
+				// unklare Unhandled Exception auf. Siehe DOCUMENTATION.md
+				// Abschnitt 26.
+				Log.WriteLine(LogLevel.Exception, "Datenbankverbindung fehlgeschlagen (World). Pruefe MySQL-Zugangsdaten in Config.cfg und ob fiesta_world existiert und erreichbar ist: {0}", ex);
+				return false;
+			}
+			//DatabaseManager.GetClient(); //testclient
+			Log.SetLogToFile(string.Format(@"Logs\World\{0}.log", DateTime.Now.ToString("d_M_yyyy HH_mm_ss")));
 
-        public static bool Load()
-        {
-            if (!Settings.Load(Configuration))
-            {
-                Log.WriteLine(LogLevel.Error, "Failed to load settings from appsettings.json. Falling back to Config.cfg...");
-                if (!Settings.Load(null))
-                    return false;
-            }
+			try
+			{
+				if (Reflector.GetInitializerMethods().Any(method => !method.Invoke()))
+				{
+					Log.WriteLine(LogLevel.Error, "Server could not be started. Errors occured.");
+					return false;
+				}
+				else return true;
+			}
+			catch (Exception ex)
+			{
+				Log.WriteLine(LogLevel.Exception, "Fatal exception while load: {0}:{1}", ex.ToString(), ex.StackTrace);
+				return false;
+			}
+		}
 
-            DatabaseManager = new DatabaseManager(
-                Settings.Instance.WorldDatabase.Server,
-                (uint)Settings.Instance.WorldDatabase.Port,
-                Settings.Instance.WorldDatabase.User,
-                Settings.Instance.WorldDatabase.Password,
-                Settings.Instance.WorldDatabase.Database,
-                Settings.Instance.WorldDatabase.MinPoolSize,
-                Settings.Instance.WorldDatabase.MaxPoolSize,
-                Settings.Instance.WorldDatabase.QueryCachePerClient,
-                Settings.Instance.WorldDatabase.OverloadFlags);
+		public static byte GetFreeZoneID()
+		{
+			for (byte i = 0; i < 3; i++)
+			{
+				if (Zones.ContainsKey(i)) continue;
+				return i;
+			}
+			return 255;
 
-            try
-            {
-                if (Reflector.GetInitializerMethods().Any(method => !method.Invoke()))
-                {
-                    Log.WriteLine(LogLevel.Error, "Server could not be started. Errors occured.");
-                    return false;
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.WriteLine(LogLevel.Exception, "Fatal exception while load: {0}:{1}", ex.ToString(), ex.StackTrace);
-                return false;
-            }
-        }
-
-        public static byte GetFreeZoneID()
-        {
-            for (byte i = 0; i < 3; i++)
-            {
-                if (Zones.ContainsKey(i)) continue;
-                return i;
-            }
-            return 255;
-        }
-    }
+		}
+	}
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using NextGen.Util;
@@ -37,7 +37,7 @@ namespace NextGen.World
 				Instance.sleep = Settings.Instance.WorkInterval;
 				return true;
 			}
-			catch { return false; }
+			catch (Exception ex) { Log.WriteLine(LogLevel.Exception, "Fehler beim Starten des World-Workers: {0}", ex); return false; }
 		}
 
 		public void AddCallback(Action pCallback)
@@ -47,10 +47,9 @@ namespace NextGen.World
 
 		private void ConnectEntity()
 		{
-		/*    Program.Entity = EntityFactory.GetWorldEntity(Settings.Instance.Entity);
-			// Try to update...
-			DatabaseUpdater du = new DatabaseUpdater(Settings.Instance.Entity, DatabaseUpdater.DatabaseTypes.World);
-			du.Update();*/
+			// Historically wired up an EF6 DbContext + a database-versioning updater here.
+			// Both were unused/dead in the original codebase (EF6 is not supported on
+			// modern .NET); removed during the .NET 10 modernization pass.
 		}
 
 
