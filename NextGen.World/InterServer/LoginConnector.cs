@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using NextGen.InterLib.Networking;
 using NextGen.InterLib.NetworkObjects;
@@ -78,7 +78,7 @@ namespace NextGen.World.InterServer
                 Instance = new LoginConnector(ip, port);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { Log.WriteLine(LogLevel.Exception, "Fehler beim Verbindungsaufbau zum Login-Server: {0}", ex); return false; }
         }
 
         public void SendPacket(InterPacket packet)

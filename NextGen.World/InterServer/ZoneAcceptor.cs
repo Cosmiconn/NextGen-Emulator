@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+using System;
+using System.Net.Sockets;
 
 using NextGen.InterLib.NetworkObjects;
 using NextGen.Util;
@@ -36,7 +37,7 @@ namespace NextGen.World.InterServer
                 Instance = new ZoneAcceptor(port);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { Log.WriteLine(LogLevel.Exception, "Fehler beim Starten des Zone-Acceptors auf Port {0}: {1}", port, ex); return false; }
         }
 
     }
