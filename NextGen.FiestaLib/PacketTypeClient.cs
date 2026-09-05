@@ -128,12 +128,30 @@ public enum CH21Type : byte {
     FriendListDelete = 5,
 }
 public enum CH22Type : byte {
+    // Ursprüngliche Vermutung ("Charaktererstellung, 27 Byte...", siehe
+    // Git-Historie) per echtem Mitschnitt WIDERLEGT: real beobachtete
+    // Pakete sind 2-3 Byte gross und treten nicht nur einmalig, sondern
+    // wiederholt (alle 5-10s) waehrend des laufenden Spiels auf,
+    // insbesondere gehaeuft waehrend einer aktiven KQ-Rekrutierungsphase.
+    // Vermutlich ein leichtgewichtiger "Bin noch da/bereit"-Heartbeat des
+    // Kingdom-Quest-Subsystems statt eines Charaktererstellungs-Pakets.
+    // Der Name wird vorerst beibehalten, da der allererste Vorkommen pro
+    // Session tatsaechlich unmittelbar nach Zonen-Eintritt auftritt.
+    // Siehe DOCUMENTATION.md Abschnitt 54.4.
     GotIngame = 27,
-    // Per echtem Paket-Mitschnitt entdeckt (Charaktererstellung, 27 Byte,
-    // unmittelbar vor der Server-Antwort mit dem neuen Charakternamen) -
-    // enthaelt keinen lesbaren Text, vermutlich Aussehens-/Klassenparameter.
-    // Struktur nicht im Detail bekannt. Siehe DOCUMENTATION.md Abschnitt 34.
     CreateCharacter = 191,
+
+    // Alle folgenden Typen per echtem Mitschnitt (versuch_5, komplette
+    // KQ-Anmeldung fuer "Lost Mini Dragon (Hardcore)[B]") neu gefunden.
+    // Siehe DOCUMENTATION.md Abschnitt 54.4.
+
+    // 4-Byte-Body: [u32 LE KQ-InstanzID]. Anfrage fuer Instanzdetails,
+    // beantwortet mit SH22Type.Unk4.
+    GetKQInstanceInfo = 3,
+    // 4-Byte-Body, identisch zu GetKQInstanceInfo: [u32 LE KQ-InstanzID].
+    // Ca. 1.5s nach GetKQInstanceInfo gesendet - vermutlich die eigentliche
+    // Anmeldung fuer die KQ, beantwortet mit SH22Type.Unk50 und Unk6.
+    RegisterForKQInstance = 5,
 }
 public enum CH28Type : byte {
     GetQuickBar = 2,
@@ -206,5 +224,25 @@ public enum CH17Type : byte {
 // beobachtet, 3 Byte.
 public enum CH16Type : byte {
     Unknown37 = 37,
+}
+
+// Gluecksspielhaus ("Lucky House") - eigene, zusaetzliche Zone-Verbindung.
+// Per echtem Mitschnitt entdeckt (versuch_4), siehe DOCUMENTATION.md
+// Abschnitt 54.5. Noch nicht implementiert, nur die Opcodes dokumentiert.
+public enum CH47Type : byte {
+    // 2-Byte-Body: [u16 LE ObjektID]. "Automat"/"Wuerfeltisch" ansprechen,
+    // beantwortet mit SH47Type.InteractResult (Typ 24).
+    InteractWithObject = 23,
+    // 4-Byte-Body: [u16 LE ObjektID][byte][byte]. Spiel/Tisch betreten,
+    // beantwortet mit SH47Type.EnterGameResult (Typ 201).
+    EnterGame = 200,
+    // 1-Byte-Body, kurze Interaktion unmittelbar vor EnterGame beobachtet.
+    Unk202 = 202,
+    // 4-Byte-Body: [u16 LE ObjektID][byte][byte Einsatz?]. Einsatz/Wurf,
+    // beantwortet mit SH47Type.GameStateResult (Typ 101).
+    PlaceBetOrRoll = 100,
+    // Leerer Payload. Spiel verlassen, beantwortet mit
+    // SH47Type.LeaveGameResult (Typ 105).
+    LeaveGame = 104,
 }
 }

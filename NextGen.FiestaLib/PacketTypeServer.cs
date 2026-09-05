@@ -65,7 +65,25 @@ namespace NextGen.FiestaLib
         CharacterInfoEnd = 72,
         CharacterTitles = 73,
         CharacterTimedItemList = 74,
+        // 9-Byte-Body, per echtem Mitschnitt (versuch_5) an ZWEI
+        // unabhaengigen Todesfaellen (Uruga-Feld und KQ-Instanz
+        // "KDHDragon") BYTE-IDENTISCH beobachtet: [u32 LE][u32 LE][byte].
+        // Bisher beobachtet nur die Werte 180/50/0 - da identisch trotz
+        // unterschiedlicher Situation (normaler Mob-Tod vs. KQ-Fail),
+        // vermutlich feste Server-Konfigurationskonstanten und keine
+        // situationsabhaengigen Werte (z.B. Revival-Fenster-Timeout in
+        // einer noch unbekannten Zeiteinheit / Revival-Gebuehr in Gold).
+        // Siehe DOCUMENTATION.md Abschnitt 54.
         ReviveWindow = 77,
+        // 10-Byte-Body: [u16 LE RespawnPointID][u32 LE X][u32 LE Y].
+        // URSPRUENGLICH als HP-Werte vermutet - per echtem Mitschnitt
+        // widerlegt: die tatsaechliche HP-Wiederherstellung kommt separat
+        // ueber SH9Type.HealHP (siehe dort). Die beiden u32-Felder hier
+        // aendern sich zwischen zwei Toden in unterschiedlichen Zonen
+        // (Uruga vs. Elderine-Umgebung) deutlich, waehrend RespawnPointID
+        // ebenfalls je Karte unterschiedlich ist - beides konsistent mit
+        // einer Zielposition, nicht mit HP. Siehe DOCUMENTATION.md
+        // Abschnitt 54.
         Revive = 79,
         CharacterPoints = 91,
         SetPointOnStat = 95,
@@ -109,6 +127,13 @@ namespace NextGen.FiestaLib
         WisperFrom = 13,
         WisperTargetNotfound = 14,
         WisperTo = 15,
+        // 2-Byte-Body: [byte Kategorie][byte StringLaenge], gefolgt von
+        // <StringLaenge> ASCII-Bytes OHNE Nullterminierung - an vier
+        // unabhaengigen Beispielen bytegenau bestaetigt (u.a. "From
+        // 127.0.0.1" mit Laenge 14, "Admin level is 100" mit Laenge 18,
+        // "Move to Elderine in 30 seconds." mit Laenge 31). Wird auch fuer
+        // den KQ-Fail-Rueckteleport-Countdown genutzt ("Move to <Stadt> in
+        // <n> seconds."). Siehe DOCUMENTATION.md Abschnitt 54.
         GmNotice = 17,
         StopTele = 19, // Stops char but can teleport
         PartyChat = 21,
@@ -138,6 +163,11 @@ namespace NextGen.FiestaLib
         GainExp = 11,
         LevelUP = 12,
         LevelUPAnimation = 13,
+        // 6-Byte-Body: [u32 LE Betrag][u16 LE fortlaufender Zaehler].
+        // Betrag per echtem Mitschnitt exakt bestaetigt: 459 unmittelbar
+        // nach einem Revive - deckt sich bytegenau mit der vom Nutzer
+        // notierten Beobachtung "459hp wiederhergestellt". Siehe
+        // DOCUMENTATION.md Abschnitt 54.
         HealHP = 14,
         HealSP = 15,
         SkillAck = 53,
@@ -331,14 +361,104 @@ namespace NextGen.FiestaLib
         LoadUnkown = 7,
     }
 
+    // Kingdom-Quest-System, siehe DOCUMENTATION.md Abschnitt 53+54. Laeuft
+    // ueber den WORLD-Server (nicht Zone!), bestaetigt per echtem
+    // Mitschnitt (Namen wie "Mara Pirates' Rage", "Lost Mini Dragon[A]/[B]"
+    // exakt gefunden). Typ=29 kann mehrfach pro Oeffnen auftreten
+    // (unterschiedliche Unterlisten, z.B. "alle" vs. "meine Liste").
+    public enum SH22Type : byte
+    {
+        KingdomQuestList = 29,
+        // Alle folgenden Typen per echtem Mitschnitt (versuch_5, komplette
+        // KQ-Anmeldung/-Session fuer "Lost Mini Dragon (Hardcore)[B]",
+        // Instanz-ID 969) neu gefunden. Siehe DOCUMENTATION.md Abschnitt 54
+        // fuer die vollstaendige Herleitung.
+
+        // Antwort auf CH22Type-Typ3 (Instanz-Detailanfrage). 5-Byte-Body:
+        // [u32 LE InstanzID][u16 LE Status/Anzahl] - Instanz-ID bytegenau
+        // als Echo der Anfrage bestaetigt.
+        Unk4 = 4,
+
+        // 4-Byte-Body: [u32 LE InstanzID][u16 LE unbekannt]. Antwort auf
+        // CH22Type-Typ5 (Anmeldung).
+        Unk6 = 6,
+
+        // Klartext-Broadcast, 74-Byte-Body: [1 Byte Praefix][ASCII-Text
+        // ohne Nullterminierung]. Bytegenau bestaetigt: "Kingdom Quest -
+        // Lost Mini Dragon (Hardcore)[B] will begin in  10 seconds."
+        // (Anmerkung: doppeltes Leerzeichen vor der Zahl im Original-Client
+        // vorhanden, kein Parsing-Artefakt).
+        KingdomQuestCountdown = 11,
+
+        // Leerer Payload (0 Byte) - feuert einmalig exakt beim Scheitern
+        // einer laufenden KQ-Session (hier: Tod als einziger Teilnehmer,
+        // 0 verbleibende Respawns). Unmittelbar gefolgt von einer Serie
+        // SH8Type.GmNotice-Countdown-Nachrichten ("Move to Elderine in
+        // 30/20/10/5 seconds."), die den automatischen Rueckteleport
+        // ankuendigen.
+        KingdomQuestFailed = 19,
+
+        // Periodisches Delta-Update fuer EINE aktive KQ-Instanz. 6- oder
+        // 10-Byte-Body: [u16 LE Anzahl (1 oder 2)][u32 LE InstanzID]
+        // (wiederholt <Anzahl> mal). Tritt gepaart mit Typ 37 auf.
+        Unk30 = 30,
+
+        // Periodisches Delta-Update, 6-Byte-Body: [u32 LE InstanzID]
+        // [u16 LE Statuswert]. Feuert fuer eine bestimmte Instanz normal
+        // im Minutentakt, aber im letzten 10-Sekunden-Countdown vor
+        // KQ-Beginn im 1-Sekunden-Takt (10x hintereinander fuer dieselbe
+        // Instanz-ID beobachtet - der Statuswert blieb dabei konstant,
+        // aendert sich also nicht innerhalb einer Instanz ueber die Zeit,
+        // vermutlich eine feste Karten-/Typ-Referenz statt eines
+        // Countdown-Werts).
+        Unk37 = 37,
+
+        // Voller Resync aller aktuell aktiven KQ-Instanzen. Body:
+        // [u16 LE Anzahl][{u32 LE InstanzID, u16 LE Statuswert (identisch
+        // zu Typ37), u16 LE zweiter Wert}] * Anzahl. Der zweite Wert pro
+        // Eintrag wiederholt sich fuer mehrere Instanzen mit dem gleichen
+        // Statuswert - vermutlich eine Karten-/Dungeon-ID, die von
+        // mehreren gleichzeitig offenen Instanzen desselben KQ-Typs
+        // geteilt wird. Ueber die Session hinweg schrumpfte die Anzahl
+        // (16 -> 16 -> 5 -> 3 -> 2), konsistent mit ablaufenden/
+        // geschlossenen Instanzen.
+        Unk38 = 38,
+
+        // Antwort auf CH22Type-Typ23 (?) - 26-Byte-Body, enthaelt eine
+        // leere/nicht lokalisierte ASCII-Platzhalter-Zeichenkette "text"
+        // - deutet auf einen fehlenden Lokalisierungs-String im
+        // Original-Client fuer diese spezifische Meldung hin (z.B. eine
+        // KQ-Anmeldebestaetigung).
+        Unk50 = 50,
+
+        // 1-Byte-Body, feuert wiederholt bei jedem Zonen-/Karteneintritt
+        // (immer Teil derselben Paketkaskade wie SH4Type.CharacterInfoEnd
+        // und die weiteren "Unk"-Character-Info-Zusatzpakete, siehe
+        // DOCUMENTATION.md Abschnitt 54.4). Noch nicht mit KQ-Inhalten in
+        // Verbindung gebracht - eventuell ein allgemeiner Zone-Status statt
+        // KQ-spezifisch trotz Header 22.
+        Unk58 = 58,
+    }
+
+
     // Per echtem Paket-Mitschnitt entdeckt (2016er Client gegen Original-
-    // Server, Quest-Abgabe-Sequenz bei NPC Julia) - noch nicht
-    // implementiert, nur der Opcode dokumentiert. Siehe DOCUMENTATION.md
-    // Abschnitt 30. Typ-1 (105 Byte) unmittelbar nach CH8Type.
-    // BeginInteraction beobachtet - vermutlich das NPC-Dialog-/Quest-Menue
-    // selbst.
+    // Server, Quest-Abgabe-Sequenz bei NPC Julia). Struktur inzwischen
+    // vollstaendig entschluesselt und gegen data_questdialog.sql
+    // kreuzverifiziert, siehe DOCUMENTATION.md Abschnitt 54.1.
     public enum SH17Type : byte
     {
+        // Typ-1-Body (105 Byte fuer normale Textseiten): [u16 LE
+        // Sequenzzaehler, wird vom Client in CH17Type.NpcDialogResponse
+        // unveraendert zurueckgeschickt][u32 LE Seitentyp][byte][u16 LE
+        // DialogID aus QuestDialog.shn - bytegenau bestaetigt an 9
+        // aufeinanderfolgenden Zeilen zweier verschiedener Tiros-Quests,
+        // u.a. DialogID 52452-52460][u16 00][u32 00][u16 LE stabile
+        // NPC-Dialogbaum-ID - Tiros=10054, unterscheidet sich von der in
+        // Abschnitt 36/48.3 gefundenen Sera/Julia-ID 10113, beide im
+        // gleichen 10000er-Wertebereich][Rest 0]. Laengere Varianten
+        // (Body-Typ 6 oder 10 statt 2) begleiten [SHOW_REWARD]-Seiten und
+        // enthalten zusaetzliche, noch nicht vollstaendig entschluesselte
+        // Belohnungs-/Zeitstempel-Daten.
         NpcDialogMenu = 1,
         // Per echtem Paket-Mitschnitt entdeckt, siehe DOCUMENTATION.md
         // Abschnitt 35. QuestProgressUpdate trat exakt bei jedem
@@ -352,10 +472,38 @@ namespace NextGen.FiestaLib
     {
         Unknown38 = 38,
     }
-    // Bislang komplett unbekannte Familie, einmalig direkt im
-    // Belohnungs-Cluster beobachtet (Typ 5, 10 Byte).
+    // Gluecksspielhaus ("Lucky House") - eigene, zusaetzliche Zone-
+    // Verbindung (dynamisch zugewiesener Port, siehe DOCUMENTATION.md
+    // Abschnitt 53.2/54.5). Struktur inzwischen teilweise entschluesselt.
     public enum SH47Type : byte
     {
+        // Bislang komplett unbekannte Familie, einmalig direkt im
+        // Belohnungs-Cluster beobachtet (Typ 5, 10 Byte) - unklar ob
+        // ueberhaupt zum Gluecksspielhaus gehoerig oder ein Zufallstreffer
+        // im selben Header.
         Unknown5 = 5,
+        // Antwort auf CH47Type-Typ23 (Objekt ansprechen). 9-Byte-Body:
+        // [byte Status][byte 0x26 konstant][u16 LE ObjektID, Echo der
+        // Anfrage][u32 LE Objekttyp - 2=Automat/Spielautomat, 1=
+        // Wuerfeltisch, an zwei verschiedenen angesprochenen Objekten
+        // bestaetigt][byte Flag].
+        InteractResult = 24,
+        // Antwort auf CH47Type-Typ200 (Spiel/Tisch betreten). 4-Byte-Body,
+        // enthaelt einen sich langsam aendernden Zaehler im selben
+        // Wertebereich wie InteractResult - vermutlich eine laufende
+        // Session-/Rundennummer fuer den Tisch.
+        EnterGameResult = 201,
+        // Periodischer Broadcast, exakt alle 10 Sekunden, mit UNVERAENDERTEM
+        // Payload zwischen zwei Beobachtungen (kein Live-Jackpot, wie in
+        // Abschnitt 53.2 noch vermutet). 19-Byte-Body enthaelt u.a. zwei
+        // Werte 100 und 500 - plausibel Mindest-/Hoechsteinsatz des
+        // Tisches statt eines Timers.
+        TableLimitsBroadcast = 216,
+        // 50-Byte-Body, Antwort auf CH47Type-Typ100 (Einsatz/Wurf). Enthaelt
+        // einen grossen Wert (~150000), moeglicherweise aktueller
+        // Jackpot-Pool oder Kontostand - nicht abschliessend verifiziert.
+        GameStateResult = 101,
+        // Antwort auf CH47Type-Typ104 (Spiel verlassen), 2-Byte-Body.
+        LeaveGameResult = 105,
     }
 }
