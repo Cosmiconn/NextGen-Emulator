@@ -46,5 +46,11 @@ jobs:
         run: dotnet build NextGen-Emulator.sln --configuration Release --no-restore
 
       - name: Run Quest script audit
+        if: hashFiles('sql/data/data_quest_script_data.sql') != ''
         shell: bash
         run: python3 tools/audit-quest-script-interpreter.py
+
+      - name: Explain skipped Quest audit
+        if: hashFiles('sql/data/data_quest_script_data.sql') == ''
+        shell: bash
+        run: echo 'Quest audit skipped because sql/data/data_quest_script_data.sql is not present in this branch.'
