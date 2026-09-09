@@ -221,7 +221,7 @@ namespace NextGen.FiestaLib.Data
         private readonly Dictionary<string, int> _variables = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         public QuestScriptStage Stage { get; internal set; }
-        public int InstructionIndex { get; internal set; }
+        public int InstructionIndex { get; set; }
         public int Result { get; set; }
         public bool Ended { get; internal set; }
         public IDictionary<string, int> Variables { get { return _variables; } }
@@ -250,11 +250,6 @@ namespace NextGen.FiestaLib.Data
         }
     }
 
-    /// <summary>
-    /// Deterministic, side-effect-free control-flow interpreter for one quest.
-    /// Labels are resolved locally first and then across Start/Action/Finish only
-    /// when the cross-stage target is unique. Gameplay commands remain neutral steps.
-    /// </summary>
     public sealed class QuestScriptMachine
     {
         public QuestScriptGraph Graph { get; private set; }
