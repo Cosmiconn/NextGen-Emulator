@@ -21,6 +21,56 @@ The PDB also exposes `m_QuestStatusPriority` and `m_QuestListWithNPC`.
 This is direct symbol evidence that the original server builds a status-aware
 quest list for an NPC rather than choosing the first quest arbitrarily.
 
+## PLAYER_QUEST_STATUS — numeric values now proven by the PDB
+
+A CodeView type record embedded in the supplied `Zone.pdb` gives the enum
+values directly. The complete mapping recovered from that record is:
+
+| Value | Symbol |
+|---:|---|
+| 0 | `PQS_NONE` |
+| 1 | `PQS_ABORT` |
+| 2 | `PQS_DONE` |
+| 3 | `PQS_SOON` |
+| 4 | `PQS_REPEAT` |
+| 5 | `PQS_ABLE` |
+| 6 | `PQS_ING` |
+| 7 | `PQS_FAILED` |
+| 8 | `PQS_REWARD` |
+| 9 | `PQS_LOWABLE` |
+| 20 | `PQS_READ_ABLE` |
+| 21 | `PQS_MAX_PLAYER_QUEST_STATUS` |
+
+This is stronger evidence than the earlier database-only mappings. The
+World database independently confirms `4 = PQS_REPEAT` and `6 = in-progress`.
+The values 10–19 are not missing states: the PDB enum explicitly jumps from 9
+to 20.
+
+## NPC_QUEST_STATUS
+
+The PDB contains a concrete `CQuest::NPC_QUEST_STATUS` type. Its debug/type
+information shows members associated with the NPC quest-result path and the
+class also exposes:
+
+- `m_MaxOfQuestListWithNPC`
+- `m_NumOfQuestListWithNPC`
+- `m_pQuestListWithNPC`
+- `m_QuestStatusPriority`
+- `m_QuestTypePriority`
+- `GetQuestListWithNPC`
+- `GetQuestStatusWithNPC`
+- `IsDoingQuestStatus`
+
+The recovered `GetQuestStatusWithNPC` debug information shows locals named
+`kQuestStatus`, `lpQuestData`, `uiMainCharLv`, `bQmark`, `bLowRepeat`, and
+`eQuestState`, plus multiple branch labels. This establishes that the method
+computes a status/result for an NPC quest rather than merely returning a raw
+persisted status.
+
+The exact assignments made by those branches are still not recoverable from
+PDB symbols alone. In particular, the PDB does not expose the initialized
+contents of `m_QuestStatusPriority` as source-level values.
+
 ## Quest selection packet
 
 The original protocol symbols identify:
@@ -37,31 +87,6 @@ The request is known to contain:
 The ACK has three `unsigned short` parameters in the recovered server
 signature, but their wire order/meaning is not yet sufficiently evidenced.
 Do not implement guessed fields.
-
-## Status model
-
-The PDB exposes these symbolic status names:
-
-- `PQS_NONE`
-- `PQS_ABLE`
-- `PQS_SOON`
-- `PQS_LOWABLE`
-- `PQS_READ_ABLE`
-- `PQS_ING`
-- `PQS_REWARD`
-- `PQS_DONE`
-- `PQS_REPEAT`
-- `PQS_FAILED`
-- `PQS_ABORT`
-- `PQS_MAX_PLAYER_QUEST_STATUS`
-
-Only the following numeric mappings are currently source-proven:
-
-- `4 = PQS_REPEAT`
-- `6 = PQS_ING` / in-progress
-
-The remaining numeric values are deliberately not assigned until the original
-binary/database evidence establishes them.
 
 ## Character quest storage
 
@@ -82,11 +107,11 @@ until all status semantics are reconstructed.
 
 ## Implementation rule
 
-Until `GetQuestStatusWithNPC`, `m_QuestStatusPriority`, and the `0x440F/0x4410`
-wire format are fully reconstructed:
+Until `GetQuestStatusWithNPC`, `m_QuestStatusPriority`, and the
+`0x440F/0x4410` wire format are fully reconstructed:
 
 1. do not select the first quest merely because it is first in SQL order;
-2. do not invent numeric values for unknown `PQS_*` states;
+2. do not invent eligibility predicates from QuestData field names;
 3. do not invent ACK fields or their ordering;
 4. keep objective progress/daily-reset/abort semantics separate from the
    recovered raw quest status;
@@ -94,12 +119,13 @@ wire format are fully reconstructed:
    starting dialog, not as a substitute for the original status-selection
    algorithm.
 
-## Next reconstruction target
+## Current reconstruction state
 
-The next implementation target is the status-priority and eligibility path:
+The numeric `PLAYER_QUEST_STATUS` enum is now **fully resolved** from the
+supplied `Zone.pdb`. The remaining Priority-1 unknowns are the actual contents
+of `m_QuestStatusPriority`, the precise branch predicates inside
+`GetQuestStatusWithNPC`, and how the resulting `NPC_QUEST_STATUS` objects are
+serialized/consumed by `GetQuestListWithNPC` and the quest-list packet path.
 
-`NPC -> m_QuestListWithNPC -> GetQuestStatusWithNPC -> status priority ->
-0x440F selection -> quest start`
-
-Only after that path is evidenced should `QuestNpcStartResolver` be changed to
-choose among multiple candidates.
+Only after those points are evidenced should `QuestNpcStartResolver` be changed
+to choose among multiple candidates.
