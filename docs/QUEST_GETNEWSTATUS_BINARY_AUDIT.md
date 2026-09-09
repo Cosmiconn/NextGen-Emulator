@@ -1,82 +1,88 @@
-# Quest `GetNewQuestStatus` binary audit — Step 30
+# `GetNewQuestStatus` — Step 31 exact PDB type linkage
 
-## Scope
+## New result
 
-Step 30 follows the original `CQuest::GetNewQuestStatus` symbols from the supplied `Zone.pdb` into the corresponding `Quest.obj` module stream and disassembles the referenced code in the byte-identical `Zone.exe` copies.
+The ambiguity from Step 30 is reduced by decoding the **actual S_GPROC32 records** in Quest module symbol stream 330 and resolving their CodeView function-type indices through TPI stream 2.
 
-No runtime implementation is changed. The goal is to establish what can be stated directly from the binary and to isolate the remaining PDB/address ambiguity rather than guessing a status algorithm.
+Two `S_GPROC32` records containing the exact name `CQuest::GetNewQuestStatus` were found:
 
-## Source/PDB evidence
+| PDB symbol offset | record | CodeOffset | CodeSize | FunctionType |
+|---:|---|---:|---:|---:|
+| `0x2048` | `S_GPROC32` | `0x22F320` | `0x175` | `0x4B32` |
+| `0x2198` | `S_GPROC32` | `0x22F4A0` | `0x28` | `0x4B31` |
 
-The Quest object module is present in the DBI module list as `Release US\\Quest.obj` and uses symbol stream **330**.
+With Zone.exe image base/text mapping this corresponds to `.text` addresses `0x0062F320` and `0x0062F4A0`.
 
-The CodeView symbol material contains two overload names:
+## Exact function types
 
-- `CQuest::GetNewQuestStatus(unsigned short)`
-- `CQuest::GetNewQuestStatus(QUEST_DATA*)`
+TPI index `0x4B31` is `LF_MFUNCTION`:
 
-The corresponding public-symbol records expose section 1 offsets `0x22f4a0` and `0x22f320` respectively.
+- return type: `0x1030` = `PLAYER_QUEST_STATUS`
+- class type: `0x1B6E` = `CQuest`
+- this type: `0x4AD8` = pointer to `CQuest`
+- one parameter
+- argument list `0x10B7`
+- argument list contains type `0x21` = unsigned short
 
-The same PDB also contains C13/source records for two `CQuest::GetNewQuestStatus` entries. The source-level record set is sufficient to prove the overloads exist, but the raw symbol/source-record address material is not internally consistent with the independently observed function boundaries used elsewhere in this audit. Therefore the overload names are **not** used as proof of a semantic implementation at a particular VA.
+Therefore `CQuest::GetNewQuestStatus(unsigned short)` is directly proven by the PDB type graph.
 
-## Directly disassembled code in the surrounding Quest state area
+TPI index `0x4B32` is `LF_MFUNCTION`:
 
-### VA `0x0062F320`
+- return type: `0x1030` = `PLAYER_QUEST_STATUS`
+- class type: `0x1B6E` = `CQuest`
+- this type: `0x4AD8` = pointer to `CQuest`
+- one parameter
+- argument list `0x4B2E`
+- argument list contains type `0x465A`
+- `0x465A` is `LF_POINTER` to `0x4659`
+- `0x4659` is the `QUEST_DATA` UDT
 
-The code at this VA is a standalone function with a one-argument cdecl/thiscall-compatible shape and `ret 4`.
+Therefore `CQuest::GetNewQuestStatus(QUEST_DATA*)` is directly proven by the PDB type graph.
 
-For a non-null argument it writes:
+## Machine-code behavior of `0x0062F320`
 
-- byte `+0x17` = `0`
-- dword `+0x18` = `0`
-- byte `+0x1C` = `0`
-- clears bits `0x02` and `0x01` in byte `+0x1D`
-- word `+0x1E` = `0`
+The full PDB-recorded code span is `0x175` bytes, ending at `0x0062F495`.
 
-A null argument returns immediately. The routine does **not** directly write the status byte at `+0x02`.
+The routine operates on the player quest record supplied as its argument and contains several distinct paths. Confirmed state writes include:
 
-This exact behavior is also visible at call sites that prepare a `PLAYER_QUEST_INFO`-shaped record before invoking the routine. The structure interpretation is therefore an observed binary shape, not a guessed status name.
+- status byte `+0x02 = 6` in the existing-entry path;
+- clearing auxiliary fields `+0x03, +0x07, +0x0B, +0x0F, +0x13, +0x17, +0x1B` and byte `+0x1F`;
+- on a newly appended entry, the temporary record is initialized with status byte `+0x02 = 6` and then copied into the quest list;
+- successful paths return integer `1`; failure/full-list paths return `0`.
 
-### VA `0x0062F350`
+The original DB independently proves raw status `6 = PQS_ING` / in-progress. Thus the write of status `6` is safe to identify as the already-proven in-progress state.
 
-This routine scans the quest-info array (`count` at `+0x08`, storage pointer at `+0x10`) for a quest ID supplied by the caller. When found, it removes the matching 0x20-byte entry by shifting the following entries left and decrements the count. It returns success/failure as `1/0`.
+The function's complete mapping from its `QUEST_DATA*` input to every return/status transition is not yet normalized into SQL semantics.
 
-### VA `0x0062F4B0`
+## Machine-code behavior around `0x0062F4A0`
 
-This routine receives a quest ID, finds the corresponding player quest entry, resolves quest data, and then branches on the quest data byte at `+0x12`.
+The second PDB record has `CodeOffset=0x22F4A0` and `CodeSize=0x28`. The executable contains a short shared/tail region immediately before the independently obvious prologue at `0x0062F4B0`, followed by the quest-ID lookup/state logic documented in Step 30.
 
-Observed behavior:
+The callable code at `0x0062F4B0`:
 
-1. If the player quest entry or quest data cannot be resolved, it returns `0`.
-2. If quest-data `+0x12` is non-zero, it writes player-quest status byte `+0x02 = 4` and clears the auxiliary fields in the same record (`+0x17`, `+0x18`, `+0x1C`, `+0x1D` low bits, `+0x1E`). It then returns `1`.
-3. If quest-data `+0x12` is zero, it calls `0x0062F350` on the quest ID, which removes the matching player quest entry, and then returns `1`.
+- receives a quest ID;
+- searches the player quest list for that ID;
+- resolves quest data;
+- if the quest's `QUEST_DATA +0x12` is non-zero, writes player status `4` and clears auxiliary fields;
+- otherwise removes the matching quest entry via `0x0062F350`;
+- returns `1` on the handled paths and `0` when the entry/quest data cannot be resolved.
 
-The supplied World DB procedure independently proves raw status value **4** as `PQS_REPEAT`. This allows the write of `+0x02 = 4` to be named as the already-proven repeat/re-acceptable state, without assigning any new status semantics.
+Raw status `4 = PQS_REPEAT` remains independently proven by the World DB evidence.
 
-## Cross-reference from the quest packet/state update path
+### Remaining address-layout anomaly
 
-A caller around `0x005BF43B` invokes `0x0062F4B0` with the quest ID when processing one of the incoming quest-state cases. The adjacent cases call the neighboring routines at `0x0062F3B0`, `0x0062F550`, `0x0062F5B0`, `0x0062F680`, and `0x006302B0`.
+The PDB says the second `S_GPROC32` code range starts at `0x0062F4A0`, while the obvious callable prologue for the ID-taking routine is at `0x0062F4B0` and its useful body continues further. This is recorded as a **binary layout anomaly**, not silently corrected. The exact relationship between the PDB range and the callable body still requires further linkage analysis (for example linker tail-sharing/record provenance). No semantic conclusion is based on the address discrepancy.
 
-The same path also directly writes status byte `+0x02 = 4` before calling `0x0062F320` in one branch. This establishes that the routines around `0x0062F320..0x0062F680` form a quest-state mutation cluster.
+## Status conclusion
 
-## What is proven
+The major Step-30 uncertainty is narrowed substantially:
 
-- `GetNewQuestStatus` exists in the original PDB in two overloads.
-- The Quest module is stream 330 and its CodeView material can be correlated with the original executable.
-- A nearby quest-state routine explicitly writes raw status `4` and clears auxiliary player-quest fields.
-- Another nearby routine removes a quest entry from the player quest list.
-- The original DB independently identifies raw status `4` as `PQS_REPEAT`.
-- These state mutations are exercised from the quest-state packet handling path.
+- both overloads are now tied to exact `S_GPROC32` records;
+- their `PLAYER_QUEST_STATUS` return type is proven from TPI;
+- the first overload's parameter is proven as `QUEST_DATA*`;
+- the second overload's parameter is proven as `unsigned short`;
+- raw status writes `6` and `4` are independently mapped to the already-proven quest states.
 
-## What remains UNRESOLVED
+The **complete `GetNewQuestStatus` decision table remains UNRESOLVED** until the remaining symbol/code-range anomaly and all callers/return-value consumers are reconciled.
 
-- The exact machine-code VA corresponding to each overloaded `GetNewQuestStatus` PDB name cannot yet be treated as proven solely from the raw symbol/source records because the recovered address records and independently verified function boundaries do not line up consistently across the same module.
-- The exact return-value semantics of the two overloaded PDB declarations are therefore **UNRESOLVED** at this stage.
-- No complete `GetNewQuestStatus` decision table is implemented or claimed here.
-- The byte at `QUEST_DATA +0x12` is structurally proven as `QUEST_DATA.Repeatable` by CodeView, but its complete role in the higher-level quest transition remains separate from the raw state mutation observed above.
-
-## Consequence for NextGen
-
-No runtime quest-status logic is changed in Step 30. In particular, no guessed `GetNewQuestStatus` implementation is added.
-
-The next evidence target remains the exact linkage between the PDB overload records, the corresponding function boundaries, and the callers that consume their return values. Only after that linkage is independently established should a status-transition implementation be considered.
+No runtime code is changed by this audit.
