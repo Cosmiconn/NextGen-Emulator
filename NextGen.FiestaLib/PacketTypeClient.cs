@@ -218,6 +218,9 @@ public enum CH42Type : byte {
 // Typ-2 (Antwort auf das NPC-Dialogmenue) beobachtet, 9 Byte.
 public enum CH17Type : byte {
     NpcDialogResponse = 2,
+    // Header 17 / Type 17 / Opcode 0x4411: Auswahl eines konkreten
+    // selektierbaren Quest-Reward-Items. QuestID u16 + Auswahlindex u32.
+    RewardSelectItemIndex = 17,
 }
 // Folgt unmittelbar auf die Quest-Belohnungs-Paketkaskade (SH4Type.Money/
 // SH9Type.GainExp etc.) - vermutlich eine Quest-Log-Bestaetigung. Typ-37
@@ -241,8 +244,7 @@ public enum CH47Type : byte {
     // 4-Byte-Body: [u16 LE ObjektID][byte][byte Einsatz?]. Einsatz/Wurf,
     // beantwortet mit SH47Type.GameStateResult (Typ 101).
     PlaceBetOrRoll = 100,
-    // Leerer Payload. Spiel verlassen, beantwortet mit
-    // SH47Type.LeaveGameResult (Typ 105).
+    // Leerer Payload. Spiel verlassen, beantwortet mit SH47Type.LeaveGameResult (Typ 105).
     LeaveGame = 104,
 }
 }
