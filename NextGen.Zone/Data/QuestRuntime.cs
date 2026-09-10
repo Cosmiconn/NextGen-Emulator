@@ -11,17 +11,9 @@ using NextGen.Zone.Handlers;
 
 namespace NextGen.Zone.Data
 {
-    /// <summary>
-    /// Runtime quest state/progress bridge. It intentionally keeps progress in
-    /// a separate emulator table because the original tQuest.sData byte layout
-    /// is not yet decoded. Proven source status values are used unchanged.
-    /// </summary>
     internal static class QuestRuntime
     {
         public const byte PqsDone = 2;
-        // Proven CQuest::SetQuestDone path: repeatable quests become PQS_SOON (3),
-        // non-repeatable quests become PQS_DONE (2). PQS_REPEAT (4) is a separate
-        // status and must not be substituted for the completion result.
         public const byte PqsSoon = 3;
         public const byte PqsInProgress = 6;
 
@@ -32,8 +24,7 @@ namespace NextGen.Zone.Data
             {
                 using (DatabaseClient db = Program.DatabaseManager.GetClient())
                 {
-                    db.ExecuteQuery(
-                        "INSERT INTO character_quest_state (CharID,QuestID,Status,Data) VALUES (@c,@q,@s,NULL) ON DUPLICATE KEY UPDATE Status=IF(Status IN (2,4),Status,@s)",
+                    db.ExecuteQuery("INSERT INTO character_quest_state (CharID,QuestID,Status,Data) VALUES (@c,@q,@s,NULL) ON DUPLICATE KEY UPDATE Status=IF(Status IN (2,4),Status,@s)",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId), new MySqlParameter("@s", PqsInProgress));
                 }
             }
@@ -47,8 +38,7 @@ namespace NextGen.Zone.Data
             {
                 using (DatabaseClient db = Program.DatabaseManager.GetClient())
                 {
-                    DataTable rows = db.ReadDataTable(
-                        "SELECT q.QuestID,o.Slot,o.Amount,COALESCE(p.Progress,0) Progress FROM character_quest_state s INNER JOIN data_quest q ON q.QuestID=s.QuestID INNER JOIN data_quest_objective o ON o.QuestID=q.QuestID LEFT JOIN character_quest_progress p ON p.CharID=s.CharID AND p.QuestID=o.QuestID AND p.Slot=o.Slot WHERE s.CharID=@c AND s.Status=@status AND o.Active=1 AND o.IsMob=1 AND o.HasToBeKilled=1 AND o.TargetID=@mob",
+                    DataTable rows = db.ReadDataTable("SELECT q.QuestID,o.Slot,o.Amount,COALESCE(p.Progress,0) Progress FROM character_quest_state s INNER JOIN data_quest q ON q.QuestID=s.QuestID INNER JOIN data_quest_objective o ON o.QuestID=q.QuestID LEFT JOIN character_quest_progress p ON p.CharID=s.CharID AND p.QuestID=o.QuestID AND p.Slot=o.Slot WHERE s.CharID=@c AND s.Status=@status AND o.Active=1 AND o.IsMob=1 AND o.HasToBeKilled=1 AND o.TargetID=@mob",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@status", PqsInProgress), new MySqlParameter("@mob", mobId));
                     if (rows == null) return;
                     foreach (DataRow row in rows.Rows)
@@ -66,7 +56,6 @@ namespace NextGen.Zone.Data
 
         private static void SendProgress(ZoneCharacter c, ushort targetId, uint questId)
         {
-            // Exact non-zero-target layout proven by attempt 7: u16 TargetID | u16 QuestID | byte 0.
             if (targetId == 0) return;
             using (var p = new Packet(SH17Type.QuestProgressUpdate))
             { p.WriteUShort(targetId); p.WriteUShort((ushort)questId); p.WriteByte(0); c.Client.SendPacket(p); }
@@ -77,9 +66,7 @@ namespace NextGen.Zone.Data
             if (character == null) return 0;
             uint total = 0;
             foreach (Item item in character.Inventory.InventoryItems.Values)
-            {
                 if (item != null && item.ID == itemId) total += item.Ammount;
-            }
             return total;
         }
 
@@ -99,14 +86,13 @@ namespace NextGen.Zone.Data
         public static bool DeleteItem(ZoneCharacter character, ushort itemId, string amountToken)
         {
             if (character == null || itemId == 0) return false;
-            uint wanted;
+            uint wanted = 0;
             bool all = string.Equals(amountToken, "ALL", StringComparison.OrdinalIgnoreCase);
             if (!all && !uint.TryParse(amountToken, out wanted)) return false;
             uint remaining = all ? uint.MaxValue : wanted;
             List<Item> matches = new List<Item>();
             foreach (Item item in character.Inventory.InventoryItems.Values)
                 if (item != null && item.ID == itemId) matches.Add(item);
-
             foreach (Item item in matches)
             {
                 if (all || remaining >= item.Ammount)
@@ -128,10 +114,7 @@ namespace NextGen.Zone.Data
             return all || remaining == 0;
         }
 
-        public static bool NeedsRewardSelection(DatabaseClient db, uint questId)
-        {
-            return HasSelectableRewards(null, questId, db);
-        }
+        public static bool NeedsRewardSelection(DatabaseClient db, uint questId) { return HasSelectableRewards(null, questId, db); }
 
         public static bool IsComplete(ZoneCharacter c, uint questId)
         {
@@ -155,9 +138,7 @@ namespace NextGen.Zone.Data
             if (!selectionProvided)
             {
                 using (DatabaseClient rewardDb = Program.DatabaseManager.GetClient())
-                {
                     if (NeedsRewardSelection(rewardDb, questId)) return false;
-                }
             }
             if (selectionProvided && !HasSelectableRewardIndex(c, questId, selectedIndex)) return false;
             try
@@ -173,12 +154,6 @@ namespace NextGen.Zone.Data
                 }
             }
             catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest completion failed {0}: {1}",questId,ex.Message); return false; }
-        }
-
-        private static bool HasSelectableRewards(ZoneCharacter c, uint questId)
-        {
-            try { using (DatabaseClient db = Program.DatabaseManager.GetClient()) return HasSelectableRewards(c, questId, db); }
-            catch { return false; }
         }
 
         private static bool HasSelectableRewards(ZoneCharacter c, uint questId, DatabaseClient db)
@@ -204,8 +179,7 @@ namespace NextGen.Zone.Data
                 {
                     DataTable rows = db.ReadDataTable("SELECT RewardsHex FROM data_quest_rewards_raw WHERE QuestID=@q", new MySqlParameter("@q", questId));
                     if (rows == null || rows.Rows.Count == 0) return false;
-                    byte[] b = Hex(Convert.ToString(rows.Rows[0]["RewardsHex"]));
-                    uint ordinal = 0;
+                    byte[] b = Hex(Convert.ToString(rows.Rows[0]["RewardsHex"])); uint ordinal = 0;
                     for (int off = 0; off + 12 <= b.Length; off += 12)
                     {
                         if (b[off + 8] != 2) continue;
@@ -222,8 +196,7 @@ namespace NextGen.Zone.Data
         {
             DataTable rows = db.ReadDataTable("SELECT RewardsHex FROM data_quest_rewards_raw WHERE QuestID=@q",new MySqlParameter("@q",questId));
             if (rows == null || rows.Rows.Count == 0) return;
-            string hex = Convert.ToString(rows.Rows[0]["RewardsHex"]);
-            byte[] b = Hex(hex); if (b.Length < 12) return;
+            byte[] b = Hex(Convert.ToString(rows.Rows[0]["RewardsHex"])); if (b.Length < 12) return;
             uint selectable=0;
             for (int off=0; off+12<=b.Length; off+=12)
             {
@@ -233,13 +206,13 @@ namespace NextGen.Zone.Data
                 uint value=BitConverter.ToUInt32(b,off);
                 switch(type)
                 {
-                    case 0: c.GiveExp(value); break; // QRT_EXP
-                    case 1: c.ChangeMoney(c.Inventory.Money + value); break; // QRT_MONEY
+                    case 0: c.GiveExp(value); break;
+                    case 1: c.ChangeMoney(c.Inventory.Money + value); break;
                     case 2:
                         ushort itemId=(ushort)(value & 0xffff), lot=(ushort)(value>>16);
-                        if (itemId!=0 && lot!=0) c.GiveItem(itemId,lot); break; // QRT_ITEM
-                    case 4: c.Fame += (int)value; break; // QRT_FAME
-                    case 8: c.KillPoints += (int)value; break; // QRT_KILLPOINT
+                        if (itemId!=0 && lot!=0) c.GiveItem(itemId,lot); break;
+                    case 4: c.Fame += (int)value; break;
+                    case 8: c.KillPoints += (int)value; break;
                     default: break;
                 }
             }
