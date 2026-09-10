@@ -65,7 +65,13 @@ namespace NextGen.Zone.Handlers
             if (instruction == null) return true;
             uint q = machine.Graph.Info.QuestID;
             string[] args = instruction.Arguments.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-            if (instruction.OpCode.Equals("ACCEPT", StringComparison.OrdinalIgnoreCase)) { if (args.Length == 0) QuestRuntime.Accept(character, q); return true; }
+            if (instruction.OpCode.Equals("ACCEPT", StringComparison.OrdinalIgnoreCase))
+            {
+                if (args.Length == 0) { QuestRuntime.Accept(character, q); return true; }
+                uint acceptedQuest;
+                if (uint.TryParse(args[0], out acceptedQuest)) QuestRuntime.Accept(character, acceptedQuest);
+                return true;
+            }
             if (instruction.OpCode.Equals("CREATE_ITEM", StringComparison.OrdinalIgnoreCase) && args.Length >= 2) { ushort id, amount; if (ushort.TryParse(args[0], out id) && ushort.TryParse(args[1], out amount)) QuestRuntime.CreateItem(character, id, amount); return true; }
             if (instruction.OpCode.Equals("GET_ITEM_LOT", StringComparison.OrdinalIgnoreCase) && args.Length >= 1) { ushort id; machine.State.Result = ushort.TryParse(args[0], out id) ? (int)Math.Min(int.MaxValue, QuestRuntime.GetItemLot(character, id)) : 0; return true; }
             if (instruction.OpCode.Equals("GET_PLAYER_EMPTY_INVENTORY", StringComparison.OrdinalIgnoreCase) && args.Length >= 1) { machine.State.Variables[args[0]] = QuestRuntime.GetEmptyInventorySlots(character); return true; }
