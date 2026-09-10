@@ -4,6 +4,7 @@ using System.Data;
 using MySqlConnector;
 using NextGen.Database;
 using NextGen.FiestaLib;
+using NextGen.FiestaLib.Networking;
 using NextGen.Util;
 using NextGen.Zone.Game;
 using NextGen.Zone.Handlers;
@@ -18,6 +19,9 @@ namespace NextGen.Zone.Data
     internal static class QuestRuntime
     {
         public const byte PqsDone = 2;
+        // Proven CQuest::SetQuestDone path: repeatable quests become PQS_SOON (3),
+        // non-repeatable quests become PQS_DONE (2). PQS_REPEAT (4) is a separate
+        // status and must not be substituted for the completion result.
         public const byte PqsSoon = 3;
         public const byte PqsInProgress = 6;
 
@@ -62,6 +66,7 @@ namespace NextGen.Zone.Data
 
         private static void SendProgress(ZoneCharacter c, ushort targetId, uint questId)
         {
+            // Exact non-zero-target layout proven by attempt 7: u16 TargetID | u16 QuestID | byte 0.
             if (targetId == 0) return;
             using (var p = new Packet(SH17Type.QuestProgressUpdate))
             { p.WriteUShort(targetId); p.WriteUShort((ushort)questId); p.WriteByte(0); c.Client.SendPacket(p); }
@@ -147,7 +152,13 @@ namespace NextGen.Zone.Data
         public static bool Complete(ZoneCharacter c, uint questId, uint selectedIndex = 0, bool selectionProvided = false)
         {
             if (!IsComplete(c, questId)) return false;
-            if (!selectionProvided && HasSelectableRewards(c, questId)) return false;
+            if (!selectionProvided)
+            {
+                using (DatabaseClient rewardDb = Program.DatabaseManager.GetClient())
+                {
+                    if (NeedsRewardSelection(rewardDb, questId)) return false;
+                }
+            }
             if (selectionProvided && !HasSelectableRewardIndex(c, questId, selectedIndex)) return false;
             try
             {
@@ -222,13 +233,13 @@ namespace NextGen.Zone.Data
                 uint value=BitConverter.ToUInt32(b,off);
                 switch(type)
                 {
-                    case 0: c.GiveExp(value); break;
-                    case 1: c.ChangeMoney(c.Inventory.Money + value); break;
+                    case 0: c.GiveExp(value); break; // QRT_EXP
+                    case 1: c.ChangeMoney(c.Inventory.Money + value); break; // QRT_MONEY
                     case 2:
                         ushort itemId=(ushort)(value & 0xffff), lot=(ushort)(value>>16);
-                        if (itemId!=0 && lot!=0) c.GiveItem(itemId,lot); break;
-                    case 4: c.Fame += (int)value; break;
-                    case 8: c.KillPoints += (int)value; break;
+                        if (itemId!=0 && lot!=0) c.GiveItem(itemId,lot); break; // QRT_ITEM
+                    case 4: c.Fame += (int)value; break; // QRT_FAME
+                    case 8: c.KillPoints += (int)value; break; // QRT_KILLPOINT
                     default: break;
                 }
             }
