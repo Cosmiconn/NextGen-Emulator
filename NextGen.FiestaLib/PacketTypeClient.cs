@@ -218,6 +218,9 @@ public enum CH42Type : byte {
 // Typ-2 (Antwort auf das NPC-Dialogmenue) beobachtet, 9 Byte.
 public enum CH17Type : byte {
     NpcDialogResponse = 2,
+    // Header 17 / Type 13 / Opcode 0x440D: Client bestätigt das Ende
+    // eines vom Server gestarteten Quest-Szenarios. Payload: ScenarioID u16.
+    ScenarioDoneReq = 13,
     // Header 17 / Type 17 / Opcode 0x4411: Auswahl eines konkreten
     // selektierbaren Quest-Reward-Items. QuestID u16 + Auswahlindex u32.
     RewardSelectItemIndex = 17,
