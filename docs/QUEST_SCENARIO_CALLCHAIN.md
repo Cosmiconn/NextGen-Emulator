@@ -39,6 +39,8 @@ Direct Zone disassembly of `Recv_NC_QUEST_CLIENT_SCENARIO_DONE_REQ` shows the pa
 
 Thus the client→server Scenario-done request begins with `uint16 ScenarioID`. The exact packet header/opcode and any following fields remain unresolved.
 
+The downstream routine at `0x005BD750` is a player/quest-state mutation path reached with the ScenarioID. Its callers pass small scenario values (for example `5` and `7`) immediately after resolving a player object, and the routine itself calls the same quest/player completion-side helper at `0x005BB0C0`. This confirms that `0x005BD750` belongs to the Scenario-done handling cluster, but its exact PDB symbol attribution is intentionally left unresolved here rather than guessed.
+
 ## Client binary evidence (Fiesta.bin)
 
 ### Correct command-family hierarchy
