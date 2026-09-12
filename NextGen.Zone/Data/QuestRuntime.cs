@@ -36,7 +36,7 @@ namespace NextGen.Zone.Data
             }
             if (strength < 1) strength = 1;
             if (strength > 40) strength = 40;
-            character.Buffs.AddBuff(abState, strength, null, keepTimeMs == 0 ? (uint?)null : keepTimeMs);
+            character.AddBuff(abState, strength, null, keepTimeMs == 0 ? (uint?)null : keepTimeMs);
         }
 
         public static void ResetAbstate(ZoneCharacter character, string abStateName)
