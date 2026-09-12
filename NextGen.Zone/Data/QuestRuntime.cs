@@ -38,6 +38,18 @@ namespace NextGen.Zone.Data
             character.Buffs.AddBuff(abState, strength, null, keepTimeMs == 0 ? (uint?)null : keepTimeMs);
         }
 
+        public static void ResetAbstate(ZoneCharacter character, string abStateName)
+        {
+            if (character == null || string.IsNullOrWhiteSpace(abStateName)) return;
+            AbStateInfo abState;
+            if (!DataProvider.Instance.AbStatesByName.TryGetValue(abStateName, out abState) || abState == null)
+            {
+                Log.WriteLine(LogLevel.Warn, "Quest RESET_ABSTATE: unknown AbState '{0}'.", abStateName);
+                return;
+            }
+            character.Buffs.RemoveBuff(abState.ID);
+        }
+
         public static void RecordMobKill(ZoneCharacter character, ushort mobId)
         {
             if (character == null) return;
