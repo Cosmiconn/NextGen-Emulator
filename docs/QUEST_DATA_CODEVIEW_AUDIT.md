@@ -1,8 +1,8 @@
-# `QUEST_DATA` CodeView field audit — Step 39
+# `QUEST_DATA` CodeView field audit — Step 40
 
 ## Scope
 
-Original `Zone.pdb` / `Zone.exe` were cross-referenced further at the native `Occure_*` routines. This step focuses on the exact event signatures and the byte-level behavior of the shared `QUEST_END_CONDITION` arrays. No emulator runtime code is changed.
+Original `Zone.pdb` / `Zone.exe` were cross-referenced further at the native `CQuest::Occure_*` routines. This step resolves the previously missing source-level names of the inner `NPCMobList` element and records the native `QUEST_NPC_MOB_ACTION` enum. No emulator runtime or SQL schema changes are made from inference.
 
 ## Proven outer structure
 
@@ -13,11 +13,9 @@ Original `Zone.pdb` / `Zone.exe` were cross-referenced further at the native `Oc
 - `Action` = `QUEST_ACTION` at `+0xC4`
 - `Reward` = `QUEST_REWARD` at `+0x204`
 
-The end block is `0x68` bytes and therefore ends at `QUEST_DATA + 0xC0`.
+`QUEST_END_CONDITION` is `0x68` bytes and ends at `QUEST_DATA + 0xC0`.
 
 ## Proven end-block offsets
-
-The original CodeView/offset cross-reference gives:
 
 | `QUEST_DATA` offset | Proven member |
 |---:|---|
@@ -40,38 +38,75 @@ The original CodeView/offset cross-reference gives:
 | `+0xBC` | `End.bTimeLimit` |
 | `+0xBE` | `End.TimeLimit` |
 
-The two repeated arrays have these proven sizes from the binary cursor arithmetic:
+The repeated arrays are proven as:
 
-- NPC/Mob area: 5 entries × `0x08` bytes, first event cursor at `+0x5E`.
-- Item area: 5 entries × `0x06` bytes, first event cursor at `+0x86`; the preceding byte/word at `+0x84` is the first entry's gate/leading field.
+- `NPCMobList`: 5 elements × `0x08` bytes; storage begins at `+0x5C`.
+- `ItemList`: 5 elements × `0x06` bytes; storage begins at `+0x84`.
 
-The exact source-level names of the individual NPC/Mob element members beyond the outer `NPCMobList` name are **not used as evidence below** unless their byte role is directly established by the instruction stream.
+Native event/reward loops use an element cursor at `+0x5E` for `NPCMobList` (the `NPCMobID` field) and `+0x86` for `ItemList` (the `ItemID` field).
+
+## Newly resolved: `NPCMobList` element fields
+
+The original `Zone.pdb` CodeView records contain the complete source names for the inner NPC/Mob element:
+
+| Element offset | CodeView source member | Type/role |
+|---:|---|---|
+| `+0x00` | `bNPCMob` | BYTE enable/gate |
+| `+0x02` | `NPCMobID` | WORD target ID |
+| `+0x04` | `NPCMobAction` | `QUEST_NPC_MOB_ACTION` |
+| `+0x05` | `NPCMobCount` | BYTE required count |
+| `+0x06` | `TargetGroup` | WORD |
+
+The element is exactly `0x08` bytes.
+
+This reconciles the earlier instruction-level cursor notation:
+
+- native cursor `QUEST_DATA + 0x5E` = element `+0x02` (`NPCMobID`);
+- cursor `-0x02` = element `+0x00` (`bNPCMob`);
+- cursor `+0x02` = element `+0x04` (`NPCMobAction`);
+- cursor `+0x03` = element `+0x05` (`NPCMobCount`).
+
+Therefore the formerly unresolved byte roles in `Occure_NPCMobKill` are now source-name resolved.
+
+## `QUEST_NPC_MOB_ACTION` enum recovered from CodeView
+
+The original PDB records contain these enumerators:
+
+| Value | Enumerator |
+|---:|---|
+| `0` | `QUEST_ACTION_IF_NONE` |
+| `1` | `QUEST_ACTION_IF_MOB_KILL` |
+| `2` | `QUEST_ACTION_IF_GATHER` |
+| `3` | `QUEST_ACTION_IF_TOUCH_OBJECT` |
+| `4` | `QUEST_ACTION_IF_AREAINFO` |
+
+This is direct CodeView evidence. The native `Occure_NPCMobKill` test `NPCMobAction == 1` therefore means `QUEST_ACTION_IF_MOB_KILL`; it is not an invented generic “type” value.
+
+`TargetGroup` is source-name resolved by CodeView but its runtime semantic is **UNRESOLVED** in this step because the analyzed event/reward paths do not establish how the value is consumed.
 
 ## `IsRewardAbleQuest(PLAYER_QUEST_INFO*)` — `0x0062FF40`
 
-The binary proves this routine is the full end-condition eligibility check.
+The binary proves this is the full end-condition eligibility check.
 
 ### End level
 
-- `+0x59` is tested as an enable byte.
+- `End.bLevel` `+0x59` is the enable byte.
 - player vtable `+0x64` supplies current level.
-- current level is compared with byte `+0x5A`.
+- current level is compared with `End.Level` `+0x5A`.
 - current level below the stored threshold returns false.
 
 ### NPC/Mob array
 
-The loop starts with cursor `QUEST_DATA + 0x60`, then accesses:
+The loop starts with cursor `QUEST_DATA + 0x60`, i.e. `NPCMobList[0].NPCMobID`, and advances by `0x08` for five entries.
 
-- cursor `-0x04` → `QUEST_DATA + 0x5C`, the list's leading field/gate area
-- cursor `+0x00` → target WORD at `QUEST_DATA + 0x60` for the first logical element
-- cursor advances by `0x08`
-- exactly five iterations
+For each enabled entry:
 
-For an enabled entry, the target WORD is passed to player vtable `+0x7C`. If that call returns `1`, the reward condition fails.
+- `bNPCMob` must be `1`;
+- `NPCMobID` is passed to player vtable `+0x7C`; return `1` fails the reward condition;
+- player vtable `+0x68` is called for `NPCMobID`;
+- the returned WORD is compared against `NPCMobList[i].NPCMobAction`-adjacent quantity field at cursor `+0x02`, which is the native WORD at element offset `+0x04` only if interpreted through the actual cursor arithmetic. **Do not use this sentence as a source-level field mapping:** the exact source-level meaning of the reward-path WORD comparison is still being kept at the instruction-level representation pending a second independent cross-reference.
 
-The same routine then calls player vtable `+0x68` for the target WORD and compares the returned WORD against the entry WORD at `cursor + 0x02`; a lower player value fails.
-
-This establishes the native behavior of the reward check but **does not by itself assign source names to every byte in the 8-byte entry**.
+The safe, proven event-side mapping is the table above. No new semantic meaning is assigned to `TargetGroup` here.
 
 ### Item array
 
@@ -79,50 +114,19 @@ The loop starts at `QUEST_DATA + 0x86` and advances by `0x06` for five entries.
 
 For each entry:
 
-- gate = byte at cursor `-2` (`QUEST_DATA + 0x84` for entry 0)
-- item ID = WORD at cursor `+0`
-- required lot = WORD at cursor `+2`
+- gate = `ItemList[i].bItem` at element `+0x00`;
+- item ID = `ItemList[i].ItemID` at element `+0x02`;
+- required lot = `ItemList[i].ItemLot` at element `+0x04`.
 
-Player vtable `+0x7C` is called first with the item ID. A return value of `1` immediately fails. Otherwise player vtable `+0x68` is called with the same item ID and the returned lot is compared with required lot; below-required fails.
+Player vtable `+0x7C` is called first with the item ID. A return value of `1` immediately fails. Otherwise player vtable `+0x68` is called with the item ID and the returned lot is compared with required lot; below-required fails.
 
-### Location
+## Native event routines
 
-The routine tests `End.bLocation` at `+0xA2` and, when enabled, reads:
-
-- map/location `+0xA4` (WORD)
-- X `+0xA8` (DWORD)
-- Y `+0xAC` (DWORD)
-- range `+0xB0` (DWORD)
-
-The player's location accessor is vtable `+0x60`; the location/range predicate is vtable `+0x28`. A false predicate returns false.
-
-### Scenario/runtime flag
-
-`+0xB4` is tested as the scenario-condition gate. The reward routine does not compare `+0xB6` itself. Instead it checks `PLAYER_QUEST_INFO + 0x1D` bit `0x02` when the scenario gate is enabled.
-
-The scenario event routine separately proves that `+0xB6` is the scenario ID used for matching.
-
-### Race / class
-
-- `+0xB8` gate; `+0xB9` required race; player vtable `+0x6C` supplies current race.
-- `+0xBA` gate; `+0xBB` required class; player vtable `+0x70` supplies current class.
-
-A mismatch returns false.
-
-### Time limit
-
-- `+0xBC` gate.
-- `+0xBE` WORD time limit.
-- `PLAYER_QUEST_INFO + 0x1E` is the current stored quest-time/progress counter.
-
-The reward check passes this condition when `TimeLimit <= PLAYER_QUEST_INFO + 0x1E`; `TimeLimit > current` returns false.
-
-## Native event routines — exact signatures and behavior
-
-The PDB contains these exact native symbols:
+PDB signatures directly identify:
 
 ```text
 ?Occure_NPCMobKill@CQuest@@UAEXGGHH@Z
+?Occure_LevelChange@CQuest@@UAEXGGG@Z
 ?Occure_TakeItem@CQuest@@UAEXGGGG@Z
 ?Occure_DestroyItem@CQuest@@UAEXGGGG@Z
 ?Occure_CheckLocation@CQuest@@UAEXGG@Z
@@ -132,132 +136,45 @@ The PDB contains these exact native symbols:
 ?Occure_TimeProcess@CQuest@@UAEXGGG@Z
 ```
 
-Here `G` is the MSVC unsigned-short/WORD encoding and `H` is the signed-int encoding; `E` is the unsigned-char/BYTE encoding. The function bodies below were checked directly in `Zone.exe`.
+`Occure_NPCMobKill` at `0x006306D0` is now fully named at the inner-entry level:
 
-### `Occure_NPCMobKill` — `0x006306D0`
+1. active status-6 quest only;
+2. resolve `QUEST_DATA`;
+3. iterate `NPCMobList[0..4]`;
+4. require `bNPCMob == 1`;
+5. match event NPC/Mob ID against `NPCMobID`;
+6. require `NPCMobAction == QUEST_ACTION_IF_MOB_KILL` (`1`);
+7. use `NPCMobCount` as the required count;
+8. compare against `PLAYER_QUEST_INFO + 0x18` progress;
+9. increment progress by one while below `NPCMobCount`;
+10. run the common progress/status update path.
 
-The native body is now sufficiently precise to establish the event-side NPC/Mob progress semantics:
+The exact reward/failure callback behavior following a resulting status `8`/`7` remains as previously documented.
 
-1. iterate active player quest entries (`PLAYER_QUEST_INFO` stride `0x20`);
-2. only status `6` entries are processed;
-3. resolve `QUEST_DATA` by quest ID;
-4. start at `QUEST_DATA + 0x5E` and iterate exactly five 8-byte entries;
-5. require entry gate at `+0xFE` relative to the cursor (i.e. cursor `-2`) to equal `1`;
-6. require entry target WORD to equal the event's NPC/Mob ID argument;
-7. require entry byte at `+0x02` to equal `1`;
-8. read the required count from entry byte `+0x03`;
-9. read current quest progress from `PLAYER_QUEST_INFO + 0x18`;
-10. if current progress is below required count, increment it by one;
-11. invoke the quest progress/status update path;
-12. when the resulting status changes from `6` to `8` or `7`, invoke the corresponding native reward/failure handling path.
+`Occure_TakeItem`, `Occure_DestroyItem`, `Occure_CheckLocation`, `Occure_ScenarioDone`, `Occure_RaceChange`, `Occure_ClassChange`, and `Occure_TimeProcess` retain the previously proven behavior and offsets. In particular, location completion uses runtime flag bit `0x01` at `PLAYER_QUEST_INFO + 0x1D`, scenario completion uses bit `0x02`, and time processing updates `PLAYER_QUEST_INFO + 0x1E` using the observed native 16-bit delta calculation.
 
-This proves that the event-side NPC/Mob progress path uses **entry `+0x02 == 1` as an additional action/type discriminator** and **entry `+0x03` as the per-entry required count**. The source-level names of those two fields remain **UNRESOLVED** because the byte roles are proven but not the names.
+## `Occure_LevelChange` status
 
-### `Occure_TakeItem` — `0x00630810`
+The PDB signature is now independently confirmed as:
 
-PDB signature has four WORD arguments after `this`.
+```text
+?Occure_LevelChange@CQuest@@UAEXGGG@Z
+```
 
-The body:
+with source locals named `nQuestID`, `nPlayerLevel`, and `nDoneLevel` in the CodeView records.
 
-- processes only status-6 quests;
-- resolves the quest data;
-- iterates five 6-byte item entries beginning at `QUEST_DATA + 0x86`;
-- requires entry gate at cursor `-2` to be `1`;
-- matches the event item ID against cursor `+0`;
-- reads required lot at cursor `+2`;
-- compares the event amount argument against required lot;
-- when sufficient, invokes the quest progress/status update path.
-
-This establishes the same 6-byte item array is used by the event path, not merely by the reward eligibility check.
-
-### `Occure_DestroyItem` — `0x00630920`
-
-The structure walk is the same five-entry, 6-byte walk beginning at `+0x86`.
-
-It matches the item ID and compares the event quantity against the required lot. Unlike `Occure_TakeItem`, its native vtable callback is at vtable `+0x38`; the progress/status path is then invoked for status-6 quests.
-
-### `Occure_CheckLocation` — `0x00630A60`
-
-The routine obtains current player location through vtable `+0x60`, then processes active status-6 quests.
-
-For each quest it requires:
-
-- `End.bLocation == 1`
-- current map/location == `End.Location` (`+0xA4`)
-- location predicate through vtable `+0x28` using `End.LocationX/Y/Range` (`+0xA8/+0xAC/+0xB0`)
-- `PLAYER_QUEST_INFO + 0x1D` bit `0x01` not already set
-
-When the predicate succeeds it sets bit `0x01`, calls the location-related native callback at vtable `+0x3C`, and enters the common progress/status update path.
-
-This proves that location completion is **edge-triggered by a runtime flag bit** rather than repeatedly incrementing progress every location tick.
-
-### `Occure_ScenarioDone` — `0x00630BA0`
-
-For each active status-6 quest:
-
-- require `End.bScenario == 1`;
-- compare event ScenarioID with `End.ScenarioID` at `+0xB6`;
-- require `PLAYER_QUEST_INFO + 0x1D` bit `0x02` to be clear;
-- set that bit;
-- call the scenario callback at vtable `+0x40`;
-- enter the common progress/status update path.
-
-This is direct proof of the `+0xB4/+0xB6` scenario mapping.
-
-### `Occure_RaceChange` — `0x00630C90`
-
-For active status-6 quests:
-
-- require `End.bRace == 1` at `+0xB8`;
-- compare event race BYTE with `End.Race` at `+0xB9`;
-- call the race-change callback at vtable `+0x44`;
-- enter the common progress/status update path.
-
-### `Occure_ClassChange` — `0x00630D70`
-
-For active status-6 quests:
-
-- require `End.bClass == 1` at `+0xBA`;
-- compare event class BYTE with `End.Class` at `+0xBB`;
-- call the class-change callback at vtable `+0x48`;
-- enter the common progress/status update path.
-
-### `Occure_TimeProcess` — `0x00630E50`
-
-The native function:
-
-- obtains current time from `0x65910B`;
-- compares it against `[this + 0x14]` and returns immediately when equal;
-- performs the observed 16-bit subtraction `previous - current` and zero-extends the result;
-- stores current time at `[this + 0x14]`;
-- processes only status-6 quests;
-- resolves quest data;
-- requires `QUEST_DATA + 0xBC == 1`;
-- compares `PLAYER_QUEST_INFO + 0x1E` against `QUEST_DATA + 0xBE`;
-- adds the computed delta to `PLAYER_QUEST_INFO + 0x1E` when the limit has not been exceeded;
-- invokes vtable `+0x4C` with quest ID, updated counter and time limit;
-- runs the common status update path.
-
-The exact high-level unit/name of `PLAYER_QUEST_INFO + 0x1E` remains **UNRESOLVED**; it must not be renamed to `ElapsedTime`, `Seconds`, `RepeatCount`, etc. without additional evidence.
-
-## Important correction to previous audit
-
-The earlier Step-38 wording that described the individual NPC/Mob and item element fields as fully CodeView-resolved source names was too strong for the evidence currently available in this working environment. The **outer `QUEST_END_CONDITION` member names and all relevant offsets are proven**, and the inner entry byte roles are proven by instruction-level analysis. Inner source-level names are therefore marked **UNRESOLVED** until independently recovered from the CodeView type records.
-
-Likewise, `IsRewardAbleQuest(PLAYER_QUEST_INFO*)` at `0x0062FF40` is the full end-condition check; `0x0062FEE0` is the separate `QUEST_DATA*` overload.
+The exact native body/address mapping for this individual routine is **UNRESOLVED in Step 40**. It is therefore deliberately not assigned an address or guessed comparison semantics here. The next binary pass must locate the exact procedure by its CodeView procedure record and then establish whether `nPlayerLevel` is compared against `End.Level`, how `nDoneLevel` is derived, and how the common progress/status path is invoked.
 
 ## Implementation consequence
 
-The current emulator's generic `data_quest_objective` model is not yet equivalent to the original packed end-condition block. In particular, the native model contains:
+The `NPCMobList` schema can now be represented without invented names:
 
-- five NPC/Mob slots with an action/type byte and count byte;
-- five item slots with gate, ID and required lot;
-- location/scenario/race/class/time-limit end gates;
-- runtime completion flags at `PLAYER_QUEST_INFO + 0x1D`;
-- a time counter at `PLAYER_QUEST_INFO + 0x1E`.
+```text
+bNPCMob       BYTE
+NPCMobID      WORD
+NPCMobAction  QUEST_NPC_MOB_ACTION
+NPCMobCount   BYTE
+TargetGroup   WORD
+```
 
-Therefore **no SQL schema rewrite is made in this step**. The correct next action is to recover the remaining inner CodeView element names and then compare the real `.shn`/SQL corpus against these exact slots before changing `QuestRuntime.cs`.
-
-## Status
-
-No emulator runtime behavior changed. This commit contains only evidence corrections and binary cross-reference documentation.
+However, **no SQL schema rewrite is made yet**. The next required step is to locate `Occure_LevelChange` exactly and then cross-reference these resolved names against the actual `.shn` corpus and existing SQL rows before modifying `QuestRuntime.cs` or SQL.
