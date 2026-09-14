@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
-"""Audit normalized QuestScript corpus without inventing script semantics."""
+"""Audit the normalized QuestScript corpus without inventing semantics."""
+import os
 import re
 from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SQL = ROOT / 'sql/data/data_quest_script_data.sql'
+SQL = Path(os.environ.get("QUEST_SCRIPT_SQL", ROOT / "sql/data/data_quest_script_data.sql"))
 
 
 def parse_rows(text):
-    pat = re.compile(r"\((\d+),\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)'\)", re.S)
-    return {m.group(1): [x.replace("''", "'") for x in m.groups()[1:]] for m in pat.finditer(text)}
+    # Keep CR bytes inside script literals intact; universal-newline conversion
+    # would otherwise create false corpus mismatches.
+    pat = re.compile(
+        rb"\((\d+),\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)'\)"
+    )
+    rows = {}
+    for m in pat.finditer(text):
+        vals = [x.replace(b"''", b"'") for x in m.groups()[1:]]
+        rows[m.group(1).decode()] = [x.decode("utf-8", "replace") for x in vals]
+    return rows
 
 
 def labels(script):
@@ -27,7 +36,14 @@ def goto_refs(script):
 
 
 def main():
-    rows = parse_rows(SQL.read_text(errors='replace'))
+    if not SQL.is_file():
+        print(f"FAIL: required Quest script corpus is missing: {SQL}")
+        return 2
+    rows = parse_rows(SQL.read_bytes())
+    if len(rows) != 2304:
+        print(f"FAIL: expected 2304 Quest script rows, got {len(rows)}")
+        return 1
+
     stage_names = ('Start', 'Action', 'Finish')
     unresolved = []
     cross = []
@@ -62,21 +78,36 @@ def main():
                 if other and len(global_labels.get(target.lower(), [])) > 1:
                     ambiguous.append(item)
 
+    expected = {
+        'ACCEPT': 2410,
+        'CANCEL': 12,
+        'CREATE_ITEM': 206,
+        'DELETE_ITEM': 1474,
+        'DONE': 2603,
+        'END': 9446,
+        'GET_ITEM_LOT': 104,
+        'GET_PLAYER_EMPTY_INVENTORY': 676,
+        'GOTO': 4,
+        'IF': 3036,
+        'LINK': 350,
+        'SAY': 19924,
+        'SCENARIO': 52,
+        'SET_ABSTATE': 51,
+    }
+    if dict(opcodes) != expected:
+        print('FAIL: Quest opcode corpus changed')
+        print('expected:', ' '.join(f'{k}={v}' for k, v in sorted(expected.items())))
+        print('actual:  ', ' '.join(f'{k}={v}' for k, v in sorted(opcodes.items())))
+        return 1
+
     print(f'PASS: {len(rows)} quest script rows parsed')
     print(f'PASS: labels={labels_total}')
     print(f'REVIEW: unresolved GOTO/IF targets={len(unresolved)}')
     print(f'  cross-stage label references={len(cross)}')
     print(f'  no-label-anywhere references={len(undefined)}')
     print(f'  cross-stage targets with duplicate label names={len(ambiguous)}')
-
-    known = {
-        'ACCEPT', 'CANCEL', 'CREATE_ITEM', 'DELETE_ITEM', 'DONE', 'END',
-        'GET_ITEM_LOT', 'GET_PLAYER_EMPTY_INVENTORY', 'GOTO', 'IF', 'LINK',
-        'SAY', 'SCENARIO', 'SET_ABSTATE'
-    }
-    unknown = set(opcodes) - known
-    print('PASS: unknown opcodes=0' if not unknown else f'REVIEW: unknown opcodes={sorted(unknown)}')
-    print('Opcode counts:', ' '.join(f'{k}={v}' for k, v in sorted(opcodes.items())))
+    print('PASS: unknown opcodes=0')
+    print('PASS: exact opcode corpus counts match the supplied 2304-record source')
 
     if cross:
         print('Cross-stage references:')
@@ -93,7 +124,7 @@ def main():
     else:
         print('FAIL: Quest 1 Baby-Steps source structure')
         return 1
-    return 1 if unknown else 0
+    return 0
 
 
 if __name__ == '__main__':
