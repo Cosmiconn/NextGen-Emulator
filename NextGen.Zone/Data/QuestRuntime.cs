@@ -36,7 +36,9 @@ namespace NextGen.Zone.Data
             {
                 using (DatabaseClient db = Program.CharDBManager.GetClient())
                 {
-                    db.ExecuteQuery("INSERT INTO tQuest (nCharNo,nQuestNo,nStatus,sData) VALUES (@c,@q,@s,NULL) ON DUPLICATE KEY UPDATE nStatus=IF(nStatus IN (2,4),nStatus,@s)",
+                    // Native SetQuestAccept sets an existing quest entry to IN_PROGRESS;
+                    // it does not preserve DONE/REPEAT status. Runtime progress is reset.
+                    db.ExecuteQuery("INSERT INTO tQuest (nCharNo,nQuestNo,nStatus,sData) VALUES (@c,@q,@s,NULL) ON DUPLICATE KEY UPDATE nStatus=@s,sData=NULL",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId), new MySqlParameter("@s", PqsInProgress));
                     db.ExecuteQuery("DELETE FROM character_quest_progress WHERE CharID=@c AND QuestID=@q",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
