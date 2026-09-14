@@ -47,6 +47,30 @@ namespace NextGen.Zone.Data
             catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest accept failed {0}: {1}", questId, ex.Message); }
         }
 
+        public static void Cancel(ZoneCharacter character, uint questId)
+        {
+            if (character == null || questId == 0) return;
+            try
+            {
+                using (DatabaseClient db = Program.CharDBManager.GetClient())
+                {
+                    DataTable rows = db.ReadDataTable("SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q",
+                        new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
+                    if (rows == null || rows.Rows.Count == 0) return;
+                    byte status = Convert.ToByte(rows.Rows[0]["nStatus"]);
+                    if (status == PqsRepeat)
+                        db.ExecuteQuery("UPDATE tQuest SET nStatus=@s,sData=NULL WHERE nCharNo=@c AND nQuestNo=@q",
+                            new MySqlParameter("@s", PqsRepeat), new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
+                    else
+                        db.ExecuteQuery("DELETE FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q",
+                            new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
+                    db.ExecuteQuery("DELETE FROM character_quest_progress WHERE CharID=@c AND QuestID=@q",
+                        new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
+                }
+            }
+            catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest cancel failed {0}: {1}", questId, ex.Message); }
+        }
+
         public static void RecordMobKill(ZoneCharacter character, ushort mobId)
         {
             if (character == null || mobId == 0) return;
