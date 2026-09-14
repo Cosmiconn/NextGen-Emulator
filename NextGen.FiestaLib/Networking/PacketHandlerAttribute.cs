@@ -31,6 +31,8 @@ namespace NextGen.FiestaLib.Networking
         public PacketHandlerAttribute(CH9Type type) : this(9, (byte)type) { }
         public PacketHandlerAttribute(CH12Type type) : this(12, (byte)type) { }
         public PacketHandlerAttribute(CH15Type type) : this(15, (byte)type) { }
+        // Ergaenzung fuer das neue NPC-Dialog-System (Abschnitt 83).
+        public PacketHandlerAttribute(CH17Type type) : this(17, (byte)type) { }
         public PacketHandlerAttribute(CH19Type type) : this(19, (byte)type) { }
         public PacketHandlerAttribute(CH20Type type) : this(20, (byte)type) { }
         public PacketHandlerAttribute(CH21Type type) : this(21, (byte)type) { }
