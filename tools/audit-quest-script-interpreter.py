@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Audit the normalized QuestScript corpus without inventing semantics."""
+"""Audit the complete normalized QuestScript corpus without inventing semantics."""
+import base64
 import os
 import re
+import zlib
 from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SQL = Path(os.environ.get("QUEST_SCRIPT_SQL", ROOT / "sql/data/data_quest_script_data.sql"))
 MANIFEST = ROOT / "tests/fixtures/quest_script_corpus_manifest.sql"
+CORPUS = ROOT / "tests/fixtures/quest_script_opcode_corpus.zlib.b64"
 
 EXPECTED = {
     'ACCEPT': 2410, 'CANCEL': 12, 'CREATE_ITEM': 206, 'DELETE_ITEM': 1474,
@@ -15,9 +18,11 @@ EXPECTED = {
     'GET_PLAYER_EMPTY_INVENTORY': 676, 'GOTO': 4, 'IF': 3036,
     'LINK': 350, 'SAY': 19924, 'SCENARIO': 52, 'SET_ABSTATE': 51,
 }
+SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd244cc8b8'
 
 
 def parse_rows(text):
+    """Parse the lossless data_quest_script SQL INSERT row representation."""
     pat = re.compile(rb"\((\d+),\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)'\)")
     rows = {}
     for m in pat.finditer(text):
@@ -28,6 +33,21 @@ def parse_rows(text):
 
 def parse_manifest(text):
     return {op: int(n) for op, n in re.findall(r"\('([A-Z_]+)',(\d+)\)", text)}
+
+
+def load_verified_corpus():
+    if not CORPUS.is_file():
+        return None
+    try:
+        encoded = re.sub(r"\s+", "", CORPUS.read_text(encoding="ascii"))
+        raw = base64.b64decode(encoded, validate=True)
+        decoded = zlib.decompress(raw)
+    except (OSError, ValueError, zlib.error) as exc:
+        raise RuntimeError(f"cannot decode verified Quest corpus fixture: {exc}") from exc
+    rows = parse_rows(decoded)
+    if len(rows) != 2304:
+        raise RuntimeError(f"verified Quest corpus decoded, but expected 2304 rows, got {len(rows)}")
+    return rows
 
 
 def labels(script):
@@ -95,6 +115,16 @@ def audit_full_sql(rows):
 
 
 def main():
+    if not MANIFEST.is_file():
+        print('FAIL: verified Quest script corpus manifest is missing')
+        return 2
+    manifest = parse_manifest(MANIFEST.read_text(encoding='utf-8'))
+    if manifest != EXPECTED:
+        print('FAIL: Quest opcode manifest does not match the verified corpus')
+        return 1
+    print(f'PASS: source SHA-256 = {SOURCE_SHA}')
+    print('PASS: manifest opcode counts match the verified source')
+
     if SQL.is_file():
         rows = parse_rows(SQL.read_bytes())
         if len(rows) != 2304:
@@ -102,20 +132,18 @@ def main():
             return 1
         return audit_full_sql(rows)
 
-    if not MANIFEST.is_file():
-        print(f'FAIL: Quest script SQL and verified corpus manifest are both missing: {SQL}')
+    try:
+        rows = load_verified_corpus()
+    except RuntimeError as exc:
+        print(f'FAIL: {exc}')
         return 2
-    manifest = parse_manifest(MANIFEST.read_text(encoding='utf-8'))
-    if manifest != EXPECTED:
-        print('FAIL: Quest opcode manifest does not match the verified corpus')
-        return 1
-    print('PASS: Quest script SQL is not checked in; mandatory audit uses the verified 2304-record corpus manifest')
-    print('PASS: source SHA-256 = 8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd244cc8b8')
-    print('PASS: 2304 Quest records represented by the verified source manifest')
-    print('PASS: unknown opcodes=0')
-    print('PASS: exact opcode corpus counts match the supplied 2304-record source')
-    print('REVIEW: full label/GOTO audit requires the lossless data_quest_script SQL dump; it is performed against the generated QuestData.sql artifact')
-    return 0
+    if rows is None:
+        print('FAIL: Quest script SQL and verified lossless corpus fixture are both missing')
+        return 2
+
+    print('PASS: lossless Quest script corpus fixture decoded from zlib/base64')
+    print('PASS: full 2304-record corpus is available without requiring generated SQL')
+    return audit_full_sql(rows)
 
 
 if __name__ == '__main__':
