@@ -2,25 +2,25 @@
 
 ## Original database evidence
 
-The supplied `World00_Character.bak` contains the original SQL Server procedure `dbo.p_Quest_Set` with the contract:
+The supplied `World00_Character.bak` contains `dbo.p_Quest_Set` with contract `@nCharNo int, @nQuestNo int, @nStatus tinyint, @sData varbinary(100), @nRet int OUTPUT`. It updates/inserts `tQuest.nStatus` and `tQuest.sData`. Comments identify status `4` as `PQS_REPEAT` and status `6` as `PQS_IN_PROGRESS`.
 
-`@nCharNo int, @nQuestNo int, @nStatus tinyint, @sData varbinary(100), @nRet int OUTPUT`
-
-The original procedure updates `tQuest.nStatus` and `tQuest.sData` for `(nCharNo,nQuestNo)` and inserts the row when it does not already exist. The procedure comments explicitly identify status `4` as `PQS_REPEAT` and status `6` as `PQS_IN_PROGRESS`.
-
-The same backup contains `tQuestTimes`, with `nCharNo`, `nQuestNo`, `nTimes`, and `dLastComplete`. The increment/update block visible in `p_Quest_Set` is commented out; therefore `tQuestTimes` must not be attributed to `p_Quest_Set` itself without the native `CQuest::SetQuestDone` evidence.
+The backup also contains `tQuestTimes(nCharNo,nQuestNo,nTimes,dLastComplete)`. The `tQuestTimes` update block found inside `p_Quest_Set` is commented out and is a historical special case for quest `20016`; it is not evidence for a generic repeatable-quest counter.
 
 ## Emulator mapping
 
-The current SQL schema preserves the original persistence names and core types:
+The schema preserves the original persistence names and core types:
 
 - `tQuest(nCharNo,nQuestNo,nStatus,sData)`
 - `tQuestTimes(nCharNo,nQuestNo,nTimes,dLastComplete)`
 
-The normalized `character_quest_progress` table is emulator-side runtime progress for objective counters/flags and is not claimed to be an original table.
+`character_quest_progress` is emulator-side runtime progress and is not claimed to be an original table.
 
-`Accept` writes `tQuest` with status `6` and clears normalized runtime progress. `Cancel` removes non-repeat entries and preserves status `4` for repeat entries while clearing normalized runtime progress. `Complete` changes status to `2` for non-repeatable quests and `4` for repeatable quests and increments `tQuestTimes` for repeatable completion.
+`Accept` writes status `6` and clears normalized progress. `Cancel` removes non-repeat entries and preserves status `4` for repeat entries while clearing normalized progress. `Complete` writes status `2` for non-repeatable quests and `4` for repeatable quests. It deliberately does **not** write `tQuestTimes`, because generic repeatable-quest persistence there is not proven.
+
+## Native completion boundary
+
+Native `CQuest::SetQuestDone` selects status `4` for repeatable quests and `2` otherwise, updates the in-memory `PLAYER_QUEST_INFO`, and then calls the player/quest virtual callback at `+0x5C`. That callback is the unresolved native side-effect/persistence boundary. No generic `tQuestTimes` increment is claimed.
 
 ## Parity boundary
 
-The persistence table names and the `p_Quest_Set` field contract are proven. Exact byte-level meaning of original `sData`, exact timestamp/increment ordering inside native `CQuest::SetQuestDone`, and all special historical `QuestItemFix` behavior remain separate evidence items and must not be silently represented as equivalent by the emulator.
+The persistence table names and `p_Quest_Set` contract are proven. Exact byte-level meaning of original `sData`, exact timestamp/increment ordering at the native callback boundary, and historical `QuestItemFix` behavior remain separate evidence items and are not silently represented as equivalent by the emulator.
