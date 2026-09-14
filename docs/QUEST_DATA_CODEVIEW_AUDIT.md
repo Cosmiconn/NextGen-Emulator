@@ -54,19 +54,20 @@ The original `Zone.pdb` CodeView records contain the complete source names for t
 | `+0x00` | `bNPCMob` | BYTE enable/gate |
 | `+0x02` | `NPCMobID` | WORD target ID |
 | `+0x04` | `NPCMobAction` | `QUEST_NPC_MOB_ACTION` |
-| `+0x05` | `NPCMobCount` | BYTE required count |
-| `+0x06` | `TargetGroup` | WORD |
+| `+0x05` | `NPCMobCount` | BYTE required event count |
+| `+0x06` | `TargetGroup` | WORD reward-side required quantity |
 
 The element is exactly `0x08` bytes.
 
-This reconciles the earlier instruction-level cursor notation:
+This reconciles the instruction-level cursor notation:
 
 - native cursor `QUEST_DATA + 0x5E` = element `+0x02` (`NPCMobID`);
 - cursor `-0x02` = element `+0x00` (`bNPCMob`);
 - cursor `+0x02` = element `+0x04` (`NPCMobAction`);
-- cursor `+0x03` = element `+0x05` (`NPCMobCount`).
+- cursor `+0x03` = element `+0x05` (`NPCMobCount`);
+- reward eligibility cursor `QUEST_DATA + 0x60` = element `+0x04` (`NPCMobAction`), while its `cursor + 0x02` WORD is element `+0x06` (`TargetGroup`).
 
-Therefore the formerly unresolved byte roles in `Occure_NPCMobKill` are now source-name resolved.
+Thus the formerly unresolved event-side byte roles are now source-name resolved, and the reward-side WORD comparison is also reconciled to `TargetGroup`.
 
 ## `QUEST_NPC_MOB_ACTION` enum recovered from CodeView
 
@@ -82,7 +83,7 @@ The original PDB records contain these enumerators:
 
 This is direct CodeView evidence. The native `Occure_NPCMobKill` test `NPCMobAction == 1` therefore means `QUEST_ACTION_IF_MOB_KILL`; it is not an invented generic “type” value.
 
-`TargetGroup` is source-name resolved by CodeView but its runtime semantic is **UNRESOLVED** in this step because the analyzed event/reward paths do not establish how the value is consumed.
+`TargetGroup` is now source-name resolved. Its reward-side role is proven by `IsRewardAbleQuest(PLAYER_QUEST_INFO*)`: the player-side WORD returned by vtable `+0x68` for `NPCMobID` is compared against `TargetGroup`; a lower value fails. Other semantics of `TargetGroup` remain **UNRESOLVED**.
 
 ## `IsRewardAbleQuest(PLAYER_QUEST_INFO*)` — `0x0062FF40`
 
@@ -97,22 +98,18 @@ The binary proves this is the full end-condition eligibility check.
 
 ### NPC/Mob array
 
-The loop starts with cursor `QUEST_DATA + 0x60`, i.e. `NPCMobList[0].NPCMobID`, and advances by `0x08` for five entries.
+The loop starts with cursor `QUEST_DATA + 0x60` and advances by `0x08` for five entries. Because the cursor is the element's `NPCMobAction` field, the native accesses map as follows:
 
-For each enabled entry:
+- cursor `-0x04` = `bNPCMob`; it must be enabled;
+- cursor `-0x02` = `NPCMobID`; used as the target ID;
+- cursor `+0x00` = `NPCMobAction` (the cursor itself);
+- cursor `+0x02` = `TargetGroup` WORD.
 
-- `bNPCMob` must be `1`;
-- `NPCMobID` is passed to player vtable `+0x7C`; return `1` fails the reward condition;
-- player vtable `+0x68` is called for `NPCMobID`;
-- the returned WORD is compared against `NPCMobList[i].NPCMobAction`-adjacent quantity field at cursor `+0x02`, which is the native WORD at element offset `+0x04` only if interpreted through the actual cursor arithmetic. **Do not use this sentence as a source-level field mapping:** the exact source-level meaning of the reward-path WORD comparison is still being kept at the instruction-level representation pending a second independent cross-reference.
-
-The safe, proven event-side mapping is the table above. No new semantic meaning is assigned to `TargetGroup` here.
+For an enabled entry, `NPCMobID` is passed to player vtable `+0x7C`; return `1` fails the reward condition. The player vtable `+0x68` result is compared against `TargetGroup`; a lower player value fails.
 
 ### Item array
 
-The loop starts at `QUEST_DATA + 0x86` and advances by `0x06` for five entries.
-
-For each entry:
+The loop starts at `QUEST_DATA + 0x86` and advances by `0x06` for five entries. For each entry:
 
 - gate = `ItemList[i].bItem` at element `+0x00`;
 - item ID = `ItemList[i].ItemID` at element `+0x02`;
@@ -155,13 +152,13 @@ The exact reward/failure callback behavior following a resulting status `8`/`7` 
 
 ## `Occure_LevelChange` status
 
-The PDB signature is now independently confirmed as:
+The PDB signature is independently confirmed as:
 
 ```text
 ?Occure_LevelChange@CQuest@@UAEXGGG@Z
 ```
 
-with source locals named `nQuestID`, `nPlayerLevel`, and `nDoneLevel` in the CodeView records.
+with CodeView source locals named `nQuestID`, `nPlayerLevel`, and `nDoneLevel`.
 
 The exact native body/address mapping for this individual routine is **UNRESOLVED in Step 40**. It is therefore deliberately not assigned an address or guessed comparison semantics here. The next binary pass must locate the exact procedure by its CodeView procedure record and then establish whether `nPlayerLevel` is compared against `End.Level`, how `nDoneLevel` is derived, and how the common progress/status path is invoked.
 
@@ -177,4 +174,4 @@ NPCMobCount   BYTE
 TargetGroup   WORD
 ```
 
-However, **no SQL schema rewrite is made yet**. The next required step is to locate `Occure_LevelChange` exactly and then cross-reference these resolved names against the actual `.shn` corpus and existing SQL rows before modifying `QuestRuntime.cs` or SQL.
+However, **no SQL schema rewrite is made yet**. The next required step is to locate `Occure_LevelChange` exactly and then cross-reference these resolved names against the actual `.shn` corpus and existing SQL before modifying `QuestRuntime.cs` or SQL.
