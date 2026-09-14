@@ -12,10 +12,6 @@ using NextGen.Zone.Handlers;
 
 namespace NextGen.Zone.Data
 {
-    /// <summary>
-    /// Runtime quest state. Quest definitions come only from SQL generated from
-    /// the original QuestData.shn; the .shn file is not read at runtime.
-    /// </summary>
     internal static class QuestRuntime
     {
         public const byte PqsNone = 0;
@@ -36,8 +32,6 @@ namespace NextGen.Zone.Data
             {
                 using (DatabaseClient db = Program.CharDBManager.GetClient())
                 {
-                    // Native SetQuestAccept sets an existing quest entry to IN_PROGRESS;
-                    // it does not preserve DONE/REPEAT status. Runtime progress is reset.
                     db.ExecuteQuery("INSERT INTO tQuest (nCharNo,nQuestNo,nStatus,sData) VALUES (@c,@q,@s,NULL) ON DUPLICATE KEY UPDATE nStatus=@s,sData=NULL",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId), new MySqlParameter("@s", PqsInProgress));
                     db.ExecuteQuery("DELETE FROM character_quest_progress WHERE CharID=@c AND QuestID=@q",
@@ -52,19 +46,18 @@ namespace NextGen.Zone.Data
             if (character == null || questId == 0) return;
             try
             {
-                using (DatabaseClient db = Program.CharDBManager.GetClient())
+                using (DatabaseClient dataDb = Program.DatabaseManager.GetClient())
+                using (DatabaseClient charDb = Program.CharDBManager.GetClient())
                 {
-                    DataTable rows = db.ReadDataTable("SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q",
-                        new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
-                    if (rows == null || rows.Rows.Count == 0) return;
-                    byte status = Convert.ToByte(rows.Rows[0]["nStatus"]);
-                    if (status == PqsRepeat)
-                        db.ExecuteQuery("UPDATE tQuest SET nStatus=@s,sData=NULL WHERE nCharNo=@c AND nQuestNo=@q",
+                    DataTable def = dataDb.ReadDataTable("SELECT Repeatable FROM QuestData WHERE QuestID=@q", new MySqlParameter("@q", questId));
+                    bool repeatable = def != null && def.Rows.Count > 0 && Convert.ToByte(def.Rows[0]["Repeatable"]) != 0;
+                    if (repeatable)
+                        charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s,sData=NULL WHERE nCharNo=@c AND nQuestNo=@q",
                             new MySqlParameter("@s", PqsRepeat), new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
                     else
-                        db.ExecuteQuery("DELETE FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q",
+                        charDb.ExecuteQuery("DELETE FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q",
                             new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
-                    db.ExecuteQuery("DELETE FROM character_quest_progress WHERE CharID=@c AND QuestID=@q",
+                    charDb.ExecuteQuery("DELETE FROM character_quest_progress WHERE CharID=@c AND QuestID=@q",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
                 }
             }
@@ -136,8 +129,8 @@ namespace NextGen.Zone.Data
             {
                 Log.WriteLine(LogLevel.Warn, "Quest SET_ABSTATE: unknown AbState '{0}'.", abStateName); return;
             }
-            if (strength < 1) strength = 1;
-            if (strength > 40) strength = 40;
+            // Native QSC28 rejects strength outside 1..40; it does not clamp.
+            if (strength == 0 || strength > 40) return;
             character.AddBuff(abState, strength, null, keepTimeMs == 0 ? (uint?)null : keepTimeMs);
         }
 
@@ -145,10 +138,7 @@ namespace NextGen.Zone.Data
         {
             if (character == null || string.IsNullOrWhiteSpace(abStateName)) return;
             AbStateInfo abState;
-            if (!DataProvider.Instance.AbStatesByName.TryGetValue(abStateName, out abState) || abState == null)
-            {
-                Log.WriteLine(LogLevel.Warn, "Quest RESET_ABSTATE: unknown AbState '{0}'.", abStateName); return;
-            }
+            if (!DataProvider.Instance.AbStatesByName.TryGetValue(abStateName, out abState) || abState == null) return;
             character.RemoveBuff(abState.ID);
         }
 
@@ -228,26 +218,20 @@ namespace NextGen.Zone.Data
                     byte[] end = (byte[])qrows.Rows[0]["RawData"];
                     if (end == null || end.Length < 0x68) return false;
                     if (end[1] != 0 && c.Level < end[2]) return false;
-
                     DataTable npc = dataDb.ReadDataTable("SELECT Slot,NPCMobAction,NPCMobCount FROM QuestData_NPCMob WHERE QuestID=@q AND bNPCMob=1", new MySqlParameter("@q", questId));
                     if (npc != null)
-                    {
                         foreach (DataRow r in npc.Rows)
                         {
                             byte action = Convert.ToByte(r["NPCMobAction"]);
                             if (action != 1 && action != 2 && action != 3) continue;
-                            DataTable p = charDb.ReadDataTable("SELECT Progress FROM character_quest_progress WHERE CharID=@c AND QuestID=@q AND Slot=@slot",
-                                new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId), new MySqlParameter("@slot", Convert.ToByte(r["Slot"])));
+                            DataTable p = charDb.ReadDataTable("SELECT Progress FROM character_quest_progress WHERE CharID=@c AND QuestID=@q AND Slot=@slot", new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId), new MySqlParameter("@slot", Convert.ToByte(r["Slot"])));
                             uint have = p != null && p.Rows.Count > 0 ? Convert.ToUInt32(p.Rows[0]["Progress"]) : 0;
                             if (have < Convert.ToUInt32(r["NPCMobCount"])) return false;
                         }
-                    }
-
                     DataTable items = dataDb.ReadDataTable("SELECT ItemID,ItemLot FROM QuestData_Item WHERE QuestID=@q AND bItem=1", new MySqlParameter("@q", questId));
                     if (items != null)
                         foreach (DataRow r in items.Rows)
                             if (GetItemLot(c, Convert.ToUInt16(r["ItemID"])) < Convert.ToUInt32(r["ItemLot"])) return false;
-
                     if (end[0x4A] != 0)
                     {
                         ushort map = BitConverter.ToUInt16(end, 0x4C);
@@ -257,16 +241,11 @@ namespace NextGen.Zone.Data
                         long dx = (long)c.Character.PositionInfo.XPos - x, dy = (long)c.Character.PositionInfo.YPos - y;
                         if (dx * dx + dy * dy > (long)range * range) return false;
                     }
-
                     if (end[0x5C] != 0)
                     {
-                        DataTable p = charDb.ReadDataTable("SELECT Progress FROM character_quest_progress WHERE CharID=@c AND QuestID=@q AND Slot=@slot",
-                            new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId), new MySqlParameter("@slot", ScenarioFlagSlot));
+                        DataTable p = charDb.ReadDataTable("SELECT Progress FROM character_quest_progress WHERE CharID=@c AND QuestID=@q AND Slot=@slot", new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId), new MySqlParameter("@slot", ScenarioFlagSlot));
                         if (p == null || p.Rows.Count == 0 || Convert.ToUInt32(p.Rows[0]["Progress"]) == 0) return false;
                     }
-
-                    // The supplied 2304-record corpus contains no active race/class/time
-                    // end gates. Their raw fields are retained in QuestData SQL.
                     return true;
                 }
             }
@@ -287,11 +266,9 @@ namespace NextGen.Zone.Data
                     if (state == null || state.Rows.Count == 0 || Convert.ToByte(state.Rows[0]["nStatus"]) != PqsInProgress) return false;
                     byte completionStatus = IsRepeatable(dataDb, questId) ? PqsRepeat : PqsDone;
                     ApplyRewards(dataDb, c, questId, selectedIndex);
-                    charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q",
-                        new MySqlParameter("@s", completionStatus), new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
+                    charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@s", completionStatus), new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
                     if (completionStatus == PqsRepeat)
-                        charDb.ExecuteQuery("INSERT INTO tQuestTimes (nCharNo,nQuestNo,nTimes,dLastComplete) VALUES (@c,@q,1,NOW()) ON DUPLICATE KEY UPDATE nTimes=nTimes+1,dLastComplete=NOW()",
-                            new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
+                        charDb.ExecuteQuery("INSERT INTO tQuestTimes (nCharNo,nQuestNo,nTimes,dLastComplete) VALUES (@c,@q,1,NOW()) ON DUPLICATE KEY UPDATE nTimes=nTimes+1,dLastComplete=NOW()", new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
                     return true;
                 }
             }
