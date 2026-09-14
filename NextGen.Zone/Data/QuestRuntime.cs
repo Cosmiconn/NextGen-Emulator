@@ -129,7 +129,6 @@ namespace NextGen.Zone.Data
             {
                 Log.WriteLine(LogLevel.Warn, "Quest SET_ABSTATE: unknown AbState '{0}'.", abStateName); return;
             }
-            // Native QSC28 rejects strength outside 1..40; it does not clamp.
             if (strength == 0 || strength > 40) return;
             character.AddBuff(abState, strength, null, keepTimeMs == 0 ? (uint?)null : keepTimeMs);
         }
@@ -267,8 +266,6 @@ namespace NextGen.Zone.Data
                     byte completionStatus = IsRepeatable(dataDb, questId) ? PqsRepeat : PqsDone;
                     ApplyRewards(dataDb, c, questId, selectedIndex);
                     charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@s", completionStatus), new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
-                    if (completionStatus == PqsRepeat)
-                        charDb.ExecuteQuery("INSERT INTO tQuestTimes (nCharNo,nQuestNo,nTimes,dLastComplete) VALUES (@c,@q,1,NOW()) ON DUPLICATE KEY UPDATE nTimes=nTimes+1,dLastComplete=NOW()", new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
                     return true;
                 }
             }
