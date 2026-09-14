@@ -14,11 +14,19 @@ CORPUS = ROOT / "tests/fixtures/quest_script_opcode_corpus.zlib.b64"
 EXPECTED = {'ACCEPT':2410,'CANCEL':12,'CREATE_ITEM':206,'DELETE_ITEM':1474,'DONE':2603,'END':9446,'GET_ITEM_LOT':104,'GET_PLAYER_EMPTY_INVENTORY':676,'GOTO':4,'IF':3036,'LINK':350,'SAY':19924,'SCENARIO':52,'SET_ABSTATE':51}
 SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd2448b8'
 
+def decode_script(raw):
+    # The verified compressed fixture stores SQL script line endings escaped.
+    # Decode only transport escapes; do not reinterpret QuestScript syntax.
+    return (raw.replace('\\r\\n', '\n')
+               .replace('\\n', '\n')
+               .replace('\\r', '\r')
+               .replace('\\t', '\t'))
+
 def parse_rows(text):
     pat = re.compile(rb"\((\d+),\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)'\)")
     rows = {}
     for m in pat.finditer(text):
-        rows[m.group(1).decode()] = [x.replace(b"''", b"'").decode('utf-8', 'replace') for x in m.groups()[1:]]
+        rows[m.group(1).decode()] = [decode_script(x.replace(b"''", b"'").decode('utf-8', 'replace')) for x in m.groups()[1:]]
     return rows
 
 def parse_manifest(text):
