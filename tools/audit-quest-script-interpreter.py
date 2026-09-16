@@ -15,8 +15,6 @@ EXPECTED = {'ACCEPT':2410,'CANCEL':12,'CREATE_ITEM':206,'DELETE_ITEM':1474,'DONE
 SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd2448b8'
 
 def decode_script(raw):
-    # The fixture may have acquired one or more transport-escaping layers.
-    # Decode only line/tab escapes, preserving all other QuestScript bytes.
     s = raw
     for _ in range(4):
         old = s
@@ -42,7 +40,7 @@ def load_verified_corpus():
     if not CORPUS.is_file():
         return None
     try:
-        encoded = re.sub(r"\s+", "", CORPUS.read_text(encoding='ascii'))
+        encoded = re.sub(r"\s+", "", CORPUS.read_text(encoding="ascii"))
         decoded = zlib.decompress(base64.b64decode(encoded, validate=True))
     except (OSError, ValueError, zlib.error) as exc:
         raise RuntimeError(f"cannot decode verified Quest corpus fixture: {exc}") from exc
@@ -96,6 +94,10 @@ def audit_full_sql(rows):
         print('FAIL: Quest opcode corpus changed')
         print('expected:', ' '.join(f'{k}={v}' for k,v in sorted(EXPECTED.items())))
         print('actual:  ', ' '.join(f'{k}={v}' for k,v in sorted(opcodes.items())))
+        q1 = rows.get('1')
+        if q1:
+            for i, script in enumerate(q1):
+                print(f'DEBUG Quest1 stage{i+1}: {script!r}')
         return 1
     print(f'PASS: {len(rows)} quest script rows parsed')
     print(f'PASS: labels={labels_total}')
