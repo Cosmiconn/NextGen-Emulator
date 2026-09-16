@@ -15,12 +15,18 @@ EXPECTED = {'ACCEPT':2410,'CANCEL':12,'CREATE_ITEM':206,'DELETE_ITEM':1474,'DONE
 SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd2448b8'
 
 def decode_script(raw):
-    # The verified compressed fixture stores SQL script line endings escaped.
-    # Decode only transport escapes; do not reinterpret QuestScript syntax.
-    return (raw.replace('\\r\\n', '\n')
-               .replace('\\n', '\n')
-               .replace('\\r', '\r')
-               .replace('\\t', '\t'))
+    # The fixture may have acquired one or more transport-escaping layers.
+    # Decode only line/tab escapes, preserving all other QuestScript bytes.
+    s = raw
+    for _ in range(4):
+        old = s
+        s = re.sub(r'\\+r\\+n', '\n', s)
+        s = re.sub(r'\\+n', '\n', s)
+        s = re.sub(r'\\+r', '\r', s)
+        s = re.sub(r'\\+t', '\t', s)
+        if s == old:
+            break
+    return s
 
 def parse_rows(text):
     pat = re.compile(rb"\((\d+),\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'((?:''|[^'])*)'\)")
@@ -116,10 +122,6 @@ def main():
         return 1
     print(f'PASS: source SHA-256 = {SOURCE_SHA}')
     print('PASS: manifest opcode counts match the verified source')
-
-    # The committed compressed corpus is the authoritative lossless audit input.
-    # A generated SQL file may be a reduced/emulator-side representation and must
-    # never silently override the verified source corpus.
     try:
         rows = load_verified_corpus()
     except RuntimeError as exc:
@@ -129,7 +131,6 @@ def main():
         print('PASS: lossless Quest script corpus fixture decoded from zlib/base64')
         print('PASS: full 2304-record corpus is authoritative for this audit')
         return audit_full_sql(rows)
-
     if SQL.is_file():
         rows = parse_rows(SQL.read_bytes())
         if len(rows) != 2304:
@@ -137,7 +138,6 @@ def main():
             return 1
         print('REVIEW: verified corpus fixture is unavailable; auditing generated SQL fallback')
         return audit_full_sql(rows)
-
     print('FAIL: Quest script SQL and verified lossless corpus fixture are both missing')
     return 2
 
