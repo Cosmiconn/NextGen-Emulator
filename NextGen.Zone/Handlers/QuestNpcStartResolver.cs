@@ -4,6 +4,7 @@ using System.Data;
 using NextGen.Database;
 using NextGen.Util;
 using NextGen.Zone.Data;
+using NextGen.FiestaLib.Data;
 
 namespace NextGen.Zone.Handlers
 {
@@ -22,6 +23,8 @@ namespace NextGen.Zone.Handlers
         {
             public uint QuestID;
             public uint DialogID;
+            public uint ActionDialogID;
+            public uint FinishDialogID;
             public byte Type;
             public byte Repeatable;
             public byte StartLevelEnabled;
@@ -140,16 +143,6 @@ namespace NextGen.Zone.Handlers
             if (eligible.Count == 0) return false;
             candidates = eligible;
 
-            uint sameDialog = 0;
-            bool haveDialog = false;
-            bool allSame = true;
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (!haveDialog) { sameDialog = candidates[i].DialogID; haveDialog = true; }
-                else if (sameDialog != candidates[i].DialogID) { allSame = false; break; }
-            }
-            if (haveDialog && allSame) { dialogId = sameDialog; return true; }
-
             try
             {
                 Dictionary<uint, byte> statuses = prerequisiteStatuses ?? LoadQuestStatuses(character.ID);
@@ -166,6 +159,15 @@ namespace NextGen.Zone.Handlers
                         // persisted in the player list. From the proven eligibility
                         // routines: +5 level window is SOON, current-level window is ABLE.
                         candidateStatus = GetUnpersistedStatus(character, candidate);
+                    }
+                    else if (candidateStatus == QuestRuntime.PqsInProgress &&
+                             QuestRuntime.IsComplete(character, candidate.QuestID))
+                    {
+                        // GetQuestStatusWithNPC has a distinct rewardable path and the
+                        // original status table gives PQS_REWARD the highest priority.
+                        // Promote only the effective NPC-selection state; persistence
+                        // remains PQS_ING until the finish script actually completes.
+                        candidateStatus = QuestRuntime.PqsReward;
                     }
                     if (best == null)
                     {
@@ -189,10 +191,7 @@ namespace NextGen.Zone.Handlers
                 }
 
                 if (best != null)
-                {
-                    dialogId = best.DialogID;
-                    return true;
-                }
+                    return TryGetDialogForStatus(character, best, bestStatus, out dialogId);
             }
             catch (Exception ex)
             {
@@ -238,6 +237,68 @@ namespace NextGen.Zone.Handlers
             // first candidate from the authoritative QuestID-ordered SQL result.
             comparison = ctp < rtp ? -1 : 1;
             return true;
+        }
+
+        private static bool TryGetDialogForStatus(NextGen.Zone.Game.ZoneCharacter character,
+            Candidate candidate, byte status, out uint dialogId)
+        {
+            dialogId = 0;
+            if (candidate == null) return false;
+
+            if (status == QuestRuntime.PqsAble)
+            {
+                dialogId = candidate.DialogID;
+                return dialogId != 0;
+            }
+
+            if (status == QuestRuntime.PqsRepeat)
+            {
+                // Database evidence defines PQS_REPEAT as a completed repeat quest that
+                // is re-acceptable. The original doingable check is stricter than SOON
+                // only by the current-level window; all other proven predicates already
+                // passed above.
+                if (!IsDoingableLevel(character, candidate)) return false;
+                dialogId = candidate.DialogID;
+                return dialogId != 0;
+            }
+
+            if (status == QuestRuntime.PqsInProgress)
+            {
+                dialogId = candidate.ActionDialogID;
+                return dialogId != 0;
+            }
+
+            if (status == QuestRuntime.PqsReward)
+            {
+                dialogId = candidate.FinishDialogID;
+                return dialogId != 0;
+            }
+
+            // PQS_SOON is deliberately not sent through the executable StartScript:
+            // doing so would expose ACCEPT before the current-level requirement is met.
+            // DONE/ABORT/FAILED/LOWABLE/READ_ABLE semantics also stay on the legacy
+            // interaction path until their exact NPC-dialog mapping is proven.
+            return false;
+        }
+
+        private static bool IsDoingableLevel(NextGen.Zone.Game.ZoneCharacter character, Candidate candidate)
+        {
+            if (candidate.StartLevelEnabled == 0) return true;
+            return character.Level >= candidate.StartLevelMin && character.Level <= candidate.StartLevelMax;
+        }
+
+        private static uint GetFirstSayDialogId(string script)
+        {
+            QuestScriptProgram program = QuestScriptProgram.Parse(script);
+            for (int i = 0; i < program.Instructions.Count; i++)
+            {
+                QuestScriptInstruction instruction = program.Instructions[i];
+                if (!instruction.OpCode.Equals("SAY", StringComparison.OrdinalIgnoreCase)) continue;
+                string[] args = instruction.Arguments.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                uint id;
+                if (args.Length > 0 && uint.TryParse(args[0], out id)) return id;
+            }
+            return 0;
         }
 
         private static byte GetUnpersistedStatus(NextGen.Zone.Game.ZoneCharacter character, Candidate candidate)
@@ -351,12 +412,13 @@ namespace NextGen.Zone.Handlers
                     using (DatabaseClient db = Program.DatabaseManager.GetClient())
                     {
                         const string sql =
-                            "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, " +
+                            "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
                             "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot, " +
                             "s.bLocation, s.LocationRaw, s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
+                            "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
                             "INNER JOIN data_mobinfo m ON m.ID=s.NPCID " +
                             "WHERE s.NPCID<>0 " +
                             "ORDER BY m.InxName, q.QuestID";
@@ -381,6 +443,8 @@ namespace NextGen.Zone.Handlers
                             {
                                 QuestID = questId,
                                 DialogID = dialogId,
+                                ActionDialogID = GetFirstSayDialogId(row["ActionScript"] == DBNull.Value ? string.Empty : (string)row["ActionScript"]),
+                                FinishDialogID = GetFirstSayDialogId(row["FinishScript"] == DBNull.Value ? string.Empty : (string)row["FinishScript"]),
                                 Type = Convert.ToByte(row["Type"]),
                                 Repeatable = Convert.ToByte(row["Repeatable"]),
                                 StartLevelEnabled = Convert.ToByte(row["bLevel"]),
