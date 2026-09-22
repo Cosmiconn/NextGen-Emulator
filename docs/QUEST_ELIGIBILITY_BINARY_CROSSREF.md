@@ -107,3 +107,17 @@ This is stronger than a name-based mapping because the same fields are now obser
 ## Runtime status
 
 No runtime behavior changed. No quest selection or eligibility implementation was altered.
+
+
+## NA2016 start-attribute corpus cross-check
+
+The supplied server/client `QuestData.shn` corpus contains 2304 records. Direct byte-level enumeration of `QUEST_START_CONDITION` gives:
+
+- `bClass != 0`: 127 quests.
+- Active `Start.Class` values are direct class IDs: 1,2,3,4,6,7,8,9,11,12,13,14,16,17,18,19,21,22,23,26.
+- `ClassName.shn` independently maps those IDs to the same class numbering used by the emulator's `Character.Job` / `NextGen.FiestaLib.Job` model (for example Fighter=1, Cleric=6, Archer=11, Mage=16; the source data additionally contains Sentinel=26 and Savior=27).
+- `bGender != 0`: exactly two quests. Quest 64101 has `Gender=1`; its Valentine dialog addresses the NPC as a woman from the player's side. Quest 64201 has `Gender=0`; its paired dialog addresses the player as beautiful/feminine. This is consistent with Fiesta's character gender bit used by the emulator: 1=male, 0=female.
+- `bRace != 0`: 0 quests.
+- `bDate != 0`: 0 quests.
+
+Therefore class and gender checks have concrete runtime coverage in the supplied content. Race/date remain implemented conservatively: future content enabling either flag must not be silently accepted until the player-race mapping / date-mode semantics are normalized.
