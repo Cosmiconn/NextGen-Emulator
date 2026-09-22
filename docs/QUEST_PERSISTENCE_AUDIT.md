@@ -15,7 +15,7 @@ The schema preserves the original persistence names and core types:
 
 `character_quest_progress` is emulator-side runtime progress and is not claimed to be an original table.
 
-`Accept` writes status `6` and clears normalized progress. `Cancel` removes non-repeat entries and preserves status `4` for repeat entries while clearing normalized progress. `Complete` writes status `2` for non-repeatable quests and `4` for repeatable quests. It deliberately does **not** write `tQuestTimes`, because generic repeatable-quest persistence there is not proven.
+`Accept` writes status `6` and clears normalized progress. `Cancel` removes non-repeat entries and preserves status `4` for repeat entries while clearing normalized progress. `Complete` writes status `2` for non-repeatable quests and status `3` (`PQS_SOON`) for repeatable quests, matching the native `CQuest::SetQuestDone` -> `0x0062F610` completion mutation. Status `4` (`PQS_REPEAT`) remains a distinct later/re-acceptable state and is not used as the immediate completion state. It deliberately does **not** write `tQuestTimes`, because generic repeatable-quest persistence there is not proven.
 
 ## Native completion boundary
 
