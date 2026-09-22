@@ -212,11 +212,54 @@ namespace NextGen.Zone.Data
                 using (DatabaseClient dataDb = Program.DatabaseManager.GetClient())
                 using (DatabaseClient charDb = Program.CharDBManager.GetClient())
                 {
-                    DataTable qrows = dataDb.ReadDataTable("SELECT RawData FROM QuestData_ConditionEnd WHERE QuestID=@q", new MySqlParameter("@q", questId));
-                    if (qrows == null || qrows.Rows.Count == 0) return false;
-                    byte[] end = (byte[])qrows.Rows[0]["RawData"];
-                    if (end == null || end.Length < 0x68) return false;
-                    if (end[1] != 0 && c.Level < end[2]) return false;
+                    bool endLevelEnabled;
+                    byte endLevel;
+                    bool endLocationEnabled;
+                    ushort endLocationMap;
+                    int endLocationX;
+                    int endLocationY;
+                    uint endLocationRange;
+                    bool endScenarioEnabled;
+
+                    try
+                    {
+                        DataTable qrows = dataDb.ReadDataTable(
+                            "SELECT bLevel,Level,bLocation,LocationMap,LocationX,LocationY,LocationRange,bScenario " +
+                            "FROM QuestData_ConditionEnd WHERE QuestID=@q",
+                            new MySqlParameter("@q", questId));
+                        if (qrows == null || qrows.Rows.Count == 0) return false;
+                        DataRow endRow = qrows.Rows[0];
+                        endLevelEnabled = Convert.ToByte(endRow["bLevel"]) != 0;
+                        endLevel = Convert.ToByte(endRow["Level"]);
+                        endLocationEnabled = Convert.ToByte(endRow["bLocation"]) != 0;
+                        endLocationMap = Convert.ToUInt16(endRow["LocationMap"]);
+                        endLocationX = Convert.ToInt32(endRow["LocationX"]);
+                        endLocationY = Convert.ToInt32(endRow["LocationY"]);
+                        endLocationRange = Convert.ToUInt32(endRow["LocationRange"]);
+                        endScenarioEnabled = Convert.ToByte(endRow["bScenario"]) != 0;
+                    }
+                    catch
+                    {
+                        // Backward compatibility for SQL generated before normalized
+                        // end-location columns were added to import-questdata.py.
+                        DataTable qrows = dataDb.ReadDataTable(
+                            "SELECT RawData FROM QuestData_ConditionEnd WHERE QuestID=@q",
+                            new MySqlParameter("@q", questId));
+                        if (qrows == null || qrows.Rows.Count == 0) return false;
+                        byte[] end = qrows.Rows[0]["RawData"] as byte[];
+                        if (end == null || end.Length < 0x68) return false;
+                        endLevelEnabled = end[1] != 0;
+                        endLevel = end[2];
+                        endLocationEnabled = end[0x4A] != 0;
+                        endLocationMap = BitConverter.ToUInt16(end, 0x4C);
+                        endLocationX = BitConverter.ToInt32(end, 0x50);
+                        endLocationY = BitConverter.ToInt32(end, 0x54);
+                        endLocationRange = BitConverter.ToUInt32(end, 0x58);
+                        endScenarioEnabled = end[0x5C] != 0;
+                    }
+
+                    if (endLevelEnabled && c.Level < endLevel) return false;
+
                     DataTable npc = dataDb.ReadDataTable("SELECT Slot,NPCMobAction,NPCMobCount FROM QuestData_NPCMob WHERE QuestID=@q AND bNPCMob=1", new MySqlParameter("@q", questId));
                     if (npc != null)
                         foreach (DataRow r in npc.Rows)
@@ -227,24 +270,26 @@ namespace NextGen.Zone.Data
                             uint have = p != null && p.Rows.Count > 0 ? Convert.ToUInt32(p.Rows[0]["Progress"]) : 0;
                             if (have < Convert.ToUInt32(r["NPCMobCount"])) return false;
                         }
+
                     DataTable items = dataDb.ReadDataTable("SELECT ItemID,ItemLot FROM QuestData_Item WHERE QuestID=@q AND bItem=1", new MySqlParameter("@q", questId));
                     if (items != null)
                         foreach (DataRow r in items.Rows)
                             if (GetItemLot(c, Convert.ToUInt16(r["ItemID"])) < Convert.ToUInt32(r["ItemLot"])) return false;
-                    if (end[0x4A] != 0)
+
+                    if (endLocationEnabled)
                     {
-                        ushort map = BitConverter.ToUInt16(end, 0x4C);
-                        int x = BitConverter.ToInt32(end, 0x50), y = BitConverter.ToInt32(end, 0x54);
-                        uint range = BitConverter.ToUInt32(end, 0x58);
-                        if (c.MapID != map) return false;
-                        long dx = (long)c.Character.PositionInfo.XPos - x, dy = (long)c.Character.PositionInfo.YPos - y;
-                        if (dx * dx + dy * dy > (long)range * range) return false;
+                        if (c.MapID != endLocationMap) return false;
+                        long dx = (long)c.Character.PositionInfo.XPos - endLocationX;
+                        long dy = (long)c.Character.PositionInfo.YPos - endLocationY;
+                        if (dx * dx + dy * dy > (long)endLocationRange * endLocationRange) return false;
                     }
-                    if (end[0x5C] != 0)
+
+                    if (endScenarioEnabled)
                     {
                         DataTable p = charDb.ReadDataTable("SELECT Progress FROM character_quest_progress WHERE CharID=@c AND QuestID=@q AND Slot=@slot", new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId), new MySqlParameter("@slot", ScenarioFlagSlot));
                         if (p == null || p.Rows.Count == 0 || Convert.ToUInt32(p.Rows[0]["Progress"]) == 0) return false;
                     }
+
                     return true;
                 }
             }
