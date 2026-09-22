@@ -4,7 +4,7 @@
 
 Original `Zone.exe` / `Zone.pdb` from the supplied 2016 build.
 
-- `CQuest::IsRewardAbleQuest` = `0x0062FF40`
+- `CQuestZone::IsRewardAbleQuest` = `0x0062FF40`
 - `QUEST_DATA` size = `0x2A8`
 - `QUEST_DATA::End` begins at `+0x58`
 - `QUEST_END_CONDITION` occupies `0x68` bytes (`End + 0x00..0x67`)
@@ -20,8 +20,8 @@ The field names below are taken from CodeView/PDB type information; semantics ar
 | `+0x02` | `+0x5A` | `Level` | BYTE; read by `IsRewardAbleQuest` |
 | `+0x04` | `+0x5C` | `_NPCMobList` | embedded helper/array type, PDB |
 | `+0x04` | `+0x5C` | `NPCMobList` | list storage begins here, PDB |
-| `+0x28` | `+0x80` | `_ItemList` | embedded helper/array type, PDB |
-| `+0x28` | `+0x80` | `ItemList` | list storage begins here, PDB |
+| `+0x2C` | `+0x84` | `_ItemList` | embedded helper/array type, PDB |
+| `+0x2C` | `+0x84` | `ItemList` | list storage begins here, PDB |
 | `+0x4A` | `+0xA2` | `bLocation` | BYTE; read by `IsRewardAbleQuest` |
 | `+0x4C` | `+0xA4` | `Location` | WORD; read by `IsRewardAbleQuest` |
 | `+0x50` | `+0xA8` | `LocationX` | DWORD; passed to native location callback |
@@ -47,7 +47,7 @@ PDB proves:
 - `ItemLot` at `+0x04`
 - element size `0x06`
 
-`IsRewardAbleQuest` iterates 5 elements from `QUEST_DATA + 0x86`, which corresponds to `End + 0x2E`, and for enabled entries requires the player to have at least the specified `ItemLot` for `ItemID`.
+`IsRewardAbleQuest` iterates 5 item elements beginning at `QUEST_DATA + 0x84` (`End + 0x2C`); for enabled entries it requires the relevant player item state/lot to satisfy the entry. The `+0x84` start is the later CodeView-corrected array offset.
 
 ### `_NPCMobList` element
 
@@ -60,11 +60,11 @@ PDB proves:
 - `TargetGroup` at `+0x06`
 - element size `0x08`
 
-`IsRewardAbleQuest` reads 5 entries from `QUEST_DATA + 0x86` in its native loop; for each enabled entry it calls the player vtable `+0x7C` with the entry ID and rejects reward eligibility when that callback returns `1`, otherwise it requires the player vtable `+0x68` item-lot result to meet the entry's required lot. The exact higher-level meaning of the callback and `TargetGroup` is not inferred beyond these native observations.
+`IsRewardAbleQuest` reads the five NPC/Mob entries beginning at `QUEST_DATA + 0x5C` (`End +0x04`). The exact higher-level meaning of each `NPCMobAction`, callback and `TargetGroup` remains constrained to the separately documented native observations; it is not inferred from the item-list offset.
 
 ## Native Reward eligibility, confirmed
 
-`CQuest::IsRewardAbleQuest` (`0x0062FF40`) returns true only if all enabled checks pass:
+`CQuestZone::IsRewardAbleQuest` (`0x0062FF40`) returns true only if all enabled checks pass:
 
 1. `End.bLevel` / `End.Level` level gate.
 2. Five NPC/Mob-list entries.
@@ -72,12 +72,12 @@ PDB proves:
 4. `End.bScenario`: tests bit `0x02` in `PLAYER_QUEST_INFO +0x1D`.
 5. `End.bRace` / `End.Race` against player vtable `+0x6C`.
 6. `End.bClass` / `End.Class` against player vtable `+0x70`.
-7. `End.bTimeLimit` / `End.TimeLimit`: reward remains eligible while `TimeLimit >= PLAYER_QUEST_INFO +0x1E` (the native compare is unsigned WORD and branches to failure only when `TimeLimit > current`; equality therefore passes).
+7. `End.bTimeLimit` / `End.TimeLimit`: the later CodeView/native audit corrects the branch direction: the time-limit check fails when `TimeLimit <= PLAYER_QUEST_INFO +0x1E`; it passes only while `TimeLimit > current` (or the gate is disabled).
 
 This function is called by `GetNewQuestStatus()` for status `PQS_ING` (`6`). If `IsRewardAbleQuest` is true, native status becomes `PQS_REWARD` (`8`); otherwise it remains `PQS_ING` (`6`).
 
 ## Important non-inferences
 
 - `bScenario` is the exact PDB field name, but native `IsRewardAbleQuest` does **not** compare `ScenarioID`; it checks bit `0x02` at `PLAYER_QUEST_INFO +0x1D`.
-- `TimeLimit` is proven as a WORD and the comparison direction is proven; the broader unit/meaning of `PLAYER_QUEST_INFO +0x1E` remains unresolved.
+- `TimeLimit` is proven as a WORD; the corrected comparison direction above supersedes the older Step-29 wording. The broader unit/meaning of `PLAYER_QUEST_INFO +0x1E` remains unresolved.
 - No SQL column mapping is asserted here.
