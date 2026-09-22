@@ -11,7 +11,7 @@ The corpus scan counts command tokens at script-line boundaries; SQL statements 
 | Textual command | Corpus occurrences | Native QSC relation | Emulator handling | Status |
 |---|---:|---|---|---|
 | `GET_PLAYER_EMPTY_INVENTORY VAR1` | 156 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → script variable | **PROVEN command present**; native result is an 8-bit value and exact truncation still needs implementation alignment |
-| `CREATE_ITEM <id> <lot>` | 133 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN command present**; native QSC lot is DWORD, while current handler parses `ushort` |
+| `CREATE_ITEM <id> <lot>` | 133 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; native QSC lot is DWORD and Handler17 now parses/stores it as `uint`, with stack splitting through `GiveItemLots` |
 | `DELETE_ITEM <id> <lot/ALL>` | 19 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **PROVEN command present** |
 | `ACCEPT [QuestID]` | 4 | quest parser command; explicit QuestID form proven | `QuestRuntime.Accept` | **PROVEN** |
 | `LINK <id>` | 4 | parser command; native semantics not yet fully cross-referenced | not executed by Handler17 | **UNRESOLVED** |
@@ -19,7 +19,7 @@ The corpus scan counts command tokens at script-line boundaries; SQL statements 
 | `DONE` | 2 | quest completion command | `QuestRuntime.Complete` | **PROVEN** for current supported flow |
 | `SET_ABSTATE <name> <strength> <keepTime>` | 1 | `QSC_SET_ABSTATE = 0x1E` | `QuestRuntime.SetAbstate` | **PROVEN native mapping**; refresh semantics still being aligned |
 | `RESET_ABSTATE <name>` | 0 | `QSC_RESET_ABSTATE = 0x1F` | `QuestRuntime.ResetAbstate` | Native mapping proven; no occurrence in this corpus slice |
-| `GET_ITEM_LOT <id>` | 0 in this fragment | `QSC_GET_ITEM_LOT = 0x21` | `QuestRuntime.GetItemLot` | Native mapping proven; current result-width handling needs alignment |
+| `GET_ITEM_LOT <id>` | 0 in this fragment | `QSC_GET_ITEM_LOT = 0x21` | `QuestRuntime.GetItemLot` | **PROVEN / ALIGNED**; Handler17 now exposes the native low 16-bit result to the script state |
 | `GET_PLAYER_RACE` | 0 | `QSC_GET_PLAYER_RACE = 0x17` | not implemented | **UNRESOLVED textual usage** |
 | `GET_PLAYER_CLASS` | 0 | `QSC_GET_PLAYER_CLASS = 0x18` | not implemented | **UNRESOLVED textual usage** |
 | `GET_PLAYER_LEVEL` | 0 | `QSC_GET_PLAYER_LEVEL = 0x19` | not implemented | **UNRESOLVED textual usage** |
@@ -41,7 +41,7 @@ The native implementation reads a `WORD ItemID`, calls the player's item-lot get
 
 ### CREATE_ITEM
 
-The native QSC structure is `WORD nItemID` at offset `+0` and `DWORD nLot` at offset `+2`. The current Handler17 parser accepts the lot as `ushort`; this is a proven width mismatch.
+The native QSC structure is `WORD nItemID` at offset `+0` and `DWORD nLot` at offset `+2`. Handler17 now accepts the lot as `uint`, matching the native DWORD field. `QuestRuntime.CreateItem` forwards that quantity to `ZoneCharacter.GiveItemLots`, which splits it according to the item's SQL-loaded `MaxLot`. The `Item` constructor also preserves the requested stack amount.
 
 ## ParserNext breakthrough: `0x006387F0`
 
@@ -73,5 +73,5 @@ Likewise, textual `CANCEL` must not be equated with native `QSC_REPEAT_QUEST_GIV
 1. Map the 16 parser-state dispatch entries at `0x00639330` to their textual command names using the original parser's string/token tables.
 2. Correlate `0x0063936?` comparison/variable operations with the exact `IF` grammar already observed in SQL scripts.
 3. Resolve the shared QSC 15/28/29 path via the parser-state transition it receives from `0x006387F0`.
-4. Align proven byte/word widths in Handler17.
+4. Keep the aligned native byte/word/DWORD widths covered by CI/build review.
 5. Only implement additional textual commands once syntax and native semantics are proven.
