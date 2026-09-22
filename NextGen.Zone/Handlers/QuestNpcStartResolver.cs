@@ -21,6 +21,12 @@ namespace NextGen.Zone.Handlers
         {
             public uint QuestID;
             public uint DialogID;
+            public byte Type;
+            public byte Repeatable;
+            public byte StartLevelEnabled;
+            public byte StartLevelMin;
+            public byte StartQuestEnabled;
+            public byte StartItemEnabled;
         }
 
         private static readonly object Sync = new object();
@@ -34,6 +40,8 @@ namespace NextGen.Zone.Handlers
         // original predicates and therefore are deliberately not guessed here.
         private static readonly byte[] QuestStatusPriority =
             { 22, 21, 21, 21, 21, 2, 1, 2, 0, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 2 };
+        private static readonly byte[] QuestTypePriority =
+            { 5, 11, 1, 0, 11, 3, 2, 2, 2, 4, 11 };
 
         public static bool TryResolveForCharacter(NextGen.Zone.Game.ZoneCharacter character, string mobName, out uint dialogId)
         {
@@ -43,8 +51,6 @@ namespace NextGen.Zone.Handlers
             List<Candidate> candidates;
             if (!TryGetCandidates(mobName, out candidates)) return false;
 
-            // Preserve the already-proven fast path: all matching quests lead to the
-            // same first SAY dialog, so no quest-status tie-break is observable.
             uint sameDialog = 0;
             bool haveDialog = false;
             bool allSame = true;
@@ -57,45 +63,49 @@ namespace NextGen.Zone.Handlers
 
             try
             {
+                Dictionary<uint, byte> statuses = new Dictionary<uint, byte>();
                 using (DatabaseClient db = Program.CharDBManager.GetClient())
                 {
-                    Candidate best = null;
-                    byte bestPriority = byte.MaxValue;
-                    bool tied = false;
+                    DataTable state = db.ReadDataTable(
+                        "SELECT nQuestNo,nStatus FROM tQuest WHERE nCharNo=@c",
+                        new MySqlConnector.MySqlParameter("@c", character.ID));
+                    if (state != null)
+                        foreach (DataRow row in state.Rows)
+                            statuses[Convert.ToUInt32(row["nQuestNo"])] = Convert.ToByte(row["nStatus"]);
+                }
 
-                    for (int i = 0; i < candidates.Count; i++)
+                Candidate best = null;
+                byte bestStatus = 0;
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    Candidate candidate = candidates[i];
+                    byte candidateStatus;
+                    if (!statuses.TryGetValue(candidate.QuestID, out candidateStatus)) candidateStatus = 0;
+                    if (best == null)
                     {
-                        Candidate candidate = candidates[i];
-                        byte status = 0;
-                        DataTable state = db.ReadDataTable(
-                            "SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q LIMIT 1",
-                            new MySqlConnector.MySqlParameter("@c", character.ID),
-                            new MySqlConnector.MySqlParameter("@q", candidate.QuestID));
-                        if (state != null && state.Rows.Count != 0)
-                            status = Convert.ToByte(state.Rows[0]["nStatus"]);
-
-                        byte priority = status < QuestStatusPriority.Length ? QuestStatusPriority[status] : byte.MaxValue;
-                        if (best == null || priority < bestPriority)
-                        {
-                            best = candidate;
-                            bestPriority = priority;
-                            tied = false;
-                        }
-                        else if (priority == bestPriority && candidate.DialogID != best.DialogID)
-                        {
-                            // Zone.exe evaluates Start.bLevel/level, quest-condition bytes,
-                            // then quest-type priority for this case. Until those predicates
-                            // are reconstructed byte-exactly, falling back is safer than
-                            // selecting the wrong quest.
-                            tied = true;
-                        }
+                        best = candidate;
+                        bestStatus = candidateStatus;
+                        continue;
                     }
 
-                    if (best != null && !tied)
+                    int comparison;
+                    if (!TryCompareOriginal(candidate, candidateStatus, best, bestStatus, out comparison))
                     {
-                        dialogId = best.DialogID;
-                        return true;
+                        Log.WriteLine(LogLevel.Debug,
+                            "Quest NPC {0} requires unresolved original Type==3 tie-break; using legacy interaction.", mobName);
+                        return false;
                     }
+                    if (comparison < 0)
+                    {
+                        best = candidate;
+                        bestStatus = candidateStatus;
+                    }
+                }
+
+                if (best != null)
+                {
+                    dialogId = best.DialogID;
+                    return true;
                 }
             }
             catch (Exception ex)
@@ -103,6 +113,51 @@ namespace NextGen.Zone.Handlers
                 Log.WriteLine(LogLevel.Warn, "Quest NPC status selection failed for {0}: {1}", mobName, ex.Message);
             }
             return false;
+        }
+
+        // Returns comparison < 0 when candidate replaces retained. The ordering below
+        // follows CQuest::GetQuestStatusWithNPC: status priority, level predicate,
+        // condition flags, then type priority. Type==3 has a special original branch
+        // whose complete semantics remain unresolved, so that one case is not guessed.
+        private static bool TryCompareOriginal(Candidate candidate, byte candidateStatus,
+            Candidate retained, byte retainedStatus, out int comparison)
+        {
+            comparison = 0;
+            byte cp = candidateStatus < QuestStatusPriority.Length ? QuestStatusPriority[candidateStatus] : byte.MaxValue;
+            byte rp = retainedStatus < QuestStatusPriority.Length ? QuestStatusPriority[retainedStatus] : byte.MaxValue;
+            if (cp != rp) { comparison = cp < rp ? -1 : 1; return true; }
+
+            if (candidate.StartLevelEnabled != 0)
+            {
+                if (candidate.StartLevelMin != retained.StartLevelMin)
+                {
+                    comparison = candidate.StartLevelMin > retained.StartLevelMin ? -1 : 1;
+                    return true;
+                }
+            }
+
+            if (candidate.Type != retained.Type && (candidate.Type == 3 || retained.Type == 3))
+                return false;
+
+            int flag = ComparePreferZero(candidate.StartQuestEnabled, retained.StartQuestEnabled);
+            if (flag != 0) { comparison = flag; return true; }
+            flag = ComparePreferZero(candidate.StartItemEnabled, retained.StartItemEnabled);
+            if (flag != 0) { comparison = flag; return true; }
+            flag = ComparePreferZero(candidate.Repeatable, retained.Repeatable);
+            if (flag != 0) { comparison = flag; return true; }
+
+            byte ctp = candidate.Type < QuestTypePriority.Length ? QuestTypePriority[candidate.Type] : byte.MaxValue;
+            byte rtp = retained.Type < QuestTypePriority.Length ? QuestTypePriority[retained.Type] : byte.MaxValue;
+            // Original rejects candidate on >=, so equal type priority retains the
+            // first candidate from the authoritative QuestID-ordered SQL result.
+            comparison = ctp < rtp ? -1 : 1;
+            return true;
+        }
+
+        private static int ComparePreferZero(byte candidate, byte retained)
+        {
+            if (candidate == retained) return 0;
+            return candidate == 0 ? -1 : 1;
         }
 
         public static bool TryResolveUnique(string mobName, out uint dialogId)
@@ -178,11 +233,13 @@ namespace NextGen.Zone.Handlers
                     using (DatabaseClient db = Program.DatabaseManager.GetClient())
                     {
                         const string sql =
-                            "SELECT m.InxName AS MobName, q.QuestID, s.DialogID " +
-                            "FROM data_quest q " +
-                            "INNER JOIN data_quest_start_dialog s ON s.QuestID=q.QuestID " +
-                            "INNER JOIN data_mobinfo m ON m.ID=q.StartingNpc " +
-                            "WHERE q.StartingNpc<>0 " +
+                            "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, " +
+                            "s.bLevel, s.LevelMin, s.bQuest, s.bItem " +
+                            "FROM QuestData q " +
+                            "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
+                            "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
+                            "INNER JOIN data_mobinfo m ON m.ID=s.NPCID " +
+                            "WHERE s.NPCID<>0 " +
                             "ORDER BY m.InxName, q.QuestID";
 
                         DataTable data = db.ReadDataTable(sql);
@@ -200,7 +257,17 @@ namespace NextGen.Zone.Handlers
                                 list = new List<Candidate>();
                                 ByMobName.Add(mobName, list);
                             }
-                            list.Add(new Candidate { QuestID = questId, DialogID = dialogId });
+                            list.Add(new Candidate
+                            {
+                                QuestID = questId,
+                                DialogID = dialogId,
+                                Type = Convert.ToByte(row["Type"]),
+                                Repeatable = Convert.ToByte(row["Repeatable"]),
+                                StartLevelEnabled = Convert.ToByte(row["bLevel"]),
+                                StartLevelMin = Convert.ToByte(row["LevelMin"]),
+                                StartQuestEnabled = Convert.ToByte(row["bQuest"]),
+                                StartItemEnabled = Convert.ToByte(row["bItem"])
+                            });
                         }
 
                         _available = true;
