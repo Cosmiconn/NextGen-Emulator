@@ -48,3 +48,7 @@ jobs:
       - name: Run Quest script audit
         shell: bash
         run: python3 tools/audit-quest-script-interpreter.py
+
+      - name: Run Quest importer audit
+        shell: bash
+        run: python3 tools/audit-quest-importer.py
