@@ -32,6 +32,11 @@ namespace NextGen.Zone.Handlers
             public byte StartItemEnabled;
             public ushort StartItemID;
             public ushort StartItemLot;
+            public byte StartLocationEnabled;
+            public ushort StartLocationMap;
+            public int StartLocationX;
+            public int StartLocationY;
+            public uint StartLocationRange;
         }
 
         private static readonly object Sync = new object();
@@ -70,8 +75,15 @@ namespace NextGen.Zone.Handlers
                     int soonLevel = character.Level + 5;
                     if (soonLevel < c.StartLevelMin || soonLevel > c.StartLevelMax) continue;
                 }
-                if (c.StartItemEnabled != 0 && GetInventoryItemLot(character, c.StartItemID) < c.StartItemLot)
+                if (c.StartItemEnabled != 0 && QuestRuntime.GetItemLot(character, c.StartItemID) < c.StartItemLot)
                     continue;
+                if (c.StartLocationEnabled != 0)
+                {
+                    if (character.MapID != c.StartLocationMap) continue;
+                    long dx = (long)character.Character.PositionInfo.XPos - c.StartLocationX;
+                    long dy = (long)character.Character.PositionInfo.YPos - c.StartLocationY;
+                    if (dx * dx + dy * dy > (long)c.StartLocationRange * c.StartLocationRange) continue;
+                }
                 if (c.StartQuestEnabled != 0)
                 {
                     if (prerequisiteStatuses == null)
@@ -229,16 +241,6 @@ namespace NextGen.Zone.Handlers
             return statuses;
         }
 
-        private static uint GetInventoryItemLot(NextGen.Zone.Game.ZoneCharacter character, ushort itemId)
-        {
-            uint lot = 0;
-            foreach (NextGen.Zone.Game.Item item in character.Inventory.InventoryItems.Values)
-                if (item.ID == itemId) lot += item.Ammount;
-            foreach (NextGen.Zone.Game.Item item in character.Inventory.EquippedItems)
-                if (item.ID == itemId) lot += item.Ammount;
-            return lot;
-        }
-
         private static int ComparePreferZero(byte candidate, byte retained)
         {
             if (candidate == retained) return 0;
@@ -319,7 +321,7 @@ namespace NextGen.Zone.Handlers
                     {
                         const string sql =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, " +
-                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot, s.bLocation, s.LocationRaw " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
@@ -342,6 +344,7 @@ namespace NextGen.Zone.Handlers
                                 list = new List<Candidate>();
                                 ByMobName.Add(mobName, list);
                             }
+                            byte[] locationRaw = row["LocationRaw"] as byte[];
                             list.Add(new Candidate
                             {
                                 QuestID = questId,
@@ -355,7 +358,12 @@ namespace NextGen.Zone.Handlers
                                 StartQuestID = Convert.ToUInt32(row["QuestPrerequisiteID"]),
                                 StartItemEnabled = Convert.ToByte(row["bItem"]),
                                 StartItemID = Convert.ToUInt16(row["ItemID"]),
-                                StartItemLot = Convert.ToUInt16(row["ItemLot"])
+                                StartItemLot = Convert.ToUInt16(row["ItemLot"]),
+                                StartLocationEnabled = Convert.ToByte(row["bLocation"]),
+                                StartLocationMap = locationRaw != null && locationRaw.Length >= 4 ? BitConverter.ToUInt16(locationRaw, 2) : (ushort)0,
+                                StartLocationX = locationRaw != null && locationRaw.Length >= 8 ? BitConverter.ToInt32(locationRaw, 6) : 0,
+                                StartLocationY = locationRaw != null && locationRaw.Length >= 12 ? BitConverter.ToInt32(locationRaw, 10) : 0,
+                                StartLocationRange = locationRaw != null && locationRaw.Length >= 18 ? BitConverter.ToUInt32(locationRaw, 14) : 0
                             });
                         }
 
