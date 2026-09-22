@@ -68,7 +68,7 @@ The runtime now checks the proven end-condition model for:
 
 - minimum level;
 - NPC/Mob action 1 kill progress;
-- action 2/3 progress slots when populated by future event handlers;
+- the supplied corpus has **961** active action-1 entries and **zero** active action-2/action-3 entries; therefore missing action-2/3 event sources are not a blocker for this NA2016 dataset;
 - required item lots;
 - map/coordinate/range;
 - scenario completion flag.
@@ -110,7 +110,7 @@ not invented:
 
 - optimized Zone.exe address mapping for `Occure_LevelChange`;
 - race/date runtime semantics for source data that actually enables those gates; the supplied corpus has no active start-race/start-date conditions;
-- native implementations of NPC/Mob action 2/3 event sources;
+- NPC/Mob action 2/3 event sources for future QuestData variants that actually use those action values (the supplied corpus uses none);
 - reward application semantics for unused/unsupported reward types 3, 5, 6, 7.
 
 The corrected CodeView LevelChange symbol is:
