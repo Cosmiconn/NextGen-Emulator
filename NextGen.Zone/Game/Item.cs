@@ -37,9 +37,11 @@ namespace NextGen.Zone.Game
       
             this.Slot = (sbyte)type;
             this.Flags = ItemFlags.Normal;
+            this.UniqueID = UniqueID;
             this.Owner = pOwner;
             this.ID = pID;
             this.Slot = Slot;
+            this.Ammount = Amount;
 
         }
         public Item(int GuildID,ushort pID, byte Slot, ushort Amount = 1)
