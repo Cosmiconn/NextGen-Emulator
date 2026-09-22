@@ -29,6 +29,82 @@ namespace NextGen.Zone.Handlers
         private static readonly Dictionary<string, List<Candidate>> ByMobName =
             new Dictionary<string, List<Candidate>>(StringComparer.OrdinalIgnoreCase);
 
+        // Exact status-priority table written by the original Zone.exe CQuest constructor.
+        // Lower numeric priority wins. Equal-priority candidates require additional
+        // original predicates and therefore are deliberately not guessed here.
+        private static readonly byte[] QuestStatusPriority =
+            { 22, 21, 21, 21, 21, 2, 1, 2, 0, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 2 };
+
+        public static bool TryResolveForCharacter(NextGen.Zone.Game.ZoneCharacter character, string mobName, out uint dialogId)
+        {
+            dialogId = 0;
+            if (character == null) return false;
+
+            List<Candidate> candidates;
+            if (!TryGetCandidates(mobName, out candidates)) return false;
+
+            // Preserve the already-proven fast path: all matching quests lead to the
+            // same first SAY dialog, so no quest-status tie-break is observable.
+            uint sameDialog = 0;
+            bool haveDialog = false;
+            bool allSame = true;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (!haveDialog) { sameDialog = candidates[i].DialogID; haveDialog = true; }
+                else if (sameDialog != candidates[i].DialogID) { allSame = false; break; }
+            }
+            if (haveDialog && allSame) { dialogId = sameDialog; return true; }
+
+            try
+            {
+                using (DatabaseClient db = Program.CharDBManager.GetClient())
+                {
+                    Candidate best = null;
+                    byte bestPriority = byte.MaxValue;
+                    bool tied = false;
+
+                    for (int i = 0; i < candidates.Count; i++)
+                    {
+                        Candidate candidate = candidates[i];
+                        byte status = 0;
+                        DataTable state = db.ReadDataTable(
+                            "SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q LIMIT 1",
+                            new MySqlConnector.MySqlParameter("@c", character.ID),
+                            new MySqlConnector.MySqlParameter("@q", candidate.QuestID));
+                        if (state != null && state.Rows.Count != 0)
+                            status = Convert.ToByte(state.Rows[0]["nStatus"]);
+
+                        byte priority = status < QuestStatusPriority.Length ? QuestStatusPriority[status] : byte.MaxValue;
+                        if (best == null || priority < bestPriority)
+                        {
+                            best = candidate;
+                            bestPriority = priority;
+                            tied = false;
+                        }
+                        else if (priority == bestPriority && candidate.DialogID != best.DialogID)
+                        {
+                            // Zone.exe evaluates Start.bLevel/level, quest-condition bytes,
+                            // then quest-type priority for this case. Until those predicates
+                            // are reconstructed byte-exactly, falling back is safer than
+                            // selecting the wrong quest.
+                            tied = true;
+                        }
+                    }
+
+                    if (best != null && !tied)
+                    {
+                        dialogId = best.DialogID;
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine(LogLevel.Warn, "Quest NPC status selection failed for {0}: {1}", mobName, ex.Message);
+            }
+            return false;
+        }
+
         public static bool TryResolveUnique(string mobName, out uint dialogId)
         {
             dialogId = 0;
