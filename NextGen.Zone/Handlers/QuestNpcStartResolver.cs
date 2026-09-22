@@ -32,6 +32,7 @@ namespace NextGen.Zone.Handlers
             public byte StartLevelMax;
             public byte StartQuestEnabled;
             public uint StartQuestID;
+            public byte StartQuestType;
             public byte StartItemEnabled;
             public ushort StartItemID;
             public ushort StartItemLot;
@@ -131,10 +132,20 @@ namespace NextGen.Zone.Handlers
                     }
                     else if (prerequisiteStatus == 2)
                     {
-                        Log.WriteLine(LogLevel.Debug,
-                            "Quest {0} predecessor {1} is status 2; original performs an unresolved extra state check.",
-                            c.QuestID, c.StartQuestID);
-                        return false;
+                        // Original IsSoonableQuest calls virtual slot +0x80 for
+                        // status-2 predecessors. In the matching Zone.exe that
+                        // slot resolves to 0x00630130, which returns false
+                        // immediately unless the predecessor QUEST_DATA.Type is 10.
+                        // Therefore every non-Type-10 predecessor in status 2 is
+                        // accepted exactly like the original. Type 10 has an
+                        // additional time-window rule that remains isolated below.
+                        if (c.StartQuestType == 10)
+                        {
+                            Log.WriteLine(LogLevel.Debug,
+                                "Quest {0} predecessor {1} is Type 10/status 2; original performs the remaining time-window check.",
+                                c.QuestID, c.StartQuestID);
+                            return false;
+                        }
                     }
                     else continue;
                 }
@@ -417,19 +428,20 @@ namespace NextGen.Zone.Handlers
                     {
                         const string sqlNormalized =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
-                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot, " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, s.bItem, s.ItemID, s.ItemLot, " +
                             "s.bLocation, s.LocationRaw, s.LocationMap, s.LocationX, s.LocationY, s.LocationRange, " +
                             "s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
+                            "LEFT JOIN QuestData pq ON pq.QuestID=s.QuestPrerequisiteID " +
                             "INNER JOIN data_mobinfo m ON m.ID=s.NPCID " +
                             "WHERE s.NPCID<>0 " +
                             "ORDER BY m.InxName, q.QuestID";
                         const string sqlLegacy =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
-                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot, " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, s.bItem, s.ItemID, s.ItemLot, " +
                             "s.bLocation, s.LocationRaw, s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
@@ -492,6 +504,7 @@ namespace NextGen.Zone.Handlers
                                 StartLevelMax = Convert.ToByte(row["LevelMax"]),
                                 StartQuestEnabled = Convert.ToByte(row["bQuest"]),
                                 StartQuestID = Convert.ToUInt32(row["QuestPrerequisiteID"]),
+                                StartQuestType = Convert.ToByte(row["PrerequisiteType"]),
                                 StartItemEnabled = Convert.ToByte(row["bItem"]),
                                 StartItemID = Convert.ToUInt16(row["ItemID"]),
                                 StartItemLot = Convert.ToUInt16(row["ItemLot"]),
