@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using NextGen.Database;
 using NextGen.Util;
+using NextGen.Zone.Data;
 
 namespace NextGen.Zone.Handlers
 {
@@ -116,7 +117,13 @@ namespace NextGen.Zone.Handlers
                 {
                     Candidate candidate = candidates[i];
                     byte candidateStatus;
-                    if (!statuses.TryGetValue(candidate.QuestID, out candidateStatus)) candidateStatus = 0;
+                    if (!statuses.TryGetValue(candidate.QuestID, out candidateStatus))
+                    {
+                        // Original NPC selection computes a state for quests not yet
+                        // persisted in the player list. From the proven eligibility
+                        // routines: +5 level window is SOON, current-level window is ABLE.
+                        candidateStatus = GetUnpersistedStatus(character, candidate);
+                    }
                     if (best == null)
                     {
                         best = candidate;
@@ -188,6 +195,23 @@ namespace NextGen.Zone.Handlers
             // first candidate from the authoritative QuestID-ordered SQL result.
             comparison = ctp < rtp ? -1 : 1;
             return true;
+        }
+
+        private static byte GetUnpersistedStatus(NextGen.Zone.Game.ZoneCharacter character, Candidate candidate)
+        {
+            if (candidate.StartLevelEnabled != 0)
+            {
+                if (character.Level >= candidate.StartLevelMin && character.Level <= candidate.StartLevelMax)
+                    return QuestRuntime.PqsAble;
+                int soonLevel = character.Level + 5;
+                if (soonLevel >= candidate.StartLevelMin && soonLevel <= candidate.StartLevelMax)
+                    return QuestRuntime.PqsSoon;
+                return QuestRuntime.PqsNone;
+            }
+
+            // IsDoingableQuest adds no further test when bLevel == 0; candidates
+            // reaching this point have already passed the proven soonable subset.
+            return QuestRuntime.PqsAble;
         }
 
         private static Dictionary<uint, byte> LoadQuestStatuses(int characterId)
