@@ -25,8 +25,8 @@ This was validated across the complete file: **2304 records, zero trailing bytes
 The importer creates the source-faithful SQL tables:
 
 - `QuestData` — one row per quest, including the complete 0x2A8 raw block.
-- `QuestData_ConditionStart` — `QUEST_START_CONDITION` fields.
-- `QuestData_ConditionEnd` — `QUEST_END_CONDITION` fields.
+- `QuestData_ConditionStart` — `QUEST_START_CONDITION` fields, including normalized map/X/Y/range and 64-bit DateStart/DateEnd values.
+- `QuestData_ConditionEnd` — `QUEST_END_CONDITION` fields, including normalized map/X/Y/range.
 - `QuestData_NPCMob` — five 8-byte NPC/Mob condition entries.
 - `QuestData_Item` — five 6-byte item condition entries.
 - `QuestData_Reward` — twelve 12-byte reward slots.
@@ -77,6 +77,14 @@ The supplied 2304-record corpus contains no active end-condition race, class, or
 time-limit gates. Their raw fields remain preserved in SQL rather than assigning
 unsupported emulator semantics.
 
+Start/end location data is now normalized at import time. `LocationRaw` contains
+only the 18-byte location subrange (`bLocation` through `LocationRange`) rather
+than spilling into following condition fields. `DateRaw` is the exact 16-byte
+`DateStart` + `DateEnd` range at start-condition offsets `0x30..0x3f`; the older
+importer incorrectly started that slice four bytes early. Runtime code prefers
+the normalized SQL columns and retains a legacy fallback for databases imported
+with the older layout.
+
 ## Event wiring
 
 Native `MOB_KILL` progress is now recorded from both normal and AoE mob deaths.
@@ -101,11 +109,17 @@ The quest corpus itself is complete and importable. The following are deliberate
 not invented:
 
 - optimized Zone.exe address mapping for `Occure_LevelChange`;
-- native numeric mapping for race/class where the current emulator has no proven
-  equivalent;
+- race/date runtime semantics for source data that actually enables those gates; the supplied corpus has no active start-race/start-date conditions;
 - native implementations of NPC/Mob action 2/3 event sources;
 - reward application semantics for unused/unsupported reward types 3, 5, 6, 7.
 
 The corrected CodeView LevelChange symbol is:
 
 `?Occure_LevelChange@CQuest@@UAEXGEE@Z`
+
+## Import regression audit
+
+CI runs `python3 tools/audit-quest-importer.py`. The audit builds a synthetic
+QuestData record with signed coordinates, map/range, scenario data and two
+64-bit date values, runs the real importer, and verifies the emitted normalized
+SQL plus the corrected raw byte slices.
