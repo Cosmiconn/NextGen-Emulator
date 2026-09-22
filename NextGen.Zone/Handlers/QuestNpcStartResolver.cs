@@ -29,6 +29,8 @@ namespace NextGen.Zone.Handlers
             public byte StartQuestEnabled;
             public uint StartQuestID;
             public byte StartItemEnabled;
+            public ushort StartItemID;
+            public ushort StartItemLot;
         }
 
         private static readonly object Sync = new object();
@@ -53,9 +55,11 @@ namespace NextGen.Zone.Handlers
             List<Candidate> candidates;
             if (!TryGetCandidates(mobName, out candidates)) return false;
 
-            // Original IsSoonableQuest level window: player level + 5 must be
-            // inside Start.LevelMin..Start.LevelMax. This is fully proven from
-            // Zone.exe and can safely filter SQL candidates before prioritizing.
+            // Proven IsSoonableQuest subset. Level and item predicates are direct
+            // Zone.exe behavior. Prerequisite state 2/4 is also observed, but the
+            // additional state-2 quest-state call remains unresolved; status 2 is
+            // therefore not guessed here and falls back to legacy interaction.
+            Dictionary<uint, byte> prerequisiteStatuses = null;
             List<Candidate> eligible = new List<Candidate>();
             for (int i = 0; i < candidates.Count; i++)
             {
@@ -64,6 +68,28 @@ namespace NextGen.Zone.Handlers
                 {
                     int soonLevel = character.Level + 5;
                     if (soonLevel < c.StartLevelMin || soonLevel > c.StartLevelMax) continue;
+                }
+                if (c.StartItemEnabled != 0 && GetInventoryItemLot(character, c.StartItemID) < c.StartItemLot)
+                    continue;
+                if (c.StartQuestEnabled != 0)
+                {
+                    if (prerequisiteStatuses == null)
+                        prerequisiteStatuses = LoadQuestStatuses(character.ID);
+                    byte prerequisiteStatus;
+                    if (!prerequisiteStatuses.TryGetValue(c.StartQuestID, out prerequisiteStatus))
+                        continue;
+                    if (prerequisiteStatus == 4)
+                    {
+                        // Proven accepted predecessor state.
+                    }
+                    else if (prerequisiteStatus == 2)
+                    {
+                        Log.WriteLine(LogLevel.Debug,
+                            "Quest {0} predecessor {1} is status 2; original performs an unresolved extra state check.",
+                            c.QuestID, c.StartQuestID);
+                        return false;
+                    }
+                    else continue;
                 }
                 eligible.Add(c);
             }
@@ -82,16 +108,7 @@ namespace NextGen.Zone.Handlers
 
             try
             {
-                Dictionary<uint, byte> statuses = new Dictionary<uint, byte>();
-                using (DatabaseClient db = Program.CharDBManager.GetClient())
-                {
-                    DataTable state = db.ReadDataTable(
-                        "SELECT nQuestNo,nStatus FROM tQuest WHERE nCharNo=@c",
-                        new MySqlConnector.MySqlParameter("@c", character.ID));
-                    if (state != null)
-                        foreach (DataRow row in state.Rows)
-                            statuses[Convert.ToUInt32(row["nQuestNo"])] = Convert.ToByte(row["nStatus"]);
-                }
+                Dictionary<uint, byte> statuses = prerequisiteStatuses ?? LoadQuestStatuses(character.ID);
 
                 Candidate best = null;
                 byte bestStatus = 0;
@@ -171,6 +188,31 @@ namespace NextGen.Zone.Handlers
             // first candidate from the authoritative QuestID-ordered SQL result.
             comparison = ctp < rtp ? -1 : 1;
             return true;
+        }
+
+        private static Dictionary<uint, byte> LoadQuestStatuses(int characterId)
+        {
+            Dictionary<uint, byte> statuses = new Dictionary<uint, byte>();
+            using (DatabaseClient db = Program.CharDBManager.GetClient())
+            {
+                DataTable state = db.ReadDataTable(
+                    "SELECT nQuestNo,nStatus FROM tQuest WHERE nCharNo=@c",
+                    new MySqlConnector.MySqlParameter("@c", characterId));
+                if (state != null)
+                    foreach (DataRow row in state.Rows)
+                        statuses[Convert.ToUInt32(row["nQuestNo"])] = Convert.ToByte(row["nStatus"]);
+            }
+            return statuses;
+        }
+
+        private static uint GetInventoryItemLot(NextGen.Zone.Game.ZoneCharacter character, ushort itemId)
+        {
+            uint lot = 0;
+            foreach (NextGen.Zone.Game.Item item in character.Inventory.InventoryItems.Values)
+                if (item.ID == itemId) lot += item.Ammount;
+            foreach (NextGen.Zone.Game.Item item in character.Inventory.EquippedItems)
+                if (item.ID == itemId) lot += item.Ammount;
+            return lot;
         }
 
         private static int ComparePreferZero(byte candidate, byte retained)
@@ -253,7 +295,7 @@ namespace NextGen.Zone.Handlers
                     {
                         const string sql =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, " +
-                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
@@ -287,7 +329,9 @@ namespace NextGen.Zone.Handlers
                                 StartLevelMax = Convert.ToByte(row["LevelMax"]),
                                 StartQuestEnabled = Convert.ToByte(row["bQuest"]),
                                 StartQuestID = Convert.ToUInt32(row["QuestPrerequisiteID"]),
-                                StartItemEnabled = Convert.ToByte(row["bItem"])
+                                StartItemEnabled = Convert.ToByte(row["bItem"]),
+                                StartItemID = Convert.ToUInt16(row["ItemID"]),
+                                StartItemLot = Convert.ToUInt16(row["ItemLot"])
                             });
                         }
 
