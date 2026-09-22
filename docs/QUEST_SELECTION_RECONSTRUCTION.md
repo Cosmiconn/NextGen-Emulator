@@ -121,11 +121,29 @@ Until `GetQuestStatusWithNPC`, `m_QuestStatusPriority`, and the
 
 ## Current reconstruction state
 
-The numeric `PLAYER_QUEST_STATUS` enum is now **fully resolved** from the
-supplied `Zone.pdb`. The remaining Priority-1 unknowns are the actual contents
-of `m_QuestStatusPriority`, the precise branch predicates inside
-`GetQuestStatusWithNPC`, and how the resulting `NPC_QUEST_STATUS` objects are
-serialized/consumed by `GetQuestListWithNPC` and the quest-list packet path.
+The original priority tables and most equal-priority predicates are now
+reconstructed and implemented. The current SQL-backed resolver has proven
+handling for:
 
-Only after those points are evidenced should `QuestNpcStartResolver` be changed
-to choose among multiple candidates.
+- exact status and quest-type priority tables;
+- `Start.bLevel/LevelMin` tie-break behavior;
+- `Start.bQuest`, `Start.bItem`, and `Repeatable` zero/non-zero tie-breaks;
+- Soonable/Doingable level windows;
+- start item, location, class and gender gates used by the supplied corpus;
+- persisted status plus dynamic unpersisted SOON/ABLE state;
+- effective ING -> REWARD promotion from native end-condition eligibility;
+- Start/Action/Finish script entry selection by effective status.
+
+The remaining selection-specific blockers are deliberately narrow:
+
+1. the special `QUEST_DATA.Type == 3` equal-priority branch;
+2. the extra native check on a predecessor quest in raw status 2;
+3. future start Race/Date gates, which are unused in the supplied corpus;
+4. exact `0x440F/0x4410` select-start wire fields, which are kept separate
+   from the current NPC dialog path.
+
+The supplied corpus impact of Type 3 is measured in
+`docs/QUEST_TYPE3_CORPUS_AUDIT.md`: 116 Type-3 quests, with NPC-bound Type-3
+quests mixed with other types on eight NPC IDs. The fallback is therefore
+intentional rather than dead code.
+
