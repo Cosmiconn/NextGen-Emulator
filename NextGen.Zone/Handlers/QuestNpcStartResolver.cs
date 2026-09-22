@@ -411,7 +411,19 @@ namespace NextGen.Zone.Handlers
                 {
                     using (DatabaseClient db = Program.DatabaseManager.GetClient())
                     {
-                        const string sql =
+                        const string sqlNormalized =
+                            "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot, " +
+                            "s.bLocation, s.LocationRaw, s.LocationMap, s.LocationX, s.LocationY, s.LocationRange, " +
+                            "s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
+                            "FROM QuestData q " +
+                            "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
+                            "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
+                            "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
+                            "INNER JOIN data_mobinfo m ON m.ID=s.NPCID " +
+                            "WHERE s.NPCID<>0 " +
+                            "ORDER BY m.InxName, q.QuestID";
+                        const string sqlLegacy =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
                             "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot, " +
                             "s.bLocation, s.LocationRaw, s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
@@ -423,7 +435,19 @@ namespace NextGen.Zone.Handlers
                             "WHERE s.NPCID<>0 " +
                             "ORDER BY m.InxName, q.QuestID";
 
-                        DataTable data = db.ReadDataTable(sql);
+                        DataTable data;
+                        bool normalizedLocation = true;
+                        try
+                        {
+                            data = db.ReadDataTable(sqlNormalized);
+                        }
+                        catch
+                        {
+                            normalizedLocation = false;
+                            data = db.ReadDataTable(sqlLegacy);
+                            Log.WriteLine(LogLevel.Debug,
+                                "Quest start SQL uses legacy LocationRaw layout; re-import QuestData.shn to get normalized location columns.");
+                        }
                         if (data == null) return;
 
                         foreach (DataRow row in data.Rows)
@@ -439,6 +463,18 @@ namespace NextGen.Zone.Handlers
                                 ByMobName.Add(mobName, list);
                             }
                             byte[] locationRaw = row["LocationRaw"] as byte[];
+                            ushort locationMap = normalizedLocation
+                                ? Convert.ToUInt16(row["LocationMap"])
+                                : (locationRaw != null && locationRaw.Length >= 4 ? BitConverter.ToUInt16(locationRaw, 2) : (ushort)0);
+                            int locationX = normalizedLocation
+                                ? Convert.ToInt32(row["LocationX"])
+                                : (locationRaw != null && locationRaw.Length >= 8 ? BitConverter.ToInt32(locationRaw, 6) : 0);
+                            int locationY = normalizedLocation
+                                ? Convert.ToInt32(row["LocationY"])
+                                : (locationRaw != null && locationRaw.Length >= 12 ? BitConverter.ToInt32(locationRaw, 10) : 0);
+                            uint locationRange = normalizedLocation
+                                ? Convert.ToUInt32(row["LocationRange"])
+                                : (locationRaw != null && locationRaw.Length >= 18 ? BitConverter.ToUInt32(locationRaw, 14) : 0);
                             list.Add(new Candidate
                             {
                                 QuestID = questId,
@@ -456,10 +492,10 @@ namespace NextGen.Zone.Handlers
                                 StartItemID = Convert.ToUInt16(row["ItemID"]),
                                 StartItemLot = Convert.ToUInt16(row["ItemLot"]),
                                 StartLocationEnabled = Convert.ToByte(row["bLocation"]),
-                                StartLocationMap = locationRaw != null && locationRaw.Length >= 4 ? BitConverter.ToUInt16(locationRaw, 2) : (ushort)0,
-                                StartLocationX = locationRaw != null && locationRaw.Length >= 8 ? BitConverter.ToInt32(locationRaw, 6) : 0,
-                                StartLocationY = locationRaw != null && locationRaw.Length >= 12 ? BitConverter.ToInt32(locationRaw, 10) : 0,
-                                StartLocationRange = locationRaw != null && locationRaw.Length >= 18 ? BitConverter.ToUInt32(locationRaw, 14) : 0,
+                                StartLocationMap = locationMap,
+                                StartLocationX = locationX,
+                                StartLocationY = locationY,
+                                StartLocationRange = locationRange,
                                 StartRaceEnabled = Convert.ToByte(row["bRace"]),
                                 StartRace = Convert.ToByte(row["Race"]),
                                 StartClassEnabled = Convert.ToByte(row["bClass"]),
