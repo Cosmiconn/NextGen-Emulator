@@ -321,13 +321,22 @@ namespace NextGen.Zone.Handlers
 					}
 					break;
 				case "Quest":
-					//:TODO Quest Proggresion
+					// QuestData-derived SQL is authoritative for the start dialog.
+					// We only bypass the legacy interaction packet when the NPC maps
+					// to exactly one distinct dialog. Multi-quest NPC selection still
+					// requires the original character/status-aware priority algorithm.
+					uint questDialogId;
+					if (QuestNpcStartResolver.TryResolveUnique(npc.Point.MobName, out questDialogId))
+					{
+						Handler17.SendDialogPage(client, questDialogId);
+						break;
+					}
+
 					using (var packet = new Packet(SH8Type.Interaction))
 					{
 						packet.WriteUShort(npc.ID);
 						client.SendPacket(packet);
 					}
-					Console.WriteLine(npc.Point.RoleArg0);
 					break;
 				default:
 					using (var packet = new Packet(SH8Type.Interaction))
