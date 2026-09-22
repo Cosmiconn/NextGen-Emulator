@@ -37,6 +37,13 @@ namespace NextGen.Zone.Handlers
             public int StartLocationX;
             public int StartLocationY;
             public uint StartLocationRange;
+            public byte StartRaceEnabled;
+            public byte StartRace;
+            public byte StartClassEnabled;
+            public byte StartClass;
+            public byte StartGenderEnabled;
+            public byte StartGender;
+            public byte StartDateEnabled;
         }
 
         private static readonly object Sync = new object();
@@ -83,6 +90,30 @@ namespace NextGen.Zone.Handlers
                     long dx = (long)character.Character.PositionInfo.XPos - c.StartLocationX;
                     long dy = (long)character.Character.PositionInfo.YPos - c.StartLocationY;
                     if (dx * dx + dy * dy > (long)c.StartLocationRange * c.StartLocationRange) continue;
+                }
+
+                // ClassName.shn uses the same numeric class IDs as Character.Job
+                // (Fighter=1, Cleric=6, Archer=11, Mage=16, ...). The original
+                // IsSoonableQuest compares the player class directly with Start.Class.
+                if (c.StartClassEnabled != 0 && (byte)character.Job != c.StartClass)
+                    continue;
+
+                // Original IsSoonableQuest compares the player gender directly.
+                // Fiesta's character gender bit is 1=male, 0=female; the only two
+                // gender-gated NA2016 quests independently match that convention.
+                if (c.StartGenderEnabled != 0 &&
+                    (character.IsMale ? (byte)1 : (byte)0) != c.StartGender)
+                    continue;
+
+                // The supplied NA2016 QuestData corpus contains no active bRace or
+                // bDate start conditions. Their original comparisons/date modes are
+                // not normalized here; if future data enables them, do not guess.
+                if (c.StartRaceEnabled != 0 || c.StartDateEnabled != 0)
+                {
+                    Log.WriteLine(LogLevel.Debug,
+                        "Quest {0} uses unresolved race/date start eligibility; using legacy interaction.",
+                        c.QuestID);
+                    return false;
                 }
                 if (c.StartQuestEnabled != 0)
                 {
@@ -321,7 +352,8 @@ namespace NextGen.Zone.Handlers
                     {
                         const string sql =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, " +
-                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot, s.bLocation, s.LocationRaw " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem, s.ItemID, s.ItemLot, " +
+                            "s.bLocation, s.LocationRaw, s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
@@ -363,7 +395,14 @@ namespace NextGen.Zone.Handlers
                                 StartLocationMap = locationRaw != null && locationRaw.Length >= 4 ? BitConverter.ToUInt16(locationRaw, 2) : (ushort)0,
                                 StartLocationX = locationRaw != null && locationRaw.Length >= 8 ? BitConverter.ToInt32(locationRaw, 6) : 0,
                                 StartLocationY = locationRaw != null && locationRaw.Length >= 12 ? BitConverter.ToInt32(locationRaw, 10) : 0,
-                                StartLocationRange = locationRaw != null && locationRaw.Length >= 18 ? BitConverter.ToUInt32(locationRaw, 14) : 0
+                                StartLocationRange = locationRaw != null && locationRaw.Length >= 18 ? BitConverter.ToUInt32(locationRaw, 14) : 0,
+                                StartRaceEnabled = Convert.ToByte(row["bRace"]),
+                                StartRace = Convert.ToByte(row["Race"]),
+                                StartClassEnabled = Convert.ToByte(row["bClass"]),
+                                StartClass = Convert.ToByte(row["Class"]),
+                                StartGenderEnabled = Convert.ToByte(row["bGender"]),
+                                StartGender = Convert.ToByte(row["Gender"]),
+                                StartDateEnabled = Convert.ToByte(row["bDate"])
                             });
                         }
 
