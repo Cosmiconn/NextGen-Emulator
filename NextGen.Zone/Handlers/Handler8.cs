@@ -322,11 +322,11 @@ namespace NextGen.Zone.Handlers
 					break;
 				case "Quest":
 					// QuestData-derived SQL is authoritative for the start dialog.
-					// We only bypass the legacy interaction packet when the NPC maps
-					// to exactly one distinct dialog. Multi-quest NPC selection still
-					// requires the original character/status-aware priority algorithm.
+					// The resolver uses the original Zone.exe status-priority table when an NPC
+					// has several dialogs. Equal-priority cases still fall back rather than
+					// guessing the remaining original predicates.
 					uint questDialogId;
-					if (QuestNpcStartResolver.TryResolveUnique(npc.Point.MobName, out questDialogId))
+					if (QuestNpcStartResolver.TryResolveForCharacter(client.Character, npc.Point.MobName, out questDialogId))
 					{
 						Handler17.SendDialogPage(client, questDialogId);
 						break;
