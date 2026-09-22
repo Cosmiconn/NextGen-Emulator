@@ -12,8 +12,10 @@ The original PDB/module symbol records identify these quest routines in the Zone
 
 - `CQuest::IsSoonableQuest(QUEST_DATA*)` — `0x0062FC80`
 - `CQuest::IsDoingableQuest(QUEST_DATA*)` — `0x0062FEA0`
-- `CQuest::IsRewardAbleQuest(PLAYER_QUEST_INFO*)` — `0x0062FEE0`
-- `CQuest::IsSoonableDailyQuest(PLAYER_QUEST_INFO*)` — `0x0062FF40`
+- routine at `0x0062FEE0` — source-level identity **UNRESOLVED** after later CodeView reconciliation
+- `CQuestZone::IsRewardAbleQuest(PLAYER_QUEST_INFO*)` — `0x0062FF40` (**corrected by the later end-condition CodeView audit**)
+
+> **Correction:** Step 29 originally labelled `0x0062FEE0` as `IsRewardAbleQuest` and `0x0062FF40` as `IsSoonableDailyQuest`. That name/address pair is superseded. `docs/QUEST_END_CONDITION_CODEVIEW_AUDIT.md` ties `0x0062FF40` directly to `CQuestZone::IsRewardAbleQuest` and to `QUEST_DATA.End`. No replacement address is assigned here to `IsSoonableDailyQuest`.
 
 ## `IsSoonableQuest`
 
@@ -63,24 +65,11 @@ If `Start.bLevel != 0`, it then repeats the level-window test using the player's
 
 If no level condition is enabled, the additional level test is skipped. This proves that `IsDoingableQuest` is stricter than the soonable level test while reusing all earlier start-condition checks.
 
-## `IsRewardAbleQuest`
+## Superseded Step-29 routine identities
 
-The observed overload accepts `PLAYER_QUEST_INFO*`, resolves the associated quest data, then calls `IsSoonableQuest` and applies the same current-level (`no +5`) window check when `Start.bLevel` is enabled.
+The old Step-29 descriptions for the routines at `0x0062FEE0` and `0x0062FF40` are intentionally not used as runtime evidence anymore. The later CodeView/native end-condition audit proves that `0x0062FF40` evaluates `QUEST_DATA.End` reward eligibility and is reached when deriving effective status from `PQS_ING`.
 
-The complete reward-state transition is not inferred from this routine alone; no new status mapping is introduced here.
-
-## `IsSoonableDailyQuest`
-
-The routine accepts `PLAYER_QUEST_INFO*` and first resolves the corresponding quest/player information. It checks additional daily-specific condition arrays and values in the `PLAYER_QUEST_INFO`/quest-data representation, including:
-
-- a level-related byte/threshold pair,
-- repeated condition slots containing item IDs and required quantities,
-- location/date-related condition data,
-- further daily-specific flags/values.
-
-The routine contains direct player-state lookups for item/state checks and returns failure immediately on violated conditions.
-
-Because these fields are not the same `QUEST_START_CONDITION` offsets used by the Step-27 selection tie-break, they are not collapsed into the normalized `data_quest` schema without independent source mapping.
+The earlier start-condition-oriented behavior attributed here to those two source names is retained only as historical investigation context in git history. It must not be used to infer reward or daily semantics until `0x0062FEE0` is independently reconciled.
 
 ## Direct consequences for the selection audit
 
@@ -102,7 +91,7 @@ This is stronger than a name-based mapping because the same fields are now obser
 - Exact semantic meaning of `QUEST_DATA.Repeatable` within the selection tie-break remains **UNRESOLVED**.
 - Exact higher-level meaning of the raw predecessor accepted states `2` and `4` in the `Start.bQuest` path remains **UNRESOLVED** here.
 - Exact normalized SQL mappings for `Repeatable`, `Start.bLevel`, `Start.LevelMin`, `Start.bItem`, and `Start.bQuest` remain separate from the original CodeView mapping.
-- `IsSoonableDailyQuest` contains additional source fields whose normalized SQL mapping is not proven by this audit.
+- The exact source-level identity of the routine at `0x0062FEE0` and the corrected address of `IsSoonableDailyQuest` remain **UNRESOLVED**.
 
 ## Runtime status
 
