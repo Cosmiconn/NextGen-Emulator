@@ -177,12 +177,7 @@ namespace NextGen.Zone.Handlers
                     }
 
                     int comparison;
-                    if (!TryCompareOriginal(candidate, candidateStatus, best, bestStatus, out comparison))
-                    {
-                        Log.WriteLine(LogLevel.Debug,
-                            "Quest NPC {0} requires unresolved original Type==3 tie-break; using legacy interaction.", mobName);
-                        return false;
-                    }
+                    TryCompareOriginal(candidate, candidateStatus, best, bestStatus, out comparison);
                     if (comparison < 0)
                     {
                         best = candidate;
@@ -202,41 +197,50 @@ namespace NextGen.Zone.Handlers
 
         // Returns comparison < 0 when candidate replaces retained. The ordering below
         // follows CQuest::GetQuestStatusWithNPC: status priority, level predicate,
-        // condition flags, then type priority. Type==3 has a special original branch
-        // whose complete semantics remain unresolved, so that one case is not guessed.
-        private static bool TryCompareOriginal(Candidate candidate, byte candidateStatus,
+        // the exact Type==3 special branch, condition flags, then type priority.
+        private static void TryCompareOriginal(Candidate candidate, byte candidateStatus,
             Candidate retained, byte retainedStatus, out int comparison)
         {
             comparison = 0;
             byte cp = candidateStatus < QuestStatusPriority.Length ? QuestStatusPriority[candidateStatus] : byte.MaxValue;
             byte rp = retainedStatus < QuestStatusPriority.Length ? QuestStatusPriority[retainedStatus] : byte.MaxValue;
-            if (cp != rp) { comparison = cp < rp ? -1 : 1; return true; }
+            if (cp != rp) { comparison = cp < rp ? -1 : 1; return; }
 
             if (candidate.StartLevelEnabled != 0)
             {
                 if (candidate.StartLevelMin != retained.StartLevelMin)
                 {
                     comparison = candidate.StartLevelMin > retained.StartLevelMin ? -1 : 1;
-                    return true;
+                    return;
                 }
             }
 
-            if (candidate.Type != retained.Type && (candidate.Type == 3 || retained.Type == 3))
-                return false;
+            // Exact original branch at Zone.exe 0x0063103A..0x00631060:
+            // candidate Type 3 replaces any non-3 retained candidate; a retained
+            // Type 3 rejects every non-3 candidate; Type 3 vs Type 3 keeps the first.
+            if (candidate.Type == 3)
+            {
+                comparison = retained.Type == 3 ? 1 : -1;
+                return;
+            }
+            if (retained.Type == 3)
+            {
+                comparison = 1;
+                return;
+            }
 
             int flag = ComparePreferZero(candidate.StartQuestEnabled, retained.StartQuestEnabled);
-            if (flag != 0) { comparison = flag; return true; }
+            if (flag != 0) { comparison = flag; return; }
             flag = ComparePreferZero(candidate.StartItemEnabled, retained.StartItemEnabled);
-            if (flag != 0) { comparison = flag; return true; }
+            if (flag != 0) { comparison = flag; return; }
             flag = ComparePreferZero(candidate.Repeatable, retained.Repeatable);
-            if (flag != 0) { comparison = flag; return true; }
+            if (flag != 0) { comparison = flag; return; }
 
             byte ctp = candidate.Type < QuestTypePriority.Length ? QuestTypePriority[candidate.Type] : byte.MaxValue;
             byte rtp = retained.Type < QuestTypePriority.Length ? QuestTypePriority[retained.Type] : byte.MaxValue;
             // Original rejects candidate on >=, so equal type priority retains the
             // first candidate from the authoritative QuestID-ordered SQL result.
             comparison = ctp < rtp ? -1 : 1;
-            return true;
         }
 
         private static bool TryGetDialogForStatus(NextGen.Zone.Game.ZoneCharacter character,
