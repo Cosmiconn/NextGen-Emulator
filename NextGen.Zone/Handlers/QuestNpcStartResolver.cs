@@ -25,7 +25,9 @@ namespace NextGen.Zone.Handlers
             public byte Repeatable;
             public byte StartLevelEnabled;
             public byte StartLevelMin;
+            public byte StartLevelMax;
             public byte StartQuestEnabled;
+            public uint StartQuestID;
             public byte StartItemEnabled;
         }
 
@@ -50,6 +52,23 @@ namespace NextGen.Zone.Handlers
 
             List<Candidate> candidates;
             if (!TryGetCandidates(mobName, out candidates)) return false;
+
+            // Original IsSoonableQuest level window: player level + 5 must be
+            // inside Start.LevelMin..Start.LevelMax. This is fully proven from
+            // Zone.exe and can safely filter SQL candidates before prioritizing.
+            List<Candidate> eligible = new List<Candidate>();
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                Candidate c = candidates[i];
+                if (c.StartLevelEnabled != 0)
+                {
+                    int soonLevel = character.Level + 5;
+                    if (soonLevel < c.StartLevelMin || soonLevel > c.StartLevelMax) continue;
+                }
+                eligible.Add(c);
+            }
+            if (eligible.Count == 0) return false;
+            candidates = eligible;
 
             uint sameDialog = 0;
             bool haveDialog = false;
@@ -234,7 +253,7 @@ namespace NextGen.Zone.Handlers
                     {
                         const string sql =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, " +
-                            "s.bLevel, s.LevelMin, s.bQuest, s.bItem " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, s.bItem " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
@@ -265,7 +284,9 @@ namespace NextGen.Zone.Handlers
                                 Repeatable = Convert.ToByte(row["Repeatable"]),
                                 StartLevelEnabled = Convert.ToByte(row["bLevel"]),
                                 StartLevelMin = Convert.ToByte(row["LevelMin"]),
+                                StartLevelMax = Convert.ToByte(row["LevelMax"]),
                                 StartQuestEnabled = Convert.ToByte(row["bQuest"]),
+                                StartQuestID = Convert.ToUInt32(row["QuestPrerequisiteID"]),
                                 StartItemEnabled = Convert.ToByte(row["bItem"])
                             });
                         }
