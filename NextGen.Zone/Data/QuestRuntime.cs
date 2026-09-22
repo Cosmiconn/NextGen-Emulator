@@ -263,7 +263,11 @@ namespace NextGen.Zone.Data
                     if (selectionProvided && !HasSelectableRewardIndex(dataDb, questId, selectedIndex)) return false;
                     DataTable state = charDb.ReadDataTable("SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
                     if (state == null || state.Rows.Count == 0 || Convert.ToByte(state.Rows[0]["nStatus"]) != PqsInProgress) return false;
-                    byte completionStatus = IsRepeatable(dataDb, questId) ? PqsRepeat : PqsDone;
+                    // Native CQuest::SetQuestDone reaches the 0x0062F610 mutation helper:
+                    // non-repeatable -> PQS_DONE (2), repeatable -> PQS_SOON (3).
+                    // PQS_REPEAT (4) is a later/re-acceptable state and must not be
+                    // collapsed into the completion transition.
+                    byte completionStatus = IsRepeatable(dataDb, questId) ? PqsSoon : PqsDone;
                     ApplyRewards(dataDb, c, questId, selectedIndex);
                     charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@s", completionStatus), new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
                     return true;
