@@ -164,10 +164,10 @@ namespace NextGen.Zone.Data
             return Math.Max(0, capacity - character.Inventory.InventoryItems.Count);
         }
 
-        public static bool CreateItem(ZoneCharacter character, ushort itemId, ushort amount)
+        public static bool CreateItem(ZoneCharacter character, ushort itemId, uint amount)
         {
             if (character == null || itemId == 0 || amount == 0) return false;
-            return character.GiveItem(itemId, amount) == InventoryStatus.Added;
+            return character.GiveItemLots(itemId, amount) == InventoryStatus.Added;
         }
 
         public static bool DeleteItem(ZoneCharacter character, ushort itemId, string amountToken)
@@ -350,7 +350,7 @@ namespace NextGen.Zone.Data
                     case 1: c.ChangeMoney(c.Inventory.Money + v1); break;
                     case 2:
                         ushort itemId = (ushort)(v1 & 0xffff), lot = (ushort)(v1 >> 16);
-                        if (itemId != 0 && lot != 0) c.GiveItem(itemId, lot);
+                        if (itemId != 0 && lot != 0) c.GiveItemLots(itemId, lot);
                         break;
                     case 4: c.Fame += (int)v1; break;
                     case 8: c.KillPoints += (int)v1; break;
