@@ -70,7 +70,9 @@ With the 2-byte network opcode, the complete client packet is 9 bytes and uses
 - incoming `nQSC` equals the current parser command.
 
 For QSC_SAY it stores the complete DWORD `nResult` as the parser result and
-continues through `QuestNext`.
+continues through `QuestNext`. The handler does not inspect QuestDialog text
+markers before continuing; `[MENU]`, `[BUTTON]`, and related tags are client
+presentation data, not server-side stop conditions.
 
 ## Important 0x4403 distinction
 
@@ -163,3 +165,23 @@ continues to close locally without fabricating an END packet.
 
 The verified corpus contains **9,446** explicit textual `END` commands, so
 this is a live NA2016 path rather than forward-compatibility behavior.
+
+
+## QuestDialog `[MENU]` corpus impact
+
+Cross-correlating every authoritative SAY reference with
+`data_questdialog` shows that `[MENU]` is common inside normal quest-script
+dialogs:
+
+- **4,306** SAY occurrences reference a dialog containing `[MENU]`;
+- those references cover **3,148** distinct dialog IDs;
+- they occur across **2,159** quests;
+- by stage: Start 1,663, Action/Doing 1,432, Finish/End 1,211.
+
+Therefore treating `[MENU]` as a server-side instruction to terminate the
+quest script would cut off a majority of the supplied quest corpus. The native
+0x4402 ACK path contains no such text check: after validating QuestID/current
+QSC, QSC_SAY stores the DWORD result and resumes QuestNext.
+
+Handler17 now follows that behavior. Menu/button tags remain opaque client-facing
+QuestDialog content; only the actual QSC script controls server continuation.

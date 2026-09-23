@@ -136,19 +136,6 @@ namespace NextGen.Zone.Handlers
             if (session == null || session.QuestID != questId || qsc != 2)
                 return;
 
-            QuestDialogInfo current;
-            if (!DataProvider.Instance.QuestDialogsByID.TryGetValue(session.DialogID, out current))
-            {
-                EndDialog(client.Character);
-                return;
-            }
-
-            if (current.Text != null && current.Text.Contains("[MENU]"))
-            {
-                EndDialog(client.Character);
-                return;
-            }
-
             if (session.Machine == null)
             {
                 EndDialog(client.Character);

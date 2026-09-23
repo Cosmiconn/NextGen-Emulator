@@ -13,12 +13,14 @@ MANIFEST = ROOT / "tests/fixtures/quest_script_corpus_manifest.sql"
 CORPUS = ROOT / "tests/fixtures/quest_script_opcode_corpus.zlib.b64"
 ITEM_SQL = ROOT / "sql/data/data_iteminfo.sql"
 MOB_SQL = ROOT / "sql/data/data_mobinfo.sql"
+DIALOG_SQL = ROOT / "sql/data/data_questdialog.sql"
 EXPECTED = {'ACCEPT':2410,'CANCEL':12,'CREATE_ITEM':206,'DELETE_ITEM':1474,'DONE':2603,'END':9446,'GET_ITEM_LOT':104,'GET_PLAYER_EMPTY_INVENTORY':676,'GOTO':4,'IF':3036,'LINK':350,'SAY':19924,'SCENARIO':52,'SET_ABSTATE':51}
 EXPECTED_IF_SHAPES = {('RESULT', '=='): 2256, ('VAR1', '<'): 676, ('RESULT', '<'): 104}
 EXPECTED_DONE_BY_STAGE = {'Start': 351, 'Action': 1, 'Finish': 2251}
 EXPECTED_ACCEPT_BY_STAGE = {'Start': 2382, 'Finish': 28}
 EXPECTED_SAY_BY_TALKER = {'NPC': 13004, 'ME': 6920}
 EXPECTED_SAY_ARG_COUNTS = {2: 19856, 3: 68}
+EXPECTED_MENU_SAY_STATS = (4306, 3148, 2159)
 EXPECTED_SAY_COMMA_LINES = [
     ('15', 'Start', 'SAY 1502, NPC'),
     ('15', 'Start', 'SAY 1503, ME'),
@@ -163,6 +165,7 @@ def audit_full_sql(rows):
     say_arg_counts = Counter()
     say_explicit_npc = []
     say_comma_lines = []
+    say_dialog_refs = []
     invalid_says = []
     for q, scripts in rows.items():
         stage_labels = {st:labels(s) for st,s in zip(stage_names, scripts)}
@@ -194,6 +197,7 @@ def audit_full_sql(rows):
                             say_comma_lines.append((q, st, command))
                         say_by_talker[who] += 1
                         say_arg_counts[2 if npc_no is None else 3] += 1
+                        say_dialog_refs.append((q, st, dialog_id))
                         if dialog_id > 0xffffffff:
                             invalid_says.append((q, st, z))
                         if npc_no is not None:
@@ -356,6 +360,30 @@ def audit_full_sql(rows):
         return 1
     print('PASS: SAY corpus = NPC 13004, ME 6920; 68 NPC lines carry explicit NPCNo')
     print('PASS: exactly 5 Quest 15 Start SAY lines preserve the source comma after DialogID')
+
+    if not DIALOG_SQL.is_file():
+        print('FAIL: data_questdialog.sql unavailable; [MENU] quest-dialog cross-check required')
+        return 1
+    dialog_text = DIALOG_SQL.read_text(encoding='utf-8', errors='replace')
+    dialog_rows = re.findall(r"\\((\\d+),\\s*'((?:''|[^'])*)'\\)", dialog_text)
+    menu_dialogs = {
+        int(dialog_id) for dialog_id, text_value in dialog_rows
+        if '[MENU]' in text_value.replace("''", "'")
+    }
+    menu_refs = [ref for ref in say_dialog_refs if ref[2] in menu_dialogs]
+    menu_stats = (
+        len(menu_refs),
+        len({ref[2] for ref in menu_refs}),
+        len({ref[0] for ref in menu_refs}),
+    )
+    if menu_stats != EXPECTED_MENU_SAY_STATS:
+        print('FAIL: QuestDialog [MENU] SAY cross-reference changed:', menu_stats)
+        return 1
+    stage_counts = Counter(ref[1] for ref in menu_refs)
+    if stage_counts != Counter({'Start': 1663, 'Action': 1432, 'Finish': 1211}):
+        print('FAIL: QuestDialog [MENU] SAY stage distribution changed:', dict(stage_counts))
+        return 1
+    print('PASS: [MENU] is client dialog content on 4306 SAYs across 2159 quests')
     if report_low_item_ids() is False:
         return 1
     if report_low_mob_ids() is False:
