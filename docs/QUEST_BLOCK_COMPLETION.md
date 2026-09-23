@@ -108,9 +108,11 @@ The supplied corpus does not activate:
 Future QuestData enabling these must still fail conservatively until native
 semantics are implemented.
 
-## Remaining fidelity debt
+## Archival native-fidelity questions (not open Quest runtime work)
 
-These items do not prevent the supplied Quest block from running completely:
+All emulator behavior required by the supplied Quest corpus is closed. The
+following questions concern byte-for-byte/source-level reconstruction only and
+do not represent unfinished Quest runtime paths:
 
 - identification of the original post-0x4412 wake-up event;
 - exact caller/UI consequence of native missing-label CommandRun failure;
@@ -118,6 +120,12 @@ These items do not prevent the supplied Quest block from running completely:
   Quest 15 comma lines (emulator behavior itself is source-exact and CI-locked);
 - exact ItemDB/GameDB transactional plumbing and rollback packet internals;
 - source-level names for a few optimized helpers and internal AbState details.
+
+The selected-reward field itself is no longer unnamed: a PDB-derived
+`CQuestZone` layout independently identifies `+0x90C` as
+`m_nSelectedItem`, with `m_bWaitResult`, `m_ParsingQuestID` and the parser
+stage fields adjacent. This narrows the remaining reward question to the
+unidentified wake-up caller only.
 
 They remain documented as evidence boundaries and must not be silently promoted
 to native-equivalent behavior.

@@ -305,18 +305,19 @@ brechen:
 - Die grundsätzliche Server-Architektur (Login → World → Zone, TCP,
   Inter-Server-Protokoll).
 
-## 6. Weiterhin offen (aus dem ursprünglichen Projektauftrag)
+## 6. Historischer Offenstand (superseded)
 
-- **Protokoll-/Opcode-Kompatibilität gegen den echten NA2016-Client ist
-  weiterhin nicht verifiziert.** Das war schon vor dieser Session der
-  Fall und ändert sich durch Rename/Modernisierung nicht. Nächster Schritt
-  bleibt unverändert: Login-Handshake des echten Clients mitschneiden und
-  gegen `NetCrypto.cs`/`LoginHandler.cs` abgleichen.
-- Die in Abschnitt 4 gelisteten 12 ausgeschlossenen Dateien, allen voran
-  der SHN-Parser.
-- Kein automatisierter Testlauf vorhanden (kein Testprojekt in der
-  `.sln`) — anders als im vorherigen `NextGen`-Zip wird hier aber auch
-  nicht behauptet, dass es einen gibt.
+Dieser Abschnitt beschrieb den Projektstand ganz am Anfang der Modernisierung
+und ist **nicht mehr die aktuelle Restliste**. Seitdem wurden echte NA2016-
+Captures/PDB-/Binary-Pfade ausgewertet, CI fuer Linux und Windows aufgebaut,
+der SHN/SQL-Datenpfad stark erweitert und insbesondere der Quest-Block fuer den
+gelieferten 2304-Record-Korpus abgeschlossen.
+
+Die aktuelle, codebasierte Blockliste steht in
+`docs/PROJECT_BLOCK_STATUS.md`. Spaetere Abschnitte dieses Dokuments bleiben
+als chronologisches Reverse-Engineering-Protokoll erhalten und koennen deshalb
+ebenfalls historische "offen"-Aussagen enthalten, die spaeter geschlossen
+wurden.
 
 ---
 

@@ -21,6 +21,26 @@ u32 selectedSlot
 
 The receive routine does no quest completion and no QuestNext call.
 
+### Source-level CQuestZone field correlation
+
+An independent 2016 PDB-derived type dump corroborates the same object layout
+and supplies the original member names around this state:
+
+```text
+CQuestZone +0x8FC  STRUCT_QSC* m_pQSC
+CQuestZone +0x900  int         m_bWaitResult
+CQuestZone +0x906  ushort      m_ParsingQuestID
+CQuestZone +0x908  parsing     m_ParsingQuestScriptType
+CQuestZone +0x90C  uint        m_nSelectedItem
+CQuestZone +0x914  int         m_ScriptIdent
+```
+
+This closes the source-level identity of the selected-reward field:
+`CQuestZone+0x90C` is `m_nSelectedItem`. It also confirms that the parser,
+wait-result state, current QuestID, stage and selected item are adjacent
+CQuestZone state. It still does not prove which later caller wakes a DONE that
+has already emitted 0x4412, so no caller identity is inferred from layout alone.
+
 ### Zone -> client: 0x4412
 
 `CQuestZone::Send_NC_QUEST_REWARD_NEED_SELECT_ITEM_CMD` begins at

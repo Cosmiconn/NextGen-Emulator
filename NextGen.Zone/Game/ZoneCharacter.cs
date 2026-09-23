@@ -316,10 +316,10 @@ namespace NextGen.Zone.Game
 		}
 
 		// Titel-Fortschritt fuer TOTAL_KILL_MOB (CharacterTitleData.shn Typ
-		// 11), siehe DOCUMENTATION.md Abschnitt 41. Einzige aktuell
-		// angebundene Titel-Kategorie von 127 moeglichen - die meisten
-		// anderen (Gildenkriege, Auktionshaus, Wuerfelspiele, ...) haben
-		// noch keine passende Zaehlstelle im Code.
+		// 11), siehe DOCUMENTATION.md Abschnitt 41. Eine von derzeit sechs
+		// angebundenen Kategorien; die meisten der 127 Typen (z.B.
+		// Gildenkrieg/Auktion/Wuerfelspiel) haben weiterhin keine passende
+		// Laufzeit-Zaehlstelle.
 		public void GiveMobKillTitleProgress()
 		{
 			Character.TotalMobKills++;
