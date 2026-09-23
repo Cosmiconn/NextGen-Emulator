@@ -40,7 +40,7 @@ def parse_manifest(text):
     return {op:int(n) for op,n in re.findall(r"\('([A-Z_]+)',(\d+)\)", text)}
 
 def parse_manifest_source_sha(text):
-    m = re.search(r'^-- Source SHA-256:\\s*([0-9a-fA-F]{64})\\s*$', text, re.M)
+    m = re.search(r'^-- Source SHA-256:\s*([0-9a-fA-F]{64})\s*$', text, re.M)
     return m.group(1).lower() if m else None
 
 def load_verified_corpus():
