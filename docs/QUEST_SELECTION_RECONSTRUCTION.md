@@ -134,16 +134,16 @@ handling for:
 - effective ING -> REWARD promotion from native end-condition eligibility;
 - Start/Action/Finish script entry selection by effective status.
 
-The remaining selection-specific blockers are deliberately narrow:
+The remaining selection-specific blockers are now deliberately narrow:
 
-1. the special `QUEST_DATA.Type == 3` equal-priority branch;
-2. the extra native check on a predecessor quest in raw status 2;
-3. future start Race/Date gates, which are unused in the supplied corpus;
-4. exact `0x440F/0x4410` select-start wire fields, which are kept separate
+1. Type-10 daily predecessor reset-time state for status-2 prerequisite quests;
+2. future start Race/Date gates, which are unused in the supplied corpus;
+3. exact `0x440F/0x4410` select-start wire fields, which are kept separate
    from the current NPC dialog path.
 
-The supplied corpus impact of Type 3 is measured in
-`docs/QUEST_TYPE3_CORPUS_AUDIT.md`: 116 Type-3 quests, with NPC-bound Type-3
-quests mixed with other types on eight NPC IDs. The fallback is therefore
-intentional rather than dead code.
+The Type-3 equal-priority branch is fully reconstructed and implemented. The
+status-2 predecessor path is also resolved for every predecessor whose
+`QuestData.Type != 10`; only the native daily-reset subcase remains. In the
+supplied corpus, 1390 quests have a predecessor gate, but only two edges point
+to a Type-10 predecessor: `20037 -> 20036` and `20048 -> 20047`.
 
