@@ -60,3 +60,7 @@ jobs:
       - name: Run Kingdom Quest wire audit
         shell: bash
         run: python3 tools/audit-kingdom-quest-wire.py
+
+      - name: Run Kingdom Quest source audit
+        shell: bash
+        run: python3 tools/audit-kingdom-quest-source.py

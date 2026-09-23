@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Lock source-backed Kingdom Quest map/team/vote metadata."""
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+MAP = ROOT / "sql/data/mapinfo.sql"
+TEAM = ROOT / "sql/data/data_kqteam.sql"
+VOTE = ROOT / "sql/data/data_kqisvote.sql"
+REASONS = ROOT / "sql/data/data_kqvotedesc.sql"
+RATES = ROOT / "sql/data/data_kqvotemajorityrate.sql"
+DP = ROOT / "NextGen.World/Data/DataProvider.cs"
+
+EXPECTED_MAPS = {
+    (31, "KDEddyHill"), (33, "KDTrDn"), (34, "KDUnHall"), (35, "KDEnMaze"),
+    (36, "KDGoldHill"), (40, "KDMDragon"), (53, "KDKingkong"),
+    (54, "KDHoneying"), (55, "KDSpider"), (91, "KDHDragon"),
+    (92, "KDHBat1"), (95, "KDVictor"), (96, "KDAntiHenis"), (126, "KDMine"),
+    (129, "KDEgg"), (131, "KDSpring"), (137, "KDArena"),
+    (138, "KDGreenHill"), (146, "KDSoccer"), (148, "KDWater"),
+    (155, "KDSoccer_W"), (158, "KDCake"),
+}
+
+def data_rows(path):
+    return [line.strip() for line in path.read_text(encoding='utf-8').splitlines()
+            if line.lstrip().startswith('(')]
+
+def main():
+    for path in (MAP, TEAM, VOTE, REASONS, RATES, DP):
+        if not path.is_file():
+            print('FAIL: missing', path)
+            return 1
+
+    found = set()
+    rx = re.compile(r"^\s*\((\d+),\s*'([^']*)',.*?,\s*(\d+),\s*'[^']*',\s*\d+,\s*\d+\)[,;]?$" )
+    for line in MAP.read_text(encoding='utf-8').splitlines():
+        match = rx.match(line)
+        if match and int(match.group(3)) == 1:
+            found.add((int(match.group(1)), match.group(2)))
+    if found != EXPECTED_MAPS:
+        print('FAIL: KingdomMap=1 map corpus changed')
+        print('expected', sorted(EXPECTED_MAPS))
+        print('actual  ', sorted(found))
+        return 1
+
+    counts = (len(data_rows(TEAM)), len(data_rows(VOTE)), len(data_rows(REASONS)), len(data_rows(RATES)))
+    if counts != (8, 30, 4, 2):
+        print('FAIL: KQ metadata row counts changed:', counts)
+        return 1
+
+    provider = DP.read_text(encoding='utf-8')
+    for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
+        if token not in provider:
+            print('FAIL: DataProvider KQ source catalog missing', token)
+            return 1
+
+    print('PASS: 22 KingdomMap=1 source maps locked')
+    print('PASS: KQ team/vote metadata corpus locked (8/30/4/2)')
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

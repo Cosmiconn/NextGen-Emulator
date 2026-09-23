@@ -79,3 +79,10 @@ named `SH22Type.KingdomQuestList` instead of raw opcode `0x581D`.
 CI runs `tools/audit-kingdom-quest-wire.py` to lock these layouts and to keep
 the live KQ list empty until authoritative KingdomQuest definition/schedule
 source rows are imported.
+
+
+## Source-backed KQ map catalog
+
+MapInfo already contains a source field named KingdomMap. Exactly 22 rows use value 1, including KDMDragon/KDHDragon, KDKingkong, KDArena, KDGreenHill and the event KQ maps. World DataProvider now exposes only those rows as KingdomQuestMaps; other nonzero KingdomMap classes (3/4/7) are deliberately not mixed into the KQ catalog.
+
+CI locks the exact 22 map IDs/names plus the current team/vote row counts (8/30/4/2). This gives the definition layer a source-backed map set without inferring schedules or session rules.

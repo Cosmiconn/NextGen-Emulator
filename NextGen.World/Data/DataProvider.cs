@@ -24,6 +24,7 @@ namespace NextGen.World.Data
         public Dictionary<ushort, bool> KingdomQuestVoteEnabled { get; private set; }
         public Dictionary<byte, KingdomQuestVoteReasonInfo> KingdomQuestVoteReasons { get; private set; }
         public List<byte> KingdomQuestVoteMajorityRates { get; private set; }
+        public Dictionary<ushort, MapInfo> KingdomQuestMaps { get; private set; }
 
 		public DataProvider()
 		{
@@ -41,6 +42,9 @@ namespace NextGen.World.Data
             KingdomQuestVoteEnabled = new Dictionary<ushort, bool>();
             KingdomQuestVoteReasons = new Dictionary<byte, KingdomQuestVoteReasonInfo>();
             KingdomQuestVoteMajorityRates = new List<byte>();
+            KingdomQuestMaps = Maps.Values
+                .Where(map => map.Kingdom == 1)
+                .ToDictionary(map => map.ID, map => map);
 
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
@@ -93,8 +97,8 @@ namespace NextGen.World.Data
             }
 
             Log.WriteLine(LogLevel.Info,
-                "Loaded KQ metadata: {0} teams, {1} vote flags, {2} vote reasons, {3} vote thresholds.",
-                KingdomQuestTeams.Count, KingdomQuestVoteEnabled.Count,
+                "Loaded KQ metadata: {0} maps, {1} teams, {2} vote flags, {3} vote reasons, {4} vote thresholds.",
+                KingdomQuestMaps.Count, KingdomQuestTeams.Count, KingdomQuestVoteEnabled.Count,
                 KingdomQuestVoteReasons.Count, KingdomQuestVoteMajorityRates.Count);
         }
 
