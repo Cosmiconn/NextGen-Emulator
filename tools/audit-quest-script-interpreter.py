@@ -401,15 +401,22 @@ def audit_full_sql(rows):
     next_links = sum(1 for q,t in links if int(q) + 1 == t)
     missing_links = sorted((q,t) for q,t in links if str(t) not in rows)
     out_of_word = sorted((q,t) for q,t in links if t > 0xffff)
+    native_missing = sorted(
+        (q, t, t & 0xffff) for q, t in links
+        if str(t & 0xffff) not in rows)
     if self_links != 24 or next_links != 253:
         print('FAIL: LINK topology changed:', 'self=', self_links, 'next=', next_links)
         return 1
     if missing_links != [('30015', 300010)] or out_of_word != [('30015', 300010)]:
-        print('FAIL: LINK missing/out-of-WORD targets changed')
+        print('FAIL: LINK source missing/out-of-WORD targets changed')
         print('missing:', missing_links, 'out-of-word:', out_of_word)
         return 1
-    print('PASS: LINK corpus = 348 numeric + 2 blank, 253 next, 24 self')
-    print('REVIEW: preserved source anomaly Quest 30015 -> LINK 300010')
+    if native_missing != [('30015', 300010, 37866)]:
+        print('FAIL: native WORD-truncated LINK targets changed:', native_missing)
+        return 1
+    print('PASS: LINK corpus = 348 numeric + 2 blank, 253 next, 24 explicit self')
+    print('PASS: blank LINK quests 6/385 use native current-QuestID fallback (self-link)')
+    print('PASS: Quest 30015 source 300010 truncates natively to missing WORD target 37866')
 
     q1 = rows.get('1')
     if not (q1 and 'SAY 202 NPC' in q1[0] and 'SAY 203 NPC' in q1[0] and ':MARK1' in q1[0] and 'ACCEPT' in q1[0]):

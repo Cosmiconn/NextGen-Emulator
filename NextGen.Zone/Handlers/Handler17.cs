@@ -275,22 +275,42 @@ namespace NextGen.Zone.Handlers
             }
             if(instruction.OpCode.Equals("LINK",StringComparison.OrdinalIgnoreCase))
             {
-                // Original QSC_LINK is command 11 and stores the target as WORD.
-                // Blank operands and invalid/out-of-range source values therefore
-                // do not get an invented target.
+                // ParserNext command 11 shares the ACCEPT-style WORD operand
+                // parser. Numeric text is atoi'd and stored through AX, so it
+                // truncates to 16 bits. A missing/non-numeric operand falls back
+                // to parser+0x83C, which QuestStart/Doing/End initialize with the
+                // current QuestID.
                 ushort linkedQuestId;
-                if(args.Length<1||!ushort.TryParse(args[0],out linkedQuestId)||linkedQuestId==0)
-                    return true;
+                uint rawLinkedQuestId;
+                if(args.Length<1||!uint.TryParse(args[0],out rawLinkedQuestId))
+                {
+                    if(q==0||q>ushort.MaxValue)
+                    {
+                        EndDialog(character);
+                        return false;
+                    }
+                    linkedQuestId=(ushort)q;
+                }
+                else
+                {
+                    linkedQuestId=unchecked((ushort)rawLinkedQuestId);
+                }
 
                 QuestScriptStage linkedStage;
-                if(!QuestNpcStartResolver.TryResolveLinkedStage(character,linkedQuestId,out linkedStage))
-                    return true;
+                if(linkedQuestId==0||
+                   !QuestNpcStartResolver.TryResolveLinkedStage(character,linkedQuestId,out linkedStage))
+                {
+                    // Native unmatched LINK status/target reaches QuestClose.
+                    EndDialog(character);
+                    return false;
+                }
 
                 QuestScriptInfo linkedInfo;
                 if(!TryGetQuestScriptInfo(linkedQuestId,out linkedInfo))
                 {
                     Log.WriteLine(LogLevel.Debug,"Quest LINK target {0} is not present in data_quest_script.",linkedQuestId);
-                    return true;
+                    EndDialog(character);
+                    return false;
                 }
 
                 DialogSession session;
