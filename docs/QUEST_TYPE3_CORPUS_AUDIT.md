@@ -39,16 +39,24 @@ The observed type sets are:
 Therefore the native Type-3 special comparison is observable in real
 multi-type NPC candidate sets; it is not a theoretical edge case.
 
+## Exact native branch
+
+Direct disassembly of the matching original `Zone.exe` resolves the branch at
+`CQuest::GetQuestStatusWithNPC` `0x0063103A..0x00631060`:
+
+- candidate `Type == 3`, retained type != 3 -> candidate replaces retained;
+- candidate `Type == 3`, retained `Type == 3` -> candidate is rejected;
+- candidate type != 3, retained `Type == 3` -> candidate is rejected;
+- only when neither side is Type 3 does selection continue to the
+  `Start.bQuest`, `Start.bItem`, `Repeatable` and final type-priority predicates.
+
+So Type 3 has an explicit early dominance rule; it is not merely winning because
+`m_QuestTypePriority[3] == 0`.
+
 ## Runtime consequence
 
-`QuestNpcStartResolver.TryCompareOriginal` deliberately returns unresolved
-when equal status priority reaches a comparison between different quest types
-and either side is Type 3. The caller then uses the legacy interaction path.
-
-This fallback is retained until the exact Type-3 branch at
-`CQuest::GetQuestStatusWithNPC` is reconstructed. Replacing it with ordinary
-`m_QuestTypePriority` ordering would be a guess and could select a different
-quest from the original server on all eight NPC families above.
+`QuestNpcStartResolver.TryCompareOriginal` now implements this branch exactly.
+The former Type-3 legacy fallback has been removed.
 
 ## Evidence boundary
 
@@ -62,5 +70,5 @@ Proven:
 
 Unresolved:
 
-- the source-level semantic name of Type 3.
-- the exact replacement/rejection rule in the special branch.
+- the source-level semantic name of Type 3. The comparison behavior itself is
+  now resolved and implemented.
