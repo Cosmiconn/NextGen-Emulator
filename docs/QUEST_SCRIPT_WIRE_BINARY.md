@@ -94,15 +94,22 @@ the game client.
 
 ## Supplied QuestData corpus
 
-All **19,924** SAY commands in the verified 2304-record source fit the native
-text grammar used by the reconstructed parser:
+The verified 2304-record source contains **19,924** SAY commands:
 
-- `SAY <DialogID> NPC`: part of 13,004 NPC-talker commands;
-- `SAY <DialogID> ME`: 6,920 commands;
-- exactly 68 NPC-talker commands include the optional third `NPCNo` operand.
+- 13,004 NPC-talker commands;
+- 6,920 ME-talker commands;
+- exactly 68 NPC-talker commands include the optional third `NPCNo` operand;
+- exactly five Quest 15 Start lines spell the dialog operand with a trailing
+  comma: `SAY 1502, NPC` through `SAY 1506, NPC/ME`.
 
-There are 19,856 two-operand SAY lines and 68 three-operand SAY lines. No other
-SAY operand shape occurs in this corpus.
+There are 19,856 logical two-operand SAY lines and 68 three-operand SAY lines.
+
+The binary tokenizer's default delimiter string at `0x007087FC` is whitespace
+only, and `CQuestParserScript::IsDigitStr` at `0x00636FF0` requires every
+character of the numeric token to be a digit. Therefore the exact native
+preprocessing step that makes those five comma-bearing source lines usable is
+**UNRESOLVED**. The emulator handles only this source-proven trailing-comma
+variant; it does not generalize commas into a new quest-script grammar.
 
 ## Runtime alignment
 
@@ -112,6 +119,8 @@ approximation:
 - the first WORD is the actual QuestID;
 - the full 101-byte QSC layout is emitted;
 - SAY uses a DWORD dialog ID, exact NPC/ME talker enum and the optional NPCNo;
+- the five authoritative Quest 15 `<DialogID>,` spellings are normalized only
+  at the dialog-ID token boundary;
 - unused SAY union bytes remain zero.
 
 The 0x4402 handler now consumes the full DWORD result and validates the echoed

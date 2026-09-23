@@ -19,6 +19,13 @@ EXPECTED_DONE_BY_STAGE = {'Start': 351, 'Action': 1, 'Finish': 2251}
 EXPECTED_ACCEPT_BY_STAGE = {'Start': 2382, 'Finish': 28}
 EXPECTED_SAY_BY_TALKER = {'NPC': 13004, 'ME': 6920}
 EXPECTED_SAY_ARG_COUNTS = {2: 19856, 3: 68}
+EXPECTED_SAY_COMMA_LINES = [
+    ('15', 'Start', 'SAY 1502, NPC'),
+    ('15', 'Start', 'SAY 1503, ME'),
+    ('15', 'Start', 'SAY 1504, NPC'),
+    ('15', 'Start', 'SAY 1505, ME'),
+    ('15', 'Start', 'SAY 1506, NPC'),
+]
 SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd244cc8b8'
 
 def decode_script(raw):
@@ -155,6 +162,7 @@ def audit_full_sql(rows):
     say_by_talker = Counter()
     say_arg_counts = Counter()
     say_explicit_npc = []
+    say_comma_lines = []
     invalid_says = []
     for q, scripts in rows.items():
         stage_labels = {st:labels(s) for st,s in zip(stage_names, scripts)}
@@ -174,13 +182,16 @@ def audit_full_sql(rows):
                 opcodes[opcode] += 1
                 if opcode == 'SAY':
                     command = z.split(';', 1)[0].strip()
-                    m = re.fullmatch(r'SAY\s+(\d+)\s+(NPC|ME)(?:\s+(\d+))?', command, re.I)
+                    m = re.fullmatch(r'SAY\s+(\d+)(,?)\s+(NPC|ME)(?:\s+(\d+))?', command, re.I)
                     if not m:
                         invalid_says.append((q, st, z))
                     else:
                         dialog_id = int(m.group(1))
-                        who = m.group(2).upper()
-                        npc_no = m.group(3)
+                        comma = m.group(2)
+                        who = m.group(3).upper()
+                        npc_no = m.group(4)
+                        if comma:
+                            say_comma_lines.append((q, st, command))
                         say_by_talker[who] += 1
                         say_arg_counts[2 if npc_no is None else 3] += 1
                         if dialog_id > 0xffffffff:
@@ -340,7 +351,11 @@ def audit_full_sql(rows):
     if len(say_explicit_npc) != 68:
         print('FAIL: explicit SAY NPCNo corpus changed:', len(say_explicit_npc))
         return 1
+    if say_comma_lines != EXPECTED_SAY_COMMA_LINES:
+        print('FAIL: SAY comma-source corpus changed:', say_comma_lines)
+        return 1
     print('PASS: SAY corpus = NPC 13004, ME 6920; 68 NPC lines carry explicit NPCNo')
+    print('PASS: exactly 5 Quest 15 Start SAY lines preserve the source comma after DialogID')
     if report_low_item_ids() is False:
         return 1
     if report_low_mob_ids() is False:

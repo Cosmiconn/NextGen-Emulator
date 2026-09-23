@@ -615,7 +615,7 @@ namespace NextGen.Zone.Handlers
                 if (!instruction.OpCode.Equals("SAY", StringComparison.OrdinalIgnoreCase)) continue;
                 string[] args = instruction.Arguments.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                 uint id;
-                if (args.Length > 0 && uint.TryParse(args[0], out id)) return id;
+                if (args.Length > 0 && uint.TryParse(args[0].TrimEnd(','), out id)) return id;
             }
             return 0;
         }
