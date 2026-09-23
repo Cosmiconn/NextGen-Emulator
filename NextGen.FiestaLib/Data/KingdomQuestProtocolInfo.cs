@@ -126,6 +126,28 @@ namespace NextGen.FiestaLib.Data
         }
     }
 
+    /// <summary>
+    /// Native KQ_JOIN_CHAR_INFO carried by NC_KQ_JOIN_LIST_ACK.
+    /// Layout: u8 level, u8 class, Name5[20], u8 team = 23 bytes.
+    /// </summary>
+    public sealed class KingdomQuestJoinCharacterInfo
+    {
+        public const int WireSize = 23;
+
+        public byte Level { get; set; }
+        public byte Class { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public byte Team { get; set; }
+
+        public void Write(Packet packet)
+        {
+            packet.WriteByte(Level);
+            packet.WriteByte(Class);
+            packet.WriteString(Name ?? string.Empty, 20);
+            packet.WriteByte(Team);
+        }
+    }
+
     /// <summary>Native SHINE_XY_TYPE, exactly 8 bytes.</summary>
     public sealed class KingdomQuestXY
     {

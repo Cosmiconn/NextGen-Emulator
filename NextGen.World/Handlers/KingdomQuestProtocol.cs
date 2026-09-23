@@ -176,6 +176,24 @@ namespace NextGen.World.Handlers
             return packet;
         }
 
+        internal static Packet CreateJoinListAck(ushort error,
+            IReadOnlyList<KingdomQuestJoinCharacterInfo> joiners)
+        {
+            if (joiners == null) throw new ArgumentNullException("joiners");
+            if (joiners.Count > byte.MaxValue) throw new ArgumentOutOfRangeException("joiners");
+
+            var packet = new Packet(SH22Type.KingdomQuestJoinListAck);
+            packet.WriteUShort(error);
+            packet.WriteByte((byte)joiners.Count);
+            for (int i = 0; i < joiners.Count; i++)
+            {
+                if (joiners[i] == null)
+                    throw new ArgumentException("KQ join-list entry is null.", "joiners");
+                joiners[i].Write(packet);
+            }
+            return packet;
+        }
+
         internal static Packet CreateFailed()
         {
             return new Packet(SH22Type.KingdomQuestFailed);

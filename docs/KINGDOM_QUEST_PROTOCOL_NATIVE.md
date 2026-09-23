@@ -56,3 +56,25 @@ longer replay unrelated one-time World-login callbacks.
 JOIN_REQ remains disabled even though its packet structures are known:
 admission still requires source-backed KQ definitions, schedule/status and
 membership rules.
+
+## JOIN_LIST_ACK structure closed
+
+The PDB-derived `NC_KQ_JOIN_LIST_ACK` (0x5832) structure is now represented
+explicitly instead of the old capture-era "26-byte type-50 notice" guess:
+
+```text
+u16 Error
+u8  Count
+Count * KQ_JOIN_CHAR_INFO {
+    u8  Level
+    u8  Class
+    char Name5[20]
+    u8  Team
+}
+```
+
+`KingdomQuestJoinCharacterInfo` is therefore exactly 23 bytes and
+`KingdomQuestProtocol.CreateJoinListAck` serializes the native body. The
+client request handler is not enabled yet because the request-side selector
+fields have not been extracted into the committed project evidence; no handle
+or membership query is guessed.

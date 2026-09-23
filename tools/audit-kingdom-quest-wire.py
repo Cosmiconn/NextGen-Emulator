@@ -68,6 +68,9 @@ def main():
         "packet.WriteString(ScriptLanguage ?? string.Empty, 32);",
         "packet.WriteString(ScriptInitValue ?? string.Empty, 32);",
         "new KingdomQuestXY[2]",
+        "public const int WireSize = 23",
+        "packet.WriteString(Name ?? string.Empty, 20);",
+        "packet.WriteByte(Team);",
         "YearFrom1900 = local.Year - 1900",
         "DayOfYearFromZero = local.DayOfYear - 1",
         "packet.WriteInt(YearFrom1900);",
@@ -134,6 +137,12 @@ def main():
             "packet.WriteUShort((ushort)states.Count);",
             "WriteJoiningAlarmInfo(packet, states[i]);",
         ],
+        "join list ack": [
+            "new Packet(SH22Type.KingdomQuestJoinListAck)",
+            "packet.WriteUShort(error);",
+            "packet.WriteByte((byte)joiners.Count);",
+            "joiners[i].Write(packet);",
+        ],
     }
     for label, tokens in checks.items():
         if not require(proto, tokens, label):
@@ -172,6 +181,7 @@ def main():
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
+    print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
     print("PASS: live list remains empty until source-backed KQ definitions/schedules exist")
     print("PASS: KQ join remains disabled until admission/session rules are source-backed")
     return 0
