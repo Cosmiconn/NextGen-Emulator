@@ -281,8 +281,12 @@ namespace NextGen.Zone.Data
         public static int GetEmptyInventorySlots(ZoneCharacter character)
         {
             if (character == null) return 0;
-            int capacity = character.Inventory.InventoryCount * 24;
-            return Math.Max(0, capacity - character.Inventory.InventoryItems.Count);
+
+            // Native CQuestZone::GetQuestPlayerEmptyInventory returns BYTE 0/1,
+            // not the number of free slots. It reports whether the player's item
+            // inventory exposes at least one empty slot.
+            byte slot;
+            return character.Inventory.GetEmptySlot(out slot) ? 1 : 0;
         }
 
         public static bool CreateItem(ZoneCharacter character, ushort itemId, uint amount)

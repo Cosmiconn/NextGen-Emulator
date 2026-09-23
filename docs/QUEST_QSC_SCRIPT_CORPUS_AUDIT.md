@@ -8,7 +8,7 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 
 | Textual command | Corpus occurrences | Native QSC relation | Emulator handling | Status |
 |---|---:|---|---|---|
-| `GET_PLAYER_EMPTY_INVENTORY VAR1` | 676 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → low 8-bit script variable | **PROVEN / ALIGNED**; Handler17 now stores the native byte-width result |
+| `GET_PLAYER_EMPTY_INVENTORY VAR1` | 676 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → native 0/1 byte | **PROVEN / ALIGNED**; returns whether any item-inventory slot is empty, not a free-slot count |
 | `CREATE_ITEM <id> <lot>` | 206 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; DWORD lot width, stack splitting, and real ItemID 0 are handled |
 | `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **PROVEN / ALIGNED**; numeric lots preflight total quantity atomically, ALL consumes the available total, failure emits native QSC error 0x0C0A and closes the script |
 | `ACCEPT [QuestID]` | 2410 | quest parser command; explicit QuestID form proven | `QuestRuntime.Accept` | **PROVEN** |
@@ -102,6 +102,17 @@ the native quest script closes with the proven error path.
 ### GET_PLAYER_* family
 
 The native implementations call the player getter, read its `AL` return value, zero-extend it, and store it at `[player + 0xD0 + QSC.Data * 4]`. These native results are therefore byte-width values. `STRUCT_QSC.Data` is the destination quest-variable index.
+
+For `GET_PLAYER_EMPTY_INVENTORY`, the original
+`CQuestZone::GetQuestPlayerEmptyInventory` routine at `0x005BA680`
+returns exactly `0` or `1`: it returns zero when the player/inventory path
+cannot provide an empty entry and one when at least one empty item-inventory
+entry exists. It does not return the number of free slots.
+
+This matters semantically even though the supplied corpus happens to use the
+result only as a boolean: all 676 writes feed the already-audited
+`IF VAR1 < 1 GOTO ...` shape. The emulator now uses
+`Inventory.GetEmptySlot` and stores native-style 0/1.
 
 ### GET_ITEM_LOT
 
