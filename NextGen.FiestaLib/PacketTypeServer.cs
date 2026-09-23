@@ -447,18 +447,14 @@ namespace NextGen.FiestaLib
     // kreuzverifiziert, siehe DOCUMENTATION.md Abschnitt 54.1.
     public enum SH17Type : byte
     {
-        // Typ-1-Body (105 Byte fuer normale Textseiten): [u16 LE
-        // Sequenzzaehler, wird vom Client in CH17Type.NpcDialogResponse
-        // unveraendert zurueckgeschickt][u32 LE Seitentyp][byte][u16 LE
-        // DialogID aus QuestDialog.shn - bytegenau bestaetigt an 9
-        // aufeinanderfolgenden Zeilen zweier verschiedener Tiros-Quests,
-        // u.a. DialogID 52452-52460][u16 00][u32 00][u16 LE stabile
-        // NPC-Dialogbaum-ID - Tiros=10054, unterscheidet sich von der in
-        // Abschnitt 36/48.3 gefundenen Sera/Julia-ID 10113, beide im
-        // gleichen 10000er-Wertebereich][Rest 0]. Laengere Varianten
-        // (Body-Typ 6 oder 10 statt 2) begleiten [SHOW_REWARD]-Seiten und
-        // enthalten zusaetzliche, noch nicht vollstaendig entschluesselte
-        // Belohnungs-/Zeitstempel-Daten.
+        // Original Zone.exe/PDB: NC_QUEST_SCRIPT_CMD_REQ (0x4401).
+        // Normaler QSC_SAY-Request ist exakt 105 Byte inklusive Opcode:
+        // u16 QuestID + STRUCT_QSC[101]. STRUCT_QSC beginnt mit u32 Cmd,
+        // u8 IsPigeonStartType und einer 96-Byte-Union. Fuer SAY (Cmd=2):
+        // u32 DialogID/nID, u32 TalkerType (0=NPC,1=ME), u16 NPCNo
+        // (default 0xffff), restliche Union-Bytes 0. Die fruehere
+        // Interpretation des ersten WORD als Sequenzzaehler ist damit
+        // durch PDB und Send_NC_QUEST_SCRIPT_CMD_REQ widerlegt.
         NpcDialogMenu = 1,
         // Per echtem Paket-Mitschnitt entdeckt, siehe DOCUMENTATION.md
         // Abschnitt 35. QuestProgressUpdate trat exakt bei jedem

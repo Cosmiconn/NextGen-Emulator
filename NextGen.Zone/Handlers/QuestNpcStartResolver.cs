@@ -74,14 +74,23 @@ namespace NextGen.Zone.Handlers
         public static bool TryResolveForCharacter(NextGen.Zone.Game.ZoneCharacter character, string mobName, out uint dialogId)
         {
             uint questId;
-            return TryResolveForCharacter(character, mobName, out questId, out dialogId);
+            QuestScriptStage stage;
+            return TryResolveForCharacter(character, mobName, out questId, out dialogId, out stage);
         }
 
         public static bool TryResolveForCharacter(NextGen.Zone.Game.ZoneCharacter character, string mobName,
             out uint questId, out uint dialogId)
         {
+            QuestScriptStage stage;
+            return TryResolveForCharacter(character, mobName, out questId, out dialogId, out stage);
+        }
+
+        public static bool TryResolveForCharacter(NextGen.Zone.Game.ZoneCharacter character, string mobName,
+            out uint questId, out uint dialogId, out QuestScriptStage stage)
+        {
             questId = 0;
             dialogId = 0;
+            stage = QuestScriptStage.Start;
             if (character == null) return false;
 
             List<Candidate> candidates;
@@ -128,7 +137,8 @@ namespace NextGen.Zone.Handlers
                     }
                 }
 
-                if (best != null && TryGetDialogForStatus(character, best, bestStatus, out dialogId))
+                if (best != null && TryGetDialogForStatus(
+                        character, best, bestStatus, out dialogId, out stage))
                 {
                     questId = best.QuestID;
                     return true;
@@ -544,14 +554,16 @@ namespace NextGen.Zone.Handlers
         }
 
         private static bool TryGetDialogForStatus(NextGen.Zone.Game.ZoneCharacter character,
-            Candidate candidate, byte status, out uint dialogId)
+            Candidate candidate, byte status, out uint dialogId, out QuestScriptStage stage)
         {
             dialogId = 0;
+            stage = QuestScriptStage.Start;
             if (candidate == null) return false;
 
             if (status == QuestRuntime.PqsAble)
             {
                 dialogId = candidate.DialogID;
+                stage = QuestScriptStage.Start;
                 return dialogId != 0;
             }
 
@@ -563,18 +575,21 @@ namespace NextGen.Zone.Handlers
                 // passed above.
                 if (!IsDoingableLevel(character, candidate)) return false;
                 dialogId = candidate.DialogID;
+                stage = QuestScriptStage.Start;
                 return dialogId != 0;
             }
 
             if (status == QuestRuntime.PqsInProgress)
             {
                 dialogId = candidate.ActionDialogID;
+                stage = QuestScriptStage.Action;
                 return dialogId != 0;
             }
 
             if (status == QuestRuntime.PqsReward)
             {
                 dialogId = candidate.FinishDialogID;
+                stage = QuestScriptStage.Finish;
                 return dialogId != 0;
             }
 

@@ -17,6 +17,8 @@ EXPECTED = {'ACCEPT':2410,'CANCEL':12,'CREATE_ITEM':206,'DELETE_ITEM':1474,'DONE
 EXPECTED_IF_SHAPES = {('RESULT', '=='): 2256, ('VAR1', '<'): 676, ('RESULT', '<'): 104}
 EXPECTED_DONE_BY_STAGE = {'Start': 351, 'Action': 1, 'Finish': 2251}
 EXPECTED_ACCEPT_BY_STAGE = {'Start': 2382, 'Finish': 28}
+EXPECTED_SAY_BY_TALKER = {'NPC': 13004, 'ME': 6920}
+EXPECTED_SAY_ARG_COUNTS = {2: 19856, 3: 68}
 SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd244cc8b8'
 
 def decode_script(raw):
@@ -150,6 +152,10 @@ def audit_full_sql(rows):
     accept_by_stage = Counter()
     explicit_accepts = []
     invalid_accepts = []
+    say_by_talker = Counter()
+    say_arg_counts = Counter()
+    say_explicit_npc = []
+    invalid_says = []
     for q, scripts in rows.items():
         stage_labels = {st:labels(s) for st,s in zip(stage_names, scripts)}
         global_labels = {}
@@ -166,6 +172,24 @@ def audit_full_sql(rows):
                 parts = z.split(None, 1)
                 opcode = parts[0].upper()
                 opcodes[opcode] += 1
+                if opcode == 'SAY':
+                    command = z.split(';', 1)[0].strip()
+                    m = re.fullmatch(r'SAY\s+(\d+)\s+(NPC|ME)(?:\s+(\d+))?', command, re.I)
+                    if not m:
+                        invalid_says.append((q, st, z))
+                    else:
+                        dialog_id = int(m.group(1))
+                        who = m.group(2).upper()
+                        npc_no = m.group(3)
+                        say_by_talker[who] += 1
+                        say_arg_counts[2 if npc_no is None else 3] += 1
+                        if dialog_id > 0xffffffff:
+                            invalid_says.append((q, st, z))
+                        if npc_no is not None:
+                            if who != 'NPC' or int(npc_no) > 0xffff:
+                                invalid_says.append((q, st, z))
+                            else:
+                                say_explicit_npc.append((q, int(npc_no)))
                 if opcode == 'ACCEPT':
                     seen_accept = True
                     accept_by_stage[st] += 1
@@ -304,6 +328,19 @@ def audit_full_sql(rows):
         return 1
     print('PASS: ACCEPT corpus = Start 2382, Finish 28, explicit targets 22')
     print('PASS: cross-quest ACCEPT targets are exactly Quest 5 -> 6 and Quest 384 -> 385')
+    if invalid_says:
+        print('FAIL: malformed SAY operands:', invalid_says[:20])
+        return 1
+    if say_by_talker != Counter(EXPECTED_SAY_BY_TALKER):
+        print('FAIL: SAY talker corpus changed:', dict(say_by_talker))
+        return 1
+    if say_arg_counts != Counter(EXPECTED_SAY_ARG_COUNTS):
+        print('FAIL: SAY operand-count corpus changed:', dict(say_arg_counts))
+        return 1
+    if len(say_explicit_npc) != 68:
+        print('FAIL: explicit SAY NPCNo corpus changed:', len(say_explicit_npc))
+        return 1
+    print('PASS: SAY corpus = NPC 13004, ME 6920; 68 NPC lines carry explicit NPCNo')
     if report_low_item_ids() is False:
         return 1
     if report_low_mob_ids() is False:

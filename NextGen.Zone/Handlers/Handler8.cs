@@ -325,10 +325,14 @@ namespace NextGen.Zone.Handlers
 					// The resolver uses the original Zone.exe status-priority table when an NPC
 					// has several dialogs. Equal-priority cases still fall back rather than
 					// guessing the remaining original predicates.
+					uint questId;
 					uint questDialogId;
-					if (QuestNpcStartResolver.TryResolveForCharacter(client.Character, npc.Point.MobName, out questDialogId))
+					QuestScriptStage questStage;
+					if (QuestNpcStartResolver.TryResolveForCharacter(
+							client.Character, npc.Point.MobName,
+							out questId, out questDialogId, out questStage))
 					{
-						Handler17.SendDialogPage(client, questDialogId);
+						Handler17.SendDialogPage(client, questId, questDialogId, questStage);
 						break;
 					}
 

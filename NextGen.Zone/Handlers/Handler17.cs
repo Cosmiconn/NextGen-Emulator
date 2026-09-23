@@ -13,7 +13,7 @@ namespace NextGen.Zone.Handlers
 {
     public static class Handler17
     {
-        private sealed class DialogSession { public uint DialogID; public ushort Seq; public QuestScriptMachine Machine; public ushort PendingScenarioID; public bool ScenarioPending; }
+        private sealed class DialogSession { public uint DialogID; public ushort QuestID; public QuestScriptMachine Machine; public ushort PendingScenarioID; public bool ScenarioPending; }
         private sealed class DialogScriptContext { public QuestScriptInfo Info; public QuestScriptStage Stage; public int InstructionIndex; }
         private static readonly object Sync = new object();
         private static readonly Dictionary<int, DialogSession> Sessions = new Dictionary<int, DialogSession>();
@@ -37,9 +37,10 @@ namespace NextGen.Zone.Handlers
             {
                 uint selectedQuestId;
                 uint dialogId;
+                QuestScriptStage selectedStage;
                 if (QuestNpcStartResolver.TryResolveForCharacter(
                         client.Character, target.Point.MobName,
-                        out selectedQuestId, out dialogId) &&
+                        out selectedQuestId, out dialogId, out selectedStage) &&
                     selectedQuestId == requestedQuestId)
                 {
                     DialogSession current;
@@ -50,8 +51,8 @@ namespace NextGen.Zone.Handlers
                     // clients following the legacy interaction path. Do not
                     // duplicate that page, but still acknowledge the proven
                     // 0x440F request.
-                    if (current == null || current.DialogID != dialogId)
-                        SendDialogPage(client, dialogId);
+                    if (current == null || current.DialogID != dialogId || current.QuestID != requestedQuestId)
+                        SendDialogPage(client, selectedQuestId, dialogId, selectedStage);
 
                     result = QuestSelectStartSuccess;
                 }
@@ -74,7 +75,77 @@ namespace NextGen.Zone.Handlers
 
         [PacketHandler(CH17Type.RewardSelectItemIndex)] public static void RewardSelectItemIndexHandler(ZoneClient client, Packet packet){ushort questId;uint selectedIndex;if(!packet.TryReadUShort(out questId)||!packet.TryReadUInt(out selectedIndex))return;if(QuestRuntime.Complete(client.Character,questId,selectedIndex,true)){DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session!=null)ContinueSession(client,session);else EndDialog(client.Character);}}
         [PacketHandler(CH17Type.ScenarioDoneReq)] public static void ScenarioDoneReqHandler(ZoneClient client,Packet packet){ushort scenarioId;if(!packet.TryReadUShort(out scenarioId))return;DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session==null||session.Machine==null||!session.ScenarioPending||session.PendingScenarioID!=scenarioId)return;uint questId=session.Machine.Graph.Info.QuestID;if(!QuestRuntime.RecordScenarioDone(client.Character,questId,scenarioId))return;session.ScenarioPending=false;session.PendingScenarioID=0;using(var ack=new Packet((ushort)0x440C)){ack.WriteUShort(scenarioId);client.SendPacket(ack);}ContinueSession(client,session);}
-        [PacketHandler(CH17Type.NpcDialogResponse)] public static void NpcDialogResponseHandler(ZoneClient client,Packet packet){ushort seq;byte marker,button;if(!packet.TryReadUShort(out seq)||!packet.TryReadByte(out marker)||!packet.TryReadByte(out button))return;DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session==null||session.Seq!=seq)return;QuestDialogInfo current;if(!DataProvider.Instance.QuestDialogsByID.TryGetValue(session.DialogID,out current)){EndDialog(client.Character);return;}if(current.Text!=null&&current.Text.Contains("[MENU]")){EndDialog(client.Character);return;}if(session.Machine!=null){session.Machine.State.Result=button;for(int guard=0;guard<100;guard++){QuestScriptStep step=session.Machine.Next();if(step.Type==QuestScriptStepType.Say){uint next;if(TryGetSayDialogId(step.Instruction,out next)){SendDialogPage(client,next,session.Machine);return;}}else if(step.Type==QuestScriptStepType.Command){if(!ExecuteQuestCommand(client.Character,session.Machine,step.Instruction))return;continue;}else if(step.Type==QuestScriptStepType.End||step.Type==QuestScriptStepType.Error){if(step.Type==QuestScriptStepType.Error)LogScriptError(client.Character,session.Machine,step);EndDialog(client.Character);return;}else break;}EndDialog(client.Character);return;}SendDialogPage(client,session.DialogID+1,null);}
+        [PacketHandler(CH17Type.NpcDialogResponse)]
+        public static void NpcDialogResponseHandler(ZoneClient client, Packet packet)
+        {
+            // Original PROTO_NC_QUEST_SCRIPT_CMD_ACK is exactly:
+            //   WORD nQuestID, BYTE nQSC, DWORD nResult.
+            ushort questId;
+            byte qsc;
+            uint result;
+            if (!packet.TryReadUShort(out questId) ||
+                !packet.TryReadByte(out qsc) ||
+                !packet.TryReadUInt(out result))
+                return;
+
+            DialogSession session;
+            lock (Sync) { Sessions.TryGetValue(client.Character.ID, out session); }
+            if (session == null || session.QuestID != questId || qsc != 2)
+                return;
+
+            QuestDialogInfo current;
+            if (!DataProvider.Instance.QuestDialogsByID.TryGetValue(session.DialogID, out current))
+            {
+                EndDialog(client.Character);
+                return;
+            }
+
+            if (current.Text != null && current.Text.Contains("[MENU]"))
+            {
+                EndDialog(client.Character);
+                return;
+            }
+
+            if (session.Machine == null)
+            {
+                EndDialog(client.Character);
+                return;
+            }
+
+            session.Machine.State.Result = unchecked((int)result);
+            for (int guard = 0; guard < 100; guard++)
+            {
+                QuestScriptStep step = session.Machine.Next();
+                if (step.Type == QuestScriptStepType.Say)
+                {
+                    uint next;
+                    if (TryGetSayDialogId(step.Instruction, out next))
+                    {
+                        SendDialogPage(client, next, session.Machine, step.Instruction);
+                        return;
+                    }
+                }
+                else if (step.Type == QuestScriptStepType.Command)
+                {
+                    if (!ExecuteQuestCommand(client.Character, session.Machine, step.Instruction))
+                        return;
+                    continue;
+                }
+                else if (step.Type == QuestScriptStepType.End ||
+                         step.Type == QuestScriptStepType.Error)
+                {
+                    if (step.Type == QuestScriptStepType.Error)
+                        LogScriptError(client.Character, session.Machine, step);
+                    EndDialog(client.Character);
+                    return;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            EndDialog(client.Character);
+        }
 
         private static bool ExecuteQuestCommand(Game.ZoneCharacter character,QuestScriptMachine machine,QuestScriptInstruction instruction)
         {
@@ -150,9 +221,197 @@ namespace NextGen.Zone.Handlers
             }
             return true;
         }
-        private static void ContinueSession(ZoneClient client,DialogSession session){for(int guard=0;guard<100;guard++){QuestScriptStep step=session.Machine.Next();if(step.Type==QuestScriptStepType.Say){uint next;if(TryGetSayDialogId(step.Instruction,out next)){SendDialogPage(client,next,session.Machine);return;}}else if(step.Type==QuestScriptStepType.Command){if(!ExecuteQuestCommand(client.Character,session.Machine,step.Instruction))return;continue;}else if(step.Type==QuestScriptStepType.End||step.Type==QuestScriptStepType.Error){if(step.Type==QuestScriptStepType.Error)LogScriptError(client.Character,session.Machine,step);EndDialog(client.Character);return;}else return;}EndDialog(client.Character);}
-        public static void SendDialogPage(ZoneClient client,uint dialogId){DialogScriptContext context;QuestScriptMachine machine=null;if(TryFindDialogContext(dialogId,out context)){machine=new QuestScriptMachine(context.Info,context.Stage);machine.State.InstructionIndex=context.InstructionIndex+1;}SendDialogPage(client,dialogId,machine);}
-        private static void SendDialogPage(ZoneClient client,uint dialogId,QuestScriptMachine machine){QuestDialogInfo info;if(!DataProvider.Instance.QuestDialogsByID.TryGetValue(dialogId,out info)){EndDialog(client.Character);return;}DialogSession session;lock(Sync){DialogSession previous;Sessions.TryGetValue(client.Character.ID,out previous);ushort seq=previous==null?(ushort)1:(ushort)(previous.Seq+1);session=new DialogSession{DialogID=dialogId,Seq=seq,Machine=machine,PendingScenarioID=0,ScenarioPending=false};Sessions[client.Character.ID]=session;}using(var p=new Packet(SH17Type.NpcDialogMenu)){p.WriteUShort(session.Seq);p.WriteUInt(2);p.WriteByte(0);p.WriteUShort((ushort)dialogId);p.Fill(94,0);client.SendPacket(p);}}
+        private static void ContinueSession(ZoneClient client, DialogSession session)
+        {
+            if (session == null || session.Machine == null)
+            {
+                EndDialog(client.Character);
+                return;
+            }
+
+            for (int guard = 0; guard < 100; guard++)
+            {
+                QuestScriptStep step = session.Machine.Next();
+                if (step.Type == QuestScriptStepType.Say)
+                {
+                    uint next;
+                    if (TryGetSayDialogId(step.Instruction, out next))
+                    {
+                        SendDialogPage(client, next, session.Machine, step.Instruction);
+                        return;
+                    }
+                }
+                else if (step.Type == QuestScriptStepType.Command)
+                {
+                    if (!ExecuteQuestCommand(client.Character, session.Machine, step.Instruction))
+                        return;
+                    continue;
+                }
+                else if (step.Type == QuestScriptStepType.End ||
+                         step.Type == QuestScriptStepType.Error)
+                {
+                    if (step.Type == QuestScriptStepType.Error)
+                        LogScriptError(client.Character, session.Machine, step);
+                    EndDialog(client.Character);
+                    return;
+                }
+                else
+                {
+                    return;
+                }
+            }
+            EndDialog(client.Character);
+        }
+
+        public static void SendDialogPage(ZoneClient client, uint dialogId)
+        {
+            DialogScriptContext context;
+            if (!TryFindDialogContext(dialogId, out context))
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "Quest dialog {0} has no unique script context; refusing guessed 0x4401 payload.",
+                    dialogId);
+                EndDialog(client.Character);
+                return;
+            }
+            SendDialogPage(client, context.Info.QuestID, dialogId, context.Stage);
+        }
+
+        public static void SendDialogPage(ZoneClient client, uint questId,
+            uint dialogId, QuestScriptStage stage)
+        {
+            if (questId == 0 || questId > ushort.MaxValue)
+            {
+                EndDialog(client.Character);
+                return;
+            }
+
+            QuestScriptInfo info;
+            if (!TryGetQuestScriptInfo(questId, out info))
+            {
+                EndDialog(client.Character);
+                return;
+            }
+
+            QuestScriptProgram program = GetProgram(info, stage);
+            for (int i = 0; i < program.Instructions.Count; i++)
+            {
+                QuestScriptInstruction instruction = program.Instructions[i];
+                uint candidateDialog;
+                if (!instruction.OpCode.Equals("SAY", StringComparison.OrdinalIgnoreCase) ||
+                    !TryGetSayDialogId(instruction, out candidateDialog) ||
+                    candidateDialog != dialogId)
+                    continue;
+
+                QuestScriptMachine machine = new QuestScriptMachine(info, stage);
+                machine.State.InstructionIndex = i + 1;
+                SendDialogPage(client, dialogId, machine, instruction);
+                return;
+            }
+
+            Log.WriteLine(LogLevel.Warn,
+                "Quest {0} stage {1} has no SAY for dialog {2}; refusing guessed 0x4401 payload.",
+                questId, stage, dialogId);
+            EndDialog(client.Character);
+        }
+
+        private static void SendDialogPage(ZoneClient client, uint dialogId,
+            QuestScriptMachine machine, QuestScriptInstruction sayInstruction)
+        {
+            QuestDialogInfo info;
+            if (!DataProvider.Instance.QuestDialogsByID.TryGetValue(dialogId, out info) ||
+                machine == null)
+            {
+                EndDialog(client.Character);
+                return;
+            }
+
+            uint parsedDialogId;
+            uint talkerType;
+            ushort npcNo;
+            if (!TryGetSayFields(sayInstruction, out parsedDialogId, out talkerType, out npcNo) ||
+                parsedDialogId != dialogId)
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "Quest {0} SAY payload for dialog {1} is not source-faithful.",
+                    machine.Graph.Info.QuestID, dialogId);
+                EndDialog(client.Character);
+                return;
+            }
+
+            uint questId = machine.Graph.Info.QuestID;
+            if (questId == 0 || questId > ushort.MaxValue)
+            {
+                EndDialog(client.Character);
+                return;
+            }
+
+            DialogSession session = new DialogSession
+            {
+                DialogID = dialogId,
+                QuestID = (ushort)questId,
+                Machine = machine,
+                PendingScenarioID = 0,
+                ScenarioPending = false
+            };
+            lock (Sync) { Sessions[client.Character.ID] = session; }
+
+            // Native CQuestZone::Send_NC_QUEST_SCRIPT_CMD_REQ at 0x005BA960
+            // sends opcode 0x4401 followed by WORD QuestID and the complete
+            // 101-byte STRUCT_QSC. ParserNext initializes IsPigeonStartType
+            // to zero. For QSC_SAY (2), the union is:
+            // DWORD nID, DWORD TalkerType, WORD NPCNo, then unused union bytes.
+            using (var p = new Packet(SH17Type.NpcDialogMenu))
+            {
+                p.WriteUShort(session.QuestID);
+                p.WriteUInt(2);
+                p.WriteByte(0);
+                p.WriteUInt(parsedDialogId);
+                p.WriteUInt(talkerType);
+                p.WriteUShort(npcNo);
+                p.Fill(86, 0);
+                client.SendPacket(p);
+            }
+        }
+
+        private static QuestScriptProgram GetProgram(QuestScriptInfo info, QuestScriptStage stage)
+        {
+            if (stage == QuestScriptStage.Action) return info.Action;
+            if (stage == QuestScriptStage.Finish) return info.Finish;
+            return info.Start;
+        }
+
+        private static bool TryGetSayFields(QuestScriptInstruction instruction,
+            out uint dialogId, out uint talkerType, out ushort npcNo)
+        {
+            dialogId = 0;
+            talkerType = 0;
+            npcNo = ushort.MaxValue;
+            if (instruction == null ||
+                !instruction.OpCode.Equals("SAY", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            string[] parts = instruction.Arguments.Split(
+                new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2 || !uint.TryParse(parts[0], out dialogId))
+                return false;
+
+            if (parts[1].Equals("NPC", StringComparison.OrdinalIgnoreCase))
+            {
+                talkerType = 0;
+                if (parts.Length == 2) return true;
+                return parts.Length == 3 && ushort.TryParse(parts[2], out npcNo);
+            }
+
+            if (parts[1].Equals("ME", StringComparison.OrdinalIgnoreCase))
+            {
+                talkerType = 1;
+                return parts.Length == 2;
+            }
+
+            return false;
+        }
+
         private static bool TryFindDialogContext(uint dialogId,out DialogScriptContext context){EnsureContexts();lock(Sync){if(AmbiguousDialogs.Contains(dialogId)){context=null;return false;}return DialogContexts.TryGetValue(dialogId,out context);}}
         private static void EnsureContexts(){lock(Sync){if(DialogContexts!=null)return;DialogContexts=new Dictionary<uint,DialogScriptContext>();QuestScriptsById=new Dictionary<uint,QuestScriptInfo>();AmbiguousDialogs=new HashSet<uint>();try{using(DatabaseClient db=Program.DatabaseManager.GetClient()){DataTable rows=db.ReadDataTable("SELECT * FROM data_quest_script");if(rows==null)return;foreach(DataRow row in rows.Rows){QuestScriptInfo info=QuestScriptInfo.Load(row);QuestScriptsById[info.QuestID]=info;Index(info,QuestScriptStage.Start,info.Start);Index(info,QuestScriptStage.Action,info.Action);Index(info,QuestScriptStage.Finish,info.Finish);}}}catch(Exception ex){Log.WriteLine(LogLevel.Warn,"Quest script index failed: {0}",ex.Message);}}}
         private static bool TryGetQuestScriptInfo(uint questId,out QuestScriptInfo info){EnsureContexts();lock(Sync){info=null;return QuestScriptsById!=null&&QuestScriptsById.TryGetValue(questId,out info);}}

@@ -213,9 +213,10 @@ public enum CH42Type : byte {
 }
 
 // Per echtem Paket-Mitschnitt entdeckt (2016er Client gegen Original-
-// Server, Quest-Abgabe-Sequenz bei NPC Julia) - noch nicht implementiert,
-// nur der Opcode dokumentiert. Siehe DOCUMENTATION.md Abschnitt 30.
-// Typ-2 (Antwort auf das NPC-Dialogmenue) beobachtet, 9 Byte.
+// Server, Quest-Abgabe-Sequenz bei NPC Julia). Typ 2 ist durch
+// PROTO_NC_QUEST_SCRIPT_CMD_ACK und CQuestZone::Recv_NC_QUEST_SCRIPT_CMD_ACK
+// vollstaendig aufgeloest: 9 Byte inklusive Opcode, Body =
+// u16 QuestID + u8 QSC command + u32 Result.
 public enum CH17Type : byte {
     NpcDialogResponse = 2,
     // Header 17 / Type 13 / Opcode 0x440D: Client bestätigt das Ende
