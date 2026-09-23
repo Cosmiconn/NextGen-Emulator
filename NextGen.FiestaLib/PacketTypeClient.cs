@@ -225,8 +225,8 @@ public enum CH17Type : byte {
     // Original Zone.exe / PROTO_NC_QUEST_SELECT_START_REQ:
     // Header 17 / Type 15 / Opcode 0x440F, Payload: NPCID u16 + QuestID u16.
     QuestSelectStart = 15,
-    // Header 17 / Type 17 / Opcode 0x4411: Auswahl eines konkreten
-    // selektierbaren Quest-Reward-Items. QuestID u16 + Auswahlindex u32.
+    // Header 17 / Type 17 / Opcode 0x4411. Native body:
+    // QuestID u16 + raw QuestData reward-array Slot u32 (0..11).
     RewardSelectItemIndex = 17,
 }
 // Folgt unmittelbar auf die Quest-Belohnungs-Paketkaskade (SH4Type.Money/

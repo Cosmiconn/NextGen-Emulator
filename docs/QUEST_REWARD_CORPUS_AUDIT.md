@@ -78,3 +78,58 @@ Item rewards are delivered before EXP/money/fame/kill-point mutations. This prev
 The aggregate preflight is a conservative emulator guard derived from the proven native reward-before-completion ordering. It is not claimed to reproduce the original ItemDB transaction byte-for-byte.
 
 Exact `NC_ITEMDB_QUESTREWARD_REQ/ACK` field semantics, server-side transactional rollback, and capture correlation remain separate reverse-engineering targets.
+
+
+## Native selectable-reward protocol
+
+The remaining selection path is now reconstructed directly from the original
+`Zone.exe`.
+
+`CQuestZone::Recv_NC_QUEST_REWARD_SELECT_ITEM_INDEX_CMD` at `0x005BB490`
+accepts exactly:
+
+```text
+u16 QuestID
+u32 selected reward slot
+```
+
+It validates the QuestID against the currently driven quest and stores the DWORD
+at `CQuestZone + 0x90C`. The handler itself does **not** complete the quest.
+The emulator now does the same: `0x4411` records selection state only, so a
+selection made while the final SAY dialog is open cannot prematurely execute
+DONE.
+
+`CQuestZone::QuestCheckSelectReward` at `0x005BA0E0` loops the twelve
+QuestData reward entries. For every `UseType=2` row it compares the selected
+DWORD with the **absolute reward-array slot index (0..11)**. It is not the
+ordinal among selectable rows. If there are no selectable rows, the check
+succeeds without a selection.
+
+On QSC_DONE, an invalid/missing selection calls
+`CQuestZone::Send_NC_QUEST_REWARD_NEED_SELECT_ITEM_CMD` at `0x005BB570`:
+
+```text
+opcode 0x4412
+u16 QuestID
+total packet length: 4 bytes
+```
+
+The emulator now emits this request and keeps DONE paused instead of silently
+waiting with no client packet.
+
+The same DONE branch also proves these raw failure values:
+
+- missing `PLAYER_QUEST_INFO` -> `0x0C07`;
+- `IsRewardAbleQuest` false -> `0x0C08`.
+
+Both are sent through the already-reconstructed QSC_ERROR path before
+`QuestClose`.
+
+### Remaining boundary
+
+The original `0x4411` receive routine itself only stores the selected slot.
+The exact client/server event that re-enters the already-pending DONE after a
+server-forced `0x4412` request is still **UNRESOLVED**. The emulator therefore
+does not invent an automatic completion side effect on `0x4411`; normal
+selection-before-DONE behavior is fully aligned, while that fallback wake-up
+remains an explicit wire-state target.

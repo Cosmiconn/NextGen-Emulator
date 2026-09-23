@@ -464,6 +464,9 @@ namespace NextGen.FiestaLib
         // Header 17 / Type 16 / Opcode 0x4410, body:
         // NPCID u16 + QuestID u16 + ErrorType u16.
         QuestSelectStartAck = 16,
+        // Original Send_NC_QUEST_REWARD_NEED_SELECT_ITEM_CMD:
+        // Header 17 / Type 18 / opcode 0x4412, body QuestID u16.
+        RewardNeedSelectItem = 18,
         DialogSessionStart = 30,
     }
     // Unmittelbar nach der Quest-Belohnungs-Paketkaskade beobachtet

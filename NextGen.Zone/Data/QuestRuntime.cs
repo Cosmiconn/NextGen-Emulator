@@ -446,38 +446,75 @@ namespace NextGen.Zone.Data
             catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest completion check failed {0}: {1}", questId, ex.Message); return false; }
         }
 
-        public static bool Complete(ZoneCharacter c, uint questId, uint selectedIndex = 0, bool selectionProvided = false)
+        public static bool Complete(ZoneCharacter c, uint questId,
+            uint selectedIndex = 0, bool selectionProvided = false)
         {
-            if (!IsComplete(c, questId)) return false;
+            ushort ignoredError;
+            bool ignoredNeedSelection;
+            return Complete(c, questId, selectedIndex, selectionProvided,
+                out ignoredError, out ignoredNeedSelection);
+        }
+
+        public static bool Complete(ZoneCharacter c, uint questId,
+            uint selectedIndex, bool selectionProvided,
+            out ushort nativeErrorCode, out bool needsRewardSelection)
+        {
+            nativeErrorCode = 0;
+            needsRewardSelection = false;
+            if (c == null || questId == 0 || questId > ushort.MaxValue) return false;
+
             try
             {
                 using (DatabaseClient dataDb = Program.DatabaseManager.GetClient())
                 using (DatabaseClient charDb = Program.CharDBManager.GetClient())
                 {
-                    if (!selectionProvided && NeedsRewardSelection(dataDb, questId)) return false;
-                    if (selectionProvided && !HasSelectableRewardIndex(dataDb, questId, selectedIndex)) return false;
-                    DataTable state = charDb.ReadDataTable("SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
-                    if (state == null || state.Rows.Count == 0 || Convert.ToByte(state.Rows[0]["nStatus"]) != PqsInProgress) return false;
+                    // Native QSC_DONE first resolves PLAYER_QUEST_INFO. Missing
+                    // state reports raw error 0x0C07 and closes the quest.
+                    DataTable state = charDb.ReadDataTable(
+                        "SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q",
+                        new MySqlParameter("@c", c.ID),
+                        new MySqlParameter("@q", questId));
+                    if (state == null || state.Rows.Count == 0)
+                    {
+                        nativeErrorCode = 0x0C07;
+                        return false;
+                    }
+
+                    // IsRewardAbleQuest is the next native gate. The live DONE
+                    // path is for an in-progress quest; any non-ING state or
+                    // failed end condition maps to raw error 0x0C08.
+                    if (Convert.ToByte(state.Rows[0]["nStatus"]) != PqsInProgress ||
+                        !IsComplete(c, questId))
+                    {
+                        nativeErrorCode = 0x0C08;
+                        return false;
+                    }
+
+                    bool hasSelectable = NeedsRewardSelection(dataDb, questId);
+                    if (hasSelectable &&
+                        (!selectionProvided ||
+                         !HasSelectableRewardSlot(dataDb, questId, selectedIndex)))
+                    {
+                        // QuestCheckSelectReward returns false here; QuestNext
+                        // sends 0x4412 and leaves the current DONE pending.
+                        needsRewardSelection = true;
+                        return false;
+                    }
+
                     // Native CQuest::SetQuestDone reaches the 0x0062F610 mutation helper:
                     // non-repeatable -> PQS_DONE (2), repeatable -> PQS_SOON (3).
-                    // PQS_REPEAT (4) is a later/re-acceptable state and must not be
-                    // collapsed into the completion transition.
                     byte completionStatus = IsRepeatable(dataDb, questId) ? PqsSoon : PqsDone;
-                    // Native completion is downstream of the successful ItemDB
-                    // quest-reward acknowledgement, and the ACK handler calls
-                    // QuestNext only after the completion mutation. Keep reward ->
-                    // completion -> remaining commands in the current quest-script stage.
-                    // This is observable in the supplied corpus: quests such as
-                    // 230/250 reward an ItemID at DONE and then DELETE_ITEM the
-                    // same ItemID after QuestNext resumes.
-                    // Never move the quest to its completed state when the reward
-                    // set cannot be delivered.
+
+                    // Native completion is downstream of successful reward
+                    // delivery. Keep reward -> completion -> remaining script.
                     if (!ApplyRewards(dataDb, c, questId, selectedIndex)) return false;
+
                     DateTime completedAt = DateTime.Now;
-                    charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@s", completionStatus), new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
-                    // Native completion stores a completion counter at
-                    // PLAYER_QUEST_INFO+0x13 and a 64-bit completion timestamp at
-                    // +0x0B/+0x0F. Keep the normalized SQL equivalent in tQuestTimes.
+                    charDb.ExecuteQuery(
+                        "UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q",
+                        new MySqlParameter("@s", completionStatus),
+                        new MySqlParameter("@c", c.ID),
+                        new MySqlParameter("@q", questId));
                     charDb.ExecuteQuery(
                         "INSERT INTO tQuestTimes (nCharNo,nQuestNo,nTimes,dLastComplete) VALUES (@c,@q,1,@t) " +
                         "ON DUPLICATE KEY UPDATE nTimes=nTimes+1,dLastComplete=@t",
@@ -487,7 +524,12 @@ namespace NextGen.Zone.Data
                     return true;
                 }
             }
-            catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest completion failed {0}: {1}", questId, ex.Message); return false; }
+            catch (Exception ex)
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "Quest completion failed {0}: {1}", questId, ex.Message);
+                return false;
+            }
         }
 
         public static bool TryEvaluateDailyPrerequisite(int characterId, uint questId,
@@ -572,10 +614,17 @@ namespace NextGen.Zone.Data
             return rows != null && rows.Rows.Count > 0 && Convert.ToByte(rows.Rows[0]["Repeatable"]) != 0;
         }
 
-        private static bool HasSelectableRewardIndex(DatabaseClient db, uint questId, uint selectedIndex)
+        private static bool HasSelectableRewardSlot(DatabaseClient db, uint questId, uint selectedIndex)
         {
-            DataTable rows = db.ReadDataTable("SELECT Slot FROM QuestData_Reward WHERE QuestID=@q AND UseType=2 ORDER BY Slot", new MySqlParameter("@q", questId));
-            return rows != null && selectedIndex < rows.Rows.Count;
+            // Native QuestCheckSelectReward compares the received DWORD against
+            // the absolute 0..11 reward-array slot, not the ordinal among
+            // selectable rewards.
+            if (selectedIndex >= 12) return false;
+            DataTable rows = db.ReadDataTable(
+                "SELECT 1 FROM QuestData_Reward WHERE QuestID=@q AND UseType=2 AND Slot=@slot LIMIT 1",
+                new MySqlParameter("@q", questId),
+                new MySqlParameter("@slot", selectedIndex));
+            return rows != null && rows.Rows.Count != 0;
         }
 
         private static bool ApplyRewards(DatabaseClient db, ZoneCharacter c, uint questId, uint selectedIndex)
@@ -587,13 +636,13 @@ namespace NextGen.Zone.Data
             if (rows == null) return false;
 
             List<DataRow> applicable = new List<DataRow>();
-            uint selectable = 0;
             foreach (DataRow r in rows.Rows)
             {
                 byte use = Convert.ToByte(r["UseType"]);
                 if (use == 1)
                     applicable.Add(r);
-                else if (use == 2 && selectable++ == selectedIndex)
+                else if (use == 2 &&
+                         Convert.ToUInt32(r["Slot"]) == selectedIndex)
                     applicable.Add(r);
             }
 

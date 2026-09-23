@@ -13,7 +13,18 @@ namespace NextGen.Zone.Handlers
 {
     public static class Handler17
     {
-        private sealed class DialogSession { public uint DialogID; public ushort QuestID; public QuestScriptMachine Machine; public ushort PendingScenarioID; public bool ScenarioPending; }
+        private sealed class DialogSession
+        {
+            public uint DialogID;
+            public ushort QuestID;
+            public QuestScriptMachine Machine;
+            public ushort PendingScenarioID;
+            public bool ScenarioPending;
+            // Native CQuestZone stores the selected raw QuestData reward slot at
+            // this+0x90C and resets it to -1 on QuestStart/Doing/End.
+            public uint SelectedRewardSlot = uint.MaxValue;
+            public bool RewardSelectionPending;
+        }
         private sealed class DialogScriptContext { public QuestScriptInfo Info; public QuestScriptStage Stage; public int InstructionIndex; }
         private static readonly object Sync = new object();
         private static readonly Dictionary<int, DialogSession> Sessions = new Dictionary<int, DialogSession>();
@@ -116,7 +127,42 @@ namespace NextGen.Zone.Handlers
             }
         }
 
-        [PacketHandler(CH17Type.RewardSelectItemIndex)] public static void RewardSelectItemIndexHandler(ZoneClient client, Packet packet){ushort questId;uint selectedIndex;if(!packet.TryReadUShort(out questId)||!packet.TryReadUInt(out selectedIndex))return;if(QuestRuntime.Complete(client.Character,questId,selectedIndex,true)){DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session!=null)ContinueSession(client,session);else EndDialog(client.Character);}}
+        private static void SendRewardNeedSelectItem(Game.ZoneCharacter character, uint questId)
+        {
+            if (character == null || character.Client == null ||
+                questId == 0 || questId > ushort.MaxValue)
+                return;
+
+            // CQuestZone::Send_NC_QUEST_REWARD_NEED_SELECT_ITEM_CMD
+            // (0x005BB570): opcode 0x4412 + WORD QuestID, 4 bytes total.
+            using (var p = new Packet(SH17Type.RewardNeedSelectItem))
+            {
+                p.WriteUShort((ushort)questId);
+                character.Client.SendPacket(p);
+            }
+        }
+
+        [PacketHandler(CH17Type.RewardSelectItemIndex)]
+        public static void RewardSelectItemIndexHandler(ZoneClient client, Packet packet)
+        {
+            ushort questId;
+            uint selectedSlot;
+            if (!packet.TryReadUShort(out questId) || !packet.TryReadUInt(out selectedSlot))
+                return;
+
+            // Native Recv_NC_QUEST_REWARD_SELECT_ITEM_INDEX_CMD (0x005BB490)
+            // validates the current quest ID and only stores the DWORD selection
+            // at CQuestZone+0x90C. Completion remains driven by QSC_DONE.
+            lock (Sync)
+            {
+                DialogSession session;
+                if (!Sessions.TryGetValue(client.Character.ID, out session) ||
+                    session == null || session.Machine == null ||
+                    session.QuestID != questId)
+                    return;
+                session.SelectedRewardSlot = selectedSlot;
+            }
+        }
         [PacketHandler(CH17Type.ScenarioDoneReq)] public static void ScenarioDoneReqHandler(ZoneClient client,Packet packet){ushort scenarioId;if(!packet.TryReadUShort(out scenarioId))return;DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session==null||session.Machine==null||!session.ScenarioPending||session.PendingScenarioID!=scenarioId)return;uint questId=session.Machine.Graph.Info.QuestID;if(!QuestRuntime.RecordScenarioDone(client.Character,questId,scenarioId))return;session.ScenarioPending=false;session.PendingScenarioID=0;using(var ack=new Packet((ushort)0x440C)){ack.WriteUShort(scenarioId);client.SendPacket(ack);}ContinueSession(client,session);}
         [PacketHandler(CH17Type.NpcDialogResponse)]
         public static void NpcDialogResponseHandler(ZoneClient client, Packet packet)
@@ -304,16 +350,43 @@ namespace NextGen.Zone.Handlers
                 lock(Sync){Sessions.TryGetValue(character.ID,out session);}
                 if(session==null)return false;
                 session.Machine=new QuestScriptMachine(linkedInfo,linkedStage);
+                session.QuestID=linkedQuestId;
+                session.SelectedRewardSlot=uint.MaxValue;
+                session.RewardSelectionPending=false;
                 return true;
             }
             if(instruction.OpCode.Equals("DONE",StringComparison.OrdinalIgnoreCase))
             {
-                // Native QuestNext command 10 dispatches DONE through the common
-                // command path at 0x005BED38. It resolves the quest record and
-                // calls the IsRewardAbleQuest wrapper without testing whether
-                // the parser was entered through Start, Doing or End.
-                if(QuestRuntime.Complete(character,q))return true;
-                try{using(DatabaseClient db=Program.DatabaseManager.GetClient())if(QuestRuntime.NeedsRewardSelection(db,q))return false;}catch{}
+                // Native QuestNext command 10 at 0x005BED38 resolves the player
+                // quest, checks rewardability, then validates CQuestZone+0x90C
+                // as a raw QuestData reward-slot index.
+                DialogSession session;
+                lock(Sync){Sessions.TryGetValue(character.ID,out session);}
+                if(session==null)return false;
+
+                uint selectedSlot=session.SelectedRewardSlot;
+                bool selectionProvided=selectedSlot!=uint.MaxValue;
+                ushort nativeError;
+                bool needsSelection;
+                if(QuestRuntime.Complete(character,q,selectedSlot,selectionProvided,
+                        out nativeError,out needsSelection))
+                {
+                    session.RewardSelectionPending=false;
+                    return true;
+                }
+
+                if(needsSelection)
+                {
+                    session.RewardSelectionPending=true;
+                    SendRewardNeedSelectItem(character,q);
+                    return false;
+                }
+
+                if(nativeError!=0)
+                {
+                    SendQuestCommandError(character,q,10,nativeError);
+                    EndDialog(character);
+                }
                 return false;
             }
             return true;
@@ -453,13 +526,31 @@ namespace NextGen.Zone.Handlers
                 return;
             }
 
+            uint selectedRewardSlot = uint.MaxValue;
+            bool rewardSelectionPending = false;
+            lock (Sync)
+            {
+                DialogSession previous;
+                if (Sessions.TryGetValue(client.Character.ID, out previous) &&
+                    previous != null && object.ReferenceEquals(previous.Machine, machine))
+                {
+                    // Selection state is CQuestZone-stage state, not SAY-page
+                    // state. Preserve it while the same script machine advances
+                    // across multiple SAY commands.
+                    selectedRewardSlot = previous.SelectedRewardSlot;
+                    rewardSelectionPending = previous.RewardSelectionPending;
+                }
+            }
+
             DialogSession session = new DialogSession
             {
                 DialogID = dialogId,
                 QuestID = (ushort)questId,
                 Machine = machine,
                 PendingScenarioID = 0,
-                ScenarioPending = false
+                ScenarioPending = false,
+                SelectedRewardSlot = selectedRewardSlot,
+                RewardSelectionPending = rewardSelectionPending
             };
             lock (Sync) { Sessions[client.Character.ID] = session; }
 
