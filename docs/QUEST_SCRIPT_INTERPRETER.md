@@ -73,3 +73,16 @@ The current runtime adapter has explicit implementations for the commands for wh
 `DONE` is executed in every script stage, matching the native QuestNext command-10 dispatcher. The corpus contains 351 Start-stage, 1 Action-stage, and 2251 Finish-stage DONE commands; CI locks these counts.
 
 Quest 1 / Baby Steps remains a corpus regression check and contains the known `SAY 202 NPC`, `SAY 203 NPC`, `IF RESULT == 1 GOTO MARK1`, `:MARK1`, `ACCEPT`, `END` structure.
+
+
+## END wire behavior
+
+The interpreter preserves an important native distinction:
+
+- explicit textual `END` produces an End step carrying the source instruction;
+- falling off the end of a stage produces an End step with no instruction.
+
+Handler17 uses that distinction to mirror QuestNext: explicit `END`
+(`QSC_END = 1`) is sent as a `0x4401` QSC before the session closes, while
+parser EOF closes without a client QSC. The supplied corpus contains 9,446
+explicit END commands.

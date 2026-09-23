@@ -96,6 +96,26 @@ namespace NextGen.Zone.Handlers
             }
         }
 
+        private static void SendQuestEnd(Game.ZoneCharacter character, uint questId)
+        {
+            if (character == null || character.Client == null ||
+                questId == 0 || questId > ushort.MaxValue)
+                return;
+
+            // Native QuestNext command 1 sends the current STRUCT_QSC through
+            // Send_NC_QUEST_SCRIPT_CMD_REQ and immediately QuestClose's it.
+            // END has no command-specific operands; only Cmd=1 and
+            // IsPigeonStartType=0 are semantically used.
+            using (var p = new Packet(SH17Type.NpcDialogMenu))
+            {
+                p.WriteUShort((ushort)questId);
+                p.WriteUInt(1);
+                p.WriteByte(0);
+                p.Fill(96, 0);
+                character.Client.SendPacket(p);
+            }
+        }
+
         [PacketHandler(CH17Type.RewardSelectItemIndex)] public static void RewardSelectItemIndexHandler(ZoneClient client, Packet packet){ushort questId;uint selectedIndex;if(!packet.TryReadUShort(out questId)||!packet.TryReadUInt(out selectedIndex))return;if(QuestRuntime.Complete(client.Character,questId,selectedIndex,true)){DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session!=null)ContinueSession(client,session);else EndDialog(client.Character);}}
         [PacketHandler(CH17Type.ScenarioDoneReq)] public static void ScenarioDoneReqHandler(ZoneClient client,Packet packet){ushort scenarioId;if(!packet.TryReadUShort(out scenarioId))return;DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session==null||session.Machine==null||!session.ScenarioPending||session.PendingScenarioID!=scenarioId)return;uint questId=session.Machine.Graph.Info.QuestID;if(!QuestRuntime.RecordScenarioDone(client.Character,questId,scenarioId))return;session.ScenarioPending=false;session.PendingScenarioID=0;using(var ack=new Packet((ushort)0x440C)){ack.WriteUShort(scenarioId);client.SendPacket(ack);}ContinueSession(client,session);}
         [PacketHandler(CH17Type.NpcDialogResponse)]
@@ -158,7 +178,17 @@ namespace NextGen.Zone.Handlers
                          step.Type == QuestScriptStepType.Error)
                 {
                     if (step.Type == QuestScriptStepType.Error)
+                    {
                         LogScriptError(client.Character, session.Machine, step);
+                    }
+                    else if (step.Instruction != null &&
+                             step.Instruction.OpCode.Equals("END", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Explicit textual END is QSC_END (1) and is sent to the
+                        // client before QuestClose. Parser EOF has a null
+                        // instruction here and closes without a QSC packet.
+                        SendQuestEnd(client.Character, session.Machine.Graph.Info.QuestID);
+                    }
                     EndDialog(client.Character);
                     return;
                 }
@@ -311,7 +341,17 @@ namespace NextGen.Zone.Handlers
                          step.Type == QuestScriptStepType.Error)
                 {
                     if (step.Type == QuestScriptStepType.Error)
+                    {
                         LogScriptError(client.Character, session.Machine, step);
+                    }
+                    else if (step.Instruction != null &&
+                             step.Instruction.OpCode.Equals("END", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Explicit textual END is QSC_END (1) and is sent to the
+                        // client before QuestClose. Parser EOF has a null
+                        // instruction here and closes without a QSC packet.
+                        SendQuestEnd(client.Character, session.Machine.Graph.Info.QuestID);
+                    }
                     EndDialog(client.Character);
                     return;
                 }

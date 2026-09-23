@@ -135,3 +135,31 @@ multiple quests or stages.
 This audit covers the normal QSC_SAY request/ACK pair. Other QSC commands are
 sent to the client only where their native dispatch proves that behavior; no
 additional client packets are inferred from enum names alone.
+
+
+## Explicit END versus parser EOF
+
+The native QuestNext dispatch table maps `QSC_END = 1` to
+`0x005BE0D9`. That branch sends the current QSC through
+`CQuestZone::Send_NC_QUEST_SCRIPT_CMD_REQ` and then reaches
+`CQuestZone::QuestClose`.
+
+This is distinct from parser EOF. `CQuestParserScript::ParserNext` emits
+`QSC_MAX = 35` when no next token exists. QuestNext tests command 35 before the
+dispatch table and closes the quest without sending a `0x4401` QSC packet.
+
+For textual `END`, the only command-specific semantic field is `Cmd = 1`;
+there are no END operands. The emulator therefore sends the proven 101-byte QSC
+shape with:
+
+```text
+Cmd                 DWORD 1
+IsPigeonStartType   BYTE  0
+Data[96]            zeroed (unused by QSC_END)
+```
+
+and then closes the local quest-script session. Natural end-of-program/EOF
+continues to close locally without fabricating an END packet.
+
+The verified corpus contains **9,446** explicit textual `END` commands, so
+this is a live NA2016 path rather than forward-compatibility behavior.
