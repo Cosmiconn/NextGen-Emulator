@@ -24,7 +24,7 @@ This was validated across the complete file: **2304 records, zero trailing bytes
 
 The importer creates the source-faithful SQL tables:
 
-- `QuestData` — one row per quest, including the complete 0x2A8 raw block.
+- `QuestData` — one row per quest, including `Type`, `Repeatable`, normalized `DailyQuestType` (`QUEST_DATA +0x13`), and the complete 0x2A8 raw block.
 - `QuestData_ConditionStart` — `QUEST_START_CONDITION` fields, including normalized map/X/Y/range and 64-bit DateStart/DateEnd values.
 - `QuestData_ConditionEnd` — `QUEST_END_CONDITION` fields, including normalized map/X/Y/range.
 - `QuestData_NPCMob` — five 8-byte NPC/Mob condition entries.
@@ -59,8 +59,11 @@ zero-based ordinal among selectable slots.
 The original supplied SQL Server backup independently proves the character quest
 persistence names `tQuest` and `tQuestTimes` with `nCharNo`, `nQuestNo`, `nStatus`,
 `sData`, `nTimes`, and `dLastComplete`. The emulator now uses those names for
-quest status/times. `character_quest_progress` stores normalized per-objective
-progress needed by the emulator runtime.
+quest status/times. Native `SetQuestDone` independently proves an in-memory
+completion counter and 64-bit completion timestamp; the emulator durably maps
+those values to `tQuestTimes.nTimes/dLastComplete`. This also drives the proven
+Type-10 daily prerequisite reset check. `character_quest_progress` stores
+normalized per-objective progress needed by the emulator runtime.
 
 ## Native end-condition coverage
 
@@ -120,6 +123,6 @@ The corrected CodeView LevelChange symbol is:
 ## Import regression audit
 
 CI runs `python3 tools/audit-quest-importer.py`. The audit builds a synthetic
-QuestData record with signed coordinates, map/range, scenario data and two
-64-bit date values, runs the real importer, and verifies the emitted normalized
-SQL plus the corrected raw byte slices.
+QuestData record with a daily subtype, signed coordinates, map/range, scenario
+data and two 64-bit date values, runs the real importer, and verifies the emitted
+normalized SQL plus the corrected raw byte slices.
