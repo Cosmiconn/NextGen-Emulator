@@ -17,41 +17,22 @@ namespace NextGen.Zone
             Maps = new Dictionary<MapInfo, List<Map>>();
         }
 
-        public Map GetMap(MapInfo info, short instance = (short) 0)
+        public Map GetMap(MapInfo info, short instance = (short)0)
         {
-            //lazy loading
+            if (info == null) return null;
+            if (instance < 0) instance = 0;
+
             if (!Maps.ContainsKey(info))
-            {
                 Maps.Add(info, new List<Map>());
-            }
+
             BlockInfo block;
             DataProvider.Instance.Blocks.TryGetValue(info.ID, out block);
-            Map toret;
             List<Map> maps = Maps[info];
-            if (maps.Count == 0)
-            {
-                //we load the first map instance
-                maps.Add(toret = new Map(info, block, (short)maps.Count));
-            }
-            else
-            {
-                if (maps.Count < instance) // Check if instance exists, else, add another
-                {
-                    if (maps.Count - 1 < instance)
-                    {
-                        // ohnoes
-                        Log.WriteLine(LogLevel.Info, "Couldn't find instance for map {0}", info.ID);
-                        instance = 0;
-                    }
-                    else
-                    {
-                        // Add another instance of map
-                        maps.Add(toret = new Map(info, block, (short)maps.Count));
-                    }
-                }
-                toret = Maps[info][instance];
-            }
-            return toret;
+
+            while (maps.Count <= instance)
+                maps.Add(new Map(info, block, (short)maps.Count));
+
+            return maps[instance];
         }
 
         [InitializerMethod]

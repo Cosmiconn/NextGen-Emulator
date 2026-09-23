@@ -14,6 +14,7 @@ namespace NextGen.Util
 		public string HostIP { get; private set; }
 		public DateTime Time { get; private set; }
 		public TransferType Type { get; private set; }
+		public short MapInstance { get; private set; }
 
 		public ClientTransfer(int accountID, string userName,int CharID, byte admin, string hostIP, string hash)
 		{
@@ -27,7 +28,7 @@ namespace NextGen.Util
 			this.Time = DateTime.Now;
 		}
 
-		public ClientTransfer(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP)
+		public ClientTransfer(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP, short mapInstance = 0)
 		{
 			this.Type = TransferType.Game;
 			this.AccountID = accountID;
@@ -37,6 +38,7 @@ namespace NextGen.Util
 			this.CharacterName = charName;
             this.CharID = CharID;
 			this.RandID = randid;
+			this.MapInstance = mapInstance < 0 ? (short)0 : mapInstance;
 			this.Time = DateTime.Now;
 		}
 	}

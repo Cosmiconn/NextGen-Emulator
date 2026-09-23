@@ -26,7 +26,7 @@ namespace NextGen.Zone.Game
 	public class ZoneCharacter : MapObject
 	{
 		#region .ctor
-		public ZoneCharacter(int CharID, bool loadequips = true)
+		public ZoneCharacter(int CharID, bool loadequips = true, short mapInstance = 0)
 		{
 			try
 			{
@@ -63,7 +63,7 @@ namespace NextGen.Zone.Game
 						Character.PositionInfo.YPos = mi.RegenY;
 					}
 				}
-				SetMap(MapID);
+				SetMap(MapID, mapInstance);
 				
 				this.Group = GroupManager.Instance.GetGroupForCharacter(this.ID);
 				if (this.Group != null)
@@ -1864,7 +1864,7 @@ namespace NextGen.Zone.Game
 			MapInfo info;
 			if (DataProvider.Instance.MapsByID.TryGetValue(pMapId, out info))
 			{
-				Map = MapManager.Instance.GetMap(info);
+				Map = MapManager.Instance.GetMap(info, instance < 0 ? (short)0 : instance);
 				if (Map.Block != null)
 				{
 					if (!Map.Block.CanWalk(Character.PositionInfo.XPos, Character.PositionInfo.YPos))
