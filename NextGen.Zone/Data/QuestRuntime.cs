@@ -346,7 +346,10 @@ namespace NextGen.Zone.Data
                     // PQS_REPEAT (4) is a later/re-acceptable state and must not be
                     // collapsed into the completion transition.
                     byte completionStatus = IsRepeatable(dataDb, questId) ? PqsSoon : PqsDone;
-                    ApplyRewards(dataDb, c, questId, selectedIndex);
+                    // Native completion is downstream of the successful ItemDB
+                    // quest-reward acknowledgement. Never move the quest to its
+                    // completed state when the reward set cannot be delivered.
+                    if (!ApplyRewards(dataDb, c, questId, selectedIndex)) return false;
                     DateTime completedAt = DateTime.Now;
                     charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@s", completionStatus), new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
                     // Native completion stores a completion counter at
@@ -452,30 +455,98 @@ namespace NextGen.Zone.Data
             return rows != null && selectedIndex < rows.Rows.Count;
         }
 
-        private static void ApplyRewards(DatabaseClient db, ZoneCharacter c, uint questId, uint selectedIndex)
+        private static bool ApplyRewards(DatabaseClient db, ZoneCharacter c, uint questId, uint selectedIndex)
         {
-            DataTable rows = db.ReadDataTable("SELECT Slot,UseType,RewardType,Value1,Value2 FROM QuestData_Reward WHERE QuestID=@q AND (UseType=1 OR UseType=2) ORDER BY Slot", new MySqlParameter("@q", questId));
-            if (rows == null) return;
+            DataTable rows = db.ReadDataTable(
+                "SELECT Slot,UseType,RewardType,Value1,Value2 FROM QuestData_Reward " +
+                "WHERE QuestID=@q AND (UseType=1 OR UseType=2) ORDER BY Slot",
+                new MySqlParameter("@q", questId));
+            if (rows == null) return false;
+
+            List<DataRow> applicable = new List<DataRow>();
             uint selectable = 0;
             foreach (DataRow r in rows.Rows)
             {
-                byte use = Convert.ToByte(r["UseType"]), type = Convert.ToByte(r["RewardType"]);
-                if (use == 2) { if (selectable++ != selectedIndex) continue; }
-                else if (use != 1) continue;
+                byte use = Convert.ToByte(r["UseType"]);
+                if (use == 1)
+                    applicable.Add(r);
+                else if (use == 2 && selectable++ == selectedIndex)
+                    applicable.Add(r);
+            }
+
+            // Validate the complete reward set before mutating inventory or
+            // character stats. GiveItemLots currently consumes only empty slots,
+            // so use the same stack-capacity model for the preflight.
+            ulong requiredSlots = 0;
+            foreach (DataRow r in applicable)
+            {
+                byte type = Convert.ToByte(r["RewardType"]);
+                if (type != 0 && type != 1 && type != 2 && type != 4 && type != 8)
+                {
+                    Log.WriteLine(LogLevel.Warn,
+                        "Quest reward type {0} for quest {1} is not implemented; completion blocked.",
+                        type, questId);
+                    return false;
+                }
+
+                if (type != 2) continue;
+                uint v1 = Convert.ToUInt32(r["Value1"]);
+                ushort itemId = (ushort)(v1 & 0xffff);
+                ushort lot = (ushort)(v1 >> 16);
+                if (itemId == 0 || lot == 0) continue;
+
+                ItemInfo info;
+                if (!DataProvider.GetItemInfo(itemId, out info) || info == null)
+                {
+                    Log.WriteLine(LogLevel.Warn,
+                        "Quest {0} reward references unknown item {1}; completion blocked.",
+                        questId, itemId);
+                    return false;
+                }
+
+                uint stackLimit = info.MaxLot > 0
+                    ? (uint)Math.Min(info.MaxLot, ushort.MaxValue)
+                    : 1u;
+                requiredSlots += ((ulong)lot + stackLimit - 1u) / stackLimit;
+            }
+
+            int capacity = c.Inventory.InventoryCount * 24;
+            int emptySlots = Math.Max(0, capacity - c.Inventory.InventoryItems.Count);
+            if (requiredSlots > (ulong)emptySlots)
+                return false;
+
+            // Deliver item rewards first. After the full preflight these calls
+            // should not fail unless inventory state changes concurrently.
+            foreach (DataRow r in applicable)
+            {
+                if (Convert.ToByte(r["RewardType"]) != 2) continue;
+                uint v1 = Convert.ToUInt32(r["Value1"]);
+                ushort itemId = (ushort)(v1 & 0xffff);
+                ushort lot = (ushort)(v1 >> 16);
+                if (itemId == 0 || lot == 0) continue;
+                if (c.GiveItemLots(itemId, lot) != InventoryStatus.Added)
+                {
+                    Log.WriteLine(LogLevel.Warn,
+                        "Quest {0} item reward {1} x{2} could not be delivered; completion blocked.",
+                        questId, itemId, lot);
+                    return false;
+                }
+            }
+
+            foreach (DataRow r in applicable)
+            {
+                byte type = Convert.ToByte(r["RewardType"]);
+                if (type == 2) continue;
                 uint v1 = Convert.ToUInt32(r["Value1"]);
                 switch (type)
                 {
                     case 0: c.GiveExp(v1); break;
                     case 1: c.ChangeMoney(c.Inventory.Money + v1); break;
-                    case 2:
-                        ushort itemId = (ushort)(v1 & 0xffff), lot = (ushort)(v1 >> 16);
-                        if (itemId != 0 && lot != 0) c.GiveItemLots(itemId, lot);
-                        break;
                     case 4: c.Fame += (int)v1; break;
                     case 8: c.KillPoints += (int)v1; break;
-                    default: Log.WriteLine(LogLevel.Debug, "Quest reward type {0} for quest {1} retained but not applied.", type, questId); break;
                 }
             }
+            return true;
         }
     }
 }
