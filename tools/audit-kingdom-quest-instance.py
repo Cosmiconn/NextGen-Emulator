@@ -13,6 +13,7 @@ FILES = {
     "zone_connection": ROOT / "NextGen.World/InterServer/ZoneConnection.cs",
     "handler6": ROOT / "NextGen.Zone/Handlers/Handler6.cs",
     "map": ROOT / "NextGen.Zone/Game/Map.cs",
+    "kq_target": ROOT / "NextGen.World/Data/KingdomQuestSessionTarget.cs",
 }
 
 def need(text, tokens, label):
@@ -55,6 +56,15 @@ def main():
     if not need(c["map"], ["WHERE MapID=@mapId AND InstanceID=@instanceId", "new MySqlParameter(\"@instanceId\", this.InstanceID)", "InstanceID = GetDataTypes.Getshort(row[\"InstanceID\"])"], "instance-bound Mobspawn load"):
         return 1
 
+    if not need(c["kq_target"], [
+        "Dictionary<uint, KingdomQuestSessionTarget>",
+        "Dictionary<Tuple<ushort, short>, uint>",
+        "DataProvider.Instance.KingdomQuestMaps.ContainsKey(mapId)",
+        "new KingdomQuestSessionTarget(instanceId, mapId, mapInstance)",
+        "Tuple.Create(mapId, mapInstance)",
+    ], "explicit KQ wire-instance to map-instance mapping"):
+        return 1
+
     combined = "\n".join(c.values())
     if "(short)instanceId" in combined or "(short)InstanceID" in combined:
         print("FAIL: World KQ InstanceID conflated with internal Map.InstanceID")
@@ -63,6 +73,7 @@ def main():
     print("PASS: MapManager can allocate requested internal map instances")
     print("PASS: internal MapInstance survives Zone -> World -> Zone transfer")
     print("PASS: captured 32-bit KQ InstanceID remains a separate namespace")
+    print("PASS: KQ wire InstanceID -> source MapID/internal MapInstance mapping is explicit")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0
 

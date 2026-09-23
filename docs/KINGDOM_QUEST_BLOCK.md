@@ -160,3 +160,26 @@ The captured registration request (CH22 type 5) is still deliberately not
 handled. The original flow emits both type 6 and a 26-byte type-50 notice, and
 that type-50 body is not yet sufficiently decoded. CI rejects a premature type-5
 handler until that evidence boundary moves.
+
+
+## Explicit World-instance to Zone-instance routing target
+
+A live KQ now has a dedicated server-internal routing primitive:
+`KingdomQuestSessionTargetRegistry`.
+
+It stores an explicit triple:
+
+```text
+u32 World KQ InstanceID
+u16 source-backed MapID
+i16 internal Map.InstanceID
+```
+
+Creation is rejected unless the MapID exists in the source-backed
+`KingdomQuestMaps` catalog, and duplicate World IDs or duplicate
+`(MapID, MapInstance)` targets are rejected.
+
+The registry does not allocate IDs, choose a map, or derive one namespace from
+another. Those values must come from the later source-backed KQ definition/
+session creator. This gives registration/transfer code a safe lookup target
+without ever casting captured IDs such as 969 into a Zone instance number.
