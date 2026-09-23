@@ -26,6 +26,8 @@ Considering only active `UseType=1` (fixed) or `UseType=2` (selectable) rows:
 
 Every active reward row has `Value2 = 0` in this corpus.
 
+ItemID zero is also used by the reward corpus. Quests 7 and 8 each contain an active selectable RewardType-2 row with encoded `ItemID=0, lot=1`. ItemInfo independently maps ID 0 to `LeatherBoots`. The runtime therefore treats zero exactly like any other defined ItemID during reward validation and delivery; only `lot == 0` is skipped as an empty reward payload.
+
 The runtime already handles RewardType 0, 1, 2 and 4. RewardType 8 remains implemented as a supported forward-compatible path but has no active row in this supplied corpus.
 
 ## Native completion ordering
