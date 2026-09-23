@@ -314,11 +314,89 @@ namespace NextGen.Zone.Data
                     // collapsed into the completion transition.
                     byte completionStatus = IsRepeatable(dataDb, questId) ? PqsSoon : PqsDone;
                     ApplyRewards(dataDb, c, questId, selectedIndex);
+                    DateTime completedAt = DateTime.Now;
                     charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@s", completionStatus), new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
+                    // Native completion stores a completion counter at
+                    // PLAYER_QUEST_INFO+0x13 and a 64-bit completion timestamp at
+                    // +0x0B/+0x0F. Keep the normalized SQL equivalent in tQuestTimes.
+                    charDb.ExecuteQuery(
+                        "INSERT INTO tQuestTimes (nCharNo,nQuestNo,nTimes,dLastComplete) VALUES (@c,@q,1,@t) " +
+                        "ON DUPLICATE KEY UPDATE nTimes=nTimes+1,dLastComplete=@t",
+                        new MySqlParameter("@c", c.ID),
+                        new MySqlParameter("@q", questId),
+                        new MySqlParameter("@t", completedAt));
                     return true;
                 }
             }
             catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest completion failed {0}: {1}", questId, ex.Message); return false; }
+        }
+
+        public static bool TryEvaluateDailyPrerequisite(int characterId, uint questId,
+            byte dailyQuestType, out bool satisfied)
+        {
+            satisfied = false;
+
+            // CQuest::IsSoonableDailyQuest returns false for DQT_NONE and for
+            // out-of-range values. In the caller that means status-2 prerequisite
+            // eligibility passes without a reset-time rejection.
+            if (dailyQuestType == 0 || dailyQuestType > 4)
+            {
+                satisfied = true;
+                return true;
+            }
+
+            try
+            {
+                DateTime lastComplete;
+                using (DatabaseClient db = Program.CharDBManager.GetClient())
+                {
+                    DataTable rows = db.ReadDataTable(
+                        "SELECT dLastComplete FROM tQuestTimes WHERE nCharNo=@c AND nQuestNo=@q",
+                        new MySqlParameter("@c", characterId),
+                        new MySqlParameter("@q", questId));
+                    if (rows == null || rows.Rows.Count == 0 || rows.Rows[0]["dLastComplete"] == DBNull.Value)
+                        return false;
+                    lastComplete = Convert.ToDateTime(rows.Rows[0]["dLastComplete"]);
+                }
+
+                // WorldManager's original CDailyQuestTimer uses localtime/mktime.
+                // Raw enum values are proven by the PDB:
+                // 1=DAY, 2=WEEK, 3=MONTH, 4=YEAR.
+                DateTime now = DateTime.Now;
+                DateTime resetBoundary;
+                switch (dailyQuestType)
+                {
+                    case 1:
+                        resetBoundary = now.Date;
+                        break;
+                    case 2:
+                        int daysSinceMonday = ((int)now.DayOfWeek + 6) % 7;
+                        resetBoundary = now.Date.AddDays(-daysSinceMonday);
+                        break;
+                    case 3:
+                        resetBoundary = new DateTime(now.Year, now.Month, 1);
+                        break;
+                    case 4:
+                        resetBoundary = new DateTime(now.Year, 1, 1);
+                        break;
+                    default:
+                        satisfied = true;
+                        return true;
+                }
+
+                // Native IsSoonableDailyQuest returns true when completion time is
+                // older than the selected reset boundary. IsSoonableQuest rejects a
+                // status-2 predecessor in that case, so the prerequisite is satisfied
+                // only when completion is on/after the current boundary.
+                satisfied = lastComplete >= resetBoundary;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "Quest daily prerequisite check failed for {0}: {1}", questId, ex.Message);
+                return false;
+            }
         }
 
         private static bool IsRepeatable(DatabaseClient db, uint questId)
