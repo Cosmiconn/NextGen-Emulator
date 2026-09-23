@@ -54,3 +54,28 @@ list entry layout before enabling live registration.
 4. Vote-kick behavior stays disabled until a real KQ session state exists.
 5. Normal Quest code remains untouched unless a proven shared primitive is
    required.
+
+
+## Captured World wire primitives
+
+The next implementation slice adds definition-neutral packet builders and a
+thread-safe live-instance wire-state registry for layouts already proven by the
+project captures:
+
+- type 4: `u32 InstanceID + u16 value`;
+- type 6: `u32 InstanceID + u16 value`;
+- type 19: empty failure packet;
+- type 30: `u16 count + u32 InstanceID[count]`;
+- type 31: `u16 + u32 InstanceID + u16`;
+- type 37: `u32 InstanceID + u16 stateValue`;
+- type 38: `u16 count + {u32 InstanceID,u16 stateValue,u16 typeValue}[count]`.
+
+The unresolved u16 fields deliberately keep neutral names. No scheduler meaning,
+member-count meaning, map meaning, or status enum is assigned yet.
+
+The legacy login-time zero KQ list is unchanged on the wire but now uses the
+named `SH22Type.KingdomQuestList` instead of raw opcode `0x581D`.
+
+CI runs `tools/audit-kingdom-quest-wire.py` to lock these layouts and to keep
+the live KQ list empty until authoritative KingdomQuest definition/schedule
+source rows are imported.

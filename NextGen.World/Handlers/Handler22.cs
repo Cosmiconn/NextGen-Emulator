@@ -43,10 +43,12 @@ namespace NextGen.World.Handlers
                p.WriteUInt(0x4d0bc167);   // 21h
                client.SendPacket(p);
            }
-           // dafuq no op code..
-           using (var p3 = new Packet(0x581D))
+           // SH22/29 is the captured World-side Kingdom Quest list family.
+           // Until authoritative KingdomQuest definition/schedule rows are loaded,
+           // keep the legacy empty list behavior rather than inventing entries.
+           using (var p3 = new Packet(SH22Type.KingdomQuestList))
            {
-               p3.WriteShort(0);           //zero kingdom quests!
+               p3.WriteUShort(0);
                client.SendPacket(p3);
            }
            

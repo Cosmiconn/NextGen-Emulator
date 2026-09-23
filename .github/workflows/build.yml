@@ -56,3 +56,7 @@ jobs:
       - name: Run Quest SQL-only runtime audit
         shell: bash
         run: python3 tools/audit-quest-runtime-sql.py
+
+      - name: Run Kingdom Quest wire audit
+        shell: bash
+        run: python3 tools/audit-kingdom-quest-wire.py

@@ -374,14 +374,16 @@ namespace NextGen.FiestaLib
         // Instanz-ID 969) neu gefunden. Siehe DOCUMENTATION.md Abschnitt 54
         // fuer die vollstaendige Herleitung.
 
-        // Antwort auf CH22Type-Typ3 (Instanz-Detailanfrage). 5-Byte-Body:
+        // Antwort auf CH22Type-Typ3 (Instanz-Detailanfrage). 6-Byte-Body:
         // [u32 LE InstanzID][u16 LE Status/Anzahl] - Instanz-ID bytegenau
         // als Echo der Anfrage bestaetigt.
-        Unk4 = 4,
+        KingdomQuestInstanceInfo = 4,
+        Unk4 = KingdomQuestInstanceInfo,
 
         // 4-Byte-Body: [u32 LE InstanzID][u16 LE unbekannt]. Antwort auf
         // CH22Type-Typ5 (Anmeldung).
-        Unk6 = 6,
+        KingdomQuestRegistrationAck = 6,
+        Unk6 = KingdomQuestRegistrationAck,
 
         // Klartext-Broadcast, 74-Byte-Body: [1 Byte Praefix][ASCII-Text
         // ohne Nullterminierung]. Bytegenau bestaetigt: "Kingdom Quest -
@@ -401,7 +403,12 @@ namespace NextGen.FiestaLib
         // Periodisches Delta-Update fuer EINE aktive KQ-Instanz. 6- oder
         // 10-Byte-Body: [u16 LE Anzahl (1 oder 2)][u32 LE InstanzID]
         // (wiederholt <Anzahl> mal). Tritt gepaart mit Typ 37 auf.
-        Unk30 = 30,
+        KingdomQuestInstanceGroup = 30,
+        Unk30 = KingdomQuestInstanceGroup,
+
+        // Captured recruitment update: [u16][u32 InstanceID][u16].
+        // Exact field semantics remain intentionally unnamed.
+        KingdomQuestRecruitmentUpdate = 31,
 
         // Periodisches Delta-Update, 6-Byte-Body: [u32 LE InstanzID]
         // [u16 LE Statuswert]. Feuert fuer eine bestimmte Instanz normal
@@ -411,7 +418,8 @@ namespace NextGen.FiestaLib
         // aendert sich also nicht innerhalb einer Instanz ueber die Zeit,
         // vermutlich eine feste Karten-/Typ-Referenz statt eines
         // Countdown-Werts).
-        Unk37 = 37,
+        KingdomQuestInstanceState = 37,
+        Unk37 = KingdomQuestInstanceState,
 
         // Voller Resync aller aktuell aktiven KQ-Instanzen. Body:
         // [u16 LE Anzahl][{u32 LE InstanzID, u16 LE Statuswert (identisch
@@ -422,14 +430,16 @@ namespace NextGen.FiestaLib
         // geteilt wird. Ueber die Session hinweg schrumpfte die Anzahl
         // (16 -> 16 -> 5 -> 3 -> 2), konsistent mit ablaufenden/
         // geschlossenen Instanzen.
-        Unk38 = 38,
+        KingdomQuestInstanceResync = 38,
+        Unk38 = KingdomQuestInstanceResync,
 
         // Antwort auf CH22Type-Typ23 (?) - 26-Byte-Body, enthaelt eine
         // leere/nicht lokalisierte ASCII-Platzhalter-Zeichenkette "text"
         // - deutet auf einen fehlenden Lokalisierungs-String im
         // Original-Client fuer diese spezifische Meldung hin (z.B. eine
         // KQ-Anmeldebestaetigung).
-        Unk50 = 50,
+        KingdomQuestRegistrationNotice = 50,
+        Unk50 = KingdomQuestRegistrationNotice,
 
         // 1-Byte-Body, feuert wiederholt bei jedem Zonen-/Karteneintritt
         // (immer Teil derselben Paketkaskade wie SH4Type.CharacterInfoEnd
