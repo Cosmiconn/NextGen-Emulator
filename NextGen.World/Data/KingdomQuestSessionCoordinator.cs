@@ -78,6 +78,67 @@ namespace NextGen.World.Data
             }
         }
 
+        public static bool TrySetStatus(uint handle, byte status)
+        {
+            lock (Sync)
+            {
+                KingdomQuestClientInfo definition;
+                KingdomQuestInstanceWireState state;
+                if (!KingdomQuestDefinitionRegistry.TryGet(handle, out definition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state))
+                    return false;
+
+                byte oldStatus = definition.Status;
+                definition.Status = status;
+                KingdomQuestDefinitionRegistry.Upsert(definition);
+                if (KingdomQuestInstanceRegistry.SetStatus(handle, status))
+                    return true;
+
+                definition.Status = oldStatus;
+                KingdomQuestDefinitionRegistry.Upsert(definition);
+                return false;
+            }
+        }
+
+        public static bool TrySetParticipants(uint handle,
+            IEnumerable<KingdomQuestJoinCharacterInfo> participants)
+        {
+            if (participants == null)
+                return false;
+
+            List<KingdomQuestJoinCharacterInfo> roster = participants.ToList();
+            if (roster.Count > byte.MaxValue ||
+                roster.Any(v => v == null || v.Name == null))
+                return false;
+
+            lock (Sync)
+            {
+                KingdomQuestClientInfo definition;
+                KingdomQuestInstanceWireState state;
+                IReadOnlyList<KingdomQuestJoinCharacterInfo> oldRoster;
+                if (!KingdomQuestDefinitionRegistry.TryGet(handle, out definition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state) ||
+                    !KingdomQuestParticipantRegistry.TryGet(handle, out oldRoster))
+                    return false;
+
+                ushort oldCount = definition.NumOfJoiner;
+                definition.NumOfJoiner = (ushort)roster.Count;
+                KingdomQuestDefinitionRegistry.Upsert(definition);
+                KingdomQuestParticipantRegistry.Set(handle, roster);
+
+                List<string> names = roster.Select(v => v.Name).ToList();
+                if (KingdomQuestInstanceRegistry.SetJoiners(handle, names))
+                    return true;
+
+                definition.NumOfJoiner = oldCount;
+                KingdomQuestDefinitionRegistry.Upsert(definition);
+                KingdomQuestParticipantRegistry.Set(handle, oldRoster);
+                KingdomQuestInstanceRegistry.SetJoiners(
+                    handle, oldRoster.Select(v => v.Name));
+                return false;
+            }
+        }
+
         public static bool Remove(uint handle)
         {
             lock (Sync)

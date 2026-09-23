@@ -320,3 +320,19 @@ from drifting into separate membership views.
 
 No player is admitted and no Team value is assigned by this registry; both are
 inputs from the later admission/team-selection layer.
+
+
+## Synchronized session mutation
+
+The session coordinator now also exposes two explicit mutations for the later
+scheduler/admission layer:
+
+- `TrySetStatus(handle, status)` updates both the client-list definition and
+  STATUS_ACK state with the exact caller-supplied status byte.
+- `TrySetParticipants(handle, roster)` updates
+  `NumOfJoiner`, the full Level/Class/Name5/Team participant roster and the
+  STATUS_ACK Name5 list together.
+
+Neither method decides *which* status is valid or *who* may join. They only
+prevent the three native client views from diverging once an authoritative
+caller supplies the decision.

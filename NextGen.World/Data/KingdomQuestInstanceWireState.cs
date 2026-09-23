@@ -58,6 +58,21 @@ namespace NextGen.World.Data
             }
         }
 
+        public static bool SetStatus(uint handle, byte status)
+        {
+            lock (Sync)
+            {
+                KingdomQuestInstanceWireState current;
+                if (!Instances.TryGetValue(handle, out current))
+                    return false;
+
+                Instances[handle] = new KingdomQuestInstanceWireState(
+                    current.Handle, status, current.ID,
+                    current.MinLevel, current.MaxLevel, current.JoinerNames);
+                return true;
+            }
+        }
+
         public static bool SetJoiners(uint handle, IEnumerable<string> names)
         {
             if (names == null) throw new ArgumentNullException("names");

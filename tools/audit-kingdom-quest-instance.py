@@ -104,6 +104,10 @@ def main():
         "KingdomQuestDefinitionRegistry.Upsert(definition);",
         "KingdomQuestInstanceRegistry.Upsert(",
         "KingdomQuestInstanceRegistry.SetJoiners(",
+        "KingdomQuestInstanceRegistry.SetStatus(handle, status)",
+        "public static bool TrySetParticipants",
+        "definition.NumOfJoiner = (ushort)roster.Count;",
+        "KingdomQuestParticipantRegistry.Set(handle, roster);",
         "KingdomQuestDefinitionRegistry.Remove(definition.Handle);",
         "KingdomQuestInstanceRegistry.Remove(definition.Handle);",
         "KingdomQuestParticipantRegistry.Remove(definition.Handle);",
@@ -138,6 +142,7 @@ def main():
     print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with explicit coordinates")
     print("PASS: KQ session create/remove keeps definition, status, participant and routing registries synchronized")
     print("PASS: KQ participant roster preserves native Level/Class/Name5/Team fields")
+    print("PASS: explicit status/participant mutations keep list, STATUS_ACK and JOIN_LIST state synchronized")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0
 
