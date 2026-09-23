@@ -464,6 +464,10 @@ namespace NextGen.FiestaLib
         // Abschnitt 35. QuestProgressUpdate trat exakt bei jedem
         // Mob-Tod waehrend einer aktiven Kill-Quest auf.
         QuestProgressUpdate = 13,
+        // Original Zone.exe / PROTO_NC_QUEST_SELECT_START_ACK:
+        // Header 17 / Type 16 / Opcode 0x4410, body:
+        // NPCID u16 + QuestID u16 + ErrorType u16.
+        QuestSelectStartAck = 16,
         DialogSessionStart = 30,
     }
     // Unmittelbar nach der Quest-Belohnungs-Paketkaskade beobachtet
