@@ -92,11 +92,18 @@ The function also invokes the object's `+0x528` virtual method after a successfu
 
 ## Emulator consequence
 
-The current emulator implementation in `NextGen.Zone/Game/Buffs/Buffs.cs` removes an existing same-ID buff and constructs a fresh `Buff`:
+Quest `SET_ABSTATE` now uses a dedicated `Buffs.SetBuff` path instead of the generic skill/item `AddBuff` replacement path.
 
-`existing.Deactivate(this); CurrentBuffs.Remove(existing);`
+The implemented quest path follows the directly proven native behavior that can be represented by the current emulator model:
 
-That behavior is **not yet justified by the original binary**. It should remain unchanged until the exact mapping of the native runtime entry fields and the reset path is completed, but it must not be described as a faithful implementation of native `asl_AbstateSet`.
+- strength is clamped to 1..40;
+- the current player is passed as the source/caster;
+- an existing same-ID runtime `Buff` object is retained and refreshed in place;
+- when requested strength is not above the current strength, it is promoted to `existing + 1` and clamped to the highest available SubAbState strength;
+- an explicit keep duration is adjusted by `requested - oldKeepTime + newKeepTime` when the selected strength changes;
+- zero explicit KeepTime continues to use the selected SubAbState default.
+
+The generic `AddBuff` behavior used by unrelated skill/item paths is intentionally unchanged. The emulator still does not claim byte-for-byte equivalence for the native internal timer representation, periodic fields, callback at vtable `+0x528`, or all update/packet side effects.
 
 ## Still UNRESOLVED
 

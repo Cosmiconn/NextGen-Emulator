@@ -15,7 +15,7 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 | `LINK <id>` | 350 | native command 11; `0x005BE0EE` | exact target QuestID + effective-status stage switch | **PROVEN / IMPLEMENTED** |
 | `SCENARIO <id>` | 52 | scenario execution path proven; not the general QSC opcode | packet `0x440E` | **PROVEN** |
 | `DONE` | 2603 | quest completion command | `QuestRuntime.Complete` | **PROVEN** for current supported flow |
-| `SET_ABSTATE <name> <strength> <keepTime>` | 51 | `QSC_SET_ABSTATE = 0x1E` | `QuestRuntime.SetAbstate` | **PROVEN native mapping**; refresh semantics still being aligned |
+| `SET_ABSTATE <name> <strength> <keepTime>` | 51 | `QSC_SET_ABSTATE = 0x1E` | `QuestRuntime.SetAbstate` → dedicated in-place `Buffs.SetBuff` refresh | **PROVEN / ALIGNED for mapped inputs + refresh rule**; internal native timer/callback/packet representation remains outside the claimed parity boundary |
 | `RESET_ABSTATE <name>` | 0 | `QSC_RESET_ABSTATE = 0x1F` | `QuestRuntime.ResetAbstate` | Native mapping proven; no occurrence in this corpus slice |
 | `GET_ITEM_LOT <id>` | 104 | `QSC_GET_ITEM_LOT = 0x21` | `QuestRuntime.GetItemLot` | **PROVEN / ALIGNED**; Handler17 now exposes the native low 16-bit result to the script state |
 | `GET_PLAYER_RACE` | 0 | `QSC_GET_PLAYER_RACE = 0x17` | not implemented | **UNRESOLVED textual usage** |
