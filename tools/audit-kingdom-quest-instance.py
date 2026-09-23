@@ -14,6 +14,8 @@ FILES = {
     "handler6": ROOT / "NextGen.Zone/Handlers/Handler6.cs",
     "map": ROOT / "NextGen.Zone/Game/Map.cs",
     "kq_target": ROOT / "NextGen.World/Data/KingdomQuestSessionTarget.cs",
+    "kq_transfer": ROOT / "NextGen.World/Data/KingdomQuestTransferService.cs",
+    "inter_header": ROOT / "NextGen.InterLib/Networking/InterHeader.cs",
 }
 
 def need(text, tokens, label):
@@ -65,6 +67,30 @@ def main():
     ], "explicit KQ wire-instance to map-instance mapping"):
         return 1
 
+    if not need(c["kq_transfer"], [
+        "KingdomQuestSessionTargetRegistry.TryGet(instanceId, out target)",
+        "Program.GetZoneByMap(character.Character.PositionInfo.Map)",
+        "currentZone.SendKingdomQuestTransferRequest(",
+        "target.MapID",
+        "target.MapInstance",
+    ], "World KQ transfer bridge"):
+        return 1
+    if not need(c["zone_connection"], [
+        "SendKingdomQuestTransferRequest",
+        "new InterPacket(InterHeader.KingdomQuestTransfer)",
+        "packet.WriteShort(mapInstance);",
+    ], "World -> current Zone KQ transfer request"):
+        return 1
+    if not need(c["zone_inter"], [
+        "[InterPacketHandler(InterHeader.KingdomQuestTransfer)]",
+        "packet.TryReadShort(out mapInstance)",
+        "ClientManager.Instance.GetClientByCharName(characterName)",
+        "client.Character.ChangeMap(mapId, x, y, mapInstance);",
+    ], "Zone KQ transfer dispatch"):
+        return 1
+    if not need(c["inter_header"], ["KingdomQuestTransfer = 0x4004"], "internal KQ inter-server opcode"):
+        return 1
+
     combined = "\n".join(c.values())
     if "(short)instanceId" in combined or "(short)InstanceID" in combined:
         print("FAIL: World KQ InstanceID conflated with internal Map.InstanceID")
@@ -74,6 +100,7 @@ def main():
     print("PASS: internal MapInstance survives Zone -> World -> Zone transfer")
     print("PASS: captured 32-bit KQ InstanceID remains a separate namespace")
     print("PASS: KQ wire InstanceID -> source MapID/internal MapInstance mapping is explicit")
+    print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with explicit coordinates")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0
 

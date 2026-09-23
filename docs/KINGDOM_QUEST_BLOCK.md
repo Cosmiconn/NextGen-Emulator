@@ -183,3 +183,26 @@ The registry does not allocate IDs, choose a map, or derive one namespace from
 another. Those values must come from the later source-backed KQ definition/
 session creator. This gives registration/transfer code a safe lookup target
 without ever casting captured IDs such as 969 into a Zone instance number.
+
+
+## World-driven KQ transfer bridge
+
+The World server can now request a KQ transfer **through the character's current
+Zone**, rather than constructing a client ChangeZone packet itself.
+
+`KingdomQuestTransferService.TryRequest` resolves the explicit
+`KingdomQuestSessionTarget`, finds the current Zone from the character's
+current map, and sends the internal `InterHeader.KingdomQuestTransfer`
+control message. The source Zone resolves the active character and calls the
+existing:
+
+```text
+ZoneCharacter.ChangeMap(targetMapId, x, y, targetMapInstance)
+```
+
+That preserves the already-tested transfer-key, target-Zone handoff, character
+save/removal and client ChangeZone behavior.
+
+The bridge does **not** select entry coordinates. They remain explicit
+parameters so later `KingdomQuestMap.shn`/session evidence can supply them.
+No CH22 registration handler calls this bridge yet.

@@ -12,6 +12,32 @@ namespace NextGen.Zone.InterServer
 {
 	public sealed class InterHandler
 	{
+        [InterPacketHandler(InterHeader.KingdomQuestTransfer)]
+        public static void HandleKingdomQuestTransfer(WorldConnector connector, InterPacket packet)
+        {
+            string characterName;
+            ushort mapId;
+            short mapInstance;
+            int x, y;
+            if (!packet.TryReadString(out characterName) ||
+                !packet.TryReadUShort(out mapId) ||
+                !packet.TryReadShort(out mapInstance) ||
+                !packet.TryReadInt(out x) ||
+                !packet.TryReadInt(out y))
+                return;
+
+            ZoneClient client = ClientManager.Instance.GetClientByCharName(characterName);
+            if (client == null || client.Character == null)
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "KQ transfer target character '{0}' is not active in this Zone.",
+                    characterName);
+                return;
+            }
+
+            client.Character.ChangeMap(mapId, x, y, mapInstance);
+        }
+
 		[InterPacketHandler(InterHeader.FunctionAnswer)]
 		public static void FunctionAnswer(WorldConnector pConnector, InterPacket pPacket)
 		{

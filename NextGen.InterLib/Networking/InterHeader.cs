@@ -39,6 +39,10 @@
         SendAddRewardItem = 0x4002,//World -> Zone
         ReciveCoper = 0x4003, //Zone -> World
 
+        // Internal emulator control message: World asks the character's
+        // current Zone to reuse ZoneCharacter.ChangeMap for a KQ target.
+        KingdomQuestTransfer = 0x4004,
+
         //Guild Shit
         ZONE_AcademyMemberJoined = 0x4101,
         ZONE_AcademyMemberLeft = 0x4102,

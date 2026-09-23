@@ -158,6 +158,20 @@ namespace NextGen.World.InterServer
                 this.SendPacket(packet);
             }
         }
+        public void SendKingdomQuestTransferRequest(string characterName,
+            ushort mapId, short mapInstance, int x, int y)
+        {
+            using (var packet = new InterPacket(InterHeader.KingdomQuestTransfer))
+            {
+                packet.WriteStringLen(characterName);
+                packet.WriteUShort(mapId);
+                packet.WriteShort(mapInstance);
+                packet.WriteInt(x);
+                packet.WriteInt(y);
+                SendPacket(packet);
+            }
+        }
+
         public void SendTransferClientFromZone(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP, short mapInstance = 0)
         {
             using (var packet = new InterPacket(InterHeader.Clienttransfer))
