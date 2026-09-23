@@ -16,6 +16,7 @@ MOB_SQL = ROOT / "sql/data/data_mobinfo.sql"
 EXPECTED = {'ACCEPT':2410,'CANCEL':12,'CREATE_ITEM':206,'DELETE_ITEM':1474,'DONE':2603,'END':9446,'GET_ITEM_LOT':104,'GET_PLAYER_EMPTY_INVENTORY':676,'GOTO':4,'IF':3036,'LINK':350,'SAY':19924,'SCENARIO':52,'SET_ABSTATE':51}
 EXPECTED_IF_SHAPES = {('RESULT', '=='): 2256, ('VAR1', '<'): 676, ('RESULT', '<'): 104}
 EXPECTED_DONE_BY_STAGE = {'Start': 351, 'Action': 1, 'Finish': 2251}
+EXPECTED_ACCEPT_BY_STAGE = {'Start': 2382, 'Finish': 28}
 SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd244cc8b8'
 
 def decode_script(raw):
@@ -146,6 +147,9 @@ def audit_full_sql(rows):
     done_by_stage = Counter()
     start_done_without_accept = []
     action_done_quests = []
+    accept_by_stage = Counter()
+    explicit_accepts = []
+    invalid_accepts = []
     for q, scripts in rows.items():
         stage_labels = {st:labels(s) for st,s in zip(stage_names, scripts)}
         global_labels = {}
@@ -164,6 +168,17 @@ def audit_full_sql(rows):
                 opcodes[opcode] += 1
                 if opcode == 'ACCEPT':
                     seen_accept = True
+                    accept_by_stage[st] += 1
+                    command = z.split(';', 1)[0].strip()
+                    m = re.fullmatch(r'ACCEPT(?:\s+(\d+))?', command, re.I)
+                    if not m:
+                        invalid_accepts.append((q, st, z))
+                    elif m.group(1) is not None:
+                        target = int(m.group(1))
+                        if target > 0xffff:
+                            invalid_accepts.append((q, st, z))
+                        else:
+                            explicit_accepts.append((q, target))
                 elif opcode == 'DONE':
                     done_by_stage[st] += 1
                     if st == 'Start' and not seen_accept:
@@ -272,6 +287,23 @@ def audit_full_sql(rows):
         return 1
     print('PASS: DONE stage corpus = Start 351, Action 1, Finish 2251')
     print('PASS: all 351 Start-stage DONE paths have a prior ACCEPT; Action DONE is Quest 2230')
+    if invalid_accepts:
+        print('FAIL: malformed ACCEPT operands:', invalid_accepts[:20])
+        return 1
+    if accept_by_stage != Counter(EXPECTED_ACCEPT_BY_STAGE):
+        print('FAIL: ACCEPT stage corpus changed')
+        print('expected:', EXPECTED_ACCEPT_BY_STAGE)
+        print('actual:  ', dict(accept_by_stage))
+        return 1
+    if len(explicit_accepts) != 22:
+        print('FAIL: explicit ACCEPT operand count changed:', len(explicit_accepts))
+        return 1
+    cross_accepts = sorted((q, target) for q, target in explicit_accepts if int(q) != target)
+    if cross_accepts != [('384', 385), ('5', 6)]:
+        print('FAIL: cross-quest ACCEPT targets changed:', cross_accepts)
+        return 1
+    print('PASS: ACCEPT corpus = Start 2382, Finish 28, explicit targets 22')
+    print('PASS: cross-quest ACCEPT targets are exactly Quest 5 -> 6 and Quest 384 -> 385')
     if report_low_item_ids() is False:
         return 1
     if report_low_mob_ids() is False:

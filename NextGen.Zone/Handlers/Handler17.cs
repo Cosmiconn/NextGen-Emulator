@@ -81,7 +81,29 @@ namespace NextGen.Zone.Handlers
             if(instruction==null)return true;
             uint q=machine.Graph.Info.QuestID;
             string[] args=instruction.Arguments.Split(new[]{' ','\t'},StringSplitOptions.RemoveEmptyEntries);
-            if(instruction.OpCode.Equals("ACCEPT",StringComparison.OrdinalIgnoreCase)){if(args.Length==0){QuestRuntime.Accept(character,q);return true;}uint acceptedQuest;if(uint.TryParse(args[0],out acceptedQuest))QuestRuntime.Accept(character,acceptedQuest);return true;}
+            if(instruction.OpCode.Equals("ACCEPT",StringComparison.OrdinalIgnoreCase))
+            {
+                uint acceptedQuest=q;
+                if(args.Length>0)
+                {
+                    ushort explicitQuest;
+                    if(!ushort.TryParse(args[0],out explicitQuest))
+                    {
+                        EndDialog(character);
+                        return false;
+                    }
+                    acceptedQuest=explicitQuest;
+                }
+                if(!QuestRuntime.Accept(character,acceptedQuest))
+                {
+                    // Native rejection paths close the active quest script after
+                    // reporting the quest error. The exact error packet enum is
+                    // intentionally not invented here.
+                    EndDialog(character);
+                    return false;
+                }
+                return true;
+            }
             if(instruction.OpCode.Equals("CANCEL",StringComparison.OrdinalIgnoreCase)&&args.Length==0){QuestRuntime.Cancel(character,q);return true;}
             if(instruction.OpCode.Equals("SCENARIO",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){ushort scenarioId;if(!ushort.TryParse(args[0],out scenarioId)||scenarioId==0)return true;DialogSession session;lock(Sync){Sessions.TryGetValue(character.ID,out session);}if(session==null)return false;session.PendingScenarioID=scenarioId;session.ScenarioPending=true;using(var run=new Packet((ushort)0x440E)){run.WriteUShort(scenarioId);character.Client.SendPacket(run);}return false;}
             if(instruction.OpCode.Equals("SET_ABSTATE",StringComparison.OrdinalIgnoreCase)&&args.Length>=3){uint strength,keepTimeMs;if(!uint.TryParse(args[1],out strength)||!uint.TryParse(args[2],out keepTimeMs))return true;QuestRuntime.SetAbstate(character,args[0],strength,keepTimeMs);return true;}

@@ -27,20 +27,53 @@ namespace NextGen.Zone.Data
         public const byte PqsReadAble = 20;
         private const byte ScenarioFlagSlot = 250;
 
-        public static void Accept(ZoneCharacter character, uint questId)
+        public static bool Accept(ZoneCharacter character, uint questId)
         {
-            if (character == null || questId == 0) return;
+            if (character == null || questId == 0 || questId > ushort.MaxValue) return false;
             try
             {
+                // Native QuestNext ACCEPT (command 6) rejects when
+                // CQuest::GetNumOfDoingQuest() is already 40. The original
+                // counter includes statuses 6, 7 and 8.
+                using (DatabaseClient countDb = Program.CharDBManager.GetClient())
+                {
+                    DataTable active = countDb.ReadDataTable(
+                        "SELECT COUNT(*) AS ActiveCount FROM tQuest " +
+                        "WHERE nCharNo=@c AND nStatus IN (6,7,8)",
+                        new MySqlParameter("@c", character.ID));
+                    int activeCount = active != null && active.Rows.Count > 0
+                        ? Convert.ToInt32(active.Rows[0]["ActiveCount"])
+                        : 0;
+                    if (activeCount >= 40)
+                        return false;
+                }
+
+                // The same native branch calls the QuestID overload of
+                // IsDoingableQuest (0x0062FEE0) before accepting. This is a
+                // Start-condition/current-level check and is independent of the
+                // quest's current persisted status.
+                bool doingable;
+                if (!QuestNpcStartResolver.TryIsDoingableForQuest(
+                        character, questId, out doingable) || !doingable)
+                    return false;
+
                 using (DatabaseClient db = Program.CharDBManager.GetClient())
                 {
                     db.ExecuteQuery("INSERT INTO tQuest (nCharNo,nQuestNo,nStatus,sData) VALUES (@c,@q,@s,NULL) ON DUPLICATE KEY UPDATE nStatus=@s,sData=NULL",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId), new MySqlParameter("@s", PqsInProgress));
+                    // CQuest::SetQuestAccept clears the per-run progress fields
+                    // when reusing an existing quest record. The normalized SQL
+                    // progress table is the emulator equivalent.
                     db.ExecuteQuery("DELETE FROM character_quest_progress WHERE CharID=@c AND QuestID=@q",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
                 }
+                return true;
             }
-            catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest accept failed {0}: {1}", questId, ex.Message); }
+            catch (Exception ex)
+            {
+                Log.WriteLine(LogLevel.Warn, "Quest accept failed {0}: {1}", questId, ex.Message);
+                return false;
+            }
         }
 
         public static void Cancel(ZoneCharacter character, uint questId)

@@ -363,6 +363,38 @@ namespace NextGen.Zone.Handlers
             return true;
         }
 
+        // Native ACCEPT command 6 calls the QuestID overload of
+        // CQuest::IsDoingableQuest at 0x0062FEE0 before changing quest state.
+        // This entry point deliberately ignores the current quest status and
+        // evaluates only the proven Start conditions plus the current-level gate.
+        internal static bool TryIsDoingableForQuest(
+            NextGen.Zone.Game.ZoneCharacter character, uint questId,
+            out bool doingable)
+        {
+            doingable = false;
+            if (character == null || questId == 0) return false;
+
+            EnsureLoaded();
+            Candidate candidate;
+            lock (Sync)
+            {
+                if (!_available || !ByQuestId.TryGetValue(questId, out candidate))
+                    return false;
+            }
+
+            try
+            {
+                Dictionary<uint, byte> statuses = LoadQuestStatuses(character.ID);
+                return TryIsDoingable(character, candidate, statuses, out doingable);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "Quest doingable check failed for {0}: {1}", questId, ex.Message);
+                return false;
+            }
+        }
+
         internal static bool TryResolveLinkedStage(
             NextGen.Zone.Game.ZoneCharacter character, uint targetQuestId,
             out QuestScriptStage stage)
@@ -668,7 +700,7 @@ namespace NextGen.Zone.Handlers
                     {
                         const string sqlNormalized =
                             "SELECT m.InxName AS MobName, q.QuestID, COALESCE(d.DialogID,0) AS DialogID, q.Type, q.Repeatable, " +
-                            "a.IsStartNPC, a.IsRewardNPC, a.IsAction3NPC, " +
+                            "COALESCE(a.IsStartNPC,0) AS IsStartNPC, COALESCE(a.IsRewardNPC,0) AS IsRewardNPC, COALESCE(a.IsAction3NPC,0) AS IsAction3NPC, " +
                             "COALESCE(q.DailyQuestType,0) AS DailyQuestType, q.RawData AS QuestRawData, ds.ActionScript, ds.FinishScript, " +
                             "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, " +
                             "COALESCE(pq.DailyQuestType,0) AS PrerequisiteDailyType, pq.RawData AS PrerequisiteRawData, s.bItem, s.ItemID, s.ItemLot, " +
@@ -679,7 +711,7 @@ namespace NextGen.Zone.Handlers
                             "LEFT JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
                             "LEFT JOIN QuestData pq ON pq.QuestID=s.QuestPrerequisiteID " +
-                            "INNER JOIN (" +
+                            "LEFT JOIN (" +
                                 "SELECT QuestID,NPCID,MAX(IsStartNPC) AS IsStartNPC,MAX(IsRewardNPC) AS IsRewardNPC,MAX(IsAction3NPC) AS IsAction3NPC " +
                                 "FROM (" +
                                     "SELECT QuestID,NPCID,1 AS IsStartNPC,0 AS IsRewardNPC,0 AS IsAction3NPC " +
@@ -691,11 +723,11 @@ namespace NextGen.Zone.Handlers
                                     "FROM QuestData_NPCMob WHERE bNPCMob<>0 AND NPCMobID<>0 AND (NPCMobAction=0 OR NPCMobAction=3)" +
                                 ") npc_roles GROUP BY QuestID,NPCID" +
                             ") a ON a.QuestID=q.QuestID " +
-                            "INNER JOIN data_mobinfo m ON m.ID=a.NPCID " +
+                            "LEFT JOIN data_mobinfo m ON m.ID=a.NPCID " +
                             "ORDER BY m.InxName, q.QuestID";
                         const string sqlLegacy =
                             "SELECT m.InxName AS MobName, q.QuestID, COALESCE(d.DialogID,0) AS DialogID, q.Type, q.Repeatable, " +
-                            "a.IsStartNPC, a.IsRewardNPC, a.IsAction3NPC, " +
+                            "COALESCE(a.IsStartNPC,0) AS IsStartNPC, COALESCE(a.IsRewardNPC,0) AS IsRewardNPC, COALESCE(a.IsAction3NPC,0) AS IsAction3NPC, " +
                             "q.RawData AS QuestRawData, ds.ActionScript, ds.FinishScript, " +
                             "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, " +
                             "pq.RawData AS PrerequisiteRawData, s.bItem, s.ItemID, s.ItemLot, " +
@@ -705,7 +737,7 @@ namespace NextGen.Zone.Handlers
                             "LEFT JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
                             "LEFT JOIN QuestData pq ON pq.QuestID=s.QuestPrerequisiteID " +
-                            "INNER JOIN (" +
+                            "LEFT JOIN (" +
                                 "SELECT QuestID,NPCID,MAX(IsStartNPC) AS IsStartNPC,MAX(IsRewardNPC) AS IsRewardNPC,MAX(IsAction3NPC) AS IsAction3NPC " +
                                 "FROM (" +
                                     "SELECT QuestID,NPCID,1 AS IsStartNPC,0 AS IsRewardNPC,0 AS IsAction3NPC " +
@@ -717,7 +749,7 @@ namespace NextGen.Zone.Handlers
                                     "FROM QuestData_NPCMob WHERE bNPCMob<>0 AND NPCMobID<>0 AND (NPCMobAction=0 OR NPCMobAction=3)" +
                                 ") npc_roles GROUP BY QuestID,NPCID" +
                             ") a ON a.QuestID=q.QuestID " +
-                            "INNER JOIN data_mobinfo m ON m.ID=a.NPCID " +
+                            "LEFT JOIN data_mobinfo m ON m.ID=a.NPCID " +
                             "ORDER BY m.InxName, q.QuestID";
 
                         DataTable data;
@@ -739,12 +771,15 @@ namespace NextGen.Zone.Handlers
 
                         foreach (DataRow row in data.Rows)
                         {
-                            string mobName = (string)row["MobName"];
+                            string mobName = row["MobName"] == DBNull.Value
+                                ? null
+                                : (string)row["MobName"];
                             uint questId = NextGen.Database.DataStore.GetDataTypes.GetUint(row["QuestID"]);
                             uint dialogId = NextGen.Database.DataStore.GetDataTypes.GetUint(row["DialogID"]);
 
-                            List<Candidate> list;
-                            if (!ByMobName.TryGetValue(mobName, out list))
+                            List<Candidate> list = null;
+                            if (!string.IsNullOrWhiteSpace(mobName) &&
+                                !ByMobName.TryGetValue(mobName, out list))
                             {
                                 list = new List<Candidate>();
                                 ByMobName.Add(mobName, list);
@@ -809,7 +844,8 @@ namespace NextGen.Zone.Handlers
                             };
                             if (!ByQuestId.ContainsKey(questId))
                                 ByQuestId.Add(questId, candidate);
-                            list.Add(candidate);
+                            if (list != null)
+                                list.Add(candidate);
                         }
 
                         _available = true;
