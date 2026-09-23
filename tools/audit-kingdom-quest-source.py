@@ -13,6 +13,7 @@ RATES = ROOT / "sql/data/data_kqvotemajorityrate.sql"
 DESC = ROOT / "sql/data/data_kingdomquestdesc.sql"
 DP = ROOT / "NextGen.World/Data/DataProvider.cs"
 TOOL = ROOT / "tools/KingdomQuestSourceDump/Program.cs"
+ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 
 EXPECTED_MAPS = {
     (30, "KDPrtShip"), (31, "KDEddyHill"), (33, "KDTrDn"), (34, "KDUnHall"), (35, "KDEnMaze"),
@@ -29,7 +30,7 @@ def data_rows(path):
             if line.lstrip().startswith('(')]
 
 def main():
-    for path in (MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL):
+    for path in (MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL, ZONE_CHARACTER):
         if not path.is_file():
             print('FAIL: missing', path)
             return 1
@@ -65,9 +66,18 @@ def main():
             print('FAIL: KQ source dumper missing target', source)
             return 1
 
+    zone_character = ZONE_CHARACTER.read_text(encoding='utf-8')
+    if 'if (id > 120)' in zone_character:
+        print('FAIL: legacy map-ID cutoff blocks source-backed KQ maps above 120')
+        return 1
+    if '!DataProvider.Instance.MapsByID.ContainsKey(id)' not in zone_character:
+        print('FAIL: ChangeMap is no longer validated against loaded map data')
+        return 1
+
     print('PASS: 25 KingdomMap=1 source maps locked')
     print('PASS: KQ description/team/vote metadata corpus locked (39/8/30/4/2)')
     print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
+    print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')
     return 0
 
 if __name__ == '__main__':

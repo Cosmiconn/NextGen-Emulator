@@ -1884,9 +1884,9 @@ namespace NextGen.Zone.Game
 		}
 		public void ChangeMap(ushort id, int x = -1, int y = -1, short instance = (short) -1)
 		{
-			if (id > 120)
+			if (!DataProvider.Instance.MapsByID.ContainsKey(id))
 			{
-				Log.WriteLine(LogLevel.Warn, "Character trying to warp to unexisting map: {0}", id);
+				Log.WriteLine(LogLevel.Warn, "Character trying to warp to unknown map: {0}", id);
 				DropMessage("Unable to transfer to this map. Error code 10");
 				return;
 			}
