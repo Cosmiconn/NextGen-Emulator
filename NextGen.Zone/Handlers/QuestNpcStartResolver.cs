@@ -57,6 +57,8 @@ namespace NextGen.Zone.Handlers
         private static bool _available;
         private static readonly Dictionary<string, List<Candidate>> ByMobName =
             new Dictionary<string, List<Candidate>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<uint, Candidate> ByQuestId =
+            new Dictionary<uint, Candidate>();
 
         // Exact status-priority table written by the original Zone.exe CQuest constructor.
         // Lower numeric priority wins. Equal-priority candidates require additional
@@ -358,6 +360,61 @@ namespace NextGen.Zone.Handlers
             return true;
         }
 
+        internal static bool TryResolveLinkedStage(
+            NextGen.Zone.Game.ZoneCharacter character, uint targetQuestId,
+            out QuestScriptStage stage)
+        {
+            stage = QuestScriptStage.Start;
+            if (character == null || targetQuestId == 0) return false;
+
+            EnsureLoaded();
+            Candidate candidate;
+            lock (Sync)
+            {
+                if (!_available || !ByQuestId.TryGetValue(targetQuestId, out candidate))
+                    return false;
+            }
+
+            try
+            {
+                Dictionary<uint, byte> statuses = LoadQuestStatuses(character.ID);
+                byte rawStatus;
+                bool persisted = statuses.TryGetValue(targetQuestId, out rawStatus);
+                byte effectiveStatus;
+                if (!TryGetEffectiveStatus(character, candidate, statuses,
+                        persisted, rawStatus, out effectiveStatus))
+                    return false;
+
+                // Original QSC_LINK command 11 dispatches the linked quest's
+                // effective status exactly as follows:
+                // 4/5/20 -> QuestStart, 6/7 -> QuestDoing, 8 -> QuestEnd.
+                switch (effectiveStatus)
+                {
+                    case QuestRuntime.PqsRepeat:
+                    case QuestRuntime.PqsAble:
+                    case QuestRuntime.PqsReadAble:
+                        stage = QuestScriptStage.Start;
+                        return true;
+                    case QuestRuntime.PqsInProgress:
+                    case QuestRuntime.PqsFailed:
+                        stage = QuestScriptStage.Action;
+                        return true;
+                    case QuestRuntime.PqsReward:
+                        stage = QuestScriptStage.Finish;
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "Quest LINK status resolution failed for {0}: {1}",
+                    targetQuestId, ex.Message);
+                return false;
+            }
+        }
+
         // Returns comparison < 0 when candidate replaces retained. The ordering below
         // follows CQuest::GetQuestStatusWithNPC: status priority, level predicate,
         // the exact Type==3 special branch, condition flags, then type priority.
@@ -653,38 +710,44 @@ namespace NextGen.Zone.Handlers
                             uint locationRange = normalizedLocation
                                 ? Convert.ToUInt32(row["LocationRange"])
                                 : (locationRaw != null && locationRaw.Length >= 18 ? BitConverter.ToUInt32(locationRaw, 14) : 0);
-                            list.Add(new Candidate
+                            Candidate candidate;
+                            if (!ByQuestId.TryGetValue(questId, out candidate))
                             {
-                                QuestID = questId,
-                                DialogID = dialogId,
-                                ActionDialogID = GetFirstSayDialogId(row["ActionScript"] == DBNull.Value ? string.Empty : (string)row["ActionScript"]),
-                                FinishDialogID = GetFirstSayDialogId(row["FinishScript"] == DBNull.Value ? string.Empty : (string)row["FinishScript"]),
-                                Type = Convert.ToByte(row["Type"]),
-                                Repeatable = Convert.ToByte(row["Repeatable"]),
-                                DailyQuestType = dailyQuestType,
-                                StartLevelEnabled = Convert.ToByte(row["bLevel"]),
-                                StartLevelMin = Convert.ToByte(row["LevelMin"]),
-                                StartLevelMax = Convert.ToByte(row["LevelMax"]),
-                                StartQuestEnabled = Convert.ToByte(row["bQuest"]),
-                                StartQuestID = Convert.ToUInt32(row["QuestPrerequisiteID"]),
-                                StartQuestType = Convert.ToByte(row["PrerequisiteType"]),
-                                StartQuestDailyType = prerequisiteDailyType,
-                                StartItemEnabled = Convert.ToByte(row["bItem"]),
-                                StartItemID = Convert.ToUInt16(row["ItemID"]),
-                                StartItemLot = Convert.ToUInt16(row["ItemLot"]),
-                                StartLocationEnabled = Convert.ToByte(row["bLocation"]),
-                                StartLocationMap = locationMap,
-                                StartLocationX = locationX,
-                                StartLocationY = locationY,
-                                StartLocationRange = locationRange,
-                                StartRaceEnabled = Convert.ToByte(row["bRace"]),
-                                StartRace = Convert.ToByte(row["Race"]),
-                                StartClassEnabled = Convert.ToByte(row["bClass"]),
-                                StartClass = Convert.ToByte(row["Class"]),
-                                StartGenderEnabled = Convert.ToByte(row["bGender"]),
-                                StartGender = Convert.ToByte(row["Gender"]),
-                                StartDateEnabled = Convert.ToByte(row["bDate"])
-                            });
+                                candidate = new Candidate
+                                {
+                                    QuestID = questId,
+                                    DialogID = dialogId,
+                                    ActionDialogID = GetFirstSayDialogId(row["ActionScript"] == DBNull.Value ? string.Empty : (string)row["ActionScript"]),
+                                    FinishDialogID = GetFirstSayDialogId(row["FinishScript"] == DBNull.Value ? string.Empty : (string)row["FinishScript"]),
+                                    Type = Convert.ToByte(row["Type"]),
+                                    Repeatable = Convert.ToByte(row["Repeatable"]),
+                                    DailyQuestType = dailyQuestType,
+                                    StartLevelEnabled = Convert.ToByte(row["bLevel"]),
+                                    StartLevelMin = Convert.ToByte(row["LevelMin"]),
+                                    StartLevelMax = Convert.ToByte(row["LevelMax"]),
+                                    StartQuestEnabled = Convert.ToByte(row["bQuest"]),
+                                    StartQuestID = Convert.ToUInt32(row["QuestPrerequisiteID"]),
+                                    StartQuestType = Convert.ToByte(row["PrerequisiteType"]),
+                                    StartQuestDailyType = prerequisiteDailyType,
+                                    StartItemEnabled = Convert.ToByte(row["bItem"]),
+                                    StartItemID = Convert.ToUInt16(row["ItemID"]),
+                                    StartItemLot = Convert.ToUInt16(row["ItemLot"]),
+                                    StartLocationEnabled = Convert.ToByte(row["bLocation"]),
+                                    StartLocationMap = locationMap,
+                                    StartLocationX = locationX,
+                                    StartLocationY = locationY,
+                                    StartLocationRange = locationRange,
+                                    StartRaceEnabled = Convert.ToByte(row["bRace"]),
+                                    StartRace = Convert.ToByte(row["Race"]),
+                                    StartClassEnabled = Convert.ToByte(row["bClass"]),
+                                    StartClass = Convert.ToByte(row["Class"]),
+                                    StartGenderEnabled = Convert.ToByte(row["bGender"]),
+                                    StartGender = Convert.ToByte(row["Gender"]),
+                                    StartDateEnabled = Convert.ToByte(row["bDate"])
+                                };
+                                ByQuestId.Add(questId, candidate);
+                            }
+                            list.Add(candidate);
                         }
 
                         _available = true;
