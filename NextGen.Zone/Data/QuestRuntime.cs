@@ -23,6 +23,8 @@ namespace NextGen.Zone.Data
         public const byte PqsInProgress = 6;
         public const byte PqsFailed = 7;
         public const byte PqsReward = 8;
+        public const byte PqsLowAble = 9;
+        public const byte PqsReadAble = 20;
         private const byte ScenarioFlagSlot = 250;
 
         public static void Accept(ZoneCharacter character, uint questId)
@@ -96,29 +98,47 @@ namespace NextGen.Zone.Data
             catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest kill progress failed for mob {0}: {1}", mobId, ex.Message); }
         }
 
-        public static void RecordScenarioDone(ZoneCharacter character, ushort scenarioId)
+        public static bool RecordScenarioDone(ZoneCharacter character, uint questId, ushort scenarioId)
         {
-            if (character == null || scenarioId == 0) return;
+            if (character == null || questId == 0 || scenarioId == 0) return false;
             try
             {
-                DataTable definitions;
+                // Native CQuest::Occure_ScenarioDone is quest-scoped: it receives
+                // both QuestID and ScenarioID. Do not mark every active quest that
+                // happens to share the same scenario identifier.
                 using (DatabaseClient dataDb = Program.DatabaseManager.GetClient())
-                    definitions = dataDb.ReadDataTable("SELECT QuestID FROM QuestData_ConditionEnd WHERE bScenario=1 AND ScenarioID=@scenario", new MySqlParameter("@scenario", scenarioId));
-                if (definitions == null || definitions.Rows.Count == 0) return;
+                {
+                    DataTable definition = dataDb.ReadDataTable(
+                        "SELECT 1 FROM QuestData_ConditionEnd WHERE QuestID=@q AND bScenario=1 AND ScenarioID=@scenario LIMIT 1",
+                        new MySqlParameter("@q", questId),
+                        new MySqlParameter("@scenario", scenarioId));
+                    if (definition == null || definition.Rows.Count == 0) return false;
+                }
+
                 using (DatabaseClient charDb = Program.CharDBManager.GetClient())
                 {
-                    foreach (DataRow def in definitions.Rows)
-                    {
-                        uint q = Convert.ToUInt32(def["QuestID"]);
-                        DataTable active = charDb.ReadDataTable("SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q AND nStatus=@status",
-                            new MySqlParameter("@c", character.ID), new MySqlParameter("@q", q), new MySqlParameter("@status", PqsInProgress));
-                        if (active == null || active.Rows.Count == 0) continue;
-                        charDb.ExecuteQuery("INSERT INTO character_quest_progress (CharID,QuestID,Slot,Progress) VALUES (@c,@q,@slot,1) ON DUPLICATE KEY UPDATE Progress=1",
-                            new MySqlParameter("@c", character.ID), new MySqlParameter("@q", q), new MySqlParameter("@slot", ScenarioFlagSlot));
-                    }
+                    DataTable active = charDb.ReadDataTable(
+                        "SELECT nStatus FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q AND nStatus=@status",
+                        new MySqlParameter("@c", character.ID),
+                        new MySqlParameter("@q", questId),
+                        new MySqlParameter("@status", PqsInProgress));
+                    if (active == null || active.Rows.Count == 0) return false;
+
+                    charDb.ExecuteQuery(
+                        "INSERT INTO character_quest_progress (CharID,QuestID,Slot,Progress) VALUES (@c,@q,@slot,1) ON DUPLICATE KEY UPDATE Progress=1",
+                        new MySqlParameter("@c", character.ID),
+                        new MySqlParameter("@q", questId),
+                        new MySqlParameter("@slot", ScenarioFlagSlot));
                 }
+                return true;
             }
-            catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest scenario progress failed for {0}: {1}", scenarioId, ex.Message); }
+            catch (Exception ex)
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "Quest scenario progress failed for quest {0}, scenario {1}: {2}",
+                    questId, scenarioId, ex.Message);
+                return false;
+            }
         }
 
         public static void SetAbstate(ZoneCharacter character, string abStateName, uint strength, uint keepTimeMs)
@@ -336,14 +356,25 @@ namespace NextGen.Zone.Data
         {
             satisfied = false;
 
-            // CQuest::IsSoonableDailyQuest returns false for DQT_NONE and for
-            // out-of-range values. In the caller that means status-2 prerequisite
-            // eligibility passes without a reset-time rejection.
+            // For a status-2 predecessor, IsSoonableQuest accepts the completed
+            // prerequisite only while its daily reset has NOT elapsed.
+            bool resetElapsed;
+            if (!TryIsDailyResetElapsed(characterId, questId, dailyQuestType, out resetElapsed))
+                return false;
+            satisfied = !resetElapsed;
+            return true;
+        }
+
+        public static bool TryIsDailyResetElapsed(int characterId, uint questId,
+            byte dailyQuestType, out bool resetElapsed)
+        {
+            resetElapsed = false;
+
+            // Native IsSoonableDailyQuest returns false for DQT_NONE and for
+            // out-of-range values. The status-2 GetNewQuestStatus path can only
+            // reopen the quest when this routine returns true.
             if (dailyQuestType == 0 || dailyQuestType > 4)
-            {
-                satisfied = true;
                 return true;
-            }
 
             try
             {
@@ -380,21 +411,18 @@ namespace NextGen.Zone.Data
                         resetBoundary = new DateTime(now.Year, 1, 1);
                         break;
                     default:
-                        satisfied = true;
                         return true;
                 }
 
-                // Native IsSoonableDailyQuest returns true when completion time is
-                // older than the selected reset boundary. IsSoonableQuest rejects a
-                // status-2 predecessor in that case, so the prerequisite is satisfied
-                // only when completion is on/after the current boundary.
-                satisfied = lastComplete >= resetBoundary;
+                // CQuest::IsSoonableDailyQuest returns true when the completion
+                // timestamp is older than the current reset boundary.
+                resetElapsed = lastComplete < resetBoundary;
                 return true;
             }
             catch (Exception ex)
             {
                 Log.WriteLine(LogLevel.Warn,
-                    "Quest daily prerequisite check failed for {0}: {1}", questId, ex.Message);
+                    "Quest daily reset check failed for {0}: {1}", questId, ex.Message);
                 return false;
             }
         }
