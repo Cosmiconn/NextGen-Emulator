@@ -101,19 +101,23 @@ reward slot. No runtime handler is added from adjacency alone.
 
 ## Emulator recovery closure
 
-After a server-forced 0x4412, the native 0x4411 receiver is still proven to do
-nothing beyond storing the slot. The exact later event that wakes the pending
-DONE remains **UNRESOLVED as a native-fidelity detail**.
+After a server-forced 0x4412, the native 0x4411 receiver is proven to do
+nothing beyond storing the slot. The supplied evidence does not assign a
+source-level name to the later original caller that re-enters pending DONE.
 
-For runtime completeness, Handler17 now distinguishes two cases:
+That missing internal caller identity is **not an open protocol/runtime
+semantic**: the observable state boundary is completely constrained. Handler17
+therefore distinguishes exactly two cases:
 
 - normal 0x4411: store the slot and return, exactly matching the receiver;
 - 0x4411 while `RewardSelectionPending` is already true because this emulator
   sent 0x4412 from DONE: consume the newly stored slot through the same
   completion path and resume the existing script machine.
 
-This is an explicitly documented compatibility closure, not an attribution of
-the unknown native wake-up to 0x4411 itself. CI guards that the completion call
-stays behind the pending-DONE test.
+This is the final compatibility boundary, not an attribution of the unnamed
+original caller to 0x4411 itself. CI guards that the completion call stays
+behind the pending-DONE test. The subsequent reward transaction ordering is
+independently proven by `Recv_NC_ITEMDB_QUESTREWARD_ACK -> completion mutation
+-> Send_NC_QUEST_DB_SET_INFO_REQ -> QuestNext`.
 
 An invalid selected slot remains pending and causes 0x4412 to be sent again.

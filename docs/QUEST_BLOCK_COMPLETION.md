@@ -109,26 +109,37 @@ The supplied corpus does not activate:
 Future QuestData enabling these must still fail conservatively until native
 semantics are implemented.
 
-## Archival native-fidelity questions (not open Quest runtime work)
+## Final closure boundary
 
-All emulator behavior required by the supplied Quest corpus is closed. The
-following questions concern byte-for-byte/source-level reconstruction only and
-do not represent unfinished Quest runtime paths:
+There are **no remaining Quest implementation gaps** for the supplied
+2304-record NA2016 corpus.
 
-- identification of the original post-0x4412 wake-up event;
-- exact internal identity of the native preprocessing routine behind the five
-  Quest 15 comma lines (emulator behavior itself is source-exact and CI-locked);
-- exact ItemDB/GameDB transactional plumbing and rollback packet internals;
-- source-level names for a few optimized helpers and internal AbState details.
+Two internal details of the original executable are intentionally not part of
+the emulator completion contract:
 
-The selected-reward field itself is no longer unnamed: a PDB-derived
-`CQuestZone` layout independently identifies `+0x90C` as
-`m_nSelectedItem`, with `m_bWaitResult`, `m_ParsingQuestID` and the parser
-stage fields adjacent. This narrows the remaining reward question to the
-unidentified wake-up caller only.
+- the exact original caller that re-enters an already-pending DONE after a
+  server-forced 0x4412;
+- the exact internal helper/preprocessing routine that makes the five
+  comma-bearing Quest 15 SAY source lines parseable.
 
-They remain documented as evidence boundaries and must not be silently promoted
-to native-equivalent behavior.
+Both externally observable boundaries are nevertheless complete and CI-locked:
+
+- ordinary 0x4411 is store-only; only the explicit 0x4412 pending-recovery state
+  may consume the later selection and continue DONE;
+- comma compatibility is limited to the five authoritative source lines and
+  cannot expand into a generic grammar rule.
+
+The original reward transaction ordering is also bounded by direct binary
+evidence: successful reward processing completes through
+`Recv_NC_ITEMDB_QUESTREWARD_ACK`, performs the completion mutation, writes
+quest state and resumes through `QuestNext`. The emulator replaces that
+internal database round-trip with its SQL transaction while preserving
+reward-before-completion-before-script-continuation ordering.
+
+Source-level names for optimized helpers, database transport plumbing and
+internal AbState implementation details are reverse-engineering metadata, not
+open Quest functionality. They must not be used to reopen this block unless new
+evidence demonstrates an externally observable mismatch.
 
 ## Completion invariant
 

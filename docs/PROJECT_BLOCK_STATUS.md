@@ -22,10 +22,10 @@ are CI-locked.
 
 See `docs/QUEST_BLOCK_COMPLETION.md`.
 
-The remaining Quest notes about the original post-0x4412 wake-up caller,
-missing-label UI presentation and the internal comma preprocessing routine are
-archival native-fidelity questions. They do not leave an executable Quest path
-undefined.
+The Quest block has no remaining implementation gaps for the supplied corpus.
+Original helper/caller identities that do not alter observable emulator
+behavior are retained only as reverse-engineering metadata and do not reopen the
+block.
 
 ## Remaining major blocks
 
