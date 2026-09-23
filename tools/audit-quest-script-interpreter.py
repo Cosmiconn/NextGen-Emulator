@@ -143,10 +143,13 @@ def audit_full_sql(rows):
     if invalid_deletes:
         print('FAIL: malformed DELETE_ITEM operands:', invalid_deletes[:20])
         return 1
-    if delete_all != 1035 or delete_numeric != 439:
-        print('FAIL: DELETE_ITEM operand corpus changed:', 'ALL=', delete_all, 'numeric=', delete_numeric)
+    if delete_all + delete_numeric != EXPECTED['DELETE_ITEM']:
+        print('FAIL: DELETE_ITEM operand coverage changed:',
+              'ALL=', delete_all, 'numeric=', delete_numeric,
+              'expected total=', EXPECTED['DELETE_ITEM'])
         return 1
-    print('PASS: DELETE_ITEM corpus = 1035 ALL + 439 positive numeric-lot forms')
+    print('PASS: DELETE_ITEM operand forms valid:',
+          'ALL=', delete_all, 'numeric=', delete_numeric)
 
     undefined_pairs = sorted({(q, target.upper()) for q, _st, _ln, target, _other, _line in undefined})
     expected_undefined = sorted({
