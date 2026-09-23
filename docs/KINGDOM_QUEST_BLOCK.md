@@ -95,3 +95,8 @@ The build now checks tools/KingdomQuestSourceDump/NextGen.KingdomQuestTool.cspro
 Usage: dotnet run --project tools/KingdomQuestSourceDump/NextGen.KingdomQuestTool.csproj -- --sql kq-source.sql <source-directory>
 
 This is the source-faithful path for importing definition/schedule/reward fields before live KQ list or registration semantics are enabled.
+
+
+## Complete currently-exported static metadata load
+
+World DataProvider now also loads all 39 KingdomQuestDesc rows in source order as KingdomQuestDescriptions. Together with the 25 KingdomMap=1 maps, 8 KQTeam rows, 30 vote flags, 4 vote reasons and 2 vote thresholds, every KQ SHN table currently exported into sql/data is available to the World runtime. The description row order is preserved; no source QuestID is invented for this table because the original export contains only Desc.

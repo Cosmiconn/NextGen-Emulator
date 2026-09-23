@@ -10,6 +10,7 @@ TEAM = ROOT / "sql/data/data_kqteam.sql"
 VOTE = ROOT / "sql/data/data_kqisvote.sql"
 REASONS = ROOT / "sql/data/data_kqvotedesc.sql"
 RATES = ROOT / "sql/data/data_kqvotemajorityrate.sql"
+DESC = ROOT / "sql/data/data_kingdomquestdesc.sql"
 DP = ROOT / "NextGen.World/Data/DataProvider.cs"
 TOOL = ROOT / "tools/KingdomQuestSourceDump/Program.cs"
 
@@ -28,7 +29,7 @@ def data_rows(path):
             if line.lstrip().startswith('(')]
 
 def main():
-    for path in (MAP, TEAM, VOTE, REASONS, RATES, DP, TOOL):
+    for path in (MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL):
         if not path.is_file():
             print('FAIL: missing', path)
             return 1
@@ -45,13 +46,13 @@ def main():
         print('actual  ', sorted(found))
         return 1
 
-    counts = (len(data_rows(TEAM)), len(data_rows(VOTE)), len(data_rows(REASONS)), len(data_rows(RATES)))
-    if counts != (8, 30, 4, 2):
+    counts = (len(data_rows(TEAM)), len(data_rows(VOTE)), len(data_rows(REASONS)), len(data_rows(RATES)), len(data_rows(DESC)))
+    if counts != (8, 30, 4, 2, 39):
         print('FAIL: KQ metadata row counts changed:', counts)
         return 1
 
     provider = DP.read_text(encoding='utf-8')
-    for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
+    for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
             return 1
@@ -63,7 +64,7 @@ def main():
             return 1
 
     print('PASS: 25 KingdomMap=1 source maps locked')
-    print('PASS: KQ team/vote metadata corpus locked (8/30/4/2)')
+    print('PASS: KQ description/team/vote metadata corpus locked (39/8/30/4/2)')
     print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
     return 0
 

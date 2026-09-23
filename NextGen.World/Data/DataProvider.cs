@@ -25,6 +25,7 @@ namespace NextGen.World.Data
         public Dictionary<byte, KingdomQuestVoteReasonInfo> KingdomQuestVoteReasons { get; private set; }
         public List<byte> KingdomQuestVoteMajorityRates { get; private set; }
         public Dictionary<ushort, MapInfo> KingdomQuestMaps { get; private set; }
+        public List<string> KingdomQuestDescriptions { get; private set; }
 
 		public DataProvider()
 		{
@@ -45,6 +46,7 @@ namespace NextGen.World.Data
             KingdomQuestMaps = Maps.Values
                 .Where(map => map.Kingdom == 1)
                 .ToDictionary(map => map.ID, map => map);
+            KingdomQuestDescriptions = new List<string>();
 
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
@@ -85,6 +87,15 @@ namespace NextGen.World.Data
                     }
                 }
 
+                DataTable descriptionData = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT Desc FROM data_kingdomquestdesc ORDER BY ID; USE `{1}`",
+                    Settings.Instance.zoneMysqlDatabase, Settings.Instance.WorldMysqlDatabase));
+                if (descriptionData != null)
+                {
+                    foreach (DataRow row in descriptionData.Rows)
+                        KingdomQuestDescriptions.Add((string)row["Desc"]);
+                }
+
                 DataTable rateData = dbClient.ReadDataTable(string.Format(
                     "USE `{0}`; SELECT * FROM data_kqvotemajorityrate ORDER BY VoteAgreeRate DESC; USE `{1}`",
                     Settings.Instance.zoneMysqlDatabase, Settings.Instance.WorldMysqlDatabase));
@@ -97,9 +108,9 @@ namespace NextGen.World.Data
             }
 
             Log.WriteLine(LogLevel.Info,
-                "Loaded KQ metadata: {0} maps, {1} teams, {2} vote flags, {3} vote reasons, {4} vote thresholds.",
-                KingdomQuestMaps.Count, KingdomQuestTeams.Count, KingdomQuestVoteEnabled.Count,
-                KingdomQuestVoteReasons.Count, KingdomQuestVoteMajorityRates.Count);
+                "Loaded KQ metadata: {0} maps, {1} descriptions, {2} teams, {3} vote flags, {4} vote reasons, {5} vote thresholds.",
+                KingdomQuestMaps.Count, KingdomQuestDescriptions.Count, KingdomQuestTeams.Count,
+                KingdomQuestVoteEnabled.Count, KingdomQuestVoteReasons.Count, KingdomQuestVoteMajorityRates.Count);
         }
 
         private void LoadMasterReward()
