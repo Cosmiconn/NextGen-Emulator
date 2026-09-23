@@ -27,6 +27,25 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 | `CANCEL` | 12 | native command 7; distinct from `REPEAT_QUEST_GIVE_UP = 28` | `QuestRuntime.Cancel` | **PROVEN / IMPLEMENTED** against the reconstructed SetQuestCancel repeatable/non-repeatable behavior |
 | `IS_ABSTATE` | 0 | `QSC_IS_ABSTATE = 0x20` | not implemented | **UNRESOLVED textual usage** |
 
+## IF corpus shape
+
+The complete source contains **3036** textual IF commands, and every one matches
+the currently implemented textual evaluator shape:
+
+- 2256: `IF RESULT == <integer> GOTO <label>`
+- 676: `IF VAR1 < <integer> GOTO <label>`
+- 104: `IF RESULT < <integer> GOTO <label>`
+
+No other left operand, comparison operator, or non-integer right operand occurs
+in the supplied 2304-record corpus. The CI corpus audit now fails if this shape
+changes.
+
+The native parser is known to support a wider selector/value representation and
+six comparison operators. Those potential forms remain outside the parity claim
+until they occur in authoritative source data or are tied to an original runtime
+path. The statement here is narrower: all IF syntax actually present in the
+supplied NA2016 QuestData is covered.
+
 ## ItemID 0 is a real item, not a sentinel
 
 The QuestData corpus and the imported ItemInfo table cross-confirm low ItemIDs:

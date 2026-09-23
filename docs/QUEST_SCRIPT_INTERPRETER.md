@@ -37,6 +37,18 @@ The CI audit is now mandatory and fails when its required corpus is absent or wh
 
 Labels and `GOTO` targets are audited without assigning unproven semantics. Cross-stage and undefined targets are reported for review rather than rewritten automatically.
 
+All **3036** textual `IF` lines in the supplied corpus fit the runtime evaluator's
+existing `IF <left> <comparison> <integer> GOTO <label>` grammar:
+
+- 2256 × `IF RESULT == <integer> GOTO <label>`
+- 676 × `IF VAR1 < <integer> GOTO <label>`
+- 104 × `IF RESULT < <integer> GOTO <label>`
+
+There are no other IF operand/operator shapes in this QuestData snapshot. CI
+checks these exact counts. This establishes complete IF syntax coverage for the
+supplied NA2016 corpus; it does **not** claim binary-equivalence for native
+operand-selector forms that are absent from this corpus.
+
 ## LINK
 
 The original command-name table now directly maps textual `LINK` to native
