@@ -68,6 +68,10 @@ def main():
         "packet.WriteString(ScriptLanguage ?? string.Empty, 32);",
         "packet.WriteString(ScriptInitValue ?? string.Empty, 32);",
         "new KingdomQuestXY[2]",
+        "YearFrom1900 = local.Year - 1900",
+        "DayOfYearFromZero = local.DayOfYear - 1",
+        "packet.WriteInt(YearFrom1900);",
+        "packet.WriteInt(DayOfYearFromZero);",
     ], "native PROTO_KQ_INFO client/server serializers"):
         return 1
 
@@ -99,9 +103,9 @@ def main():
         ],
         "list time": [
             "new Packet(SH22Type.KingdomQuestListTimeAck)",
+            "WriteServerTime(packet, now);",
             "packet.WriteInt((int)unix);",
-            "packet.WriteInt(local.Year - 1900);",
-            "packet.WriteInt(local.DayOfYear - 1);",
+            "KingdomQuestNativeTime.FromLocalDateTime(now.LocalDateTime).Write(packet);",
         ],
         "list add": [
             "new Packet(SH22Type.KingdomQuestListAddAck)",
