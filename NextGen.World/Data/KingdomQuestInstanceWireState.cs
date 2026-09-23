@@ -15,11 +15,18 @@ namespace NextGen.World.Data
         public ushort StateValue { get; private set; }
         public ushort TypeValue { get; private set; }
 
-        public KingdomQuestInstanceWireState(uint instanceId, ushort stateValue, ushort typeValue)
+        // CH22/3 -> SH22/4 carries an additional captured ushort. Keep it
+        // separate from type-37 StateValue/type-38 TypeValue until the source
+        // definition field is proven.
+        public ushort? InstanceInfoValue { get; private set; }
+
+        public KingdomQuestInstanceWireState(uint instanceId, ushort stateValue,
+            ushort typeValue, ushort? instanceInfoValue = null)
         {
             InstanceID = instanceId;
             StateValue = stateValue;
             TypeValue = typeValue;
+            InstanceInfoValue = instanceInfoValue;
         }
     }
 
@@ -37,7 +44,28 @@ namespace NextGen.World.Data
         public static void Upsert(uint instanceId, ushort stateValue, ushort typeValue)
         {
             lock (Sync)
-                Instances[instanceId] = new KingdomQuestInstanceWireState(instanceId, stateValue, typeValue);
+            {
+                KingdomQuestInstanceWireState current;
+                ushort? info = Instances.TryGetValue(instanceId, out current)
+                    ? current.InstanceInfoValue
+                    : (ushort?)null;
+                Instances[instanceId] = new KingdomQuestInstanceWireState(
+                    instanceId, stateValue, typeValue, info);
+            }
+        }
+
+        public static bool SetInstanceInfoValue(uint instanceId, ushort value)
+        {
+            lock (Sync)
+            {
+                KingdomQuestInstanceWireState current;
+                if (!Instances.TryGetValue(instanceId, out current))
+                    return false;
+
+                Instances[instanceId] = new KingdomQuestInstanceWireState(
+                    current.InstanceID, current.StateValue, current.TypeValue, value);
+                return true;
+            }
         }
 
         public static bool Remove(uint instanceId)
@@ -57,7 +85,8 @@ namespace NextGen.World.Data
                     return false;
                 }
                 state = new KingdomQuestInstanceWireState(
-                    current.InstanceID, current.StateValue, current.TypeValue);
+                    current.InstanceID, current.StateValue, current.TypeValue,
+                    current.InstanceInfoValue);
                 return true;
             }
         }
@@ -68,7 +97,7 @@ namespace NextGen.World.Data
                 return Instances.Values
                     .OrderBy(v => v.InstanceID)
                     .Select(v => new KingdomQuestInstanceWireState(
-                        v.InstanceID, v.StateValue, v.TypeValue))
+                        v.InstanceID, v.StateValue, v.TypeValue, v.InstanceInfoValue))
                     .ToList()
                     .AsReadOnly();
         }

@@ -139,3 +139,24 @@ instance 0.
 dynamic KQ map instance does not leak/update its mob spawns into instance 0.
 It also does not clone instance-0 spawns by assumption; KQ-specific regen data
 must populate the target instance from authoritative project sources.
+
+
+## Captured instance-detail request is now live
+
+The World server now handles the byte-proven client request
+`CH22Type.GetKQInstanceInfo` (type 3):
+
+```text
+request:  u32 InstanceID
+response: u32 InstanceID + u16 instanceInfoValue   (SH22 type 4)
+```
+
+The response ushort is intentionally **not** aliased to the type-37 state value
+or the type-38 type value. A live registry entry must receive it explicitly
+through `SetInstanceInfoValue`; otherwise the server logs the unresolved
+request and sends no fabricated detail response.
+
+The captured registration request (CH22 type 5) is still deliberately not
+handled. The original flow emits both type 6 and a 26-byte type-50 notice, and
+that type-50 body is not yet sufficiently decoded. CI rejects a premature type-5
+handler until that evidence boundary moves.

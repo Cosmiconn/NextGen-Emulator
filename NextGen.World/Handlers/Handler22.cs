@@ -2,11 +2,33 @@ using System;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
 using NextGen.World.Networking;
+using NextGen.World.Data;
 
 namespace NextGen.World.Handlers
 {
    public class Handler22
     {
+       [PacketHandler(CH22Type.GetKQInstanceInfo)]
+       public static void GetKQInstanceInfo(WorldClient client, Packet packet)
+       {
+           uint instanceId;
+           if (!packet.TryReadUInt(out instanceId))
+               return;
+
+           KingdomQuestInstanceWireState state;
+           if (!KingdomQuestInstanceRegistry.TryGet(instanceId, out state) ||
+               !state.InstanceInfoValue.HasValue)
+           {
+               Log.WriteLine(LogLevel.Debug,
+                   "KQ instance detail requested for unresolved instance {0}.", instanceId);
+               return;
+           }
+
+           using (Packet response = KingdomQuestProtocol.CreateInstanceInfo(
+               instanceId, state.InstanceInfoValue.Value))
+               client.SendPacket(response);
+       }
+
        [PacketHandler(CH22Type.GotIngame)]
        public static void GotIngame(WorldClient client, Packet packet)
        {

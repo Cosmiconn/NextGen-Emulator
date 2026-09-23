@@ -102,9 +102,30 @@ def main():
         "OrderBy(v => v.InstanceID)",
         "StateValue",
         "TypeValue",
+        "InstanceInfoValue",
+        "SetInstanceInfoValue",
     ], "instance wire-state registry"):
         return 1
 
+    if not require(handler, [
+        "[PacketHandler(CH22Type.GetKQInstanceInfo)]",
+        "packet.TryReadUInt(out instanceId)",
+        "KingdomQuestInstanceRegistry.TryGet(instanceId, out state)",
+        "!state.InstanceInfoValue.HasValue",
+        "KingdomQuestProtocol.CreateInstanceInfo(",
+        "instanceId, state.InstanceInfoValue.Value",
+    ], "captured CH22/3 instance-detail handler"):
+        return 1
+
+    # The captured registration path also emits SH22/50, whose 26-byte body is
+    # not fully decoded yet. Do not enable a partial type-5 handler that would
+    # falsely claim registration parity.
+    if "[PacketHandler(CH22Type.RegisterForKQInstance)]" in handler:
+        print("FAIL: KQ registration enabled before SH22/50 body is source-proven")
+        return 1
+
+    print("PASS: CH22/3 replies only from an explicitly populated instance-info value")
+    print("PASS: CH22/5 registration remains disabled until SH22/50 is decoded")
     print("PASS: captured KQ World wire primitives are explicit and definition-neutral")
     print("PASS: live KQ list remains empty until authoritative definition/schedule import")
     return 0
