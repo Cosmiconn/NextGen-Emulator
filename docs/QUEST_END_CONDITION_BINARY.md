@@ -76,6 +76,12 @@ PDB proves:
 
 This function is called by `GetNewQuestStatus()` for status `PQS_ING` (`6`). If `IsRewardAbleQuest` is true, native status becomes `PQS_REWARD` (`8`); otherwise it remains `PQS_ING` (`6`).
 
+## Emulator alignment
+
+The SQL-backed runtime now applies the proven `End.bClass / End.Class` gate during reward eligibility. The comparison uses the same direct class-ID convention already proven for start eligibility and `Character.Job`.
+
+`End.bRace` remains intentionally unimplemented until the player's race representation is normalized. `End.bTimeLimit / End.TimeLimit` also remains unresolved at runtime because the native comparison operand at `PLAYER_QUEST_INFO +0x1E` is structurally proven but its emulator-side unit/state source is not yet established.
+
 ## Important non-inferences
 
 - `bScenario` is the exact PDB field name, but native `IsRewardAbleQuest` does **not** compare `ScenarioID`; it checks bit `0x02` at `PLAYER_QUEST_INFO +0x1D`.
