@@ -126,3 +126,20 @@ CI runs `python3 tools/audit-quest-importer.py`. The audit builds a synthetic
 QuestData record with a daily subtype, signed coordinates, map/range, scenario
 data and two 64-bit date values, runs the real importer, and verifies the emitted
 normalized SQL plus the corrected raw byte slices.
+
+
+## SQL-only runtime regression audit
+
+CI also runs `python3 tools/audit-quest-runtime-sql.py`. This guard makes the
+migration boundary executable: the live Zone quest paths must keep their SQL
+sources (`QuestData*`, `data_questdialog`, and `data_quest_script`) and must
+not introduce SHN reader APIs for quest runtime data.
+
+The only `QuestData.shn` mention allowed in `NextGen.Zone` is the migration
+diagnostic that tells operators to re-import an older SQL layout. The file
+itself remains valid in importer/tests/docs as the one-time authoritative import
+source, but it is not opened by the server at runtime.
+
+This audit deliberately proves the dependency boundary only. It does not assign
+semantics to unused QuestData fields or commands that are absent from the
+supplied NA2016 corpus.

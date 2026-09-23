@@ -52,3 +52,7 @@ jobs:
       - name: Run Quest importer audit
         shell: bash
         run: python3 tools/audit-quest-importer.py
+
+      - name: Run Quest SQL-only runtime audit
+        shell: bash
+        run: python3 tools/audit-quest-runtime-sql.py
