@@ -134,16 +134,23 @@ handling for:
 - effective ING -> REWARD promotion from native end-condition eligibility;
 - Start/Action/Finish script entry selection by effective status.
 
-The remaining selection-specific blockers are now deliberately narrow:
+For the supplied NA2016 QuestData corpus, the NPC-selection eligibility path is
+now covered for every active start-condition family present in the data,
+including Type-10 daily predecessor reset checks.
 
-1. Type-10 daily predecessor reset-time state for status-2 prerequisite quests;
-2. future start Race/Date gates, which are unused in the supplied corpus;
-3. exact `0x440F/0x4410` select-start wire fields, which are kept separate
-   from the current NPC dialog path.
+The remaining selection-adjacent boundaries are deliberately separate:
 
-The Type-3 equal-priority branch is fully reconstructed and implemented. The
-status-2 predecessor path is also resolved for every predecessor whose
-`QuestData.Type != 10`; only the native daily-reset subcase remains. In the
-supplied corpus, 1390 quests have a predecessor gate, but only two edges point
-to a Type-10 predecessor: `20037 -> 20036` and `20048 -> 20047`.
+1. future start Race/Date gates, which have zero active rows in the supplied
+   corpus and therefore are not needed for current content;
+2. exact `0x440F/0x4410` select-start wire fields, which are kept separate
+   from the current NPC dialog path;
+3. legacy characters created before normalized completion timestamps were
+   persisted may safely fall back for a Type-10/status-2 prerequisite until
+   they have a real `tQuestTimes.dLastComplete` value.
+
+The Type-3 equal-priority branch is fully reconstructed and implemented.
+The status-2 predecessor path is fully resolved, including the native daily
+reset rule. In the supplied corpus, 1390 quests have a predecessor gate and
+only two edges point to a Type-10 predecessor: `20037 -> 20036` and
+`20048 -> 20047`.
 
