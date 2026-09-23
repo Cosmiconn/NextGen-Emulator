@@ -12,6 +12,7 @@ SQL = Path(os.environ.get("QUEST_SCRIPT_SQL", ROOT / "sql/data/data_quest_script
 MANIFEST = ROOT / "tests/fixtures/quest_script_corpus_manifest.sql"
 CORPUS = ROOT / "tests/fixtures/quest_script_opcode_corpus.zlib.b64"
 ITEM_SQL = ROOT / "sql/data/data_iteminfo.sql"
+MOB_SQL = ROOT / "sql/data/data_mobinfo.sql"
 EXPECTED = {'ACCEPT':2410,'CANCEL':12,'CREATE_ITEM':206,'DELETE_ITEM':1474,'DONE':2603,'END':9446,'GET_ITEM_LOT':104,'GET_PLAYER_EMPTY_INVENTORY':676,'GOTO':4,'IF':3036,'LINK':350,'SAY':19924,'SCENARIO':52,'SET_ABSTATE':51}
 SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd2448b8'
 
@@ -90,6 +91,28 @@ def report_low_item_ids():
         print('FAIL: ItemID 0 no longer resolves to the verified LeatherBoots row')
         return False
     return True
+
+def report_low_mob_ids():
+    if not MOB_SQL.is_file():
+        print('REVIEW: data_mobinfo.sql unavailable; low MobID cross-check skipped')
+        return
+    wanted = {0, 1, 355}
+    found = {}
+    with MOB_SQL.open('r', encoding='utf-8', errors='replace') as handle:
+        for line in handle:
+            m = re.search(r'\bVALUES\s*\(\s*(\d+)\s*,', line, re.I)
+            if not m:
+                m = re.match(r'^\s*\(\s*(\d+)\s*,', line)
+            if not m:
+                continue
+            mob_id = int(m.group(1))
+            if mob_id in wanted and mob_id not in found:
+                found[mob_id] = line.strip()[:300]
+                if len(found) == len(wanted):
+                    break
+    print('REVIEW: selected MobID rows in data_mobinfo.sql:')
+    for mob_id in sorted(wanted):
+        print(f'  {mob_id}: ' + found.get(mob_id, '<not found>'))
 
 def audit_full_sql(rows):
     stage_names = ('Start', 'Action', 'Finish')
@@ -191,6 +214,7 @@ def audit_full_sql(rows):
     print('PASS: exact opcode corpus counts match the supplied 2304-record source')
     if report_low_item_ids() is False:
         return 1
+    report_low_mob_ids()
 
     if invalid_deletes:
         print('FAIL: malformed DELETE_ITEM operands:', invalid_deletes[:20])
