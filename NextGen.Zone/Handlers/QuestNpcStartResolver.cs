@@ -50,6 +50,9 @@ namespace NextGen.Zone.Handlers
             public byte StartGenderEnabled;
             public byte StartGender;
             public byte StartDateEnabled;
+            public bool IsStartNpcAssociation;
+            public bool IsRewardNpcAssociation;
+            public bool IsAction3NpcAssociation;
         }
 
         private static readonly object Sync = new object();
@@ -106,7 +109,7 @@ namespace NextGen.Zone.Handlers
                         return false;
                     }
 
-                    if (candidateStatus == QuestRuntime.PqsNone)
+                    if (!TryApplyNpcAssociationStatus(candidate, candidateStatus, out candidateStatus))
                         continue;
 
                     if (best == null)
@@ -415,6 +418,51 @@ namespace NextGen.Zone.Handlers
             }
         }
 
+        // Reconstructs the NPC-specific post-processing in
+        // CQuest::GetQuestStatusWithNPC helper 0x00630570 with bQmark=0.
+        // The broad 0x0062FB50 association test admits Start NPC and End
+        // action 0/3 NPCs, but the effective status is then filtered by role.
+        private static bool TryApplyNpcAssociationStatus(Candidate candidate,
+            byte effectiveStatus, out byte npcStatus)
+        {
+            npcStatus = effectiveStatus;
+            switch (effectiveStatus)
+            {
+                case QuestRuntime.PqsNone:
+                case QuestRuntime.PqsAbort:
+                case QuestRuntime.PqsDone:
+                case QuestRuntime.PqsSoon:
+                    return false;
+
+                case QuestRuntime.PqsRepeat:
+                case QuestRuntime.PqsAble:
+                case QuestRuntime.PqsFailed:
+                case QuestRuntime.PqsReadAble:
+                    return candidate.IsStartNpcAssociation;
+
+                case QuestRuntime.PqsInProgress:
+                    return candidate.IsStartNpcAssociation ||
+                           candidate.IsAction3NpcAssociation;
+
+                case QuestRuntime.PqsReward:
+                    if (candidate.IsRewardNpcAssociation)
+                        return true;
+                    if (candidate.IsStartNpcAssociation)
+                    {
+                        // Native 0x00630654 changes the NPC-visible state
+                        // from REWARD to ING at the quest's Start NPC.
+                        npcStatus = QuestRuntime.PqsInProgress;
+                        return true;
+                    }
+                    return false;
+
+                default:
+                    // The native status table passes the remaining 9..19
+                    // values through the common accepted path.
+                    return true;
+            }
+        }
+
         // Returns comparison < 0 when candidate replaces retained. The ordering below
         // follows CQuest::GetQuestStatusWithNPC: status priority, level predicate,
         // the exact Type==3 special branch, condition flags, then type priority.
@@ -620,6 +668,7 @@ namespace NextGen.Zone.Handlers
                     {
                         const string sqlNormalized =
                             "SELECT m.InxName AS MobName, q.QuestID, COALESCE(d.DialogID,0) AS DialogID, q.Type, q.Repeatable, " +
+                            "a.IsStartNPC, a.IsRewardNPC, a.IsAction3NPC, " +
                             "COALESCE(q.DailyQuestType,0) AS DailyQuestType, q.RawData AS QuestRawData, ds.ActionScript, ds.FinishScript, " +
                             "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, " +
                             "COALESCE(pq.DailyQuestType,0) AS PrerequisiteDailyType, pq.RawData AS PrerequisiteRawData, s.bItem, s.ItemID, s.ItemLot, " +
@@ -631,15 +680,22 @@ namespace NextGen.Zone.Handlers
                             "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
                             "LEFT JOIN QuestData pq ON pq.QuestID=s.QuestPrerequisiteID " +
                             "INNER JOIN (" +
-                                "SELECT QuestID,NPCID FROM QuestData_ConditionStart WHERE bNPC<>0 AND NPCID<>0 " +
-                                "UNION " +
-                                "SELECT QuestID,NPCMobID AS NPCID FROM QuestData_NPCMob " +
-                                "WHERE bNPCMob<>0 AND NPCMobID<>0 AND (NPCMobAction=0 OR NPCMobAction=3)" +
+                                "SELECT QuestID,NPCID,MAX(IsStartNPC) AS IsStartNPC,MAX(IsRewardNPC) AS IsRewardNPC,MAX(IsAction3NPC) AS IsAction3NPC " +
+                                "FROM (" +
+                                    "SELECT QuestID,NPCID,1 AS IsStartNPC,0 AS IsRewardNPC,0 AS IsAction3NPC " +
+                                    "FROM QuestData_ConditionStart WHERE bNPC<>0 AND NPCID<>0 " +
+                                    "UNION ALL " +
+                                    "SELECT QuestID,NPCMobID AS NPCID,0 AS IsStartNPC," +
+                                    "CASE WHEN NPCMobAction=0 THEN 1 ELSE 0 END AS IsRewardNPC," +
+                                    "CASE WHEN NPCMobAction=3 THEN 1 ELSE 0 END AS IsAction3NPC " +
+                                    "FROM QuestData_NPCMob WHERE bNPCMob<>0 AND NPCMobID<>0 AND (NPCMobAction=0 OR NPCMobAction=3)" +
+                                ") npc_roles GROUP BY QuestID,NPCID" +
                             ") a ON a.QuestID=q.QuestID " +
                             "INNER JOIN data_mobinfo m ON m.ID=a.NPCID " +
                             "ORDER BY m.InxName, q.QuestID";
                         const string sqlLegacy =
                             "SELECT m.InxName AS MobName, q.QuestID, COALESCE(d.DialogID,0) AS DialogID, q.Type, q.Repeatable, " +
+                            "a.IsStartNPC, a.IsRewardNPC, a.IsAction3NPC, " +
                             "q.RawData AS QuestRawData, ds.ActionScript, ds.FinishScript, " +
                             "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, " +
                             "pq.RawData AS PrerequisiteRawData, s.bItem, s.ItemID, s.ItemLot, " +
@@ -650,10 +706,16 @@ namespace NextGen.Zone.Handlers
                             "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
                             "LEFT JOIN QuestData pq ON pq.QuestID=s.QuestPrerequisiteID " +
                             "INNER JOIN (" +
-                                "SELECT QuestID,NPCID FROM QuestData_ConditionStart WHERE bNPC<>0 AND NPCID<>0 " +
-                                "UNION " +
-                                "SELECT QuestID,NPCMobID AS NPCID FROM QuestData_NPCMob " +
-                                "WHERE bNPCMob<>0 AND NPCMobID<>0 AND (NPCMobAction=0 OR NPCMobAction=3)" +
+                                "SELECT QuestID,NPCID,MAX(IsStartNPC) AS IsStartNPC,MAX(IsRewardNPC) AS IsRewardNPC,MAX(IsAction3NPC) AS IsAction3NPC " +
+                                "FROM (" +
+                                    "SELECT QuestID,NPCID,1 AS IsStartNPC,0 AS IsRewardNPC,0 AS IsAction3NPC " +
+                                    "FROM QuestData_ConditionStart WHERE bNPC<>0 AND NPCID<>0 " +
+                                    "UNION ALL " +
+                                    "SELECT QuestID,NPCMobID AS NPCID,0 AS IsStartNPC," +
+                                    "CASE WHEN NPCMobAction=0 THEN 1 ELSE 0 END AS IsRewardNPC," +
+                                    "CASE WHEN NPCMobAction=3 THEN 1 ELSE 0 END AS IsAction3NPC " +
+                                    "FROM QuestData_NPCMob WHERE bNPCMob<>0 AND NPCMobID<>0 AND (NPCMobAction=0 OR NPCMobAction=3)" +
+                                ") npc_roles GROUP BY QuestID,NPCID" +
                             ") a ON a.QuestID=q.QuestID " +
                             "INNER JOIN data_mobinfo m ON m.ID=a.NPCID " +
                             "ORDER BY m.InxName, q.QuestID";
@@ -710,11 +772,8 @@ namespace NextGen.Zone.Handlers
                             uint locationRange = normalizedLocation
                                 ? Convert.ToUInt32(row["LocationRange"])
                                 : (locationRaw != null && locationRaw.Length >= 18 ? BitConverter.ToUInt32(locationRaw, 14) : 0);
-                            Candidate candidate;
-                            if (!ByQuestId.TryGetValue(questId, out candidate))
+                            Candidate candidate = new Candidate
                             {
-                                candidate = new Candidate
-                                {
                                     QuestID = questId,
                                     DialogID = dialogId,
                                     ActionDialogID = GetFirstSayDialogId(row["ActionScript"] == DBNull.Value ? string.Empty : (string)row["ActionScript"]),
@@ -744,9 +803,12 @@ namespace NextGen.Zone.Handlers
                                     StartGenderEnabled = Convert.ToByte(row["bGender"]),
                                     StartGender = Convert.ToByte(row["Gender"]),
                                     StartDateEnabled = Convert.ToByte(row["bDate"])
-                                };
+                                IsStartNpcAssociation = Convert.ToByte(row["IsStartNPC"]) != 0,
+                                IsRewardNpcAssociation = Convert.ToByte(row["IsRewardNPC"]) != 0,
+                                IsAction3NpcAssociation = Convert.ToByte(row["IsAction3NPC"]) != 0
+                            };
+                            if (!ByQuestId.ContainsKey(questId))
                                 ByQuestId.Add(questId, candidate);
-                            }
                             list.Add(candidate);
                         }
 
