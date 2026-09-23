@@ -34,6 +34,7 @@ def main():
     put_u32(fixed, 0x04, 12345)    # QuestID
     fixed[0x11] = 3
     fixed[0x12] = 1
+    fixed[0x13] = 2             # DQT_WEEK
 
     st = memoryview(fixed)[0x18:0x58]
     st[14] = 1
@@ -76,6 +77,8 @@ def main():
         sql = output.read_text(encoding="utf-8")
 
     required = [
+        "`DailyQuestType` TINYINT UNSIGNED NOT NULL",
+        "INSERT INTO QuestData VALUES (12345,77,3,1,2,",
         "`LocationRaw` VARBINARY(18)",
         "`LocationMap` INT UNSIGNED NOT NULL",
         "`LocationX` INT NOT NULL",
