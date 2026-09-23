@@ -9,8 +9,8 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 | Textual command | Corpus occurrences | Native QSC relation | Emulator handling | Status |
 |---|---:|---|---|---|
 | `GET_PLAYER_EMPTY_INVENTORY VAR1` | 676 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → low 8-bit script variable | **PROVEN / ALIGNED**; Handler17 now stores the native byte-width result |
-| `CREATE_ITEM <id> <lot>` | 206 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; native QSC lot is DWORD and Handler17 now parses/stores it as `uint`, with stack splitting through `GiveItemLots` |
-| `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **CORPUS SYNTAX COVERED**; 1,035 `ALL` + 439 numeric-lot forms; exact native mutation/return semantics remain the evidence gap |
+| `CREATE_ITEM <id> <lot>` | 206 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; DWORD lot width, stack splitting, and real ItemID 0 are handled |
+| `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **CORPUS PATH COVERED**; both forms plus real ItemID 0 are handled; exact native internal return/packet semantics remain the evidence gap |
 | `ACCEPT [QuestID]` | 2410 | quest parser command; explicit QuestID form proven | `QuestRuntime.Accept` | **PROVEN** |
 | `LINK <id>` | 350 | native command 11; `0x005BE0EE` | exact target QuestID + effective-status stage switch | **PROVEN / IMPLEMENTED** |
 | `SCENARIO <id>` | 52 | scenario execution path proven; not the general QSC opcode | packet `0x440E` | **PROVEN** |
@@ -26,6 +26,23 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 | `DROP_ITEM` | 0 | `QSC_DROP_ITEM = 0x0F` | not implemented | **UNRESOLVED** |
 | `CANCEL` | 12 | native command 7; distinct from `REPEAT_QUEST_GIVE_UP = 28` | `QuestRuntime.Cancel` | **PROVEN / IMPLEMENTED** against the reconstructed SetQuestCancel repeatable/non-repeatable behavior |
 | `IS_ABSTATE` | 0 | `QSC_IS_ABSTATE = 0x20` | not implemented | **UNRESOLVED textual usage** |
+
+## ItemID 0 is a real item, not a sentinel
+
+The QuestData corpus and the imported ItemInfo table cross-confirm low ItemIDs:
+
+- ItemID 0 = `LeatherBoots`
+- ItemID 1 = `LeatherHelmet`
+- ItemID 2 = `LeatherPants`
+- ItemID 3 = `LeatherShirt`
+
+This is runtime-relevant, not merely structural:
+
+- Quest 103 Start executes `CREATE_ITEM 0000 1`.
+- Quest 244 End requires ItemIDs 0,1,2,3 and its Finish script deletes each one.
+- The CI quest audit now verifies the low ItemInfo rows and the exact Quest 103/244 zero-ID command occurrences.
+
+Accordingly `QuestRuntime.CreateItem` and `QuestRuntime.DeleteItem` must not reject `itemId == 0`. Item existence is determined by `DataProvider.GetItemInfo`, not by a numeric nonzero convention.
 
 ## DELETE_ITEM corpus shape
 
