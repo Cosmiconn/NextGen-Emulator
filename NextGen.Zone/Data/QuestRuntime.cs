@@ -190,16 +190,19 @@ namespace NextGen.Zone.Data
 
         public static bool CreateItem(ZoneCharacter character, ushort itemId, uint amount)
         {
-            if (character == null || itemId == 0 || amount == 0) return false;
+            // ItemID 0 is a real NA2016 item (LeatherBoots), not a sentinel.
+            // Quest 103 explicitly executes CREATE_ITEM 0000 1.
+            if (character == null || amount == 0) return false;
             return character.GiveItemLots(itemId, amount) == InventoryStatus.Added;
         }
 
         public static bool DeleteItem(ZoneCharacter character, ushort itemId, string amountToken)
         {
-            if (character == null || itemId == 0) return false;
+            // ItemID 0 is valid. Quest 244 explicitly removes ItemIDs 0..3.
+            if (character == null) return false;
             uint wanted = 0;
             bool all = string.Equals(amountToken, "ALL", StringComparison.OrdinalIgnoreCase);
-            if (!all && !uint.TryParse(amountToken, out wanted)) return false;
+            if (!all && (!uint.TryParse(amountToken, out wanted) || wanted == 0)) return false;
             uint remaining = all ? uint.MaxValue : wanted;
 
             // Do not turn numeric DELETE_ITEM into an atomic "all requested
@@ -508,7 +511,7 @@ namespace NextGen.Zone.Data
                 uint v1 = Convert.ToUInt32(r["Value1"]);
                 ushort itemId = (ushort)(v1 & 0xffff);
                 ushort lot = (ushort)(v1 >> 16);
-                if (itemId == 0 || lot == 0) continue;
+                if (lot == 0) continue;
 
                 ItemInfo info;
                 if (!DataProvider.GetItemInfo(itemId, out info) || info == null)
@@ -538,7 +541,7 @@ namespace NextGen.Zone.Data
                 uint v1 = Convert.ToUInt32(r["Value1"]);
                 ushort itemId = (ushort)(v1 & 0xffff);
                 ushort lot = (ushort)(v1 >> 16);
-                if (itemId == 0 || lot == 0) continue;
+                if (lot == 0) continue;
                 if (c.GiveItemLots(itemId, lot) != InventoryStatus.Added)
                 {
                     Log.WriteLine(LogLevel.Warn,
