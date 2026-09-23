@@ -240,11 +240,13 @@ namespace NextGen.Zone.Data
                     int endLocationY;
                     uint endLocationRange;
                     bool endScenarioEnabled;
+                    bool endClassEnabled;
+                    byte endClass;
 
                     try
                     {
                         DataTable qrows = dataDb.ReadDataTable(
-                            "SELECT bLevel,Level,bLocation,LocationMap,LocationX,LocationY,LocationRange,bScenario " +
+                            "SELECT bLevel,Level,bLocation,LocationMap,LocationX,LocationY,LocationRange,bScenario,bClass,Class " +
                             "FROM QuestData_ConditionEnd WHERE QuestID=@q",
                             new MySqlParameter("@q", questId));
                         if (qrows == null || qrows.Rows.Count == 0) return false;
@@ -257,6 +259,8 @@ namespace NextGen.Zone.Data
                         endLocationY = Convert.ToInt32(endRow["LocationY"]);
                         endLocationRange = Convert.ToUInt32(endRow["LocationRange"]);
                         endScenarioEnabled = Convert.ToByte(endRow["bScenario"]) != 0;
+                        endClassEnabled = Convert.ToByte(endRow["bClass"]) != 0;
+                        endClass = Convert.ToByte(endRow["Class"]);
                     }
                     catch
                     {
@@ -276,9 +280,14 @@ namespace NextGen.Zone.Data
                         endLocationY = BitConverter.ToInt32(end, 0x54);
                         endLocationRange = BitConverter.ToUInt32(end, 0x58);
                         endScenarioEnabled = end[0x5C] != 0;
+                        endClassEnabled = end[0x62] != 0;
+                        endClass = end[0x63];
                     }
 
                     if (endLevelEnabled && c.Level < endLevel) return false;
+                    // Native IsRewardAbleQuest compares End.Class directly with the
+                    // player's class getter. QuestData class IDs match Character.Job.
+                    if (endClassEnabled && (byte)c.Job != endClass) return false;
 
                     DataTable npc = dataDb.ReadDataTable("SELECT Slot,NPCMobAction,NPCMobCount FROM QuestData_NPCMob WHERE QuestID=@q AND bNPCMob=1", new MySqlParameter("@q", questId));
                     if (npc != null)
