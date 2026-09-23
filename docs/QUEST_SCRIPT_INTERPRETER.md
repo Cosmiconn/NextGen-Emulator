@@ -70,4 +70,6 @@ See `docs/QUEST_LINK_BINARY.md`.
 
 The current runtime adapter has explicit implementations for the commands for which native/corpus evidence is sufficient, including `ACCEPT`, `CANCEL`, `DONE`, `LINK`, item operations, the player-value queries used by this corpus, `SET_ABSTATE`, `SCENARIO`, and progress handling. Any command whose exact native side effect is not established remains isolated rather than being guessed.
 
+`DONE` is executed in every script stage, matching the native QuestNext command-10 dispatcher. The corpus contains 351 Start-stage, 1 Action-stage, and 2251 Finish-stage DONE commands; CI locks these counts.
+
 Quest 1 / Baby Steps remains a corpus regression check and contains the known `SAY 202 NPC`, `SAY 203 NPC`, `IF RESULT == 1 GOTO MARK1`, `:MARK1`, `ACCEPT`, `END` structure.

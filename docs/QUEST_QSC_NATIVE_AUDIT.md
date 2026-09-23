@@ -66,6 +66,31 @@ The previous version of this document incorrectly described
 `0x005BE46B` as LINK. That code actually belongs to RESET_ABSTATE and its
 name-string lookup / player-vtable call must not be used as evidence for LINK.
 
+## DONE
+
+The command-name table maps textual `DONE` to command **10**. In
+`CQuestZone::QuestNext`, the command dispatch table at `0x005BF020` routes
+command 10 to `0x005BED38`.
+
+That path reads the command's quest ID, resolves the player's quest record
+through `0x0062F210`, and calls `0x006300D0`. The latter is a quest-ID
+wrapper that resolves the same 32-byte player-quest record and then calls the
+proven `CQuestZone::IsRewardAbleQuest` logic at `0x0062FF40`.
+
+Critically, the command-10 branch does **not** test whether the active parser was
+entered through QuestStart, QuestDoing, or QuestEnd. `DONE` is therefore a
+stage-independent quest command in the native QuestNext dispatcher.
+
+The complete supplied corpus confirms that this matters:
+
+- Start: **351** DONE commands;
+- Action/Doing: **1** DONE command (Quest 2230);
+- Finish/End: **2251** DONE commands.
+
+All 351 Start-stage DONE occurrences have an `ACCEPT` earlier in the same
+Start script. Treating DONE as Finish-only silently leaves those immediate
+completion quests in progress and is not native-compatible.
+
 ## SET_ABSTATE
 
 At `0x005BE325`, the command consumes the abnormal-state name, strength and

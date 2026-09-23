@@ -116,7 +116,16 @@ namespace NextGen.Zone.Handlers
                 session.Machine=new QuestScriptMachine(linkedInfo,linkedStage);
                 return true;
             }
-            if(instruction.OpCode.Equals("DONE",StringComparison.OrdinalIgnoreCase)&&machine.State.Stage==QuestScriptStage.Finish){if(QuestRuntime.Complete(character,q))return true;try{using(DatabaseClient db=Program.DatabaseManager.GetClient())if(QuestRuntime.NeedsRewardSelection(db,q))return false;}catch{}return false;}
+            if(instruction.OpCode.Equals("DONE",StringComparison.OrdinalIgnoreCase))
+            {
+                // Native QuestNext command 10 dispatches DONE through the common
+                // command path at 0x005BED38. It resolves the quest record and
+                // calls the IsRewardAbleQuest wrapper without testing whether
+                // the parser was entered through Start, Doing or End.
+                if(QuestRuntime.Complete(character,q))return true;
+                try{using(DatabaseClient db=Program.DatabaseManager.GetClient())if(QuestRuntime.NeedsRewardSelection(db,q))return false;}catch{}
+                return false;
+            }
             return true;
         }
         private static void ContinueSession(ZoneClient client,DialogSession session){for(int guard=0;guard<100;guard++){QuestScriptStep step=session.Machine.Next();if(step.Type==QuestScriptStepType.Say){uint next;if(TryGetSayDialogId(step.Instruction,out next)){SendDialogPage(client,next,session.Machine);return;}}else if(step.Type==QuestScriptStepType.Command){if(!ExecuteQuestCommand(client.Character,session.Machine,step.Instruction))return;continue;}else if(step.Type==QuestScriptStepType.End||step.Type==QuestScriptStepType.Error){if(step.Type==QuestScriptStepType.Error)LogScriptError(client.Character,session.Machine,step);EndDialog(client.Character);return;}else return;}EndDialog(client.Character);}

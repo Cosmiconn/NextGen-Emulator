@@ -376,7 +376,7 @@ namespace NextGen.Zone.Data
                     // Native completion is downstream of the successful ItemDB
                     // quest-reward acknowledgement, and the ACK handler calls
                     // QuestNext only after the completion mutation. Keep reward ->
-                    // completion -> remaining Finish-script commands in that order.
+                    // completion -> remaining commands in the current quest-script stage.
                     // This is observable in the supplied corpus: quests such as
                     // 230/250 reward an ItemID at DONE and then DELETE_ITEM the
                     // same ItemID after QuestNext resumes.
