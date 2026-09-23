@@ -48,7 +48,7 @@ def main():
         return 1
 
     description_rows = sum(1 for line in DESC.read_text(encoding='utf-8').splitlines()
-                           if re.match(r"^\\s*\\('", line))
+                           if line.lstrip().startswith("('"))
     counts = (len(data_rows(TEAM)), len(data_rows(VOTE)), len(data_rows(REASONS)), len(data_rows(RATES)), description_rows)
     if counts != (8, 30, 4, 2, 39):
         print('FAIL: KQ metadata row counts changed:', counts)
