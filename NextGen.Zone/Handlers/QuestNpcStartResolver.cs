@@ -802,8 +802,8 @@ namespace NextGen.Zone.Handlers
                                     StartClass = Convert.ToByte(row["Class"]),
                                     StartGenderEnabled = Convert.ToByte(row["bGender"]),
                                     StartGender = Convert.ToByte(row["Gender"]),
-                                    StartDateEnabled = Convert.ToByte(row["bDate"])
-                                IsStartNpcAssociation = Convert.ToByte(row["IsStartNPC"]) != 0,
+                                    StartDateEnabled = Convert.ToByte(row["bDate"]),
+                                    IsStartNpcAssociation = Convert.ToByte(row["IsStartNPC"]) != 0,
                                 IsRewardNpcAssociation = Convert.ToByte(row["IsRewardNPC"]) != 0,
                                 IsAction3NpcAssociation = Convert.ToByte(row["IsAction3NPC"]) != 0
                             };
