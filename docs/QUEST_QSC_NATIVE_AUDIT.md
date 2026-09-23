@@ -167,3 +167,25 @@ This establishes both the item-command failure control flow and the exact
 client error packet fields used by the emulator. No symbolic enum name is
 assigned to `0x0C0A` or `0x0C0B` beyond their proven DELETE/CREATE failure
 branches.
+
+
+## CANCEL failure semantics
+
+QuestNext command 7 begins at `0x005BEA72`. It resolves both the current
+`PLAYER_QUEST_INFO` through `0x0062F210` and the command QuestID's
+`QUEST_DATA` through `0x00635FF0`.
+
+If either lookup fails, the branch calls
+`CQuestZone::Send_QUEST_ERROR_TO_CLIENT(0x0C04)`, then
+`CQuestZone::QuestClose`. The error QSC records failed command 7 through the
+same proven `0x4401` QSC_ERROR layout.
+
+When both records exist, `QUEST_DATA.Repeatable` at offset `+0x12` selects
+the already-reconstructed mutation:
+
+- repeatable -> write player quest status 4 (`PQS_REPEAT`);
+- non-repeatable -> remove the player quest record.
+
+The emulator now requires both SQL records before mutating and mirrors raw
+error `0x0C04` plus script close on lookup failure. No symbolic enum name is
+assigned to `0x0C04`.

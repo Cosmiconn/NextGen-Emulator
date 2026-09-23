@@ -202,7 +202,17 @@ namespace NextGen.Zone.Handlers
                 }
                 return true;
             }
-            if(instruction.OpCode.Equals("CANCEL",StringComparison.OrdinalIgnoreCase)&&args.Length==0){QuestRuntime.Cancel(character,q);return true;}
+            if(instruction.OpCode.Equals("CANCEL",StringComparison.OrdinalIgnoreCase)&&args.Length==0)
+            {
+                if(!QuestRuntime.Cancel(character,q))
+                {
+                    // Native command-7 missing player-quest/QuestData path.
+                    SendQuestCommandError(character,q,7,0x0C04);
+                    EndDialog(character);
+                    return false;
+                }
+                return true;
+            }
             if(instruction.OpCode.Equals("SCENARIO",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){ushort scenarioId;if(!ushort.TryParse(args[0],out scenarioId)||scenarioId==0)return true;DialogSession session;lock(Sync){Sessions.TryGetValue(character.ID,out session);}if(session==null)return false;session.PendingScenarioID=scenarioId;session.ScenarioPending=true;using(var run=new Packet((ushort)0x440E)){run.WriteUShort(scenarioId);character.Client.SendPacket(run);}return false;}
             if(instruction.OpCode.Equals("SET_ABSTATE",StringComparison.OrdinalIgnoreCase)&&args.Length>=3){uint strength,keepTimeMs;if(!uint.TryParse(args[1],out strength)||!uint.TryParse(args[2],out keepTimeMs))return true;QuestRuntime.SetAbstate(character,args[0],strength,keepTimeMs);return true;}
             if(instruction.OpCode.Equals("RESET_ABSTATE",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){QuestRuntime.ResetAbstate(character,args[0]);return true;}

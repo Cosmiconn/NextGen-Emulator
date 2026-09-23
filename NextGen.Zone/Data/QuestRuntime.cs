@@ -106,16 +106,30 @@ namespace NextGen.Zone.Data
             }
         }
 
-        public static void Cancel(ZoneCharacter character, uint questId)
+        public static bool Cancel(ZoneCharacter character, uint questId)
         {
-            if (character == null || questId == 0) return;
+            if (character == null || questId == 0 || questId > ushort.MaxValue) return false;
             try
             {
                 using (DatabaseClient dataDb = Program.DatabaseManager.GetClient())
                 using (DatabaseClient charDb = Program.CharDBManager.GetClient())
                 {
-                    DataTable def = dataDb.ReadDataTable("SELECT Repeatable FROM QuestData WHERE QuestID=@q", new MySqlParameter("@q", questId));
-                    bool repeatable = def != null && def.Rows.Count > 0 && Convert.ToByte(def.Rows[0]["Repeatable"]) != 0;
+                    // Native command 7 requires both the player quest record and
+                    // QuestData definition. Missing either is QSC error 0x0C04.
+                    DataTable playerQuest = charDb.ReadDataTable(
+                        "SELECT 1 FROM tQuest WHERE nCharNo=@c AND nQuestNo=@q LIMIT 1",
+                        new MySqlParameter("@c", character.ID),
+                        new MySqlParameter("@q", questId));
+                    if (playerQuest == null || playerQuest.Rows.Count == 0)
+                        return false;
+
+                    DataTable def = dataDb.ReadDataTable(
+                        "SELECT Repeatable FROM QuestData WHERE QuestID=@q",
+                        new MySqlParameter("@q", questId));
+                    if (def == null || def.Rows.Count == 0)
+                        return false;
+
+                    bool repeatable = Convert.ToByte(def.Rows[0]["Repeatable"]) != 0;
                     if (repeatable)
                         charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s,sData=NULL WHERE nCharNo=@c AND nQuestNo=@q",
                             new MySqlParameter("@s", PqsRepeat), new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
@@ -125,8 +139,13 @@ namespace NextGen.Zone.Data
                     charDb.ExecuteQuery("DELETE FROM character_quest_progress WHERE CharID=@c AND QuestID=@q",
                         new MySqlParameter("@c", character.ID), new MySqlParameter("@q", questId));
                 }
+                return true;
             }
-            catch (Exception ex) { Log.WriteLine(LogLevel.Warn, "Quest cancel failed {0}: {1}", questId, ex.Message); }
+            catch (Exception ex)
+            {
+                Log.WriteLine(LogLevel.Warn, "Quest cancel failed {0}: {1}", questId, ex.Message);
+                return false;
+            }
         }
 
         public static void RecordMobKill(ZoneCharacter character, ushort mobId)
