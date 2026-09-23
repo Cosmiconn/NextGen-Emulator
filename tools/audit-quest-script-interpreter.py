@@ -364,12 +364,15 @@ def audit_full_sql(rows):
     if not DIALOG_SQL.is_file():
         print('FAIL: data_questdialog.sql unavailable; [MENU] quest-dialog cross-check required')
         return 1
-    dialog_text = DIALOG_SQL.read_text(encoding='utf-8', errors='replace')
-    dialog_rows = re.findall(r"\\((\\d+),\\s*'((?:''|[^'])*)'\\)", dialog_text)
-    menu_dialogs = {
-        int(dialog_id) for dialog_id, text_value in dialog_rows
-        if '[MENU]' in text_value.replace("''", "'")
-    }
+    menu_dialogs = set()
+    with DIALOG_SQL.open('r', encoding='utf-8', errors='replace') as handle:
+        for line in handle:
+            # Generated QuestDialog SQL keeps each row on one physical line.
+            # Text uses backslash-escaped quotes, so only parse the leading
+            # numeric DialogID; [MENU] itself can be tested literally.
+            m = re.match(r"^\s*\((\d+),\s*'", line)
+            if m and '[MENU]' in line:
+                menu_dialogs.add(int(m.group(1)))
     menu_refs = [ref for ref in say_dialog_refs if ref[2] in menu_dialogs]
     menu_stats = (
         len(menu_refs),
