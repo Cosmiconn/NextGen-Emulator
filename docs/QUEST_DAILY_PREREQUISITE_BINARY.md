@@ -89,8 +89,17 @@ The PDB exposes the related enum names:
 
 and the field name `nDailyQuestType`.
 
-This audit does not rely on guessed calendar math for those reset boundaries;
-the original server receives/stores explicit reset-time values.
+The matching original WorldManager resolves those reset boundaries before
+sending them to Zone. `CDailyQuestTimer` uses the CRT local-time path:
+
+- day: current local date at 00:00;
+- week: Monday of the current local week at 00:00;
+- month: first day of the current local month at 00:00;
+- year: January 1 of the current local year at 00:00.
+
+Zone receives the four explicit reset timestamps through the quest reset-time
+command and stores them at the offsets above. The emulator reproduces those
+same server-local boundaries; it does not invent a different calendar schedule.
 
 ## Supplied-corpus impact
 
@@ -104,15 +113,18 @@ The supplied QuestData corpus contains:
   - quest 20037 -> predecessor 20036
   - quest 20048 -> predecessor 20047
 
-Therefore the emulator can now reproduce status-2 prerequisite eligibility for
-all other predecessor chains exactly. Only these two supplied chains need the
-normalized daily completion/reset timestamp state.
+The two Type-10 chains are now covered as well.
 
 ## Emulator state
 
-`QuestNpcStartResolver` now accepts status-2 predecessors exactly when their
-quest type is not 10. Type-10/status-2 predecessors still use the safe legacy
-fallback until the native completion timestamp and reset-boundary state are
-persisted in normalized SQL.
+The one-time QuestData importer normalizes `QUEST_DATA +0x13` as
+`QuestData.DailyQuestType`. `QuestRuntime.Complete` stores the durable
+completion count/time in `tQuestTimes.nTimes/dLastComplete`, and
+`TryEvaluateDailyPrerequisite` reproduces the original day/week/month/year
+reset-boundary comparison.
 
-No calendar/reset schedule is guessed.
+`QuestNpcStartResolver` therefore evaluates both ordinary and Type-10
+status-2 predecessors without a semantic guess. For pre-existing emulator
+characters whose old SQL state has no `dLastComplete`, the resolver
+conservatively uses the legacy NPC interaction instead of fabricating a
+completion timestamp.
