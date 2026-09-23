@@ -27,6 +27,7 @@ namespace NextGen.Zone.Handlers
             public uint FinishDialogID;
             public byte Type;
             public byte Repeatable;
+            public byte DailyQuestType;
             public byte StartLevelEnabled;
             public byte StartLevelMin;
             public byte StartLevelMax;
@@ -81,122 +82,31 @@ namespace NextGen.Zone.Handlers
             List<Candidate> candidates;
             if (!TryGetCandidates(mobName, out candidates)) return false;
 
-            // Proven IsSoonableQuest subset. Level/item/location/class/gender and
-            // prerequisite-state handling below follow the matching original Zone.exe.
-            // Type-10 status-2 predecessors use the original daily reset rule via
-            // QuestRuntime.TryEvaluateDailyPrerequisite.
-            Dictionary<uint, byte> prerequisiteStatuses = null;
-            List<Candidate> eligible = new List<Candidate>();
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                Candidate c = candidates[i];
-                if (c.StartLevelEnabled != 0)
-                {
-                    int soonLevel = character.Level + 5;
-                    if (soonLevel < c.StartLevelMin || soonLevel > c.StartLevelMax) continue;
-                }
-                if (c.StartItemEnabled != 0 && QuestRuntime.GetItemLot(character, c.StartItemID) < c.StartItemLot)
-                    continue;
-                if (c.StartLocationEnabled != 0)
-                {
-                    if (character.MapID != c.StartLocationMap) continue;
-                    long dx = (long)character.Character.PositionInfo.XPos - c.StartLocationX;
-                    long dy = (long)character.Character.PositionInfo.YPos - c.StartLocationY;
-                    if (dx * dx + dy * dy > (long)c.StartLocationRange * c.StartLocationRange) continue;
-                }
-
-                // ClassName.shn uses the same numeric class IDs as Character.Job
-                // (Fighter=1, Cleric=6, Archer=11, Mage=16, ...). The original
-                // IsSoonableQuest compares the player class directly with Start.Class.
-                if (c.StartClassEnabled != 0 && (byte)character.Job != c.StartClass)
-                    continue;
-
-                // Original IsSoonableQuest compares the player gender directly.
-                // Fiesta's character gender bit is 1=male, 0=female; the only two
-                // gender-gated NA2016 quests independently match that convention.
-                if (c.StartGenderEnabled != 0 &&
-                    (character.IsMale ? (byte)1 : (byte)0) != c.StartGender)
-                    continue;
-
-                // The supplied NA2016 QuestData corpus contains no active bRace or
-                // bDate start conditions. Their original comparisons/date modes are
-                // not normalized here; if future data enables them, do not guess.
-                if (c.StartRaceEnabled != 0 || c.StartDateEnabled != 0)
-                {
-                    Log.WriteLine(LogLevel.Debug,
-                        "Quest {0} uses unresolved race/date start eligibility; using legacy interaction.",
-                        c.QuestID);
-                    return false;
-                }
-                if (c.StartQuestEnabled != 0)
-                {
-                    if (prerequisiteStatuses == null)
-                        prerequisiteStatuses = LoadQuestStatuses(character.ID);
-                    byte prerequisiteStatus;
-                    if (!prerequisiteStatuses.TryGetValue(c.StartQuestID, out prerequisiteStatus))
-                        continue;
-                    if (prerequisiteStatus == 4)
-                    {
-                        // Proven accepted predecessor state.
-                    }
-                    else if (prerequisiteStatus == 2)
-                    {
-                        // Original IsSoonableQuest calls virtual slot +0x80 for
-                        // status-2 predecessors. In the matching Zone.exe that
-                        // slot resolves to 0x00630130, which returns false
-                        // immediately unless the predecessor QUEST_DATA.Type is 10.
-                        // Therefore every non-Type-10 predecessor in status 2 is
-                        // accepted exactly like the original. Type 10 has an
-                        // additional time-window rule that remains isolated below.
-                        if (c.StartQuestType == 10)
-                        {
-                            bool prerequisiteSatisfied;
-                            if (!QuestRuntime.TryEvaluateDailyPrerequisite(
-                                    character.ID, c.StartQuestID, c.StartQuestDailyType,
-                                    out prerequisiteSatisfied))
-                            {
-                                Log.WriteLine(LogLevel.Debug,
-                                    "Quest {0} daily predecessor {1} has no normalized completion timestamp; using legacy interaction.",
-                                    c.QuestID, c.StartQuestID);
-                                return false;
-                            }
-                            if (!prerequisiteSatisfied)
-                                continue;
-                        }
-                    }
-                    else continue;
-                }
-                eligible.Add(c);
-            }
-            if (eligible.Count == 0) return false;
-            candidates = eligible;
-
             try
             {
-                Dictionary<uint, byte> statuses = prerequisiteStatuses ?? LoadQuestStatuses(character.ID);
-
+                Dictionary<uint, byte> statuses = LoadQuestStatuses(character.ID);
                 Candidate best = null;
                 byte bestStatus = 0;
+
                 for (int i = 0; i < candidates.Count; i++)
                 {
                     Candidate candidate = candidates[i];
+                    byte rawStatus;
+                    bool persisted = statuses.TryGetValue(candidate.QuestID, out rawStatus);
                     byte candidateStatus;
-                    if (!statuses.TryGetValue(candidate.QuestID, out candidateStatus))
+                    if (!TryGetEffectiveStatus(character, candidate, statuses,
+                            persisted, rawStatus, out candidateStatus))
                     {
-                        // Original NPC selection computes a state for quests not yet
-                        // persisted in the player list. From the proven eligibility
-                        // routines: +5 level window is SOON, current-level window is ABLE.
-                        candidateStatus = GetUnpersistedStatus(character, candidate);
+                        // A source condition exists but its emulator mapping is not
+                        // proven (currently only future race/date data or a legacy
+                        // daily completion without a timestamp). Preserve the old
+                        // interaction path rather than guessing.
+                        return false;
                     }
-                    else if (candidateStatus == QuestRuntime.PqsInProgress &&
-                             QuestRuntime.IsComplete(character, candidate.QuestID))
-                    {
-                        // GetQuestStatusWithNPC has a distinct rewardable path and the
-                        // original status table gives PQS_REWARD the highest priority.
-                        // Promote only the effective NPC-selection state; persistence
-                        // remains PQS_ING until the finish script actually completes.
-                        candidateStatus = QuestRuntime.PqsReward;
-                    }
+
+                    if (candidateStatus == QuestRuntime.PqsNone)
+                        continue;
+
                     if (best == null)
                     {
                         best = candidate;
@@ -224,6 +134,228 @@ namespace NextGen.Zone.Handlers
                 Log.WriteLine(LogLevel.Warn, "Quest NPC status selection failed for {0}: {1}", mobName, ex.Message);
             }
             return false;
+        }
+
+        // Reconstructs CQuest::GetNewQuestStatus(QUEST_DATA*) at 0x00630320.
+        // The original routine does NOT apply Start eligibility uniformly to every
+        // persisted state. In particular PQS_ING/PQS_REWARD use end-condition
+        // rewardability, while PQS_SOON/PQS_REPEAT/PQS_ABLE use Doingable/Soonable.
+        private static bool TryGetEffectiveStatus(NextGen.Zone.Game.ZoneCharacter character,
+            Candidate candidate, Dictionary<uint, byte> statuses, bool persisted,
+            byte rawStatus, out byte effectiveStatus)
+        {
+            effectiveStatus = QuestRuntime.PqsNone;
+
+            if (!persisted)
+            {
+                bool soonable;
+                if (!TryIsSoonable(character, candidate, statuses, out soonable))
+                    return false;
+                if (!soonable) return true;
+                effectiveStatus = IsDoingableLevel(character, candidate)
+                    ? QuestRuntime.PqsAble
+                    : QuestRuntime.PqsSoon;
+                return true;
+            }
+
+            switch (rawStatus)
+            {
+                // Native jump-table group 0: NONE / ABORT / FAILED.
+                // If the quest is soonable these become PQS_SOON, otherwise NONE.
+                case QuestRuntime.PqsNone:
+                case QuestRuntime.PqsAbort:
+                case QuestRuntime.PqsFailed:
+                {
+                    bool soonable;
+                    if (!TryIsSoonable(character, candidate, statuses, out soonable))
+                        return false;
+                    effectiveStatus = soonable ? QuestRuntime.PqsSoon : QuestRuntime.PqsNone;
+                    return true;
+                }
+
+                // PQS_DONE only reopens through the native Type-10 daily reset path.
+                case QuestRuntime.PqsDone:
+                {
+                    if (candidate.Type != 10)
+                    {
+                        effectiveStatus = QuestRuntime.PqsDone;
+                        return true;
+                    }
+
+                    bool resetElapsed;
+                    if (!QuestRuntime.TryIsDailyResetElapsed(
+                            character.ID, candidate.QuestID, candidate.DailyQuestType,
+                            out resetElapsed))
+                    {
+                        Log.WriteLine(LogLevel.Debug,
+                            "Quest {0} is Type 10/PQS_DONE but has no normalized completion timestamp; using legacy interaction.",
+                            candidate.QuestID);
+                        return false;
+                    }
+                    if (!resetElapsed)
+                    {
+                        effectiveStatus = QuestRuntime.PqsDone;
+                        return true;
+                    }
+
+                    bool doingable;
+                    if (!TryIsDoingable(character, candidate, statuses, out doingable))
+                        return false;
+                    effectiveStatus = doingable ? QuestRuntime.PqsAble : QuestRuntime.PqsDone;
+                    return true;
+                }
+
+                // Native PQS_SOON path: Doingable -> ABLE, otherwise
+                // Soonable -> SOON, otherwise NONE.
+                case QuestRuntime.PqsSoon:
+                {
+                    bool soonable;
+                    if (!TryIsSoonable(character, candidate, statuses, out soonable))
+                        return false;
+                    if (!soonable)
+                    {
+                        effectiveStatus = QuestRuntime.PqsNone;
+                        return true;
+                    }
+                    effectiveStatus = IsDoingableLevel(character, candidate)
+                        ? QuestRuntime.PqsAble
+                        : QuestRuntime.PqsSoon;
+                    return true;
+                }
+
+                case QuestRuntime.PqsRepeat:
+                {
+                    bool doingable;
+                    if (!TryIsDoingable(character, candidate, statuses, out doingable))
+                        return false;
+                    effectiveStatus = doingable ? QuestRuntime.PqsRepeat : QuestRuntime.PqsNone;
+                    return true;
+                }
+
+                case QuestRuntime.PqsAble:
+                {
+                    bool doingable;
+                    if (!TryIsDoingable(character, candidate, statuses, out doingable))
+                        return false;
+                    effectiveStatus = doingable ? QuestRuntime.PqsAble : QuestRuntime.PqsNone;
+                    return true;
+                }
+
+                // Native statuses 6 and 8 share the same rewardability branch:
+                // rewardable -> 8, otherwise -> 6.
+                case QuestRuntime.PqsInProgress:
+                case QuestRuntime.PqsReward:
+                    effectiveStatus = QuestRuntime.IsComplete(character, candidate.QuestID)
+                        ? QuestRuntime.PqsReward
+                        : QuestRuntime.PqsInProgress;
+                    return true;
+
+                case QuestRuntime.PqsReadAble:
+                {
+                    bool doingable;
+                    if (!TryIsDoingable(character, candidate, statuses, out doingable))
+                        return false;
+                    effectiveStatus = doingable ? QuestRuntime.PqsReadAble : QuestRuntime.PqsNone;
+                    return true;
+                }
+
+                default:
+                    // Native statuses 9..19 (except the explicit cases above) and
+                    // out-of-range values return unchanged from the jump-table path.
+                    effectiveStatus = rawStatus;
+                    return true;
+            }
+        }
+
+        private static bool TryIsDoingable(NextGen.Zone.Game.ZoneCharacter character,
+            Candidate candidate, Dictionary<uint, byte> statuses, out bool doingable)
+        {
+            doingable = false;
+            bool soonable;
+            if (!TryIsSoonable(character, candidate, statuses, out soonable))
+                return false;
+            if (!soonable) return true;
+            doingable = IsDoingableLevel(character, candidate);
+            return true;
+        }
+
+        private static bool TryIsSoonable(NextGen.Zone.Game.ZoneCharacter character,
+            Candidate c, Dictionary<uint, byte> statuses, out bool soonable)
+        {
+            soonable = false;
+
+            if (c.StartLevelEnabled != 0)
+            {
+                int soonLevel = character.Level + 5;
+                if (soonLevel < c.StartLevelMin || soonLevel > c.StartLevelMax)
+                    return true;
+            }
+
+            if (c.StartItemEnabled != 0 &&
+                QuestRuntime.GetItemLot(character, c.StartItemID) < c.StartItemLot)
+                return true;
+
+            if (c.StartLocationEnabled != 0)
+            {
+                if (character.MapID != c.StartLocationMap) return true;
+                long dx = (long)character.Character.PositionInfo.XPos - c.StartLocationX;
+                long dy = (long)character.Character.PositionInfo.YPos - c.StartLocationY;
+                if (dx * dx + dy * dy > (long)c.StartLocationRange * c.StartLocationRange)
+                    return true;
+            }
+
+            if (c.StartClassEnabled != 0 && (byte)character.Job != c.StartClass)
+                return true;
+
+            if (c.StartGenderEnabled != 0 &&
+                (character.IsMale ? (byte)1 : (byte)0) != c.StartGender)
+                return true;
+
+            // The supplied NA2016 corpus has zero active start Race/Date gates.
+            // Keep future data conservative until their exact runtime mappings are
+            // normalized rather than silently accepting them.
+            if (c.StartRaceEnabled != 0 || c.StartDateEnabled != 0)
+            {
+                Log.WriteLine(LogLevel.Debug,
+                    "Quest {0} uses unresolved race/date start eligibility; using legacy interaction.",
+                    c.QuestID);
+                return false;
+            }
+
+            if (c.StartQuestEnabled != 0)
+            {
+                byte prerequisiteStatus;
+                if (!statuses.TryGetValue(c.StartQuestID, out prerequisiteStatus))
+                    return true;
+
+                if (prerequisiteStatus == QuestRuntime.PqsRepeat)
+                {
+                    // Proven accepted predecessor state.
+                }
+                else if (prerequisiteStatus == QuestRuntime.PqsDone)
+                {
+                    // Status-2 predecessors are accepted unless their quest is
+                    // Type 10 and the daily reset already elapsed.
+                    if (c.StartQuestType == 10)
+                    {
+                        bool prerequisiteSatisfied;
+                        if (!QuestRuntime.TryEvaluateDailyPrerequisite(
+                                character.ID, c.StartQuestID, c.StartQuestDailyType,
+                                out prerequisiteSatisfied))
+                        {
+                            Log.WriteLine(LogLevel.Debug,
+                                "Quest {0} daily predecessor {1} has no normalized completion timestamp; using legacy interaction.",
+                                c.QuestID, c.StartQuestID);
+                            return false;
+                        }
+                        if (!prerequisiteSatisfied) return true;
+                    }
+                }
+                else return true;
+            }
+
+            soonable = true;
+            return true;
         }
 
         // Returns comparison < 0 when candidate replaces retained. The ordering below
@@ -334,23 +466,6 @@ namespace NextGen.Zone.Handlers
                 if (args.Length > 0 && uint.TryParse(args[0], out id)) return id;
             }
             return 0;
-        }
-
-        private static byte GetUnpersistedStatus(NextGen.Zone.Game.ZoneCharacter character, Candidate candidate)
-        {
-            if (candidate.StartLevelEnabled != 0)
-            {
-                if (character.Level >= candidate.StartLevelMin && character.Level <= candidate.StartLevelMax)
-                    return QuestRuntime.PqsAble;
-                int soonLevel = character.Level + 5;
-                if (soonLevel >= candidate.StartLevelMin && soonLevel <= candidate.StartLevelMax)
-                    return QuestRuntime.PqsSoon;
-                return QuestRuntime.PqsNone;
-            }
-
-            // IsDoingableQuest adds no further test when bLevel == 0; candidates
-            // reaching this point have already passed the proven soonable subset.
-            return QuestRuntime.PqsAble;
         }
 
         private static Dictionary<uint, byte> LoadQuestStatuses(int characterId)
