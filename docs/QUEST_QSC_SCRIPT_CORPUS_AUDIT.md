@@ -8,7 +8,7 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 
 | Textual command | Corpus occurrences | Native QSC relation | Emulator handling | Status |
 |---|---:|---|---|---|
-| `GET_PLAYER_EMPTY_INVENTORY VAR1` | 676 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → script variable | **PROVEN command present**; native result is an 8-bit value and exact truncation still needs implementation alignment |
+| `GET_PLAYER_EMPTY_INVENTORY VAR1` | 676 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → low 8-bit script variable | **PROVEN / ALIGNED**; Handler17 now stores the native byte-width result |
 | `CREATE_ITEM <id> <lot>` | 206 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; native QSC lot is DWORD and Handler17 now parses/stores it as `uint`, with stack splitting through `GiveItemLots` |
 | `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **PROVEN command present** |
 | `ACCEPT [QuestID]` | 2410 | quest parser command; explicit QuestID form proven | `QuestRuntime.Accept` | **PROVEN** |
