@@ -36,6 +36,27 @@ That is sufficient to establish an important ordering constraint: known reward-d
 
 It does **not** prove that the original ItemDB transaction, inventory locking, or rollback strategy matches the emulator's implementation.
 
+## DONE, reward delivery, and later DELETE_ITEM
+
+The original ItemDB ACK path is order-sensitive: a successful quest-reward ACK
+reaches the completion mutation and only then calls `QuestNext`. Therefore
+Finish-script commands after `DONE` execute after reward delivery/completion,
+not before it.
+
+The supplied corpus makes this observable rather than theoretical:
+
+- Quest 230 rewards Item 2618 x10 and, after `DONE`, executes
+  `DELETE_ITEM 2618 2`.
+- Quest 250 rewards Item 2618 x5 and Item 2619 x3 and, after `DONE`, deletes
+  exactly 5 and 3 of those ItemIDs.
+- Other quests likewise contain reward/delete ItemID overlap.
+
+Accordingly the emulator must not "clean up" Finish scripts by moving
+`DELETE_ITEM` before `DONE`, nor defer rewards until after the remaining
+Finish-script commands. `QuestRuntime.Complete` applies the reward set and
+completion mutation; Handler17 then resumes the existing script machine after
+`DONE`.
+
 ## Runtime alignment
 
 `QuestRuntime.Complete` now requires `ApplyRewards` to succeed before writing the completed quest state.
