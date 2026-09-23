@@ -84,9 +84,13 @@ The request is known to contain:
 - `nNPCID`
 - `nQuestID`
 
-The ACK has three `unsigned short` parameters in the recovered server
-signature, but their wire order/meaning is not yet sufficiently evidenced.
-Do not implement guessed fields.
+The request/ACK wire contract is now directly reconstructed and implemented:
+
+- request `0x440F`: `NPCID u16 + QuestID u16`;
+- ACK `0x4410`: `NPCID u16 + QuestID u16 + ErrorType u16`.
+
+The runtime validates the requested quest against the same character/NPC
+selection result before returning the proven success/failure ACK.
 
 ## Character quest storage
 
@@ -130,23 +134,28 @@ handling for:
 - `Start.bQuest`, `Start.bItem`, and `Repeatable` zero/non-zero tie-breaks;
 - Soonable/Doingable level windows;
 - start item, location, class and gender gates used by the supplied corpus;
-- persisted status plus dynamic unpersisted SOON/ABLE state;
-- effective ING -> REWARD promotion from native end-condition eligibility;
-- Start/Action/Finish script entry selection by effective status.
+- the full native effective-status state machine at `0x00630320`, including
+  PQS_SOON -> PQS_ABLE reopening and Type-10 DONE reset behavior;
+- effective ING/REWARD rewardability recalculation;
+- native Start-NPC / end-NPC action-0/3 association and the NPC-role status
+  filter at `0x00630570`;
+- Start/Action/Finish script entry selection by effective status;
+- the proven `0x440F/0x4410` select-start request/ACK contract.
 
 For the supplied NA2016 QuestData corpus, the NPC-selection eligibility path is
 now covered for every active start-condition family present in the data,
 including Type-10 daily predecessor reset checks.
 
-The remaining selection-adjacent boundaries are deliberately separate:
+The remaining selection-adjacent boundaries are deliberately narrow:
 
 1. future start Race/Date gates, which have zero active rows in the supplied
    corpus and therefore are not needed for current content;
-2. exact `0x440F/0x4410` select-start wire fields, which are kept separate
-   from the current NPC dialog path;
-3. legacy characters created before normalized completion timestamps were
+2. legacy characters created before normalized completion timestamps were
    persisted may safely fall back for a Type-10/status-2 prerequisite until
-   they have a real `tQuestTimes.dLastComplete` value.
+   they have a real `tQuestTimes.dLastComplete` value;
+3. NPC-visible statuses whose exact dialog presentation is unused/unproven for
+   the supplied content remain on the legacy interaction path rather than being
+   assigned invented UI behavior.
 
 The Type-3 equal-priority branch is fully reconstructed and implemented.
 The status-2 predecessor path is fully resolved, including the native daily
@@ -154,3 +163,10 @@ reset rule. In the supplied corpus, 1390 quests have a predecessor gate and
 only two edges point to a Type-10 predecessor: `20037 -> 20036` and
 `20048 -> 20047`.
 
+
+## Later binary closures
+
+The effective status routine and NPC-role filter are documented in
+`QUEST_EFFECTIVE_STATUS_BINARY.md` and `QUEST_NPC_ASSOCIATION_BINARY.md`.
+The same effective-status reconstruction is reused by native command-11 LINK
+stage selection, documented in `QUEST_LINK_BINARY.md`.
