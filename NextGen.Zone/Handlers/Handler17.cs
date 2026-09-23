@@ -633,7 +633,7 @@ namespace NextGen.Zone.Handlers
             string[] parts = instruction.Arguments.Split(
                 new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length < 2 ||
-                !uint.TryParse(parts[0].TrimEnd(','), out dialogId))
+                !TryParseSayDialogId(instruction, parts[0], out dialogId))
                 return false;
 
             if (parts[1].Equals("NPC", StringComparison.OrdinalIgnoreCase))
@@ -656,7 +656,43 @@ namespace NextGen.Zone.Handlers
         private static void EnsureContexts(){lock(Sync){if(DialogContexts!=null)return;DialogContexts=new Dictionary<uint,DialogScriptContext>();QuestScriptsById=new Dictionary<uint,QuestScriptInfo>();AmbiguousDialogs=new HashSet<uint>();try{using(DatabaseClient db=Program.DatabaseManager.GetClient()){DataTable rows=db.ReadDataTable("SELECT * FROM data_quest_script");if(rows==null)return;foreach(DataRow row in rows.Rows){QuestScriptInfo info=QuestScriptInfo.Load(row);QuestScriptsById[info.QuestID]=info;Index(info,QuestScriptStage.Start,info.Start);Index(info,QuestScriptStage.Action,info.Action);Index(info,QuestScriptStage.Finish,info.Finish);}}}catch(Exception ex){Log.WriteLine(LogLevel.Warn,"Quest script index failed: {0}",ex.Message);}}}
         private static bool TryGetQuestScriptInfo(uint questId,out QuestScriptInfo info){EnsureContexts();lock(Sync){info=null;return QuestScriptsById!=null&&QuestScriptsById.TryGetValue(questId,out info);}}
         private static void Index(QuestScriptInfo info,QuestScriptStage stage,QuestScriptProgram program){for(int i=0;i<program.Instructions.Count;i++){uint id;QuestScriptInstruction ins=program.Instructions[i];if(!ins.OpCode.Equals("SAY",StringComparison.OrdinalIgnoreCase)||!TryGetSayDialogId(ins,out id))continue;if(AmbiguousDialogs.Contains(id))continue;DialogScriptContext old;if(DialogContexts.TryGetValue(id,out old)){DialogContexts.Remove(id);AmbiguousDialogs.Add(id);continue;}DialogContexts[id]=new DialogScriptContext{Info=info,Stage=stage,InstructionIndex=i};}}
-        private static bool TryGetSayDialogId(QuestScriptInstruction instruction,out uint id){id=0;if(instruction==null)return false;string[] p=instruction.Arguments.Split(new[]{' ','\t'},StringSplitOptions.RemoveEmptyEntries);return p.Length>0&&uint.TryParse(p[0].TrimEnd(','),out id);}
+        private static bool TryGetSayDialogId(QuestScriptInstruction instruction,out uint id)
+        {
+            id=0;
+            if(instruction==null)return false;
+            string[] p=instruction.Arguments.Split(new[]{' ','\t'},StringSplitOptions.RemoveEmptyEntries);
+            return p.Length>0&&TryParseSayDialogId(instruction,p[0],out id);
+        }
+
+        private static bool TryParseSayDialogId(QuestScriptInstruction instruction,
+            string token,out uint id)
+        {
+            id=0;
+            if(instruction==null||string.IsNullOrEmpty(token))return false;
+
+            string normalized=token;
+            if(token.EndsWith(",",StringComparison.Ordinal))
+            {
+                // The authoritative NA2016 corpus has exactly five comma-bearing
+                // SAY lines, all in Quest 15 Start. The original preprocessing
+                // before the whitespace-only tokenizer is not identified, so do
+                // not promote ',' to general quest-script syntax.
+                switch(instruction.Source)
+                {
+                    case "SAY 1502, NPC":
+                    case "SAY 1503, ME":
+                    case "SAY 1504, NPC":
+                    case "SAY 1505, ME":
+                    case "SAY 1506, NPC":
+                        normalized=token.Substring(0,token.Length-1);
+                        break;
+                    default:
+                        return false;
+                }
+            }
+
+            return uint.TryParse(normalized,out id);
+        }
         private static void LogScriptError(Game.ZoneCharacter character,QuestScriptMachine machine,QuestScriptStep step)
         {
             if(machine==null||step==null)return;

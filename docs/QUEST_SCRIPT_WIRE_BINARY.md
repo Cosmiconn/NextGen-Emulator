@@ -112,9 +112,11 @@ character of the numeric token to be a digit. Therefore the exact native
 preprocessing step that makes those five comma-bearing source lines usable is
 **UNRESOLVED as a native preprocessing detail**. For the supplied corpus this
 boundary is closed by exact source normalization: the emulator strips one
-trailing comma only from the SAY DialogID token, and CI locks the exact five
-Quest 15 source lines. It does not generalize commas into a new quest-script
-grammar.
+trailing comma only from the SAY DialogID token **and only when the complete
+source line is one of the five CI-locked Quest 15 lines**. Any other
+comma-bearing SAY is rejected. The former generic `TrimEnd(',')`
+compatibility has been removed, so this exception cannot silently expand the
+quest-script grammar.
 
 ## Runtime alignment
 

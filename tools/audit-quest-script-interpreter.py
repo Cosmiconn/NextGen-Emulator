@@ -372,6 +372,26 @@ def audit_full_sql(rows):
     print('PASS: SAY corpus = NPC 13004, ME 6920; 68 NPC lines carry explicit NPCNo')
     print('PASS: exactly 5 Quest 15 Start SAY lines preserve the source comma after DialogID')
 
+    handler17 = HANDLER17.read_text(encoding='utf-8')
+    if ".TrimEnd(',')" in handler17:
+        print('FAIL: generic SAY comma normalization reintroduced')
+        return 1
+    required_comma_runtime = [
+        'TryParseSayDialogId',
+        '"SAY 1502, NPC"',
+        '"SAY 1503, ME"',
+        '"SAY 1504, NPC"',
+        '"SAY 1505, ME"',
+        '"SAY 1506, NPC"',
+    ]
+    missing_comma_runtime = [token for token in required_comma_runtime
+                             if token not in handler17]
+    if missing_comma_runtime:
+        print('FAIL: source-scoped SAY comma compatibility changed:',
+              missing_comma_runtime)
+        return 1
+    print('PASS: SAY comma compatibility is restricted to the 5 source-observed lines')
+
     if not DIALOG_SQL.is_file():
         print('FAIL: data_questdialog.sql unavailable; [MENU] quest-dialog cross-check required')
         return 1
@@ -433,7 +453,6 @@ def audit_full_sql(rows):
     print('PASS: exactly 8 known no-label-anywhere references remain preserved')
     print('PASS: undefined-label shape = 5 inventory-full MARK100 + 3 RESULT==2 MARK2')
 
-    handler17 = HANDLER17.read_text(encoding='utf-8')
     handler_start = handler17.find('public static void RewardSelectItemIndexHandler')
     handler_end = handler17.find('[PacketHandler(CH17Type.ScenarioDoneReq)]', handler_start)
     if handler_start < 0 or handler_end < 0:

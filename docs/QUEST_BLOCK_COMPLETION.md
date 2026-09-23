@@ -85,11 +85,14 @@ emulator has a deterministic, non-mutating failure boundary.
 Exactly five authoritative Quest 15 Start lines use `SAY <DialogID>, ...`.
 The exact original preprocessing step before the whitespace tokenizer remains
 unidentified. The emulator normalizes a trailing comma **only at the SAY
-DialogID token boundary**, and CI locks the exact five source lines. It does not
-generalize comma punctuation into a new quest-script grammar.
+DialogID token boundary and only for those five complete source lines**. CI
+locks the five tuples and statically rejects a reintroduced generic
+`TrimEnd(',')` parser. Any other comma-bearing SAY is rejected rather than
+silently expanding the grammar.
 
-This is treated as a source-normalization boundary rather than an open runtime
-blocker.
+This closes the emulator-side source-normalization boundary. The unidentified
+original preprocessing routine is retained only as an archival native-fidelity
+question, not as unfinished Quest runtime behavior.
 
 ## Future-compatibility work, not NA2016 blockers
 
@@ -111,7 +114,8 @@ These items do not prevent the supplied Quest block from running completely:
 
 - identification of the original post-0x4412 wake-up event;
 - exact caller/UI consequence of native missing-label CommandRun failure;
-- exact native preprocessing responsible for the five Quest 15 comma lines;
+- exact internal identity of the native preprocessing routine behind the five
+  Quest 15 comma lines (emulator behavior itself is source-exact and CI-locked);
 - exact ItemDB/GameDB transactional plumbing and rollback packet internals;
 - source-level names for a few optimized helpers and internal AbState details.
 
