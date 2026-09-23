@@ -20,6 +20,10 @@ namespace NextGen.World.Data
 		public Dictionary<ushort, MapInfo> Maps { get; private set; }
 		public Dictionary<Job, BaseStatsEntry> JobBasestats { get; private set; }
         public List<MasterRewardItem> MasterRewards { get; private set; }
+        public Dictionary<ushort, KingdomQuestTeamInfo> KingdomQuestTeams { get; private set; }
+        public Dictionary<ushort, bool> KingdomQuestVoteEnabled { get; private set; }
+        public Dictionary<byte, KingdomQuestVoteReasonInfo> KingdomQuestVoteReasons { get; private set; }
+        public List<byte> KingdomQuestVoteMajorityRates { get; private set; }
 
 		public DataProvider()
 		{
@@ -28,8 +32,72 @@ namespace NextGen.World.Data
 			LoadBasestats();
 			LoadBadNames();
             LoadMasterReward();
+            LoadKingdomQuestMetadata();
 
 		}
+        private void LoadKingdomQuestMetadata()
+        {
+            KingdomQuestTeams = new Dictionary<ushort, KingdomQuestTeamInfo>();
+            KingdomQuestVoteEnabled = new Dictionary<ushort, bool>();
+            KingdomQuestVoteReasons = new Dictionary<byte, KingdomQuestVoteReasonInfo>();
+            KingdomQuestVoteMajorityRates = new List<byte>();
+
+            using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+            {
+                DataTable teamData = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM data_kqteam; USE `{1}`",
+                    Settings.Instance.zoneMysqlDatabase, Settings.Instance.WorldMysqlDatabase));
+                if (teamData != null)
+                {
+                    foreach (DataRow row in teamData.Rows)
+                    {
+                        KingdomQuestTeamInfo info = KingdomQuestTeamInfo.Load(row);
+                        KingdomQuestTeams[info.ID] = info;
+                    }
+                }
+
+                DataTable voteData = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM data_kqisvote; USE `{1}`",
+                    Settings.Instance.zoneMysqlDatabase, Settings.Instance.WorldMysqlDatabase));
+                if (voteData != null)
+                {
+                    foreach (DataRow row in voteData.Rows)
+                    {
+                        ushort id = NextGen.Database.DataStore.GetDataTypes.GetUshort(row["ID"]);
+                        KingdomQuestVoteEnabled[id] =
+                            NextGen.Database.DataStore.GetDataTypes.GetByte(row["IsVote"]) != 0;
+                    }
+                }
+
+                DataTable reasonData = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM data_kqvotedesc; USE `{1}`",
+                    Settings.Instance.zoneMysqlDatabase, Settings.Instance.WorldMysqlDatabase));
+                if (reasonData != null)
+                {
+                    foreach (DataRow row in reasonData.Rows)
+                    {
+                        KingdomQuestVoteReasonInfo info = KingdomQuestVoteReasonInfo.Load(row);
+                        KingdomQuestVoteReasons[info.ID] = info;
+                    }
+                }
+
+                DataTable rateData = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM data_kqvotemajorityrate ORDER BY VoteAgreeRate DESC; USE `{1}`",
+                    Settings.Instance.zoneMysqlDatabase, Settings.Instance.WorldMysqlDatabase));
+                if (rateData != null)
+                {
+                    foreach (DataRow row in rateData.Rows)
+                        KingdomQuestVoteMajorityRates.Add(
+                            NextGen.Database.DataStore.GetDataTypes.GetByte(row["VoteAgreeRate"]));
+                }
+            }
+
+            Log.WriteLine(LogLevel.Info,
+                "Loaded KQ metadata: {0} teams, {1} vote flags, {2} vote reasons, {3} vote thresholds.",
+                KingdomQuestTeams.Count, KingdomQuestVoteEnabled.Count,
+                KingdomQuestVoteReasons.Count, KingdomQuestVoteMajorityRates.Count);
+        }
+
         private void LoadMasterReward()
         {
             this.MasterRewards = new List<MasterRewardItem>();
