@@ -16,6 +16,7 @@ FILES = {
     "kq_target": ROOT / "NextGen.World/Data/KingdomQuestSessionTarget.cs",
     "kq_transfer": ROOT / "NextGen.World/Data/KingdomQuestTransferService.cs",
     "inter_header": ROOT / "NextGen.InterLib/Networking/InterHeader.cs",
+    "kq_session": ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs",
 }
 
 def need(text, tokens, label):
@@ -91,6 +92,26 @@ def main():
         return 1
     if not need(c["inter_header"], ["KingdomQuestTransfer = 0x4004"], "internal KQ inter-server opcode"):
         return 1
+    if not need(c["kq_session"], [
+        "KingdomQuestDefinitionRegistry.TryGet(definition.Handle",
+        "KingdomQuestInstanceRegistry.TryGet(definition.Handle",
+        "KingdomQuestSessionTargetRegistry.TryGet(definition.Handle",
+        "definition.NumOfJoiner != (ushort)names.Count",
+        "KingdomQuestSessionTargetRegistry.TryCreate(",
+        "definition.Handle, mapId, mapInstance",
+        "KingdomQuestDefinitionRegistry.Upsert(definition);",
+        "KingdomQuestInstanceRegistry.Upsert(",
+        "KingdomQuestInstanceRegistry.SetJoiners(",
+        "KingdomQuestDefinitionRegistry.Remove(definition.Handle);",
+        "KingdomQuestInstanceRegistry.Remove(definition.Handle);",
+        "KingdomQuestSessionTargetRegistry.Remove(definition.Handle);",
+    ], "atomic explicit KQ session coordinator"):
+        return 1
+
+    for forbidden in ("DateTime.", "DateTimeOffset.", "Random", "++handle", "Handle++"):
+        if forbidden in c["kq_session"]:
+            print("FAIL: KQ session coordinator invents scheduler/handle state:", forbidden)
+            return 1
 
     combined = "\n".join(c.values())
     if "(short)handle" in combined or "(short)Handle" in combined:
@@ -102,6 +123,7 @@ def main():
     print("PASS: native 32-bit KQ Handle remains separate from internal Map.InstanceID")
     print("PASS: KQ Handle -> source MapID/internal MapInstance mapping is explicit")
     print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with explicit coordinates")
+    print("PASS: KQ session create/remove keeps definition, status and routing registries synchronized")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0
 

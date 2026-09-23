@@ -284,3 +284,24 @@ i16 Map.InstanceID   -- emulator-internal Zone instance
 
 No cast or numeric derivation connects Handle to `Map.InstanceID`; the
 explicit target registry remains the only bridge.
+
+
+## Explicit session-coordination boundary
+
+`KingdomQuestSessionCoordinator.TryCreate` now provides one atomic entry point
+for a scheduler that has already resolved a real KQ:
+
+```text
+complete PROTO_KQ_INFO_CLIENT definition
+exact joiner-name list
+source-backed MapID
+internal Map.InstanceID
+```
+
+Creation succeeds only when the definition's `NumOfJoiner` equals the supplied
+name count and the Handle is absent from all three registries. It then creates
+the explicit routing target and synchronizes the client-definition and
+status/joiner registries. Any exception rolls all three back.
+
+The coordinator does **not** allocate Handles, calculate times, assign status,
+choose maps or select joiners. Those remain the source/scheduler layer.
