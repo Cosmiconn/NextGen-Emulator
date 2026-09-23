@@ -18,6 +18,7 @@ namespace NextGen.Zone.Handlers
         private static readonly object Sync = new object();
         private static readonly Dictionary<int, DialogSession> Sessions = new Dictionary<int, DialogSession>();
         private static Dictionary<uint, DialogScriptContext> DialogContexts;
+        private static Dictionary<uint, QuestScriptInfo> QuestScriptsById;
         private static HashSet<uint> AmbiguousDialogs;
         private const ushort QuestSelectStartSuccess = 0x0B41;
         private const ushort QuestSelectStartFailure = 0x0B47;
@@ -89,6 +90,32 @@ namespace NextGen.Zone.Handlers
             if(instruction.OpCode.Equals("GET_ITEM_LOT",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){ushort id;machine.State.Result=ushort.TryParse(args[0],out id)?(int)(ushort)QuestRuntime.GetItemLot(character,id):0;return true;}
             if(instruction.OpCode.Equals("GET_PLAYER_EMPTY_INVENTORY",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){machine.State.Variables[args[0]]=QuestRuntime.GetEmptyInventorySlots(character);return true;}
             if(instruction.OpCode.Equals("DELETE_ITEM",StringComparison.OrdinalIgnoreCase)&&args.Length>=2){ushort id;if(ushort.TryParse(args[0],out id))QuestRuntime.DeleteItem(character,id,args[1]);return true;}
+            if(instruction.OpCode.Equals("LINK",StringComparison.OrdinalIgnoreCase))
+            {
+                // Original QSC_LINK is command 11 and stores the target as WORD.
+                // Blank operands and invalid/out-of-range source values therefore
+                // do not get an invented target.
+                ushort linkedQuestId;
+                if(args.Length<1||!ushort.TryParse(args[0],out linkedQuestId)||linkedQuestId==0)
+                    return true;
+
+                QuestScriptStage linkedStage;
+                if(!QuestNpcStartResolver.TryResolveLinkedStage(character,linkedQuestId,out linkedStage))
+                    return true;
+
+                QuestScriptInfo linkedInfo;
+                if(!TryGetQuestScriptInfo(linkedQuestId,out linkedInfo))
+                {
+                    Log.WriteLine(LogLevel.Debug,"Quest LINK target {0} is not present in data_quest_script.",linkedQuestId);
+                    return true;
+                }
+
+                DialogSession session;
+                lock(Sync){Sessions.TryGetValue(character.ID,out session);}
+                if(session==null)return false;
+                session.Machine=new QuestScriptMachine(linkedInfo,linkedStage);
+                return true;
+            }
             if(instruction.OpCode.Equals("DONE",StringComparison.OrdinalIgnoreCase)&&machine.State.Stage==QuestScriptStage.Finish){if(QuestRuntime.Complete(character,q))return true;try{using(DatabaseClient db=Program.DatabaseManager.GetClient())if(QuestRuntime.NeedsRewardSelection(db,q))return false;}catch{}return false;}
             return true;
         }
@@ -96,7 +123,8 @@ namespace NextGen.Zone.Handlers
         public static void SendDialogPage(ZoneClient client,uint dialogId){DialogScriptContext context;QuestScriptMachine machine=null;if(TryFindDialogContext(dialogId,out context)){machine=new QuestScriptMachine(context.Info,context.Stage);machine.State.InstructionIndex=context.InstructionIndex+1;}SendDialogPage(client,dialogId,machine);}
         private static void SendDialogPage(ZoneClient client,uint dialogId,QuestScriptMachine machine){QuestDialogInfo info;if(!DataProvider.Instance.QuestDialogsByID.TryGetValue(dialogId,out info)){EndDialog(client.Character);return;}DialogSession session;lock(Sync){DialogSession previous;Sessions.TryGetValue(client.Character.ID,out previous);ushort seq=previous==null?(ushort)1:(ushort)(previous.Seq+1);session=new DialogSession{DialogID=dialogId,Seq=seq,Machine=machine,PendingScenarioID=0,ScenarioPending=false};Sessions[client.Character.ID]=session;}using(var p=new Packet(SH17Type.NpcDialogMenu)){p.WriteUShort(session.Seq);p.WriteUInt(2);p.WriteByte(0);p.WriteUShort((ushort)dialogId);p.Fill(94,0);client.SendPacket(p);}}
         private static bool TryFindDialogContext(uint dialogId,out DialogScriptContext context){EnsureContexts();lock(Sync){if(AmbiguousDialogs.Contains(dialogId)){context=null;return false;}return DialogContexts.TryGetValue(dialogId,out context);}}
-        private static void EnsureContexts(){lock(Sync){if(DialogContexts!=null)return;DialogContexts=new Dictionary<uint,DialogScriptContext>();AmbiguousDialogs=new HashSet<uint>();try{using(DatabaseClient db=Program.DatabaseManager.GetClient()){DataTable rows=db.ReadDataTable("SELECT * FROM data_quest_script");if(rows==null)return;foreach(DataRow row in rows.Rows){QuestScriptInfo info=QuestScriptInfo.Load(row);Index(info,QuestScriptStage.Start,info.Start);Index(info,QuestScriptStage.Action,info.Action);Index(info,QuestScriptStage.Finish,info.Finish);}}}catch(Exception ex){Log.WriteLine(LogLevel.Warn,"Quest script index failed: {0}",ex.Message);}}}
+        private static void EnsureContexts(){lock(Sync){if(DialogContexts!=null)return;DialogContexts=new Dictionary<uint,DialogScriptContext>();QuestScriptsById=new Dictionary<uint,QuestScriptInfo>();AmbiguousDialogs=new HashSet<uint>();try{using(DatabaseClient db=Program.DatabaseManager.GetClient()){DataTable rows=db.ReadDataTable("SELECT * FROM data_quest_script");if(rows==null)return;foreach(DataRow row in rows.Rows){QuestScriptInfo info=QuestScriptInfo.Load(row);QuestScriptsById[info.QuestID]=info;Index(info,QuestScriptStage.Start,info.Start);Index(info,QuestScriptStage.Action,info.Action);Index(info,QuestScriptStage.Finish,info.Finish);}}}catch(Exception ex){Log.WriteLine(LogLevel.Warn,"Quest script index failed: {0}",ex.Message);}}}
+        private static bool TryGetQuestScriptInfo(uint questId,out QuestScriptInfo info){EnsureContexts();lock(Sync){return QuestScriptsById!=null&&QuestScriptsById.TryGetValue(questId,out info);}}
         private static void Index(QuestScriptInfo info,QuestScriptStage stage,QuestScriptProgram program){for(int i=0;i<program.Instructions.Count;i++){uint id;QuestScriptInstruction ins=program.Instructions[i];if(!ins.OpCode.Equals("SAY",StringComparison.OrdinalIgnoreCase)||!TryGetSayDialogId(ins,out id))continue;if(AmbiguousDialogs.Contains(id))continue;DialogScriptContext old;if(DialogContexts.TryGetValue(id,out old)){DialogContexts.Remove(id);AmbiguousDialogs.Add(id);continue;}DialogContexts[id]=new DialogScriptContext{Info=info,Stage=stage,InstructionIndex=i};}}
         private static bool TryGetSayDialogId(QuestScriptInstruction instruction,out uint id){id=0;if(instruction==null)return false;string[] p=instruction.Arguments.Split(new[]{' ','\t'},StringSplitOptions.RemoveEmptyEntries);return p.Length>0&&uint.TryParse(p[0],out id);}
         private static void EndDialog(Game.ZoneCharacter c){if(c==null)return;lock(Sync)Sessions.Remove(c.ID);}
