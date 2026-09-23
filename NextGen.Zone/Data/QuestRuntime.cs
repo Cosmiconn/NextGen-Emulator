@@ -68,14 +68,14 @@ namespace NextGen.Zone.Data
 
         public static void RecordMobKill(ZoneCharacter character, ushort mobId)
         {
-            if (character == null || mobId == 0) return;
+            if (character == null) return;
             try
             {
                 DataTable definitions;
                 using (DatabaseClient dataDb = Program.DatabaseManager.GetClient())
                     definitions = dataDb.ReadDataTable(
                         "SELECT QuestID,Slot,NPCMobID,NPCMobCount FROM QuestData_NPCMob " +
-                        "WHERE bNPCMob=1 AND NPCMobAction=1 AND (NPCMobID=@mob OR NPCMobID=0)",
+                        "WHERE bNPCMob=1 AND NPCMobAction=1 AND NPCMobID=@mob",
                         new MySqlParameter("@mob", mobId));
                 if (definitions == null || definitions.Rows.Count == 0) return;
                 using (DatabaseClient charDb = Program.CharDBManager.GetClient())
@@ -94,9 +94,8 @@ namespace NextGen.Zone.Data
                         uint value = Math.Min(amount, oldValue + 1);
                         charDb.ExecuteQuery("INSERT INTO character_quest_progress (CharID,QuestID,Slot,Progress) VALUES (@c,@q,@slot,@p) ON DUPLICATE KEY UPDATE Progress=@p",
                             new MySqlParameter("@c", character.ID), new MySqlParameter("@q", q), new MySqlParameter("@slot", slot), new MySqlParameter("@p", value));
-                        // NPCMobID 0 is the source-defined wildcard/no-specific-target
-                        // form. Keep the definition TargetID on the wire; capture Quest 8
-                        // proves TargetID 0 is transmitted literally while kills advance it.
+                        // TargetID 0 is a valid source value and is transmitted literally.
+                        // Do not reinterpret it as ID+1 or as a wildcard without separate evidence.
                         SendProgress(character, Convert.ToUInt16(def["NPCMobID"]), q);
                     }
                 }
