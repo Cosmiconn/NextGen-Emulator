@@ -562,31 +562,43 @@ namespace NextGen.Zone.Handlers
                     using (DatabaseClient db = Program.DatabaseManager.GetClient())
                     {
                         const string sqlNormalized =
-                            "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
+                            "SELECT m.InxName AS MobName, q.QuestID, COALESCE(d.DialogID,0) AS DialogID, q.Type, q.Repeatable, " +
+                            "COALESCE(q.DailyQuestType,0) AS DailyQuestType, q.RawData AS QuestRawData, ds.ActionScript, ds.FinishScript, " +
                             "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, " +
                             "COALESCE(pq.DailyQuestType,0) AS PrerequisiteDailyType, pq.RawData AS PrerequisiteRawData, s.bItem, s.ItemID, s.ItemLot, " +
                             "s.bLocation, s.LocationRaw, s.LocationMap, s.LocationX, s.LocationY, s.LocationRange, " +
                             "s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
-                            "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
+                            "LEFT JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
                             "LEFT JOIN QuestData pq ON pq.QuestID=s.QuestPrerequisiteID " +
-                            "INNER JOIN data_mobinfo m ON m.ID=s.NPCID " +
-                            "WHERE s.NPCID<>0 " +
+                            "INNER JOIN (" +
+                                "SELECT QuestID,NPCID FROM QuestData_ConditionStart WHERE bNPC<>0 AND NPCID<>0 " +
+                                "UNION " +
+                                "SELECT QuestID,NPCMobID AS NPCID FROM QuestData_NPCMob " +
+                                "WHERE bNPCMob<>0 AND NPCMobID<>0 AND (NPCMobAction=0 OR NPCMobAction=3)" +
+                            ") a ON a.QuestID=q.QuestID " +
+                            "INNER JOIN data_mobinfo m ON m.ID=a.NPCID " +
                             "ORDER BY m.InxName, q.QuestID";
                         const string sqlLegacy =
-                            "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
+                            "SELECT m.InxName AS MobName, q.QuestID, COALESCE(d.DialogID,0) AS DialogID, q.Type, q.Repeatable, " +
+                            "q.RawData AS QuestRawData, ds.ActionScript, ds.FinishScript, " +
                             "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, " +
                             "pq.RawData AS PrerequisiteRawData, s.bItem, s.ItemID, s.ItemLot, " +
                             "s.bLocation, s.LocationRaw, s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
-                            "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
+                            "LEFT JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
                             "LEFT JOIN QuestData pq ON pq.QuestID=s.QuestPrerequisiteID " +
-                            "INNER JOIN data_mobinfo m ON m.ID=s.NPCID " +
-                            "WHERE s.NPCID<>0 " +
+                            "INNER JOIN (" +
+                                "SELECT QuestID,NPCID FROM QuestData_ConditionStart WHERE bNPC<>0 AND NPCID<>0 " +
+                                "UNION " +
+                                "SELECT QuestID,NPCMobID AS NPCID FROM QuestData_NPCMob " +
+                                "WHERE bNPCMob<>0 AND NPCMobID<>0 AND (NPCMobAction=0 OR NPCMobAction=3)" +
+                            ") a ON a.QuestID=q.QuestID " +
+                            "INNER JOIN data_mobinfo m ON m.ID=a.NPCID " +
                             "ORDER BY m.InxName, q.QuestID";
 
                         DataTable data;
@@ -602,7 +614,7 @@ namespace NextGen.Zone.Handlers
                             normalizedDailyType = false;
                             data = db.ReadDataTable(sqlLegacy);
                             Log.WriteLine(LogLevel.Debug,
-                                "Quest start SQL uses legacy LocationRaw layout; re-import QuestData.shn to get normalized location columns.");
+                                "Quest SQL uses the legacy raw layout; re-import QuestData.shn to get normalized location/daily columns.");
                         }
                         if (data == null) return;
 
@@ -619,7 +631,12 @@ namespace NextGen.Zone.Handlers
                                 ByMobName.Add(mobName, list);
                             }
                             byte[] locationRaw = row["LocationRaw"] as byte[];
+                            byte[] questRaw = row["QuestRawData"] as byte[];
                             byte[] prerequisiteRaw = row["PrerequisiteRawData"] as byte[];
+                            byte dailyQuestType = normalizedDailyType
+                                ? Convert.ToByte(row["DailyQuestType"])
+                                : (questRaw != null && questRaw.Length > 0x13
+                                    ? questRaw[0x13] : (byte)0);
                             byte prerequisiteDailyType = normalizedDailyType
                                 ? Convert.ToByte(row["PrerequisiteDailyType"])
                                 : (prerequisiteRaw != null && prerequisiteRaw.Length > 0x13
@@ -644,6 +661,7 @@ namespace NextGen.Zone.Handlers
                                 FinishDialogID = GetFirstSayDialogId(row["FinishScript"] == DBNull.Value ? string.Empty : (string)row["FinishScript"]),
                                 Type = Convert.ToByte(row["Type"]),
                                 Repeatable = Convert.ToByte(row["Repeatable"]),
+                                DailyQuestType = dailyQuestType,
                                 StartLevelEnabled = Convert.ToByte(row["bLevel"]),
                                 StartLevelMin = Convert.ToByte(row["LevelMin"]),
                                 StartLevelMax = Convert.ToByte(row["LevelMax"]),
