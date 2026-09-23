@@ -88,7 +88,7 @@ namespace NextGen.Zone.Handlers
             if(instruction.OpCode.Equals("RESET_ABSTATE",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){QuestRuntime.ResetAbstate(character,args[0]);return true;}
             if(instruction.OpCode.Equals("CREATE_ITEM",StringComparison.OrdinalIgnoreCase)&&args.Length>=2){ushort id;uint amount;if(ushort.TryParse(args[0],out id)&&uint.TryParse(args[1],out amount))QuestRuntime.CreateItem(character,id,amount);return true;}
             if(instruction.OpCode.Equals("GET_ITEM_LOT",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){ushort id;machine.State.Result=ushort.TryParse(args[0],out id)?(int)(ushort)QuestRuntime.GetItemLot(character,id):0;return true;}
-            if(instruction.OpCode.Equals("GET_PLAYER_EMPTY_INVENTORY",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){machine.State.Variables[args[0]]=QuestRuntime.GetEmptyInventorySlots(character);return true;}
+            if(instruction.OpCode.Equals("GET_PLAYER_EMPTY_INVENTORY",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){machine.State.Variables[args[0]]=(byte)QuestRuntime.GetEmptyInventorySlots(character);return true;}
             if(instruction.OpCode.Equals("DELETE_ITEM",StringComparison.OrdinalIgnoreCase)&&args.Length>=2){ushort id;if(ushort.TryParse(args[0],out id))QuestRuntime.DeleteItem(character,id,args[1]);return true;}
             if(instruction.OpCode.Equals("LINK",StringComparison.OrdinalIgnoreCase))
             {
