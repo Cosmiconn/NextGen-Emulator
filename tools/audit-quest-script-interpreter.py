@@ -96,6 +96,9 @@ def audit_full_sql(rows):
                         links.append((q, int(operand)))
                 elif opcode == 'DELETE_ITEM':
                     operand = parts[1].strip() if len(parts) > 1 else ''
+                    # Quest source permits trailing '; ...' comments on command
+                    # lines. Validate only the command operands, not the comment.
+                    operand = operand.split(';', 1)[0].strip()
                     m = re.fullmatch(r'(\d+)\s+(ALL|\d+)', operand, re.I)
                     if not m:
                         invalid_deletes.append((q, st, z))
