@@ -447,6 +447,7 @@ namespace NextGen.Zone.Handlers
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_start_dialog d ON d.QuestID=q.QuestID " +
                             "INNER JOIN data_quest_script ds ON ds.QuestID=q.QuestID " +
+                            "LEFT JOIN QuestData pq ON pq.QuestID=s.QuestPrerequisiteID " +
                             "INNER JOIN data_mobinfo m ON m.ID=s.NPCID " +
                             "WHERE s.NPCID<>0 " +
                             "ORDER BY m.InxName, q.QuestID";
