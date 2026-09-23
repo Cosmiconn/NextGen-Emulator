@@ -34,7 +34,19 @@ All 1,474 supplied occurrences use exactly one of the two forms already accepted
 - 1,035 lines: `DELETE_ITEM <ItemID> ALL`
 - 439 lines: `DELETE_ITEM <ItemID> <numeric lot>`
 
-No numeric-lot occurrence uses zero, four-or-more decimal digits, or a six-digit-plus quantity in this corpus scan. This validates the textual parser surface, but does not by itself prove whether the original native deletion helper is atomic on insufficient quantity or what result it exposes to script execution.
+No numeric-lot occurrence uses zero. This validates the textual parser surface, but does not by itself prove the native return value.
+
+### DELETE_ITEM can exceed the End.ItemLot minimum
+
+Cross-checking the generated QuestData SQL against the Finish scripts proves that an atomic "requested lot must exist before deleting anything" rule would reject valid source flows. Examples:
+
+- Quest 225: End item condition requires Item 3106 lot 3, while Finish executes `DELETE_ITEM 3106 5`.
+- Quest 444: End item conditions require Item 3085 lot 5 and Item 3100 lot 5, while Finish deletes 12 and 8 respectively.
+- Quest 460: End item conditions require Item 2600 lot 15 and Item 2601 lot 20, while Finish deletes 20 and 25 respectively.
+
+The native rewardability gate therefore does not guarantee that the later numeric DELETE_ITEM request is fully satisfiable. The emulator intentionally keeps consume-up-to-available behavior for numeric deletion and does not add an atomic preflight. `QuestRuntime.DeleteItem` still returns false when the full requested lot was not available, but the textual quest command has no proven branch/result consumer and Handler17 continues the script, matching the source shape conservatively.
+
+This narrows the remaining native evidence gap: exact item-removal ordering/packet behavior and the command's internal return convention are unresolved, but insufficient-quantity atomic rejection is specifically **not** a safe assumption for this corpus.
 
 ## Native width constraints
 
@@ -77,7 +89,7 @@ The original command-name table directly distinguishes textual `CANCEL` (command
 
 ## Next evidence targets
 
-1. Keep the full-corpus opcode and LINK-topology audit mandatory in CI.
+1. Keep the full-corpus opcode, DELETE_ITEM operand-shape, known missing-label, and LINK-topology audits mandatory in CI.
 2. Preserve the proven IF/GOTO and item operand widths.
 3. Do not assign runtime semantics to commands absent from the supplied corpus solely because their native names are known.
 4. Keep malformed/blank source operands as source anomalies instead of auto-repairing them.
