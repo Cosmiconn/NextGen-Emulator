@@ -10,7 +10,7 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 |---|---:|---|---|---|
 | `GET_PLAYER_EMPTY_INVENTORY VAR1` | 676 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → low 8-bit script variable | **PROVEN / ALIGNED**; Handler17 now stores the native byte-width result |
 | `CREATE_ITEM <id> <lot>` | 206 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; DWORD lot width, stack splitting, and real ItemID 0 are handled |
-| `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **CORPUS PATH COVERED**; both forms plus real ItemID 0 are handled; exact native internal return/packet semantics remain the evidence gap |
+| `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **PROVEN / ALIGNED**; numeric lots preflight total quantity atomically, ALL consumes the available total, failure emits native QSC error 0x0C0A and closes the script |
 | `ACCEPT [QuestID]` | 2410 | quest parser command; explicit QuestID form proven | `QuestRuntime.Accept` | **PROVEN** |
 | `LINK <id>` | 350 | native command 11; `0x005BE0EE` | exact target QuestID + effective-status stage switch | **PROVEN / IMPLEMENTED** |
 | `SCENARIO <id>` | 52 | scenario execution path proven; not the general QSC opcode | packet `0x440E` | **PROVEN** |
@@ -72,17 +72,30 @@ All 1,474 supplied occurrences use exactly one of the two forms already accepted
 
 No numeric-lot occurrence uses zero. This validates the textual parser surface, but does not by itself prove the native return value.
 
-### DELETE_ITEM can exceed the End.ItemLot minimum
+### Native DELETE_ITEM preflight and failure
 
-Cross-checking the generated QuestData SQL against the Finish scripts proves that an atomic "requested lot must exist before deleting anything" rule would reject valid source flows. Examples:
+The earlier conservative consume-up-to-available rule is superseded by direct
+disassembly of the original item helper called by `QSC_DELETE_ITEM`.
 
-- Quest 225: End item condition requires Item 3106 lot 3, while Finish executes `DELETE_ITEM 3106 5`.
-- Quest 444: End item conditions require Item 3085 lot 5 and Item 3100 lot 5, while Finish deletes 12 and 8 respectively.
-- Quest 460: End item conditions require Item 2600 lot 15 and Item 2601 lot 20, while Finish deletes 20 and 25 respectively.
+`CQuestZone::QuestNext` command 13 at `0x005BE253` calls helper
+`0x00527B60` with the parsed ItemID and lot. That helper enumerates matching
+inventory stacks and totals their quantity before any delete request. For a
+positive requested lot it compares requested versus total at
+`0x00527CB6..0x00527CC6` and returns false immediately when the request exceeds
+the available total. For a non-positive native lot it replaces the request with
+the total available quantity; this is the native ALL path represented textually
+as `DELETE_ITEM <id> ALL`.
 
-The native rewardability gate therefore does not guarantee that the later numeric DELETE_ITEM request is fully satisfiable. The emulator intentionally keeps consume-up-to-available behavior for numeric deletion and does not add an atomic preflight. `QuestRuntime.DeleteItem` still returns false when the full requested lot was not available, but the textual quest command has no proven branch/result consumer and Handler17 continues the script, matching the source shape conservatively.
+On helper failure, QuestNext calls `CQuestZone::Send_QUEST_ERROR_TO_CLIENT`
+with error `0x0C0A`, then calls `CQuestZone::QuestClose`. Therefore numeric
+DELETE_ITEM is atomically rejected on insufficient quantity; it is not a
+best-effort partial consume.
 
-This narrows the remaining native evidence gap: exact item-removal ordering/packet behavior and the command's internal return convention are unresolved, but insufficient-quantity atomic rejection is specifically **not** a safe assumption for this corpus.
+The corpus examples where the Finish delete lot exceeds the End.ItemLot minimum
+(quests 225, 444 and 460) remain valid source data. They show only that the end
+eligibility minimum is not the same thing as the later delete quantity. A player
+must actually possess the larger script-requested quantity at deletion time or
+the native quest script closes with the proven error path.
 
 ## Native width constraints
 
@@ -125,7 +138,7 @@ The original command-name table directly distinguishes textual `CANCEL` (command
 
 ## Next evidence targets
 
-1. Keep the full-corpus opcode, DELETE_ITEM operand-shape, known missing-label, and LINK-topology audits mandatory in CI.
+1. Keep the full-corpus opcode, DELETE_ITEM operand-shape, known missing-label, and LINK-topology audits mandatory in CI; preserve the proven atomic numeric DELETE_ITEM failure rule.
 2. Preserve the proven IF/GOTO and item operand widths.
 3. Do not assign runtime semantics to commands absent from the supplied corpus solely because their native names are known.
 4. Keep malformed/blank source operands as source anomalies instead of auto-repairing them.

@@ -73,6 +73,29 @@ namespace NextGen.Zone.Handlers
             }
         }
 
+        private static void SendQuestCommandError(Game.ZoneCharacter character,
+            uint questId, uint failedCommand, ushort errorType)
+        {
+            if (character == null || character.Client == null || questId > ushort.MaxValue)
+                return;
+
+            // Original CQuestZone::Send_QUEST_ERROR_TO_CLIENT at 0x005BD870
+            // forwards a complete QSC_ERROR through Send_NC_QUEST_SCRIPT_CMD_REQ:
+            // Cmd=ERROR(0), IsPigeonStartType=0, then Data DWORDs
+            // {failed QSC, 0} followed by the WORD error code.
+            using (var p = new Packet(SH17Type.NpcDialogMenu))
+            {
+                p.WriteUShort((ushort)questId);
+                p.WriteUInt(0);
+                p.WriteByte(0);
+                p.WriteUInt(failedCommand);
+                p.WriteUInt(0);
+                p.WriteUShort(errorType);
+                p.Fill(86, 0);
+                character.Client.SendPacket(p);
+            }
+        }
+
         [PacketHandler(CH17Type.RewardSelectItemIndex)] public static void RewardSelectItemIndexHandler(ZoneClient client, Packet packet){ushort questId;uint selectedIndex;if(!packet.TryReadUShort(out questId)||!packet.TryReadUInt(out selectedIndex))return;if(QuestRuntime.Complete(client.Character,questId,selectedIndex,true)){DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session!=null)ContinueSession(client,session);else EndDialog(client.Character);}}
         [PacketHandler(CH17Type.ScenarioDoneReq)] public static void ScenarioDoneReqHandler(ZoneClient client,Packet packet){ushort scenarioId;if(!packet.TryReadUShort(out scenarioId))return;DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session==null||session.Machine==null||!session.ScenarioPending||session.PendingScenarioID!=scenarioId)return;uint questId=session.Machine.Graph.Info.QuestID;if(!QuestRuntime.RecordScenarioDone(client.Character,questId,scenarioId))return;session.ScenarioPending=false;session.PendingScenarioID=0;using(var ack=new Packet((ushort)0x440C)){ack.WriteUShort(scenarioId);client.SendPacket(ack);}ContinueSession(client,session);}
         [PacketHandler(CH17Type.NpcDialogResponse)]
@@ -179,10 +202,33 @@ namespace NextGen.Zone.Handlers
             if(instruction.OpCode.Equals("SCENARIO",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){ushort scenarioId;if(!ushort.TryParse(args[0],out scenarioId)||scenarioId==0)return true;DialogSession session;lock(Sync){Sessions.TryGetValue(character.ID,out session);}if(session==null)return false;session.PendingScenarioID=scenarioId;session.ScenarioPending=true;using(var run=new Packet((ushort)0x440E)){run.WriteUShort(scenarioId);character.Client.SendPacket(run);}return false;}
             if(instruction.OpCode.Equals("SET_ABSTATE",StringComparison.OrdinalIgnoreCase)&&args.Length>=3){uint strength,keepTimeMs;if(!uint.TryParse(args[1],out strength)||!uint.TryParse(args[2],out keepTimeMs))return true;QuestRuntime.SetAbstate(character,args[0],strength,keepTimeMs);return true;}
             if(instruction.OpCode.Equals("RESET_ABSTATE",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){QuestRuntime.ResetAbstate(character,args[0]);return true;}
-            if(instruction.OpCode.Equals("CREATE_ITEM",StringComparison.OrdinalIgnoreCase)&&args.Length>=2){ushort id;uint amount;if(ushort.TryParse(args[0],out id)&&uint.TryParse(args[1],out amount))QuestRuntime.CreateItem(character,id,amount);return true;}
+            if(instruction.OpCode.Equals("CREATE_ITEM",StringComparison.OrdinalIgnoreCase)&&args.Length>=2)
+            {
+                ushort id; uint amount;
+                if(ushort.TryParse(args[0],out id)&&uint.TryParse(args[1],out amount)&&
+                   !QuestRuntime.CreateItem(character,id,amount))
+                {
+                    // Native QSC_CREATE_ITEM failure: error 0x0C0B, then QuestClose.
+                    SendQuestCommandError(character,q,14,0x0C0B);
+                    EndDialog(character);
+                    return false;
+                }
+                return true;
+            }
             if(instruction.OpCode.Equals("GET_ITEM_LOT",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){ushort id;machine.State.Result=ushort.TryParse(args[0],out id)?(int)(ushort)QuestRuntime.GetItemLot(character,id):0;return true;}
             if(instruction.OpCode.Equals("GET_PLAYER_EMPTY_INVENTORY",StringComparison.OrdinalIgnoreCase)&&args.Length>=1){machine.State.Variables[args[0]]=(byte)QuestRuntime.GetEmptyInventorySlots(character);return true;}
-            if(instruction.OpCode.Equals("DELETE_ITEM",StringComparison.OrdinalIgnoreCase)&&args.Length>=2){ushort id;if(ushort.TryParse(args[0],out id))QuestRuntime.DeleteItem(character,id,args[1]);return true;}
+            if(instruction.OpCode.Equals("DELETE_ITEM",StringComparison.OrdinalIgnoreCase)&&args.Length>=2)
+            {
+                ushort id;
+                if(ushort.TryParse(args[0],out id)&&!QuestRuntime.DeleteItem(character,id,args[1]))
+                {
+                    // Native QSC_DELETE_ITEM failure: error 0x0C0A, then QuestClose.
+                    SendQuestCommandError(character,q,13,0x0C0A);
+                    EndDialog(character);
+                    return false;
+                }
+                return true;
+            }
             if(instruction.OpCode.Equals("LINK",StringComparison.OrdinalIgnoreCase))
             {
                 // Original QSC_LINK is command 11 and stores the target as WORD.

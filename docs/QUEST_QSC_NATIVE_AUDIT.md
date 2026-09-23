@@ -120,3 +120,50 @@ corpus impact are recorded in `docs/QUEST_LINK_BINARY.md`.
 Textual `LINK` and native command 11 are now directly correlated by the
 original command-name table and dispatcher. The old rule that kept textual LINK
 separate from a supposed command-29 QSC_LINK is superseded.
+
+
+## Item command failure semantics
+
+Direct disassembly closes the remaining return/packet gap for commands 13 and
+14.
+
+### `QSC_DELETE_ITEM = 13`
+
+QuestNext enters the command at `0x005BE253`. The QSC payload is read as a
+WORD ItemID at `QSC+0x05` and a DWORD lot at `QSC+0x07`, then passed to
+helper `0x00527B60`.
+
+That helper totals all matching inventory stack quantities before mutation. If
+the requested lot is positive and greater than the total, it returns false
+without issuing the deletion. If the lot is non-positive, the helper replaces it
+with the total available quantity, which is the native ALL behavior.
+
+When the helper returns false, QuestNext calls
+`CQuestZone::Send_QUEST_ERROR_TO_CLIENT(0x0C0A)` and then
+`CQuestZone::QuestClose`.
+
+### `QSC_CREATE_ITEM = 14`
+
+QuestNext enters at `0x005BE2BC`, reads the same WORD ItemID / DWORD lot shape,
+and calls helper `0x00528930`. An immediate helper failure produces
+`Send_QUEST_ERROR_TO_CLIENT(0x0C0B)` followed by `QuestClose`.
+
+### QSC error wire shape
+
+`CQuestZone::Send_QUEST_ERROR_TO_CLIENT` is `0x005BD870`. It builds a
+101-byte `STRUCT_QSC` and sends it through the already-proven
+`Send_NC_QUEST_SCRIPT_CMD_REQ` (`0x4401`) path:
+
+```text
+Cmd                 DWORD 0
+IsPigeonStartType   BYTE  0
+Data +0x00          DWORD failed QSC command
+Data +0x04          DWORD 0
+Data +0x08          WORD  error code
+remaining Data      zero
+```
+
+This establishes both the item-command failure control flow and the exact
+client error packet fields used by the emulator. No symbolic enum name is
+assigned to `0x0C0A` or `0x0C0B` beyond their proven DELETE/CREATE failure
+branches.
