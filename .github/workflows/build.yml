@@ -67,3 +67,7 @@ jobs:
       - name: Run Kingdom Quest source audit
         shell: bash
         run: python3 tools/audit-kingdom-quest-source.py
+
+      - name: Run Kingdom Quest instance audit
+        shell: bash
+        run: python3 tools/audit-kingdom-quest-instance.py

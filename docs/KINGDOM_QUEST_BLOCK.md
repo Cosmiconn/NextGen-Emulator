@@ -105,3 +105,23 @@ World DataProvider now also loads all 39 KingdomQuestDesc rows in source order a
 ## KQ map-transfer prerequisite
 
 A legacy ZoneCharacter.ChangeMap guard rejected every map ID above 120. That is incompatible with the source-backed KQ map catalog, which contains active KingdomMap=1 rows at IDs 126, 129, 131, 137, 138, 146, 148, 149, 155 and 158. The guard now validates the requested ID against DataProvider.MapsByID instead of a historical numeric ceiling. The existing World-to-Zone transfer path remains unchanged.
+
+
+## Server-side map-instance transport
+
+The existing codebase already modeled multiple map instances through
+`Map.InstanceID`, `MapManager.GetMap(info, instance)`, and instance-bearing
+`ZoneCharacter.SetMap/ChangeMap` signatures, but the path was incomplete:
+
+- `MapManager.GetMap` could not create instance 1+;
+- `SetMap` ignored its instance argument;
+- Zone -> World -> target-Zone transfer dropped the internal instance number.
+
+Those plumbing defects are now closed. The internal `short MapInstance`
+survives transfer and is used when constructing the character on the target
+Zone.
+
+This does **not** assign captured World KQ IDs such as instance 969 to a map
+instance. The capture uses a 32-bit KQ registry ID, while `Map.InstanceID` is
+a server-internal short namespace. CI explicitly guards against conflating
+them until the project definition/session sources prove the mapping.
