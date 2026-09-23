@@ -67,6 +67,14 @@ namespace NextGen.Zone.Handlers
 
         public static bool TryResolveForCharacter(NextGen.Zone.Game.ZoneCharacter character, string mobName, out uint dialogId)
         {
+            uint questId;
+            return TryResolveForCharacter(character, mobName, out questId, out dialogId);
+        }
+
+        public static bool TryResolveForCharacter(NextGen.Zone.Game.ZoneCharacter character, string mobName,
+            out uint questId, out uint dialogId)
+        {
+            questId = 0;
             dialogId = 0;
             if (character == null) return false;
 
@@ -205,8 +213,11 @@ namespace NextGen.Zone.Handlers
                     }
                 }
 
-                if (best != null)
-                    return TryGetDialogForStatus(character, best, bestStatus, out dialogId);
+                if (best != null && TryGetDialogForStatus(character, best, bestStatus, out dialogId))
+                {
+                    questId = best.QuestID;
+                    return true;
+                }
             }
             catch (Exception ex)
             {
