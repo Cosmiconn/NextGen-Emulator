@@ -70,8 +70,9 @@ namespace NextGen.Zone.Game
 			DataTable data = null;
 			using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
 			{
-				data = dbClient.ReadDataTable("SELECT  *FROM `"+Settings.Instance.zoneMysqlDatabase+"`.`Mobspawn` WHERE MapID=@mapId",
-					new MySqlParameter("@mapId", this.MapInfo.ID));
+				data = dbClient.ReadDataTable("SELECT * FROM `"+Settings.Instance.zoneMysqlDatabase+"`.`Mobspawn` WHERE MapID=@mapId AND InstanceID=@instanceId",
+					new MySqlParameter("@mapId", this.MapInfo.ID),
+					new MySqlParameter("@instanceId", this.InstanceID));
 			}
 
 			if (data != null)
@@ -84,9 +85,7 @@ namespace NextGen.Zone.Game
 						{
 							MapID = GetDataTypes.GetUshort(row["MapID"]),
 							MobID = GetDataTypes.GetUshort(row["MobID"]),
-							//InstanceID = GetDataTypes.Getshort(row["InstanceID"]),
-							//NOTE from db throws;
-							InstanceID = 0,
+							InstanceID = GetDataTypes.Getshort(row["InstanceID"]),
 							Position = new Vector2(),
 						};
 						locationInfo.Position.X = GetDataTypes.GetInt(row["PosX"]);

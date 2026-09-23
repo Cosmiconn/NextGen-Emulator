@@ -12,6 +12,7 @@ FILES = {
     "world_inter": ROOT / "NextGen.World/InterServer/InterHandler.cs",
     "zone_connection": ROOT / "NextGen.World/InterServer/ZoneConnection.cs",
     "handler6": ROOT / "NextGen.Zone/Handlers/Handler6.cs",
+    "map": ROOT / "NextGen.Zone/Game/Map.cs",
 }
 
 def need(text, tokens, label):
@@ -51,6 +52,8 @@ def main():
         return 1
     if not need(c["handler6"], ["transfer.MapInstance"], "target Zone login"):
         return 1
+    if not need(c["map"], ["WHERE MapID=@mapId AND InstanceID=@instanceId", "new MySqlParameter(\"@instanceId\", this.InstanceID)", "InstanceID = GetDataTypes.Getshort(row[\"InstanceID\"])"], "instance-bound Mobspawn load"):
+        return 1
 
     combined = "\n".join(c.values())
     if "(short)instanceId" in combined or "(short)InstanceID" in combined:
@@ -60,6 +63,7 @@ def main():
     print("PASS: MapManager can allocate requested internal map instances")
     print("PASS: internal MapInstance survives Zone -> World -> Zone transfer")
     print("PASS: captured 32-bit KQ InstanceID remains a separate namespace")
+    print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0
 
 if __name__ == "__main__":

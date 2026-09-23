@@ -125,3 +125,17 @@ This does **not** assign captured World KQ IDs such as instance 969 to a map
 instance. The capture uses a 32-bit KQ registry ID, while `Map.InstanceID` is
 a server-internal short namespace. CI explicitly guards against conflating
 them until the project definition/session sources prove the mapping.
+
+
+## Instance-bound mob spawns
+
+`Mobspawn.InstanceID` is part of the project SQL schema and
+`MobBreedLocation.CreateLocationFromPlayer()/SaveMobBreeds()` already preserve
+it. The load path previously discarded that field and forced every breed to
+instance 0.
+
+`Map.LoadMobBreeds()` now queries by both `MapID` and the current
+`Map.InstanceID`, then retains the row's `InstanceID`. Consequently a new
+dynamic KQ map instance does not leak/update its mob spawns into instance 0.
+It also does not clone instance-0 spawns by assumption; KQ-specific regen data
+must populate the target instance from authoritative project sources.
