@@ -40,18 +40,28 @@ Der bisherige stage-lokale Parser bleibt als Bestandteil der drei Einstiegspunkt
 
 ## Offene Datenanomalien
 
-Acht Sprungziele bleiben ohne gleichnamiges Label im gesamten Quest:
+Acht Sprungziele bleiben ohne gleichnamiges Label im gesamten Quest. Der
+vollständige Korpus-Audit hat inzwischen auch die exakten Trigger klassifiziert:
 
-- Quest 85 → `MARK100`
-- Quest 108 → `MARK100`
-- Quest 229 → `MARK100`
-- Quest 416 → `MARK100`
-- Quest 2313 → `MARK100`
-- Quest 60102 → `MARK2`
-- Quest 60108 → `MARK2`
-- Quest 60024 → `MARK2`
+- Quest 85, Finish: `IF VAR1 < 1 GOTO MARK100`
+- Quest 108, Finish: `IF VAR1 < 1 GOTO MARK100`
+- Quest 229, Finish: `IF VAR1 < 1 GOTO MARK100`
+- Quest 416, Finish: `IF VAR1 < 1 GOTO MARK100`
+- Quest 2313, Start: `IF VAR1 < 1 GOTO MARK100`
+- Quest 60024, Start: `IF RESULT == 2 GOTO MARK2`
+- Quest 60102, Start: `IF RESULT == 2 GOTO MARK2`
+- Quest 60108, Start: `IF RESULT == 2 GOTO MARK2`
 
-Diese werden nicht automatisch repariert.
+Damit sind fünf Anomalien reale Inventar-voll-Pfade und drei reale
+Dialogauswahl-Pfade. Sie dürfen nicht als bloß tote/unreachable Quelldaten
+abgehakt werden. Der native `CommandRun`-GOTO-Lookup ist zwar als
+success/failure-Verhalten belegt, aber die vollständige native Folge eines
+fehlgeschlagenen Label-Lookups bis zum QuestZone-Scriptzustand ist noch nicht
+hinreichend korreliert. Der Emulator repariert daher weiterhin kein Label und
+beendet einen unresolved/ambiguous Sprung konservativ.
+
+CI fixiert jetzt nicht nur die acht Quest/Label-Paare, sondern auch Stage und
+Originalkommando, damit diese Evidenzgrenze nicht unbemerkt verändert wird.
 
 ## Spätere Laufzeit-Auflösungen
 

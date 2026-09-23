@@ -28,6 +28,16 @@ EXPECTED_SAY_COMMA_LINES = [
     ('15', 'Start', 'SAY 1505, ME'),
     ('15', 'Start', 'SAY 1506, NPC'),
 ]
+EXPECTED_UNDEFINED_REFS = [
+    ('85', 'Finish', 'MARK100', 'IF VAR1 < 1 GOTO MARK100'),
+    ('108', 'Finish', 'MARK100', 'IF VAR1 < 1 GOTO MARK100'),
+    ('229', 'Finish', 'MARK100', 'IF VAR1 < 1 GOTO MARK100'),
+    ('416', 'Finish', 'MARK100', 'IF VAR1 < 1 GOTO MARK100'),
+    ('2313', 'Start', 'MARK100', 'IF VAR1 < 1 GOTO MARK100'),
+    ('60024', 'Start', 'MARK2', 'IF RESULT == 2 GOTO MARK2'),
+    ('60102', 'Start', 'MARK2', 'IF RESULT == 2 GOTO MARK2'),
+    ('60108', 'Start', 'MARK2', 'IF RESULT == 2 GOTO MARK2'),
+]
 SOURCE_SHA = '8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd244cc8b8'
 
 def decode_script(raw):
@@ -411,18 +421,16 @@ def audit_full_sql(rows):
     print('PASS: DELETE_ITEM operand forms valid:',
           'ALL=', delete_all, 'numeric=', delete_numeric)
 
-    undefined_pairs = sorted({(q, target.upper()) for q, _st, _ln, target, _other, _line in undefined})
-    expected_undefined = sorted({
-        ('85', 'MARK100'), ('108', 'MARK100'), ('229', 'MARK100'),
-        ('416', 'MARK100'), ('2313', 'MARK100'),
-        ('60102', 'MARK2'), ('60108', 'MARK2'), ('60024', 'MARK2')
-    })
-    if undefined_pairs != expected_undefined:
+    undefined_refs = sorted(
+        (q, st, target.upper(), line)
+        for q, st, _ln, target, _other, line in undefined)
+    if undefined_refs != sorted(EXPECTED_UNDEFINED_REFS):
         print('FAIL: undefined GOTO/IF target corpus changed')
-        print('expected:', expected_undefined)
-        print('actual:  ', undefined_pairs)
+        print('expected:', sorted(EXPECTED_UNDEFINED_REFS))
+        print('actual:  ', undefined_refs)
         return 1
     print('PASS: exactly 8 known no-label-anywhere references remain preserved')
+    print('PASS: undefined-label shape = 5 inventory-full MARK100 + 3 RESULT==2 MARK2')
     for q, st, ln, target, _other, line in sorted(
             undefined, key=lambda x: (int(x[0]), x[1], x[2], x[3].upper())):
         print(f'REVIEW: undefined-label quest={q} stage={st} line={ln} '
