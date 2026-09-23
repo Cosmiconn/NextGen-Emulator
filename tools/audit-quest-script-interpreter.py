@@ -20,7 +20,7 @@ EXPECTED_DONE_BY_STAGE = {'Start': 351, 'Action': 1, 'Finish': 2251}
 EXPECTED_ACCEPT_BY_STAGE = {'Start': 2382, 'Finish': 28}
 EXPECTED_SAY_BY_TALKER = {'NPC': 13004, 'ME': 6920}
 EXPECTED_SAY_ARG_COUNTS = {2: 19856, 3: 68}
-EXPECTED_MENU_SAY_STATS = (4306, 3148, 2159)
+EXPECTED_MENU_SAY_STATS = (6088, 4798, 2303)
 EXPECTED_SAY_COMMA_LINES = [
     ('15', 'Start', 'SAY 1502, NPC'),
     ('15', 'Start', 'SAY 1503, ME'),
@@ -383,10 +383,10 @@ def audit_full_sql(rows):
         print('FAIL: QuestDialog [MENU] SAY cross-reference changed:', menu_stats)
         return 1
     stage_counts = Counter(ref[1] for ref in menu_refs)
-    if stage_counts != Counter({'Start': 1663, 'Action': 1432, 'Finish': 1211}):
+    if stage_counts != Counter({'Start': 2554, 'Action': 2060, 'Finish': 1474}):
         print('FAIL: QuestDialog [MENU] SAY stage distribution changed:', dict(stage_counts))
         return 1
-    print('PASS: [MENU] is client dialog content on 4306 SAYs across 2159 quests')
+    print('PASS: [MENU] is client dialog content on 6088 SAYs across 2303 quests')
     if report_low_item_ids() is False:
         return 1
     if report_low_mob_ids() is False:

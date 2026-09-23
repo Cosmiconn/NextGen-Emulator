@@ -173,13 +173,13 @@ Cross-correlating every authoritative SAY reference with
 `data_questdialog` shows that `[MENU]` is common inside normal quest-script
 dialogs:
 
-- **4,306** SAY occurrences reference a dialog containing `[MENU]`;
-- those references cover **3,148** distinct dialog IDs;
-- they occur across **2,159** quests;
-- by stage: Start 1,663, Action/Doing 1,432, Finish/End 1,211.
+- **6,088** SAY occurrences reference a dialog containing `[MENU]`;
+- those references cover **4,798** distinct dialog IDs;
+- they occur across **2,303 of 2,304** quests;
+- by stage: Start 2,554, Action/Doing 2,060, Finish/End 1,474.
 
 Therefore treating `[MENU]` as a server-side instruction to terminate the
-quest script would cut off a majority of the supplied quest corpus. The native
+quest script would cut off essentially the entire supplied quest corpus. The native
 0x4402 ACK path contains no such text check: after validating QuestID/current
 QSC, QSC_SAY stores the DWORD result and resumes QuestNext.
 
