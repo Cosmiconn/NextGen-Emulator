@@ -10,6 +10,7 @@ PROTO = ROOT / "NextGen.World/Handlers/KingdomQuestProtocol.cs"
 INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 HANDLER = ROOT / "NextGen.World/Handlers/Handler22.cs"
 STATE = ROOT / "NextGen.World/Data/KingdomQuestInstanceWireState.cs"
+DEFINITIONS = ROOT / "NextGen.World/Data/KingdomQuestDefinitionRegistry.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -19,7 +20,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, STATE]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, STATE, DEFINITIONS]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -31,6 +32,7 @@ def main():
     info = INFO.read_text(encoding="utf-8")
     handler = HANDLER.read_text(encoding="utf-8")
     state = STATE.read_text(encoding="utf-8")
+    definitions = DEFINITIONS.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestStatusReq = 3",
@@ -177,11 +179,32 @@ def main():
     ], "native KQ wire state"):
         return 1
 
+    if not require(definitions, [
+        "Dictionary<uint, KingdomQuestClientInfo>",
+        "ByHandle[info.Handle] = Clone(info);",
+        ".OrderBy(v => v.Handle)",
+        "StartTm = CloneTime(source.StartTm)",
+        "DemandClass = source.DemandClass",
+        "DemandGender = source.DemandGender",
+    ], "source-owned KQ definition registry"):
+        return 1
+
+    for forbidden in (
+        "DateTime.Now",
+        "DateTimeOffset.Now",
+        "Random",
+        "KingdomQuestSessionTargetRegistry.TryCreate",
+    ):
+        if forbidden in definitions:
+            print("FAIL: KQ definition registry invents runtime scheduling/routing:", forbidden)
+            return 1
+
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
+    print("PASS: complete KQ client definitions can be stored without scheduler inference")
     print("PASS: live list remains empty until source-backed KQ definitions/schedules exist")
     print("PASS: KQ join remains disabled until admission/session rules are source-backed")
     return 0

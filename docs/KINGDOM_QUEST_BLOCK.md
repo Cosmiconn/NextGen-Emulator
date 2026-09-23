@@ -244,3 +244,22 @@ This still does not map KingdomQuest.shn columns by assumption. It creates the
 byte-exact destination model for the source exporter. LIST_ADD/LIST_ACK/
 SCHEDULE_ACK builders can now serialize real entries once source rows are
 available; the live refresh handler continues to send an empty LIST_ADD.
+
+## Source-owned client-definition registry
+
+`KingdomQuestDefinitionRegistry` now holds complete
+`PROTO_KQ_INFO_CLIENT` values keyed by their already-assigned native Handle.
+The registry deep-copies the 141-byte field model on input/output and sorts
+snapshots by Handle.
+
+It deliberately performs none of the unresolved work:
+
+- no handle allocation;
+- no start-time calculation;
+- no status transition;
+- no map selection;
+- no session-target creation.
+
+The current LIST_REFRESH handler therefore still emits an empty LIST_ADD until
+the main KQ source tables/scheduler populate this registry. This separates
+source ingestion from protocol serialization without making schedule guesses.
