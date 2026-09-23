@@ -80,10 +80,11 @@ This function is called by `GetNewQuestStatus()` for status `PQS_ING` (`6`). If 
 
 The SQL-backed runtime now applies the proven `End.bClass / End.Class` gate during reward eligibility. The comparison uses the same direct class-ID convention already proven for start eligibility and `Character.Job`.
 
-`End.bRace` remains intentionally unimplemented until the player's race representation is normalized. `End.bTimeLimit / End.TimeLimit` also remains unresolved at runtime because the native comparison operand at `PLAYER_QUEST_INFO +0x1E` is structurally proven but its emulator-side unit/state source is not yet established.
+`End.bRace` remains intentionally unimplemented until the player's race representation is normalized. `QuestPlayer_TimeProcess` has since resolved `PLAYER_QUEST_INFO +0x1E` as a WORD-sized online running-time counter incremented by elapsed Unix-time seconds while the quest is `PQS_ING`. The native TimeLimit operand/unit is therefore no longer structurally unresolved; only emulator persistence/ticking for future data that enables this gate remains to be implemented.
 
 ## Important non-inferences
 
 - `bScenario` is the exact PDB field name, but native `IsRewardAbleQuest` does **not** compare `ScenarioID`; it checks bit `0x02` at `PLAYER_QUEST_INFO +0x1D`.
-- `TimeLimit` is proven as a WORD; the corrected comparison direction above supersedes the older Step-29 wording. The broader unit/meaning of `PLAYER_QUEST_INFO +0x1E` remains unresolved.
-- No SQL column mapping is asserted here.
+- `TimeLimit` is proven as a WORD. `QUEST_PLAYER_TIMEPROCESS_BINARY.md` proves that `PLAYER_QUEST_INFO +0x1E` is incremented by elapsed Unix-time seconds while status is `PQS_ING`; reward eligibility passes only while `TimeLimit > counter`.
+- A complete scan of all 2304 rows in the supplied generated QuestData SQL found zero active `End.bTimeLimit`, `End.bRace`, `End.bClass`, or `End.bScenario` flags in that snapshot. These generic gates therefore do not block the supplied corpus, even though class handling is already implemented for forward compatibility.
+- The normalized importer maps these fields to `QuestData_ConditionEnd`; the older generated SQL snapshot predates the added normalized location/date columns but contains the same raw End bytes.

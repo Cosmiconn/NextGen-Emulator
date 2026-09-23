@@ -53,8 +53,12 @@ Acht Sprungziele bleiben ohne gleichnamiges Label im gesamten Quest:
 
 Diese werden nicht automatisch repariert.
 
-## Weiterhin nicht behauptet
+## Spätere Laufzeit-Auflösungen
 
-- `LINK N` wird nicht als QuestID-Sprung interpretiert.
-- `RESULT` wird nur als Ergebniswert modelliert; die Erzeugung des Wertes durch das Netzwerk/Dialogsystem ist noch nicht implementiert.
-- `ACCEPT`, `DONE`, Inventar-, Item-, Reward-, Scenario- und AbState-Operationen bleiben Runtime-Kommandos ohne erfundene Seiteneffekte.
+Seit diesem frühen Semantik-Review wurden mehrere damals offene Punkte direkt gegen das Original geschlossen:
+
+- Textuelles `LINK <QuestID>` ist als native Command-11-Operation belegt und routet anhand des effektiven Zielquest-Status in Start/Action/Finish.
+- `RESULT` wird im Dialogpfad aus der tatsächlichen Client-Antwort gesetzt und treibt IF/GOTO wie im Questgraphen vorgesehen.
+- `ACCEPT`, `CANCEL`, `SCENARIO`, Item-Operationen, `DONE` im unterstützten Finish/Reward-Pfad und `SET_ABSTATE` besitzen inzwischen explizite Runtime-Implementierungen mit separaten Binary-Audits.
+
+Weiterhin nicht automatisch repariert werden die acht oben aufgeführten fehlenden Labels. Ebenso werden Script-Befehle, die im gelieferten Corpus nicht vorkommen, nicht allein aufgrund ihres nativen Enum-Namens mit erfundenen Textsyntax-Regeln ergänzt.

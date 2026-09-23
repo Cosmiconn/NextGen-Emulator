@@ -10,7 +10,7 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 |---|---:|---|---|---|
 | `GET_PLAYER_EMPTY_INVENTORY VAR1` | 676 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → low 8-bit script variable | **PROVEN / ALIGNED**; Handler17 now stores the native byte-width result |
 | `CREATE_ITEM <id> <lot>` | 206 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; native QSC lot is DWORD and Handler17 now parses/stores it as `uint`, with stack splitting through `GiveItemLots` |
-| `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **PROVEN command present** |
+| `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **CORPUS SYNTAX COVERED**; 1,035 `ALL` + 439 numeric-lot forms; exact native mutation/return semantics remain the evidence gap |
 | `ACCEPT [QuestID]` | 2410 | quest parser command; explicit QuestID form proven | `QuestRuntime.Accept` | **PROVEN** |
 | `LINK <id>` | 350 | native command 11; `0x005BE0EE` | exact target QuestID + effective-status stage switch | **PROVEN / IMPLEMENTED** |
 | `SCENARIO <id>` | 52 | scenario execution path proven; not the general QSC opcode | packet `0x440E` | **PROVEN** |
@@ -24,8 +24,17 @@ This audit compares the verified complete 2304-record QuestData script corpus wi
 | `GET_PLAYER_GENDER` | 0 | `QSC_GET_PLAYER_GENDER = 0x1A` | not implemented | **UNRESOLVED textual usage** |
 | `SET`, `ADD`, `SUB` | no confirmed quest-script command occurrences in this fragment | `QSC_SET = 0x14`, `QSC_ADD = 0x15`, `QSC_SUB = 0x16` | not implemented as textual commands | **UNRESOLVED** |
 | `DROP_ITEM` | 0 | `QSC_DROP_ITEM = 0x0F` | not implemented | **UNRESOLVED** |
-| `CANCEL` | 12 | native command 7; distinct from `REPEAT_QUEST_GIVE_UP = 28` | `QuestRuntime.Cancel` | **COMMAND IDENTITY PROVEN** |
+| `CANCEL` | 12 | native command 7; distinct from `REPEAT_QUEST_GIVE_UP = 28` | `QuestRuntime.Cancel` | **PROVEN / IMPLEMENTED** against the reconstructed SetQuestCancel repeatable/non-repeatable behavior |
 | `IS_ABSTATE` | 0 | `QSC_IS_ABSTATE = 0x20` | not implemented | **UNRESOLVED textual usage** |
+
+## DELETE_ITEM corpus shape
+
+All 1,474 supplied occurrences use exactly one of the two forms already accepted by the runtime:
+
+- 1,035 lines: `DELETE_ITEM <ItemID> ALL`
+- 439 lines: `DELETE_ITEM <ItemID> <numeric lot>`
+
+No numeric-lot occurrence uses zero, four-or-more decimal digits, or a six-digit-plus quantity in this corpus scan. This validates the textual parser surface, but does not by itself prove whether the original native deletion helper is atomic on insufficient quantity or what result it exposes to script execution.
 
 ## Native width constraints
 
@@ -62,7 +71,7 @@ The parser routine contains explicit token-buffer length checks (including a 0x4
 
 ## Important negative finding
 
-The absence of `GET_PLAYER_RACE`, `GET_PLAYER_CLASS`, `GET_PLAYER_LEVEL`, `GET_PLAYER_GENDER`, `IS_ABSTATE`, `GET_ITEM_LOT`, `DROP_ITEM`, `SET`, `ADD`, or `SUB` in this specific extracted script fragment does not prove those commands never occur in another quest-script source/version.
+The verified 2304-record corpus contains no `GET_PLAYER_RACE`, `GET_PLAYER_CLASS`, `GET_PLAYER_LEVEL`, `GET_PLAYER_GENDER`, `IS_ABSTATE`, `DROP_ITEM`, `SET`, `ADD`, or `SUB` lines. `GET_ITEM_LOT` is present 104 times and is implemented. Absence from this supplied corpus does not prove the other commands never occur in another QuestData version.
 
 The original command-name table directly distinguishes textual `CANCEL` (command 7) from `REPEAT_QUEST_GIVE_UP` (command 28). Likewise, the corrected table identifies LINK as command 11; command 29 is `UNKNOWNED`, not LINK.
 
