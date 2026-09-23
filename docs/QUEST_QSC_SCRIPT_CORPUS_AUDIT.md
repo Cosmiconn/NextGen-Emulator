@@ -2,31 +2,29 @@
 
 ## Scope
 
-This audit compares the textual quest-script corpus currently present in `sql/data/data_questscript_fragments.sql` with the native QSC command enum and dispatch recovered from the original `Zone.exe`.
-
-The corpus scan counts command tokens at script-line boundaries; SQL statements and prose are not counted as quest commands.
+This audit compares the verified complete 2304-record QuestData script corpus with the native quest command-name table and dispatch recovered from the original `Zone.exe`. The CI fixture is authoritative for corpus counts; SQL statements and prose are not counted as quest commands.
 
 ## Corpus findings
 
 | Textual command | Corpus occurrences | Native QSC relation | Emulator handling | Status |
 |---|---:|---|---|---|
-| `GET_PLAYER_EMPTY_INVENTORY VAR1` | 156 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → script variable | **PROVEN command present**; native result is an 8-bit value and exact truncation still needs implementation alignment |
-| `CREATE_ITEM <id> <lot>` | 133 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; native QSC lot is DWORD and Handler17 now parses/stores it as `uint`, with stack splitting through `GiveItemLots` |
-| `DELETE_ITEM <id> <lot/ALL>` | 19 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **PROVEN command present** |
-| `ACCEPT [QuestID]` | 4 | quest parser command; explicit QuestID form proven | `QuestRuntime.Accept` | **PROVEN** |
-| `LINK <id>` | 4 | parser command; native semantics not yet fully cross-referenced | not executed by Handler17 | **UNRESOLVED** |
-| `SCENARIO <id>` | 3 | scenario execution path proven; not the general QSC opcode | packet `0x440E` | **PROVEN** |
-| `DONE` | 2 | quest completion command | `QuestRuntime.Complete` | **PROVEN** for current supported flow |
-| `SET_ABSTATE <name> <strength> <keepTime>` | 1 | `QSC_SET_ABSTATE = 0x1E` | `QuestRuntime.SetAbstate` | **PROVEN native mapping**; refresh semantics still being aligned |
+| `GET_PLAYER_EMPTY_INVENTORY VAR1` | 676 | `QSC_GET_PLAYER_EMPTY_INVENTORY = 0x1B` | `QuestRuntime.GetEmptyInventorySlots` → script variable | **PROVEN command present**; native result is an 8-bit value and exact truncation still needs implementation alignment |
+| `CREATE_ITEM <id> <lot>` | 206 | `QSC_CREATE_ITEM = 0x0E` | `QuestRuntime.CreateItem` | **PROVEN / ALIGNED**; native QSC lot is DWORD and Handler17 now parses/stores it as `uint`, with stack splitting through `GiveItemLots` |
+| `DELETE_ITEM <id> <lot/ALL>` | 1474 | `QSC_DELETE_ITEM = 0x0D` | `QuestRuntime.DeleteItem` | **PROVEN command present** |
+| `ACCEPT [QuestID]` | 2410 | quest parser command; explicit QuestID form proven | `QuestRuntime.Accept` | **PROVEN** |
+| `LINK <id>` | 350 | native command 11; `0x005BE0EE` | exact target QuestID + effective-status stage switch | **PROVEN / IMPLEMENTED** |
+| `SCENARIO <id>` | 52 | scenario execution path proven; not the general QSC opcode | packet `0x440E` | **PROVEN** |
+| `DONE` | 2603 | quest completion command | `QuestRuntime.Complete` | **PROVEN** for current supported flow |
+| `SET_ABSTATE <name> <strength> <keepTime>` | 51 | `QSC_SET_ABSTATE = 0x1E` | `QuestRuntime.SetAbstate` | **PROVEN native mapping**; refresh semantics still being aligned |
 | `RESET_ABSTATE <name>` | 0 | `QSC_RESET_ABSTATE = 0x1F` | `QuestRuntime.ResetAbstate` | Native mapping proven; no occurrence in this corpus slice |
-| `GET_ITEM_LOT <id>` | 0 in this fragment | `QSC_GET_ITEM_LOT = 0x21` | `QuestRuntime.GetItemLot` | **PROVEN / ALIGNED**; Handler17 now exposes the native low 16-bit result to the script state |
+| `GET_ITEM_LOT <id>` | 104 | `QSC_GET_ITEM_LOT = 0x21` | `QuestRuntime.GetItemLot` | **PROVEN / ALIGNED**; Handler17 now exposes the native low 16-bit result to the script state |
 | `GET_PLAYER_RACE` | 0 | `QSC_GET_PLAYER_RACE = 0x17` | not implemented | **UNRESOLVED textual usage** |
 | `GET_PLAYER_CLASS` | 0 | `QSC_GET_PLAYER_CLASS = 0x18` | not implemented | **UNRESOLVED textual usage** |
 | `GET_PLAYER_LEVEL` | 0 | `QSC_GET_PLAYER_LEVEL = 0x19` | not implemented | **UNRESOLVED textual usage** |
 | `GET_PLAYER_GENDER` | 0 | `QSC_GET_PLAYER_GENDER = 0x1A` | not implemented | **UNRESOLVED textual usage** |
 | `SET`, `ADD`, `SUB` | no confirmed quest-script command occurrences in this fragment | `QSC_SET = 0x14`, `QSC_ADD = 0x15`, `QSC_SUB = 0x16` | not implemented as textual commands | **UNRESOLVED** |
 | `DROP_ITEM` | 0 | `QSC_DROP_ITEM = 0x0F` | not implemented | **UNRESOLVED** |
-| `CANCEL` | 0 command-line occurrence in the fragment scan | `QSC_REPEAT_QUEST_GIVE_UP = 0x1C` is not proven equivalent to textual CANCEL | not implemented | **UNRESOLVED** |
+| `CANCEL` | 12 | native command 7; distinct from `REPEAT_QUEST_GIVE_UP = 28` | `QuestRuntime.Cancel` | **COMMAND IDENTITY PROVEN** |
 | `IS_ABSTATE` | 0 | `QSC_IS_ABSTATE = 0x20` | not implemented | **UNRESOLVED textual usage** |
 
 ## Native width constraints
@@ -66,12 +64,11 @@ The parser routine contains explicit token-buffer length checks (including a 0x4
 
 The absence of `GET_PLAYER_RACE`, `GET_PLAYER_CLASS`, `GET_PLAYER_LEVEL`, `GET_PLAYER_GENDER`, `IS_ABSTATE`, `GET_ITEM_LOT`, `DROP_ITEM`, `SET`, `ADD`, or `SUB` in this specific extracted script fragment does not prove those commands never occur in another quest-script source/version.
 
-Likewise, textual `CANCEL` must not be equated with native `QSC_REPEAT_QUEST_GIVE_UP` merely from naming. The native QSC 28/29 dispatch enters the shared parser-state path at `0x005BE1A1`; no direct wire give-up operation was observed there.
+The original command-name table directly distinguishes textual `CANCEL` (command 7) from `REPEAT_QUEST_GIVE_UP` (command 28). Likewise, the corrected table identifies LINK as command 11; command 29 is `UNKNOWNED`, not LINK.
 
 ## Next evidence targets
 
-1. Map the 16 parser-state dispatch entries at `0x00639330` to their textual command names using the original parser's string/token tables.
-2. Correlate `0x0063936?` comparison/variable operations with the exact `IF` grammar already observed in SQL scripts.
-3. Resolve the shared QSC 15/28/29 path via the parser-state transition it receives from `0x006387F0`.
-4. Keep the aligned native byte/word/DWORD widths covered by CI/build review.
-5. Only implement additional textual commands once syntax and native semantics are proven.
+1. Keep the full-corpus opcode and LINK-topology audit mandatory in CI.
+2. Preserve the proven IF/GOTO and item operand widths.
+3. Do not assign runtime semantics to commands absent from the supplied corpus solely because their native names are known.
+4. Keep malformed/blank source operands as source anomalies instead of auto-repairing them.
