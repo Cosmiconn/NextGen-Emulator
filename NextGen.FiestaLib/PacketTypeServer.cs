@@ -370,8 +370,10 @@ namespace NextGen.FiestaLib
     {
         // Exact original NC_KQ_* names for the packet family currently used
         // by the emulator. Layouts are guarded by audit-kingdom-quest-wire.py.
+        KingdomQuestListAck = 2,
         KingdomQuestStatusAck = 4,
         KingdomQuestJoinAck = 6,
+        KingdomQuestScheduleAck = 10,
         KingdomQuestNotify = 11,
         KingdomQuestFailed = 19,
         KingdomQuestListTimeAck = 28,

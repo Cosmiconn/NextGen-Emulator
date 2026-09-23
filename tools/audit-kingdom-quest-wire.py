@@ -40,8 +40,10 @@ def main():
         return 1
 
     if not require(senum, [
+        "KingdomQuestListAck = 2",
         "KingdomQuestStatusAck = 4",
         "KingdomQuestJoinAck = 6",
+        "KingdomQuestScheduleAck = 10",
         "KingdomQuestNotify = 11",
         "KingdomQuestFailed = 19",
         "KingdomQuestListTimeAck = 28",
