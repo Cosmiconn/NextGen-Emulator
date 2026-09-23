@@ -34,8 +34,8 @@ namespace NextGen.World.Handlers
             using (Packet time = KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now))
                 client.SendPacket(time);
 
-            // No source-backed main KQ definitions/schedules are loaded yet.
-            using (Packet add = KingdomQuestProtocol.CreateEmptyListAdd())
+            var definitions = KingdomQuestDefinitionRegistry.Snapshot();
+            using (Packet add = KingdomQuestProtocol.CreateListAdd(definitions))
                 client.SendPacket(add);
 
             // The client also emits LIST_REFRESH during initial World entry.

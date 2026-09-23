@@ -159,9 +159,14 @@ def main():
         "KingdomQuestProtocol.CreateStatusAck(state)",
         "[PacketHandler(CH22Type.KingdomQuestListRefreshReq)]",
         "KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now)",
-        "KingdomQuestProtocol.CreateEmptyListAdd()",
+        "KingdomQuestDefinitionRegistry.Snapshot()",
+        "KingdomQuestProtocol.CreateListAdd(definitions)",
         "if (!client.Character.IsIngame)",
     ], "KQ status/list-refresh handlers"):
+        return 1
+
+    if "CreateEmptyListAdd()" in handler:
+        print("FAIL: LIST_REFRESH reverted to a hard-coded empty KQ list")
         return 1
 
     if "[PacketHandler(CH22Type.KingdomQuestJoinReq)]" in handler:
@@ -205,7 +210,7 @@ def main():
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
     print("PASS: complete KQ client definitions can be stored without scheduler inference")
-    print("PASS: live list remains empty until source-backed KQ definitions/schedules exist")
+    print("PASS: LIST_REFRESH serializes only entries supplied by the source-owned definition registry")
     print("PASS: KQ join remains disabled until admission/session rules are source-backed")
     return 0
 

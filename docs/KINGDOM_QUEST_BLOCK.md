@@ -260,6 +260,11 @@ It deliberately performs none of the unresolved work:
 - no map selection;
 - no session-target creation.
 
-The current LIST_REFRESH handler therefore still emits an empty LIST_ADD until
-the main KQ source tables/scheduler populate this registry. This separates
-source ingestion from protocol serialization without making schedule guesses.
+The LIST_REFRESH handler now serializes exactly the snapshot held by this
+registry through the native `LIST_ADD_ACK` serializer. With no source-backed
+definitions registered, the result remains byte-identical to the previous
+`u16 count = 0` response. Once the scheduler supplies real entries, no
+additional handler-side mapping or hard-coded list data is required.
+
+This separates source ingestion from protocol serialization without making
+schedule guesses.
