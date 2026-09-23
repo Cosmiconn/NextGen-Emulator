@@ -14,6 +14,7 @@ The original PDB/module symbol records identify these quest routines in the Zone
 - `CQuest::IsDoingableQuest(QUEST_DATA*)` — `0x0062FEA0`
 - routine at `0x0062FEE0` — source-level identity **UNRESOLVED** after later CodeView reconciliation
 - `CQuestZone::IsRewardAbleQuest(PLAYER_QUEST_INFO*)` — `0x0062FF40` (**corrected by the later end-condition CodeView audit**)
+- `CQuest::IsSoonableDailyQuest(PLAYER_QUEST_INFO*)` — `0x00630130` (resolved from the CQuest/CQuestZone vtable slot `+0x80` plus the PDB virtual signature)
 
 > **Correction:** Step 29 originally labelled `0x0062FEE0` as `IsRewardAbleQuest` and `0x0062FF40` as `IsSoonableDailyQuest`. That name/address pair is superseded. `docs/QUEST_END_CONDITION_CODEVIEW_AUDIT.md` ties `0x0062FF40` directly to `CQuestZone::IsRewardAbleQuest` and to `QUEST_DATA.End`. No replacement address is assigned here to `IsSoonableDailyQuest`.
 
@@ -40,7 +41,23 @@ If `Start.bLocation != 0`, the routine compares the player's map/location and co
 
 ### Quest predecessor
 
-If `Start.bQuest != 0`, the routine retrieves the referenced quest using `Start.QuestID` and checks the returned quest/player state. The observed accepted states are raw status values `2` and `4`; the routine additionally invokes a quest-state check for the state-2 path. The higher-level semantic interpretation of that complete predecessor rule remains intentionally conservative here.
+If `Start.bQuest != 0`, the routine retrieves the referenced player quest using
+`Start.QuestID`.
+
+The exact branch is now resolved:
+
+- status `4` passes directly;
+- status other than `2` or `4` fails;
+- status `2` calls virtual slot `+0x80`;
+- that slot is `CQuest::IsSoonableDailyQuest` at `0x00630130`;
+- if `IsSoonableDailyQuest` returns `1`, the predecessor check fails;
+- if it returns `0`, status `2` passes.
+
+`IsSoonableDailyQuest` returns `0` immediately for predecessor quest definitions
+whose `QUEST_DATA.Type != 10`. Therefore status-2 predecessors are fully proven
+eligible for all non-Type-10 predecessor quests. Type 10 enters the native daily
+reset-time comparison and is handled separately in
+`docs/QUEST_DAILY_PREREQUISITE_BINARY.md`.
 
 ### Race/class/gender
 
@@ -89,9 +106,9 @@ This is stronger than a name-based mapping because the same fields are now obser
 ## Important unresolved items
 
 - Exact semantic meaning of `QUEST_DATA.Repeatable` within the selection tie-break remains **UNRESOLVED**.
-- Exact higher-level meaning of the raw predecessor accepted states `2` and `4` in the `Start.bQuest` path remains **UNRESOLVED** here.
+- The general status-2/status-4 predecessor branch is resolved. Only the Type-10 daily reset-time subcase still needs normalized emulator persistence/reset-time state.
 - Exact normalized SQL mappings for `Repeatable`, `Start.bLevel`, `Start.LevelMin`, `Start.bItem`, and `Start.bQuest` remain separate from the original CodeView mapping.
-- The exact source-level identity of the routine at `0x0062FEE0` and the corrected address of `IsSoonableDailyQuest` remain **UNRESOLVED**.
+- The exact source-level identity of the routine at `0x0062FEE0` remains **UNRESOLVED**. `IsSoonableDailyQuest` is now resolved at `0x00630130`.
 
 ## Runtime status
 
