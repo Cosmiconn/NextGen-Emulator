@@ -453,6 +453,28 @@ def audit_full_sql(rows):
     print('PASS: exactly 8 known no-label-anywhere references remain preserved')
     print('PASS: undefined-label shape = 5 inventory-full MARK100 + 3 RESULT==2 MARK2')
 
+    # Original Zone.exe: failed QSC_GOTO label lookup -> CommandRun false ->
+    # QuestNext QSC18 fallback sets parser command 0 -> QuestClose, with no
+    # Send_QUEST_ERROR_TO_CLIENT on that path. Keep both Handler17 script-error
+    # exits aligned with that externally observable behavior.
+    error_blocks = re.findall(
+        r'else if \(step\.Type == QuestScriptStepType\.End \|\|\s*'
+        r'step\.Type == QuestScriptStepType\.Error\)\s*\{'
+        r'(.*?)EndDialog\(client\.Character\);\s*return;',
+        handler17, re.S)
+    if len(error_blocks) != 2:
+        print('FAIL: expected exactly 2 Handler17 script End/Error close blocks, got',
+              len(error_blocks))
+        return 1
+    for block in error_blocks:
+        if 'LogScriptError(client.Character, session.Machine, step);' not in block:
+            print('FAIL: script Error branch no longer logs before close')
+            return 1
+        if 'SendQuestCommandError' in block:
+            print('FAIL: native failed-label path must close without QSC_ERROR')
+            return 1
+    print('PASS: unresolved script control flow closes silently like native QSC_GOTO failure')
+
     handler_start = handler17.find('public static void RewardSelectItemIndexHandler')
     handler_end = handler17.find('[PacketHandler(CH17Type.ScenarioDoneReq)]', handler_start)
     if handler_start < 0 or handler_end < 0:

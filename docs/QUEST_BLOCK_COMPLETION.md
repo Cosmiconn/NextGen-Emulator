@@ -70,15 +70,16 @@ anywhere in the same quest:
 - inventory-full MARK100 branches: quests 85, 108, 229, 416 and 2313;
 - RESULT==2 MARK2 branches: quests 60024, 60102 and 60108.
 
-Native CommandRun proves that an unresolved GOTO lookup fails. The corpus itself
-provides no valid destination to execute. The emulator therefore treats these
-as source-control-flow errors: it logs the exact quest/stage/line and terminates
-the local script session without mutating quest state or fabricating a label.
-CI locks all eight quest/stage/target/source-command tuples.
+Native CommandRun proves that an unresolved GOTO lookup fails. The original
+caller consequence is now also closed: QSC 18 falls through
+`CQuestZone::QuestNext` at `0x005BE62E`, sets the parser command to zero,
+then reaches the terminal `QuestClose` path at `0x005BE1F8`. No
+`Send_QUEST_ERROR_TO_CLIENT` call is made.
 
-The exact original caller-side presentation after CommandRun returns failure is
-still a fidelity question, but it is no longer a runtime ambiguity: the
-emulator has a deterministic, non-mutating failure boundary.
+The emulator matches that observable behavior: it logs the exact
+quest/stage/line, terminates the local script session, emits no QSC error and
+does not mutate quest state or fabricate a label. CI locks all eight
+quest/stage/target/source-command tuples and the no-QSC-error close behavior.
 
 ### Quest 15 comma-bearing SAY source
 
@@ -115,7 +116,6 @@ following questions concern byte-for-byte/source-level reconstruction only and
 do not represent unfinished Quest runtime paths:
 
 - identification of the original post-0x4412 wake-up event;
-- exact caller/UI consequence of native missing-label CommandRun failure;
 - exact internal identity of the native preprocessing routine behind the five
   Quest 15 comma lines (emulator behavior itself is source-exact and CI-locked);
 - exact ItemDB/GameDB transactional plumbing and rollback packet internals;

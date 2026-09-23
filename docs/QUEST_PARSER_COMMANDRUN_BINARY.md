@@ -81,7 +81,26 @@ The exact high-level type of every field is intentionally not asserted here beca
 
 Command value `18` calls `0x00637030` with the DWORD at record `+0x05`.
 
-This confirms that the native GOTO command consumes its target through the command record rather than through the generic comparison evaluator.
+This confirms that the native GOTO command consumes its target through the
+command record rather than through the generic comparison evaluator.
+
+### Failed-label caller path
+
+The failure consequence is also proven in the original Zone binary.
+
+1. `0x00637030` returns failure for an unresolved target, so
+   `CQuestParserScript::CommandRun` returns false.
+2. `CQuestZone::QuestNext` dispatches QSC 18 to `0x005BE62E`.
+3. That fallback copies `parser+0x7D0` to `parser+0x7D5`, then writes
+   zero to `parser+0x7D0`.
+4. Control rejoins the QuestNext loop. Parser command zero is a terminal
+   condition.
+5. `0x005BE1F8` calls `CQuestZone::QuestClose` at `0x005B9E50`.
+
+No `Send_QUEST_ERROR_TO_CLIENT` call occurs on this path. Therefore a broken
+source label is natively a silent parser/quest close, not a QSC_ERROR packet.
+This exactly resolves the eight known no-label-anywhere source anomalies in the
+supplied corpus without inventing replacement labels.
 
 ## Important correction to emulator work
 

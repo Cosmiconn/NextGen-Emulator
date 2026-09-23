@@ -54,15 +54,23 @@ vollständige Korpus-Audit hat inzwischen auch die exakten Trigger klassifiziert
 
 Damit sind fünf Anomalien reale Inventar-voll-Pfade und drei reale
 Dialogauswahl-Pfade. Sie dürfen nicht als bloß tote/unreachable Quelldaten
-abgehakt werden. Native `CommandRun` beweist für einen fehlenden GOTO-Lookup
-einen failure-Rückgabewert; die vollständige ursprüngliche UI-/Caller-Folge ist
-nicht weiter aufgelöst.
+abgehakt werden.
 
-Für den Emulator ist die Grenze deshalb abgeschlossen, ohne Quelldaten zu
-erfinden: ein unresolved/ambiguous Sprung wird geloggt, beendet die lokale
-Script-Session und führt keine erfundene Questmutation aus. CI fixiert Quest,
-Stage, Ziel und Originalkommando aller acht Fälle. Die genaue native
-Fehlerpräsentation bleibt Fidelity-Debt, nicht mehr Runtime-Blocker.
+Der Originalpfad ist inzwischen vollständig bis `QuestClose` verfolgt:
+`CQuestParserScript::CommandRun` (QSC_GOTO=18) ruft `0x00637030` auf.
+Schlägt der Label-Lookup fehl, liefert `CommandRun` false. Der QSC-18-Fallback
+in `CQuestZone::QuestNext` bei `0x005BE62E` kopiert den bisherigen
+Parserkommando-Wert nach `parser+0x7D5`, setzt `parser+0x7D0` auf 0 und
+kehrt in die QuestNext-Schleife zurück. Der Zustand 0 läuft anschließend in den
+Terminalpfad bei `0x005BE1F8`, der `CQuestZone::QuestClose`
+(`0x005B9E50`) aufruft. Auf diesem Pfad wird **kein**
+`Send_QUEST_ERROR_TO_CLIENT` aufgerufen.
+
+Der Emulator bildet genau diese beobachtbare Grenze nach: unresolved/ambiguous
+Sprünge werden geloggt, die lokale Script-Session wird beendet, es wird kein
+QSC-Error gesendet und keine erfundene Questmutation/kein Ersatzlabel erzeugt.
+CI fixiert Quest, Stage, Ziel und Originalkommando aller acht Fälle und prüft
+zusätzlich den error->close/no-QSC-error Handlerpfad.
 
 ## Spätere Laufzeit-Auflösungen
 
