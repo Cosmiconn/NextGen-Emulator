@@ -33,6 +33,7 @@ namespace NextGen.Zone.Handlers
             public byte StartQuestEnabled;
             public uint StartQuestID;
             public byte StartQuestType;
+            public byte StartQuestDailyType;
             public byte StartItemEnabled;
             public ushort StartItemID;
             public ushort StartItemLot;
@@ -72,10 +73,10 @@ namespace NextGen.Zone.Handlers
             List<Candidate> candidates;
             if (!TryGetCandidates(mobName, out candidates)) return false;
 
-            // Proven IsSoonableQuest subset. Level and item predicates are direct
-            // Zone.exe behavior. Prerequisite state 2/4 is also observed, but the
-            // additional state-2 quest-state call remains unresolved; status 2 is
-            // therefore not guessed here and falls back to legacy interaction.
+            // Proven IsSoonableQuest subset. Level/item/location/class/gender and
+            // prerequisite-state handling below follow the matching original Zone.exe.
+            // Type-10 status-2 predecessors use the original daily reset rule via
+            // QuestRuntime.TryEvaluateDailyPrerequisite.
             Dictionary<uint, byte> prerequisiteStatuses = null;
             List<Candidate> eligible = new List<Candidate>();
             for (int i = 0; i < candidates.Count; i++)
@@ -141,10 +142,18 @@ namespace NextGen.Zone.Handlers
                         // additional time-window rule that remains isolated below.
                         if (c.StartQuestType == 10)
                         {
-                            Log.WriteLine(LogLevel.Debug,
-                                "Quest {0} predecessor {1} is Type 10/status 2; original performs the remaining time-window check.",
-                                c.QuestID, c.StartQuestID);
-                            return false;
+                            bool prerequisiteSatisfied;
+                            if (!QuestRuntime.TryEvaluateDailyPrerequisite(
+                                    character.ID, c.StartQuestID, c.StartQuestDailyType,
+                                    out prerequisiteSatisfied))
+                            {
+                                Log.WriteLine(LogLevel.Debug,
+                                    "Quest {0} daily predecessor {1} has no normalized completion timestamp; using legacy interaction.",
+                                    c.QuestID, c.StartQuestID);
+                                return false;
+                            }
+                            if (!prerequisiteSatisfied)
+                                continue;
                         }
                     }
                     else continue;
@@ -428,7 +437,8 @@ namespace NextGen.Zone.Handlers
                     {
                         const string sqlNormalized =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
-                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, s.bItem, s.ItemID, s.ItemLot, " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, " +
+                            "COALESCE(pq.DailyQuestType,0) AS PrerequisiteDailyType, pq.RawData AS PrerequisiteRawData, s.bItem, s.ItemID, s.ItemLot, " +
                             "s.bLocation, s.LocationRaw, s.LocationMap, s.LocationX, s.LocationY, s.LocationRange, " +
                             "s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
                             "FROM QuestData q " +
@@ -441,7 +451,8 @@ namespace NextGen.Zone.Handlers
                             "ORDER BY m.InxName, q.QuestID";
                         const string sqlLegacy =
                             "SELECT m.InxName AS MobName, q.QuestID, d.DialogID, q.Type, q.Repeatable, ds.ActionScript, ds.FinishScript, " +
-                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, s.bItem, s.ItemID, s.ItemLot, " +
+                            "s.bLevel, s.LevelMin, s.LevelMax, s.bQuest, s.QuestPrerequisiteID, COALESCE(pq.Type,255) AS PrerequisiteType, " +
+                            "pq.RawData AS PrerequisiteRawData, s.bItem, s.ItemID, s.ItemLot, " +
                             "s.bLocation, s.LocationRaw, s.bRace, s.Race, s.bClass, s.Class, s.bGender, s.Gender, s.bDate " +
                             "FROM QuestData q " +
                             "INNER JOIN QuestData_ConditionStart s ON s.QuestID=q.QuestID " +
@@ -454,6 +465,7 @@ namespace NextGen.Zone.Handlers
 
                         DataTable data;
                         bool normalizedLocation = true;
+                        bool normalizedDailyType = true;
                         try
                         {
                             data = db.ReadDataTable(sqlNormalized);
@@ -461,6 +473,7 @@ namespace NextGen.Zone.Handlers
                         catch
                         {
                             normalizedLocation = false;
+                            normalizedDailyType = false;
                             data = db.ReadDataTable(sqlLegacy);
                             Log.WriteLine(LogLevel.Debug,
                                 "Quest start SQL uses legacy LocationRaw layout; re-import QuestData.shn to get normalized location columns.");
@@ -480,6 +493,11 @@ namespace NextGen.Zone.Handlers
                                 ByMobName.Add(mobName, list);
                             }
                             byte[] locationRaw = row["LocationRaw"] as byte[];
+                            byte[] prerequisiteRaw = row["PrerequisiteRawData"] as byte[];
+                            byte prerequisiteDailyType = normalizedDailyType
+                                ? Convert.ToByte(row["PrerequisiteDailyType"])
+                                : (prerequisiteRaw != null && prerequisiteRaw.Length > 0x13
+                                    ? prerequisiteRaw[0x13] : (byte)0);
                             ushort locationMap = normalizedLocation
                                 ? Convert.ToUInt16(row["LocationMap"])
                                 : (locationRaw != null && locationRaw.Length >= 4 ? BitConverter.ToUInt16(locationRaw, 2) : (ushort)0);
@@ -506,6 +524,7 @@ namespace NextGen.Zone.Handlers
                                 StartQuestEnabled = Convert.ToByte(row["bQuest"]),
                                 StartQuestID = Convert.ToUInt32(row["QuestPrerequisiteID"]),
                                 StartQuestType = Convert.ToByte(row["PrerequisiteType"]),
+                                StartQuestDailyType = prerequisiteDailyType,
                                 StartItemEnabled = Convert.ToByte(row["bItem"]),
                                 StartItemID = Convert.ToUInt16(row["ItemID"]),
                                 StartItemLot = Convert.ToUInt16(row["ItemLot"]),
