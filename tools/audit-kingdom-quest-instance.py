@@ -17,6 +17,7 @@ FILES = {
     "kq_transfer": ROOT / "NextGen.World/Data/KingdomQuestTransferService.cs",
     "inter_header": ROOT / "NextGen.InterLib/Networking/InterHeader.cs",
     "kq_session": ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs",
+    "kq_participants": ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs",
 }
 
 def need(text, tokens, label):
@@ -96,7 +97,8 @@ def main():
         "KingdomQuestDefinitionRegistry.TryGet(definition.Handle",
         "KingdomQuestInstanceRegistry.TryGet(definition.Handle",
         "KingdomQuestSessionTargetRegistry.TryGet(definition.Handle",
-        "definition.NumOfJoiner != (ushort)names.Count",
+        "definition.NumOfJoiner != (ushort)roster.Count",
+        "KingdomQuestParticipantRegistry.Set(definition.Handle, roster);",
         "KingdomQuestSessionTargetRegistry.TryCreate(",
         "definition.Handle, mapId, mapInstance",
         "KingdomQuestDefinitionRegistry.Upsert(definition);",
@@ -104,6 +106,7 @@ def main():
         "KingdomQuestInstanceRegistry.SetJoiners(",
         "KingdomQuestDefinitionRegistry.Remove(definition.Handle);",
         "KingdomQuestInstanceRegistry.Remove(definition.Handle);",
+        "KingdomQuestParticipantRegistry.Remove(definition.Handle);",
         "KingdomQuestSessionTargetRegistry.Remove(definition.Handle);",
     ], "atomic explicit KQ session coordinator"):
         return 1
@@ -112,6 +115,16 @@ def main():
         if forbidden in c["kq_session"]:
             print("FAIL: KQ session coordinator invents scheduler/handle state:", forbidden)
             return 1
+    if not need(c["kq_participants"], [
+        "Dictionary<uint, List<KingdomQuestJoinCharacterInfo>>",
+        "copy.Count > byte.MaxValue",
+        "participants = current.Select(Clone).ToList().AsReadOnly();",
+        "Level = source.Level",
+        "Class = source.Class",
+        "Name = source.Name",
+        "Team = source.Team",
+    ], "native KQ participant registry"):
+        return 1
 
     combined = "\n".join(c.values())
     if "(short)handle" in combined or "(short)Handle" in combined:
@@ -123,7 +136,8 @@ def main():
     print("PASS: native 32-bit KQ Handle remains separate from internal Map.InstanceID")
     print("PASS: KQ Handle -> source MapID/internal MapInstance mapping is explicit")
     print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with explicit coordinates")
-    print("PASS: KQ session create/remove keeps definition, status and routing registries synchronized")
+    print("PASS: KQ session create/remove keeps definition, status, participant and routing registries synchronized")
+    print("PASS: KQ participant roster preserves native Level/Class/Name5/Team fields")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0
 

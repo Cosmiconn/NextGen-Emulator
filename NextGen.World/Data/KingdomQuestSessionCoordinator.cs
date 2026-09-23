@@ -18,14 +18,19 @@ namespace NextGen.World.Data
         private static readonly object Sync = new object();
 
         public static bool TryCreate(KingdomQuestClientInfo definition,
-            IEnumerable<string> joinerNames, ushort mapId, short mapInstance)
+            IEnumerable<KingdomQuestJoinCharacterInfo> participants,
+            ushort mapId, short mapInstance)
         {
-            if (definition == null || joinerNames == null)
+            if (definition == null || participants == null)
                 return false;
 
-            List<string> names = joinerNames.ToList();
-            if (names.Count > ushort.MaxValue ||
-                definition.NumOfJoiner != (ushort)names.Count)
+            List<KingdomQuestJoinCharacterInfo> roster = participants.ToList();
+            if (roster.Count > byte.MaxValue ||
+                definition.NumOfJoiner != (ushort)roster.Count)
+                return false;
+
+            List<string> names = roster.Select(v => v == null ? null : v.Name).ToList();
+            if (names.Any(v => v == null))
                 return false;
 
             lock (Sync)
@@ -53,6 +58,8 @@ namespace NextGen.World.Data
                         definition.MinLevel,
                         definition.MaxLevel);
 
+                    KingdomQuestParticipantRegistry.Set(definition.Handle, roster);
+
                     if (!KingdomQuestInstanceRegistry.SetJoiners(
                             definition.Handle, names))
                         throw new InvalidOperationException(
@@ -64,6 +71,7 @@ namespace NextGen.World.Data
                 {
                     KingdomQuestDefinitionRegistry.Remove(definition.Handle);
                     KingdomQuestInstanceRegistry.Remove(definition.Handle);
+                    KingdomQuestParticipantRegistry.Remove(definition.Handle);
                     KingdomQuestSessionTargetRegistry.Remove(definition.Handle);
                     throw;
                 }
@@ -76,8 +84,9 @@ namespace NextGen.World.Data
             {
                 bool definition = KingdomQuestDefinitionRegistry.Remove(handle);
                 bool state = KingdomQuestInstanceRegistry.Remove(handle);
+                bool participants = KingdomQuestParticipantRegistry.Remove(handle);
                 bool target = KingdomQuestSessionTargetRegistry.Remove(handle);
-                return definition || state || target;
+                return definition || state || participants || target;
             }
         }
     }

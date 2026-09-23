@@ -305,3 +305,18 @@ status/joiner registries. Any exception rolls all three back.
 
 The coordinator does **not** allocate Handles, calculate times, assign status,
 choose maps or select joiners. Those remain the source/scheduler layer.
+
+
+## Native participant roster
+
+KQ membership now has one canonical wire model:
+`KingdomQuestParticipantRegistry` stores exact
+`KQ_JOIN_CHAR_INFO` entries (Level, Class, Name5, Team) by KQ Handle.
+
+Session creation accepts that full roster, verifies its count against
+`PROTO_KQ_INFO_CLIENT.NumOfJoiner`, stores it, and derives the STATUS_ACK
+Name5 list from the same entries. This prevents STATUS_ACK and JOIN_LIST_ACK
+from drifting into separate membership views.
+
+No player is admitted and no Team value is assigned by this registry; both are
+inputs from the later admission/team-selection layer.
