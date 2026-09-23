@@ -8,7 +8,7 @@ The supplied `QuestData.shn` contains exactly **2304** records. The one-time imp
 
 The supplied client and server `QuestData.shn` copies are byte-identical. The verified source SHA-256 is:
 
-`8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd244cc8b8`
+`8c4ba17267967883169142c736e6d31d1a016c843d61411da7bca8dd2448b`
 
 ## Script opcode corpus
 
@@ -39,10 +39,23 @@ Labels and `GOTO` targets are audited without assigning unproven semantics. Cros
 
 ## LINK
 
-Textual script `LINK` is deliberately **not** interpreted as a quest-ID transition. The corpus contains numeric and blank `LINK` operands. Native `QSC_LINK` is a separate dispatcher command (QSC type `29`), and its player-vtable target is documented separately in `docs/QUEST_QSC_NATIVE_AUDIT.md`. No equivalence between textual `LINK` and native `QSC_LINK` is assumed without direct evidence.
+The original command-name table now directly maps textual `LINK` to native
+quest command **11**, whose QuestNext dispatch is at `0x005BE0EE`.
+The linked quest is selected by its effective status:
+
+- 4 / 5 / 20 -> Start;
+- 6 / 7 -> Action/Doing;
+- 8 -> Finish/End.
+
+Handler17 implements this using the exact target QuestID and a fresh
+`QuestScriptMachine` for the resolved target stage, avoiding ambiguous
+dialog-ID reverse lookup. The verified corpus contains 348 numeric LINKs and
+two blank LINKs. One source value (`Quest 30015 -> LINK 300010`) is invalid
+for the supplied corpus/WORD target and is intentionally not repaired by guess.
+See `docs/QUEST_LINK_BINARY.md`.
 
 ## Implemented runtime commands
 
-The current runtime adapter has explicit implementations for the commands for which native/corpus evidence is sufficient, including `ACCEPT`, `CANCEL`, `DONE`, item operations, player-value queries, `SET_ABSTATE`, `SCENARIO`, and progress handling. Any command whose exact native side effect is not established remains isolated rather than being guessed.
+The current runtime adapter has explicit implementations for the commands for which native/corpus evidence is sufficient, including `ACCEPT`, `CANCEL`, `DONE`, `LINK`, item operations, the player-value queries used by this corpus, `SET_ABSTATE`, `SCENARIO`, and progress handling. Any command whose exact native side effect is not established remains isolated rather than being guessed.
 
 Quest 1 / Baby Steps remains a corpus regression check and contains the known `SAY 202 NPC`, `SAY 203 NPC`, `IF RESULT == 1 GOTO MARK1`, `:MARK1`, `ACCEPT`, `END` structure.
