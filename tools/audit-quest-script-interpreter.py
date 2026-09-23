@@ -70,6 +70,9 @@ def audit_full_sql(rows):
     opcodes = Counter()
     links = []
     blank_link_quests = set()
+    delete_all = 0
+    delete_numeric = 0
+    invalid_deletes = []
     for q, scripts in rows.items():
         stage_labels = {st:labels(s) for st,s in zip(stage_names, scripts)}
         global_labels = {}
@@ -91,6 +94,22 @@ def audit_full_sql(rows):
                         blank_link_quests.add(q)
                     elif re.fullmatch(r'\d+', operand):
                         links.append((q, int(operand)))
+                elif opcode == 'DELETE_ITEM':
+                    operand = parts[1].strip() if len(parts) > 1 else ''
+                    m = re.fullmatch(r'(\d+)\s+(ALL|\d+)', operand, re.I)
+                    if not m:
+                        invalid_deletes.append((q, st, z))
+                    else:
+                        item_id = int(m.group(1))
+                        lot = m.group(2).upper()
+                        if item_id <= 0 or item_id > 0xffff:
+                            invalid_deletes.append((q, st, z))
+                        elif lot == 'ALL':
+                            delete_all += 1
+                        elif int(lot) <= 0:
+                            invalid_deletes.append((q, st, z))
+                        else:
+                            delete_numeric += 1
             for ln, target, line in goto_refs(script):
                 if target.lower() in stage_labels[st]:
                     continue
@@ -117,6 +136,27 @@ def audit_full_sql(rows):
     print(f'  cross-stage targets with duplicate label names={len(ambiguous)}')
     print('PASS: unknown opcodes=0')
     print('PASS: exact opcode corpus counts match the supplied 2304-record source')
+
+    if invalid_deletes:
+        print('FAIL: malformed DELETE_ITEM operands:', invalid_deletes[:20])
+        return 1
+    if delete_all != 1035 or delete_numeric != 439:
+        print('FAIL: DELETE_ITEM operand corpus changed:', 'ALL=', delete_all, 'numeric=', delete_numeric)
+        return 1
+    print('PASS: DELETE_ITEM corpus = 1035 ALL + 439 positive numeric-lot forms')
+
+    undefined_pairs = sorted({(q, target.upper()) for q, _st, _ln, target, _other, _line in undefined})
+    expected_undefined = sorted({
+        ('85', 'MARK100'), ('108', 'MARK100'), ('229', 'MARK100'),
+        ('416', 'MARK100'), ('2313', 'MARK100'),
+        ('60102', 'MARK2'), ('60108', 'MARK2'), ('60024', 'MARK2')
+    })
+    if undefined_pairs != expected_undefined:
+        print('FAIL: undefined GOTO/IF target corpus changed')
+        print('expected:', expected_undefined)
+        print('actual:  ', undefined_pairs)
+        return 1
+    print('PASS: exactly 8 known no-label-anywhere references remain preserved')
 
     if len(links) != 348 or blank_link_quests != {'6', '385'}:
         print('FAIL: LINK operand corpus changed')
