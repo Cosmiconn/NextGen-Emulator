@@ -188,11 +188,15 @@ namespace NextGen.Zone.Handlers
                     }
                     acceptedQuest=explicitQuest;
                 }
-                if(!QuestRuntime.Accept(character,acceptedQuest))
+                ushort acceptError;
+                if(!QuestRuntime.Accept(character,acceptedQuest,out acceptError))
                 {
-                    // Native rejection paths close the active quest script after
-                    // reporting the quest error. The exact error packet enum is
-                    // intentionally not invented here.
+                    // Original command-6 rejection paths use raw errors:
+                    // missing QuestData=0x0C02, 40+ doing quests=0x0C0F,
+                    // not Doingable=0x0C03. The packet carries the currently
+                    // executing script QuestID, not an explicit ACCEPT target.
+                    if(acceptError!=0)
+                        SendQuestCommandError(character,q,6,acceptError);
                     EndDialog(character);
                     return false;
                 }

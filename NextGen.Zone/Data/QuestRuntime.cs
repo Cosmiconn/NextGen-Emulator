@@ -29,9 +29,31 @@ namespace NextGen.Zone.Data
 
         public static bool Accept(ZoneCharacter character, uint questId)
         {
+            ushort ignoredError;
+            return Accept(character, questId, out ignoredError);
+        }
+
+        public static bool Accept(ZoneCharacter character, uint questId,
+            out ushort nativeErrorCode)
+        {
+            nativeErrorCode = 0;
             if (character == null || questId == 0 || questId > ushort.MaxValue) return false;
             try
             {
+                // Native QuestNext ACCEPT resolves the WORD QuestID before all
+                // other checks. Missing QuestData maps to raw error 0x0C02.
+                using (DatabaseClient dataDb = Program.DatabaseManager.GetClient())
+                {
+                    DataTable questDef = dataDb.ReadDataTable(
+                        "SELECT 1 FROM QuestData WHERE QuestID=@q LIMIT 1",
+                        new MySqlParameter("@q", questId));
+                    if (questDef == null || questDef.Rows.Count == 0)
+                    {
+                        nativeErrorCode = 0x0C02;
+                        return false;
+                    }
+                }
+
                 // Native QuestNext ACCEPT (command 6) rejects when
                 // CQuest::GetNumOfDoingQuest() is already 40. The original
                 // counter includes statuses 6, 7 and 8.
@@ -45,7 +67,10 @@ namespace NextGen.Zone.Data
                         ? Convert.ToInt32(active.Rows[0]["ActiveCount"])
                         : 0;
                     if (activeCount >= 40)
+                    {
+                        nativeErrorCode = 0x0C0F;
                         return false;
+                    }
                 }
 
                 // The same native branch calls the QuestID overload of
@@ -54,8 +79,13 @@ namespace NextGen.Zone.Data
                 // quest's current persisted status.
                 bool doingable;
                 if (!QuestNpcStartResolver.TryIsDoingableForQuest(
-                        character, questId, out doingable) || !doingable)
+                        character, questId, out doingable))
                     return false;
+                if (!doingable)
+                {
+                    nativeErrorCode = 0x0C03;
+                    return false;
+                }
 
                 using (DatabaseClient db = Program.CharDBManager.GetClient())
                 {

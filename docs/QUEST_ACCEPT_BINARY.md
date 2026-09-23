@@ -65,6 +65,22 @@ Doingable check is materially relevant to chained quest acceptance.
 Finish-stage ACCEPT is also real source behavior; the runtime must not assume
 ACCEPT only occurs in Start scripts.
 
+## Native rejection errors
+
+The command-6 branch maps its three precondition failures directly to raw quest
+errors before calling `QuestClose`:
+
+- `CQuestData::GetQuestData` returns null -> `0x0C02`;
+- `CQuest::GetNumOfDoingQuest() >= 40` -> `0x0C0F`;
+- `CQuest::IsDoingableQuest(QuestID)` returns false -> `0x0C03`.
+
+All three call `CQuestZone::Send_QUEST_ERROR_TO_CLIENT` at `0x005BD870`.
+That function sends a normal `0x4401` QSC_ERROR packet containing the active
+script QuestID, failed QSC command 6, and the raw error value. For explicit
+cross-quest `ACCEPT <QuestID>`, the outer packet therefore remains bound to
+the currently executing script quest while the target QuestID stays inside the
+ACCEPT command payload.
+
 ## Runtime alignment
 
 `QuestRuntime.Accept` now returns success/failure and enforces the two proven
@@ -77,10 +93,16 @@ native preconditions before mutating SQL state:
 including quests without a direct start/reward NPC association, so the
 Doingable check is not limited to NPC-indexed quests.
 
-On a rejected ACCEPT, Handler17 closes the active quest script, matching the
-native rejection control flow. The exact native quest-error packet enum values
-(`0x0C02`, `0x0C0F`, `0x0C03` are observed in the branch) remain
-**UNRESOLVED** at the protocol-name level and are not fabricated.
+On a rejected ACCEPT, Handler17 now mirrors the proven raw error/control path
+through `Send_QUEST_ERROR_TO_CLIENT` and then closes the active quest script:
+
+- missing QuestData -> `0x0C02`;
+- 40 or more doing quests -> `0x0C0F`;
+- Doingable check returns false -> `0x0C03`.
+
+The higher-level symbolic enum names of those three raw values remain
+**UNRESOLVED** and are not fabricated. The wire shape itself is already proven
+by the shared QSC_ERROR path documented in `QUEST_QSC_NATIVE_AUDIT.md`.
 
 CI locks the ACCEPT stage counts, explicit-operand count and the two cross-quest
 targets.
