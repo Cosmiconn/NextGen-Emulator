@@ -149,8 +149,12 @@ namespace NextGen.Zone.Data
             {
                 Log.WriteLine(LogLevel.Warn, "Quest SET_ABSTATE: unknown AbState '{0}'.", abStateName); return;
             }
-            if (strength == 0 || strength > 40) return;
-            character.AddBuff(abState, strength, null, keepTimeMs == 0 ? (uint?)null : keepTimeMs);
+            // Original QSC handler clamps Strength to 1..40 and passes the
+            // current player as both target and source/caster.
+            if (strength < 1) strength = 1;
+            if (strength > 40) strength = 40;
+            character.SetBuff(abState, strength, character,
+                keepTimeMs == 0 ? (uint?)null : keepTimeMs);
         }
 
         public static void ResetAbstate(ZoneCharacter character, string abStateName)

@@ -21,19 +21,39 @@ namespace NextGen.Zone.Game.Buffs
         public DateTime StartTime { get; private set; }
         public DateTime ExpireTime { get; private set; }
         private DateTime lastPeriodicTick;
-        private readonly TimeSpan periodicInterval;
+        private TimeSpan periodicInterval;
 
         public Buff(MapObject character, AbStateInfo abState, SubAbstateInfo subState, MapObject caster = null, uint? durationMs = null)
         {
             Character = character;
-            Caster = caster;
             AbState = abState;
             SubState = subState;
+            Caster = caster;
+            ResetTiming(durationMs);
+        }
+
+        internal void Refresh(Buffs owner, SubAbstateInfo subState, MapObject caster, uint? durationMs)
+        {
+            // Keep the same runtime object, matching the native existing-entry
+            // aeo_Set path, while replacing the currently applied stat effects.
+            Deactivate(owner);
+            SubState = subState;
+            Caster = caster;
+            ResetTiming(durationMs);
+            Activate(owner);
+        }
+
+        private void ResetTiming(uint? durationMs)
+        {
             StartTime = DateTime.UtcNow;
-            ExpireTime = StartTime + (durationMs.HasValue ? TimeSpan.FromMilliseconds(durationMs.Value) : subState.KeepTime);
+            ExpireTime = StartTime +
+                (durationMs.HasValue ? TimeSpan.FromMilliseconds(durationMs.Value) : SubState.KeepTime);
             lastPeriodicTick = StartTime;
-            var intervalAction = subState.Actions.FirstOrDefault(a => a.ActionIndex == PeriodicIntervalActionIndex);
-            periodicInterval = intervalAction != null ? TimeSpan.FromMilliseconds(intervalAction.ActionArg) : PeriodicInterval;
+            var intervalAction = SubState.Actions.FirstOrDefault(
+                a => a.ActionIndex == PeriodicIntervalActionIndex);
+            periodicInterval = intervalAction != null
+                ? TimeSpan.FromMilliseconds(intervalAction.ActionArg)
+                : PeriodicInterval;
         }
 
         private const uint KnockbackActionIndex = 49;

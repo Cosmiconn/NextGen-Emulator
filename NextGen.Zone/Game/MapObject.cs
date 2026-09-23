@@ -32,6 +32,10 @@ namespace NextGen.Zone.Game
         {
             Buffs.AddBuff(abState, strength, caster, durationMs);
         }
+        public void SetBuff(AbStateInfo abState, uint strength, MapObject caster, uint? durationMs)
+        {
+            Buffs.SetBuff(abState, strength, caster, durationMs);
+        }
         public void RemoveBuff(ushort abStateId)
         {
             Buffs.RemoveBuff(abStateId);

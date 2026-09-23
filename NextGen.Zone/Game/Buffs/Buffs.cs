@@ -79,6 +79,60 @@ namespace NextGen.Zone.Game.Buffs
             }
         }
 
+        // Native AbnormalStateContainer::asl_AbstateSet refresh path used by
+        // quest QSC_SET_ABSTATE. Unlike AddBuff, this keeps an existing runtime
+        // Buff object and updates it in place.
+        public void SetBuff(AbStateInfo abState, uint strength, MapObject caster, uint? durationMs)
+        {
+            if (abState == null) return;
+            if (strength < 1) strength = 1;
+            if (strength > 40) strength = 40;
+
+            lock (CurrentBuffs)
+            {
+                var existing = CurrentBuffs.FirstOrDefault(b => b.AbState.ID == abState.ID);
+                uint effectiveStrength = strength;
+
+                if (existing != null && effectiveStrength <= existing.SubState.Strength)
+                {
+                    uint maxStrength = abState.SubAbStates.Count == 0
+                        ? 0
+                        : abState.SubAbStates.Keys.Max();
+                    if (maxStrength == 0) return;
+                    effectiveStrength = Math.Min(existing.SubState.Strength + 1, maxStrength);
+                }
+
+                if (!abState.SubAbStates.TryGetValue(effectiveStrength, out var subState))
+                {
+                    Log.WriteLine(LogLevel.Warn,
+                        "SetBuff: AbState '{0}' hat keine Staerke-Stufe {1}.",
+                        abState.InxName, effectiveStrength);
+                    return;
+                }
+
+                uint? effectiveDurationMs = durationMs;
+                if (existing != null && durationMs.HasValue)
+                {
+                    // Native aeo_Set adjusts an explicit keep time by the delta
+                    // between the old and newly selected SubAbState KeepTime.
+                    uint oldKeepMs = (uint)existing.SubState.KeepTime.TotalMilliseconds;
+                    uint newKeepMs = (uint)subState.KeepTime.TotalMilliseconds;
+                    effectiveDurationMs = unchecked(durationMs.Value - oldKeepMs + newKeepMs);
+                }
+
+                if (existing == null)
+                {
+                    var buff = new Buff(Character, abState, subState, caster, effectiveDurationMs);
+                    CurrentBuffs.Add(buff);
+                    buff.Activate(this);
+                }
+                else
+                {
+                    existing.Refresh(this, subState, caster, effectiveDurationMs);
+                }
+            }
+        }
+
         public void RemoveBuff(ushort abStateId)
         {
             lock (CurrentBuffs)
