@@ -423,6 +423,10 @@ def audit_full_sql(rows):
         print('actual:  ', undefined_pairs)
         return 1
     print('PASS: exactly 8 known no-label-anywhere references remain preserved')
+    for q, st, ln, target, _other, line in sorted(
+            undefined, key=lambda x: (int(x[0]), x[1], x[2], x[3].upper())):
+        print(f'REVIEW: undefined-label quest={q} stage={st} line={ln} '
+              f'target={target.upper()} command={line}')
 
     if len(links) != 348 or blank_link_quests != {'6', '385'}:
         print('FAIL: LINK operand corpus changed')
