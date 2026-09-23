@@ -158,7 +158,7 @@ namespace NextGen.World.InterServer
                 this.SendPacket(packet);
             }
         }
-        public void SendTransferClientFromZone(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP)
+        public void SendTransferClientFromZone(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP, short mapInstance = 0)
         {
             using (var packet = new InterPacket(InterHeader.Clienttransfer))
             {
@@ -167,6 +167,7 @@ namespace NextGen.World.InterServer
                 packet.WriteStringLen(userName);
                 packet.WriteStringLen(charName);
                 packet.WriteInt(CharID);
+                packet.WriteShort(mapInstance);
                 packet.WriteUShort(randid);
                 packet.WriteByte(admin);
                 packet.WriteStringLen(hostIP);

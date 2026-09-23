@@ -1908,11 +1908,11 @@ namespace NextGen.Zone.Game
 					toy = y;
 				}
 
-				// Try setting up transfer
+				short targetInstance = instance < 0 ? (short)0 : instance;
 				ushort randomID = (ushort)Program.Randomizer.Next(0, ushort.MaxValue);
 
-				InterHandler.TransferClient(zci.ID, id, this.Client.AccountID, this.Client.Username,this.Character.ID, this.Name, randomID, this.Client.Admin, this.Client.Host);
-                ClientTransfer Zonetran = new ClientTransfer(this.Client.AccountID, this.Client.Username,Client.Character.Name, this.Client.Character.ID,randomID,this.Client.Admin,this.Client.Host);
+				InterHandler.TransferClient(zci.ID, id, targetInstance, this.Client.AccountID, this.Client.Username,this.Character.ID, this.Name, randomID, this.Client.Admin, this.Client.Host);
+                ClientTransfer Zonetran = new ClientTransfer(this.Client.AccountID, this.Client.Username,Client.Character.Name, this.Client.Character.ID,randomID,this.Client.Admin,this.Client.Host,targetInstance);
                 ClientManager.Instance.AddTransfer(Zonetran);
 				Map.RemoveObject(MapObjectID);
 				Position.X = tox;

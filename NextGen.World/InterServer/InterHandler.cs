@@ -233,7 +233,8 @@ namespace NextGen.World.InterServer
 			int accountid,CharID;
 			string username, charname, hostip;
 			ushort randid, mapid;
-			if (!packet.TryReadByte(out zoneid) || !packet.TryReadInt(out accountid) || !packet.TryReadUShort(out mapid) || !packet.TryReadString(out username) ||
+			short mapInstance;
+			if (!packet.TryReadByte(out zoneid) || !packet.TryReadInt(out accountid) || !packet.TryReadUShort(out mapid) || !packet.TryReadShort(out mapInstance) || !packet.TryReadString(out username) ||
 				!packet.TryReadString(out charname)||!packet.TryReadInt(out CharID) || !packet.TryReadUShort(out randid) || !packet.TryReadByte(out admin) ||
 				!packet.TryReadString(out hostip))
 			{
@@ -244,7 +245,7 @@ namespace NextGen.World.InterServer
 				ZoneConnection z;
 				if (Program.Zones.TryGetValue(zoneid, out z))
 				{
-					z.SendTransferClientFromZone(accountid, username, charname,CharID, randid, admin, hostip);
+					z.SendTransferClientFromZone(accountid, username, charname,CharID, randid, admin, hostip, mapInstance);
 
 				}
 			}

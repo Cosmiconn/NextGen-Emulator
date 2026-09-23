@@ -374,12 +374,13 @@ namespace NextGen.Zone.InterServer
 				int accountid,CharID;
 				string username, charname, hostip;
 				ushort randid;
+				short mapInstance;
                 if (!packet.TryReadInt(out accountid) || !packet.TryReadString(out username) || !packet.TryReadString(out charname) || !packet.TryReadInt(out CharID) ||
-					!packet.TryReadUShort(out randid) || !packet.TryReadByte(out admin) || !packet.TryReadString(out hostip))
+					!packet.TryReadShort(out mapInstance) || !packet.TryReadUShort(out randid) || !packet.TryReadByte(out admin) || !packet.TryReadString(out hostip))
 				{
 					return;
 				}
-				ClientTransfer ct = new ClientTransfer(accountid, username, charname,CharID, randid, admin, hostip);
+				ClientTransfer ct = new ClientTransfer(accountid, username, charname,CharID, randid, admin, hostip, mapInstance);
 				ClientManager.Instance.AddTransfer(ct);
 			}
 		}
@@ -416,13 +417,14 @@ namespace NextGen.Zone.InterServer
                   WorldConnector.Instance.SendPacket(packet);
               }
         }
-		public static void TransferClient(byte zoneID,ushort mapid, int accountID, string userName,int CharID, string charName, ushort randid, byte admin, string hostIP)
+		public static void TransferClient(byte zoneID,ushort mapid, short mapInstance, int accountID, string userName,int CharID, string charName, ushort randid, byte admin, string hostIP)
 		{
 			using (var packet = new InterPacket(InterHeader.Clienttransferzone))
 			{
 				packet.WriteByte(zoneID);
 				packet.WriteInt(accountID);
 				packet.WriteUShort(mapid);
+				packet.WriteShort(mapInstance);
 				packet.WriteStringLen(userName);
 				packet.WriteStringLen(charName);
                 packet.WriteInt(CharID);
