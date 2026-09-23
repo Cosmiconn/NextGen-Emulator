@@ -227,3 +227,20 @@ STATUS_REQ/ACK is corrected to u32 Handle + u8 Status + u16 joinerCount +
 See docs/KINGDOM_QUEST_PROTOCOL_NATIVE.md for the field table. JOIN_REQ remains
 disabled because source-backed admission/scheduler/session rules are not yet
 loaded, not because its wire structure is unknown.
+
+## Native KQ definition wire model
+
+The client-visible PROTO_KQ_INFO_CLIENT structure is now represented explicitly
+as KingdomQuestClientInfo with its native 141-byte layout. The full
+PROTO_KQ_INFO server/session structure is represented as KingdomQuestProtocolInfo
+with the native 377-byte layout.
+
+The model preserves the original field boundaries: Handle/Status/Joiner count,
+ID/title/timers, level/player limits, repeat/revival gates, demand quest/item/
+class/gender, server scheduling fields, four 26-byte map links, script language/
+init strings and two team regeneration coordinates.
+
+This still does not map KingdomQuest.shn columns by assumption. It creates the
+byte-exact destination model for the source exporter. LIST_ADD/LIST_ACK/
+SCHEDULE_ACK builders can now serialize real entries once source rows are
+available; the live refresh handler continues to send an empty LIST_ADD.

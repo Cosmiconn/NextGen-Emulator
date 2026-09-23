@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
+using NextGen.FiestaLib.Data;
 using NextGen.World.Data;
 
 namespace NextGen.World.Handlers
@@ -36,21 +37,67 @@ namespace NextGen.World.Handlers
 
         internal static Packet CreateListTime(DateTimeOffset now)
         {
-            long unix = now.ToUnixTimeSeconds();
-            if (unix < int.MinValue || unix > int.MaxValue)
-                throw new ArgumentOutOfRangeException("now");
-
-            DateTime local = now.LocalDateTime;
             var packet = new Packet(SH22Type.KingdomQuestListTimeAck);
-            packet.WriteInt((int)unix);
-            WriteTm(packet, local);
+            WriteServerTime(packet, now);
+            return packet;
+        }
+
+        internal static Packet CreateListAdd(
+            IReadOnlyList<KingdomQuestClientInfo> entries)
+        {
+            if (entries == null) throw new ArgumentNullException("entries");
+            if (entries.Count > ushort.MaxValue) throw new ArgumentOutOfRangeException("entries");
+
+            var packet = new Packet(SH22Type.KingdomQuestListAddAck);
+            packet.WriteUShort((ushort)entries.Count);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i] == null) throw new ArgumentException("KQ list entry is null.", "entries");
+                entries[i].Write(packet);
+            }
             return packet;
         }
 
         internal static Packet CreateEmptyListAdd()
         {
-            var packet = new Packet(SH22Type.KingdomQuestListAddAck);
-            packet.WriteUShort(0);
+            return CreateListAdd(Array.Empty<KingdomQuestClientInfo>());
+        }
+
+        internal static Packet CreateListAck(DateTimeOffset now,
+            uint newStartHandle, uint newEndHandle,
+            IReadOnlyList<KingdomQuestClientInfo> entries)
+        {
+            if (entries == null) throw new ArgumentNullException("entries");
+            if (entries.Count > ushort.MaxValue) throw new ArgumentOutOfRangeException("entries");
+
+            var packet = new Packet(SH22Type.KingdomQuestListAck);
+            WriteServerTime(packet, now);
+            packet.WriteUInt(newStartHandle);
+            packet.WriteUInt(newEndHandle);
+            packet.WriteUShort((ushort)entries.Count);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i] == null) throw new ArgumentException("KQ list entry is null.", "entries");
+                entries[i].Write(packet);
+            }
+            return packet;
+        }
+
+        internal static Packet CreateScheduleAck(uint newStartHandle,
+            uint newEndHandle, IReadOnlyList<KingdomQuestClientInfo> entries)
+        {
+            if (entries == null) throw new ArgumentNullException("entries");
+            if (entries.Count > ushort.MaxValue) throw new ArgumentOutOfRangeException("entries");
+
+            var packet = new Packet(SH22Type.KingdomQuestScheduleAck);
+            packet.WriteUInt(newStartHandle);
+            packet.WriteUInt(newEndHandle);
+            packet.WriteUShort((ushort)entries.Count);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i] == null) throw new ArgumentException("KQ schedule entry is null.", "entries");
+                entries[i].Write(packet);
+            }
             return packet;
         }
 
@@ -143,17 +190,14 @@ namespace NextGen.World.Handlers
             packet.WriteByte(state.MaxLevel);
         }
 
-        private static void WriteTm(Packet packet, DateTime local)
+        private static void WriteServerTime(Packet packet, DateTimeOffset now)
         {
-            packet.WriteInt(local.Second);
-            packet.WriteInt(local.Minute);
-            packet.WriteInt(local.Hour);
-            packet.WriteInt(local.Day);
-            packet.WriteInt(local.Month - 1);
-            packet.WriteInt(local.Year - 1900);
-            packet.WriteInt((int)local.DayOfWeek);
-            packet.WriteInt(local.DayOfYear - 1);
-            packet.WriteInt(TimeZoneInfo.Local.IsDaylightSavingTime(local) ? 1 : 0);
+            long unix = now.ToUnixTimeSeconds();
+            if (unix < int.MinValue || unix > int.MaxValue)
+                throw new ArgumentOutOfRangeException("now");
+
+            packet.WriteInt((int)unix);
+            KingdomQuestNativeTime.FromLocalDateTime(now.LocalDateTime).Write(packet);
         }
     }
 }

@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CENUM = ROOT / "NextGen.FiestaLib/PacketTypeClient.cs"
 SENUM = ROOT / "NextGen.FiestaLib/PacketTypeServer.cs"
 PROTO = ROOT / "NextGen.World/Handlers/KingdomQuestProtocol.cs"
+INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 HANDLER = ROOT / "NextGen.World/Handlers/Handler22.cs"
 STATE = ROOT / "NextGen.World/Data/KingdomQuestInstanceWireState.cs"
 
@@ -18,7 +19,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, HANDLER, STATE]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, STATE]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -27,6 +28,7 @@ def main():
     cenum = CENUM.read_text(encoding="utf-8")
     senum = SENUM.read_text(encoding="utf-8")
     proto = PROTO.read_text(encoding="utf-8")
+    info = INFO.read_text(encoding="utf-8")
     handler = HANDLER.read_text(encoding="utf-8")
     state = STATE.read_text(encoding="utf-8")
 
@@ -51,6 +53,20 @@ def main():
         "KingdomQuestJoiningAlarmList = 38",
         "KingdomQuestJoinListAck = 50",
     ], "native SH22 KQ names"):
+        return 1
+
+    if not require(info, [
+        "public const int WireSize = 141",
+        "public new const int WireSize = 377",
+        "packet.WriteString(Title ?? string.Empty, 64);",
+        "packet.WriteLong(DemandClass);",
+        "new KingdomQuestMapProtocolInfo[4]",
+        "packet.WriteString(MapBase ?? string.Empty, 12);",
+        "packet.WriteString(MapName ?? string.Empty, 12);",
+        "packet.WriteString(ScriptLanguage ?? string.Empty, 32);",
+        "packet.WriteString(ScriptInitValue ?? string.Empty, 32);",
+        "new KingdomQuestXY[2]",
+    ], "native PROTO_KQ_INFO client/server serializers"):
         return 1
 
     for stale in (
@@ -85,9 +101,10 @@ def main():
             "packet.WriteInt(local.Year - 1900);",
             "packet.WriteInt(local.DayOfYear - 1);",
         ],
-        "list add empty": [
+        "list add": [
             "new Packet(SH22Type.KingdomQuestListAddAck)",
-            "packet.WriteUShort(0);",
+            "packet.WriteUShort((ushort)entries.Count);",
+            "entries[i].Write(packet);",
         ],
         "list update": [
             "new Packet(SH22Type.KingdomQuestListUpdateAck)",
@@ -148,6 +165,7 @@ def main():
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
+    print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
     print("PASS: live list remains empty until source-backed KQ definitions/schedules exist")
     print("PASS: KQ join remains disabled until admission/session rules are source-backed")
     return 0
