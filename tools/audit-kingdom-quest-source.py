@@ -46,7 +46,9 @@ def main():
         print('actual  ', sorted(found))
         return 1
 
-    counts = (len(data_rows(TEAM)), len(data_rows(VOTE)), len(data_rows(REASONS)), len(data_rows(RATES)), len(data_rows(DESC)))
+    description_rows = sum(1 for line in DESC.read_text(encoding='utf-8').splitlines()
+                           if re.match(r"^\\s*\\('", line))
+    counts = (len(data_rows(TEAM)), len(data_rows(VOTE)), len(data_rows(REASONS)), len(data_rows(RATES)), description_rows)
     if counts != (8, 30, 4, 2, 39):
         print('FAIL: KQ metadata row counts changed:', counts)
         return 1
