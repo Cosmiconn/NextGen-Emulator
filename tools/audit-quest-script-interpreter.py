@@ -68,6 +68,8 @@ def audit_full_sql(rows):
     ambiguous = []
     labels_total = 0
     opcodes = Counter()
+    links = []
+    blank_link_quests = set()
     for q, scripts in rows.items():
         stage_labels = {st:labels(s) for st,s in zip(stage_names, scripts)}
         global_labels = {}
@@ -80,7 +82,15 @@ def audit_full_sql(rows):
                 z = line.strip()
                 if not z or z.startswith(';') or z.startswith(':'):
                     continue
-                opcodes[z.split(None, 1)[0].upper()] += 1
+                parts = z.split(None, 1)
+                opcode = parts[0].upper()
+                opcodes[opcode] += 1
+                if opcode == 'LINK':
+                    operand = parts[1].strip() if len(parts) > 1 else ''
+                    if not operand:
+                        blank_link_quests.add(q)
+                    elif re.fullmatch(r'\d+', operand):
+                        links.append((q, int(operand)))
             for ln, target, line in goto_refs(script):
                 if target.lower() in stage_labels[st]:
                     continue
@@ -107,6 +117,25 @@ def audit_full_sql(rows):
     print(f'  cross-stage targets with duplicate label names={len(ambiguous)}')
     print('PASS: unknown opcodes=0')
     print('PASS: exact opcode corpus counts match the supplied 2304-record source')
+
+    if len(links) != 348 or blank_link_quests != {'6', '385'}:
+        print('FAIL: LINK operand corpus changed')
+        print('numeric:', len(links), 'blank quests:', sorted(blank_link_quests, key=int))
+        return 1
+    self_links = sum(1 for q,t in links if int(q) == t)
+    next_links = sum(1 for q,t in links if int(q) + 1 == t)
+    missing_links = sorted((q,t) for q,t in links if str(t) not in rows)
+    out_of_word = sorted((q,t) for q,t in links if t > 0xffff)
+    if self_links != 24 or next_links != 253:
+        print('FAIL: LINK topology changed:', 'self=', self_links, 'next=', next_links)
+        return 1
+    if missing_links != [('30015', 300010)] or out_of_word != [('30015', 300010)]:
+        print('FAIL: LINK missing/out-of-WORD targets changed')
+        print('missing:', missing_links, 'out-of-word:', out_of_word)
+        return 1
+    print('PASS: LINK corpus = 348 numeric + 2 blank, 253 next, 24 self')
+    print('REVIEW: preserved source anomaly Quest 30015 -> LINK 300010')
+
     q1 = rows.get('1')
     if not (q1 and 'SAY 202 NPC' in q1[0] and 'SAY 203 NPC' in q1[0] and ':MARK1' in q1[0] and 'ACCEPT' in q1[0]):
         print('FAIL: Quest 1 Baby-Steps source structure')
