@@ -121,7 +121,7 @@ Those plumbing defects are now closed. The internal `short MapInstance`
 survives transfer and is used when constructing the character on the target
 Zone.
 
-This does **not** assign captured World KQ IDs such as instance 969 to a map
+This does **not** assign native World KQ Handles such as 969 to a map
 instance. The capture uses a 32-bit KQ registry ID, while `Map.InstanceID` is
 a server-internal short namespace. CI explicitly guards against conflating
 them until the project definition/session sources prove the mapping.
@@ -162,7 +162,7 @@ that type-50 body is not yet sufficiently decoded. CI rejects a premature type-5
 handler until that evidence boundary moves.
 
 
-## Explicit World-instance to Zone-instance routing target
+## Explicit World-Handle to Zone-instance routing target
 
 A live KQ now has a dedicated server-internal routing primitive:
 `KingdomQuestSessionTargetRegistry`.
@@ -170,19 +170,19 @@ A live KQ now has a dedicated server-internal routing primitive:
 It stores an explicit triple:
 
 ```text
-u32 World KQ InstanceID
+u32 World KQ Handle
 u16 source-backed MapID
 i16 internal Map.InstanceID
 ```
 
 Creation is rejected unless the MapID exists in the source-backed
-`KingdomQuestMaps` catalog, and duplicate World IDs or duplicate
+`KingdomQuestMaps` catalog, and duplicate World Handles or duplicate
 `(MapID, MapInstance)` targets are rejected.
 
 The registry does not allocate IDs, choose a map, or derive one namespace from
 another. Those values must come from the later source-backed KQ definition/
 session creator. This gives registration/transfer code a safe lookup target
-without ever casting captured IDs such as 969 into a Zone instance number.
+without ever casting native Handles such as 969 into a Zone instance number.
 
 
 ## World-driven KQ transfer bridge
@@ -268,3 +268,19 @@ additional handler-side mapping or hard-coded list data is required.
 
 This separates source ingestion from protocol serialization without making
 schedule guesses.
+
+
+## Native Handle naming carried into routing
+
+The early capture work called the 32-bit KQ key an "InstanceID". The original
+PDB protocol names it `Handle`. The World routing layer now uses that native
+name consistently:
+
+```text
+u32 KQ Handle        -- client/World protocol identity
+u16 MapID            -- source-backed map
+i16 Map.InstanceID   -- emulator-internal Zone instance
+```
+
+No cast or numeric derivation connects Handle to `Map.InstanceID`; the
+explicit target registry remains the only bridge.

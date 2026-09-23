@@ -60,15 +60,16 @@ def main():
 
     if not need(c["kq_target"], [
         "Dictionary<uint, KingdomQuestSessionTarget>",
+        "public uint Handle",
         "Dictionary<Tuple<ushort, short>, uint>",
         "DataProvider.Instance.KingdomQuestMaps.ContainsKey(mapId)",
-        "new KingdomQuestSessionTarget(instanceId, mapId, mapInstance)",
+        "new KingdomQuestSessionTarget(handle, mapId, mapInstance)",
         "Tuple.Create(mapId, mapInstance)",
     ], "explicit KQ wire-instance to map-instance mapping"):
         return 1
 
     if not need(c["kq_transfer"], [
-        "KingdomQuestSessionTargetRegistry.TryGet(instanceId, out target)",
+        "KingdomQuestSessionTargetRegistry.TryGet(handle, out target)",
         "Program.GetZoneByMap(character.Character.PositionInfo.Map)",
         "currentZone.SendKingdomQuestTransferRequest(",
         "target.MapID",
@@ -92,14 +93,14 @@ def main():
         return 1
 
     combined = "\n".join(c.values())
-    if "(short)instanceId" in combined or "(short)InstanceID" in combined:
-        print("FAIL: World KQ InstanceID conflated with internal Map.InstanceID")
+    if "(short)handle" in combined or "(short)Handle" in combined:
+        print("FAIL: native World KQ Handle conflated with internal Map.InstanceID")
         return 1
 
     print("PASS: MapManager can allocate requested internal map instances")
     print("PASS: internal MapInstance survives Zone -> World -> Zone transfer")
-    print("PASS: captured 32-bit KQ InstanceID remains a separate namespace")
-    print("PASS: KQ wire InstanceID -> source MapID/internal MapInstance mapping is explicit")
+    print("PASS: native 32-bit KQ Handle remains separate from internal Map.InstanceID")
+    print("PASS: KQ Handle -> source MapID/internal MapInstance mapping is explicit")
     print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with explicit coordinates")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0

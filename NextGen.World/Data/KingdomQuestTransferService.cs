@@ -9,13 +9,13 @@ namespace NextGen.World.Data
     /// </summary>
     public static class KingdomQuestTransferService
     {
-        public static bool TryRequest(WorldCharacter character, uint instanceId, int x, int y)
+        public static bool TryRequest(WorldCharacter character, uint handle, int x, int y)
         {
             if (character == null || character.Character == null)
                 return false;
 
             KingdomQuestSessionTarget target;
-            if (!KingdomQuestSessionTargetRegistry.TryGet(instanceId, out target))
+            if (!KingdomQuestSessionTargetRegistry.TryGet(handle, out target))
                 return false;
 
             ZoneConnection currentZone =

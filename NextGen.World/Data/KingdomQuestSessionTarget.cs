@@ -5,26 +5,26 @@ using System.Linq;
 namespace NextGen.World.Data
 {
     /// <summary>
-    /// Explicit server-internal routing target for one live KQ wire instance.
-    /// The captured 32-bit InstanceID is intentionally kept separate from the
-    /// Zone map's internal short InstanceID.
+    /// Explicit server-internal routing target for one live native KQ Handle.
+    /// The 32-bit World Handle is intentionally kept separate from the Zone
+    /// map's internal short InstanceID.
     /// </summary>
     public sealed class KingdomQuestSessionTarget
     {
-        public uint InstanceID { get; private set; }
+        public uint Handle { get; private set; }
         public ushort MapID { get; private set; }
         public short MapInstance { get; private set; }
 
-        internal KingdomQuestSessionTarget(uint instanceId, ushort mapId, short mapInstance)
+        internal KingdomQuestSessionTarget(uint handle, ushort mapId, short mapInstance)
         {
-            InstanceID = instanceId;
+            Handle = handle;
             MapID = mapId;
             MapInstance = mapInstance;
         }
     }
 
     /// <summary>
-    /// Thread-safe explicit mapping from captured World KQ instance IDs to
+    /// Thread-safe explicit mapping from native World KQ Handles to
     /// source-backed map IDs and server-internal map instances.
     ///
     /// This registry allocates nothing and infers nothing. A later
@@ -33,12 +33,12 @@ namespace NextGen.World.Data
     public static class KingdomQuestSessionTargetRegistry
     {
         private static readonly object Sync = new object();
-        private static readonly Dictionary<uint, KingdomQuestSessionTarget> ByInstance =
+        private static readonly Dictionary<uint, KingdomQuestSessionTarget> ByHandle =
             new Dictionary<uint, KingdomQuestSessionTarget>();
         private static readonly Dictionary<Tuple<ushort, short>, uint> ByMapInstance =
             new Dictionary<Tuple<ushort, short>, uint>();
 
-        public static bool TryCreate(uint instanceId, ushort mapId, short mapInstance,
+        public static bool TryCreate(uint handle, ushort mapId, short mapInstance,
             out KingdomQuestSessionTarget target)
         {
             target = null;
@@ -51,42 +51,42 @@ namespace NextGen.World.Data
             var key = Tuple.Create(mapId, mapInstance);
             lock (Sync)
             {
-                if (ByInstance.ContainsKey(instanceId) || ByMapInstance.ContainsKey(key))
+                if (ByHandle.ContainsKey(handle) || ByMapInstance.ContainsKey(key))
                     return false;
 
-                target = new KingdomQuestSessionTarget(instanceId, mapId, mapInstance);
-                ByInstance.Add(instanceId, target);
-                ByMapInstance.Add(key, instanceId);
+                target = new KingdomQuestSessionTarget(handle, mapId, mapInstance);
+                ByHandle.Add(handle, target);
+                ByMapInstance.Add(key, handle);
                 return true;
             }
         }
 
-        public static bool TryGet(uint instanceId, out KingdomQuestSessionTarget target)
+        public static bool TryGet(uint handle, out KingdomQuestSessionTarget target)
         {
             lock (Sync)
             {
                 KingdomQuestSessionTarget current;
-                if (!ByInstance.TryGetValue(instanceId, out current))
+                if (!ByHandle.TryGetValue(handle, out current))
                 {
                     target = null;
                     return false;
                 }
 
                 target = new KingdomQuestSessionTarget(
-                    current.InstanceID, current.MapID, current.MapInstance);
+                    current.Handle, current.MapID, current.MapInstance);
                 return true;
             }
         }
 
-        public static bool Remove(uint instanceId)
+        public static bool Remove(uint handle)
         {
             lock (Sync)
             {
                 KingdomQuestSessionTarget current;
-                if (!ByInstance.TryGetValue(instanceId, out current))
+                if (!ByHandle.TryGetValue(handle, out current))
                     return false;
 
-                ByInstance.Remove(instanceId);
+                ByHandle.Remove(handle);
                 ByMapInstance.Remove(Tuple.Create(current.MapID, current.MapInstance));
                 return true;
             }
@@ -95,10 +95,10 @@ namespace NextGen.World.Data
         public static IReadOnlyList<KingdomQuestSessionTarget> Snapshot()
         {
             lock (Sync)
-                return ByInstance.Values
-                    .OrderBy(v => v.InstanceID)
+                return ByHandle.Values
+                    .OrderBy(v => v.Handle)
                     .Select(v => new KingdomQuestSessionTarget(
-                        v.InstanceID, v.MapID, v.MapInstance))
+                        v.Handle, v.MapID, v.MapInstance))
                     .ToList()
                     .AsReadOnly();
         }
@@ -107,7 +107,7 @@ namespace NextGen.World.Data
         {
             lock (Sync)
             {
-                ByInstance.Clear();
+                ByHandle.Clear();
                 ByMapInstance.Clear();
             }
         }
