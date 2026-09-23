@@ -14,12 +14,12 @@ DP = ROOT / "NextGen.World/Data/DataProvider.cs"
 TOOL = ROOT / "tools/KingdomQuestSourceDump/Program.cs"
 
 EXPECTED_MAPS = {
-    (31, "KDEddyHill"), (33, "KDTrDn"), (34, "KDUnHall"), (35, "KDEnMaze"),
-    (36, "KDGoldHill"), (40, "KDMDragon"), (53, "KDKingkong"),
+    (30, "KDPrtShip"), (31, "KDEddyHill"), (33, "KDTrDn"), (34, "KDUnHall"), (35, "KDEnMaze"),
+    (36, "KDGoldHill"), (40, "KDMDragon"), (52, "KDHero"), (53, "KDKingkong"),
     (54, "KDHoneying"), (55, "KDSpider"), (91, "KDHDragon"),
     (92, "KDHBat1"), (95, "KDVictor"), (96, "KDAntiHenis"), (126, "KDMine"),
     (129, "KDEgg"), (131, "KDSpring"), (137, "KDArena"),
-    (138, "KDGreenHill"), (146, "KDSoccer"), (148, "KDWater"),
+    (138, "KDGreenHill"), (146, "KDSoccer"), (148, "KDWater"), (149, "KDFargels"),
     (155, "KDSoccer_W"), (158, "KDCake"),
 }
 
@@ -62,7 +62,7 @@ def main():
             print('FAIL: KQ source dumper missing target', source)
             return 1
 
-    print('PASS: 22 KingdomMap=1 source maps locked')
+    print('PASS: 25 KingdomMap=1 source maps locked')
     print('PASS: KQ team/vote metadata corpus locked (8/30/4/2)')
     print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
     return 0
