@@ -373,6 +373,7 @@ namespace NextGen.FiestaLib
         KingdomQuestListAck = 2,
         KingdomQuestStatusAck = 4,
         KingdomQuestJoinAck = 6,
+        KingdomQuestJoinCancelAck = 8,
         KingdomQuestScheduleAck = 10,
         KingdomQuestNotify = 11,
         KingdomQuestFailed = 19,
@@ -383,11 +384,28 @@ namespace NextGen.FiestaLib
         KingdomQuestJoiningAlarm = 36,
         KingdomQuestJoiningAlarmEnd = 37,
         KingdomQuestJoiningAlarmList = 38,
+        KingdomQuestVoteStartAck = 40,
+        KingdomQuestVoteVotingCmd = 41,
+        KingdomQuestVoteVotingAck = 43,
+        KingdomQuestVoteResultSuccess = 44,
+        KingdomQuestVoteResultFail = 45,
+        KingdomQuestVoteCancel = 46,
+        KingdomQuestVoteBanMessage = 47,
+        KingdomQuestVoteBanMessageLogoff = 48,
         KingdomQuestJoinListAck = 50,
+        KingdomQuestLinkToForceByBan = 51,
+        KingdomQuestVoteStartCheckAck = 53,
+        KingdomQuestScoreInfo = 54,
+        KingdomQuestTeamSelectAck = 56,
+        KingdomQuestTeamSelectCmd = 57,
+        KingdomQuestTeamTypeCmd = 58,
+        KingdomQuestPlayerDisjoin = 59,
+        KingdomQuestScoreBoardInfo = 60,
+        KingdomQuestWinterEvent2014Score = 61,
 
-        // 1-byte packet seen on zone/map entry. Its exact role is still not
-        // tied to a KQ state transition.
-        Unk58 = 58,
+        // Historical capture-era alias. PDB enum resolves type 58 as
+        // NC_KQ_TEAM_TYPE_CMD; keep the alias only for source compatibility.
+        Unk58 = KingdomQuestTeamTypeCmd,
     }
 
 

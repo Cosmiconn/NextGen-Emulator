@@ -176,6 +176,45 @@ namespace NextGen.World.Handlers
             return packet;
         }
 
+        internal static Packet CreateJoinCancelAck(uint handle, ushort error)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestJoinCancelAck);
+            packet.WriteUInt(handle);
+            packet.WriteUShort(error);
+            return packet;
+        }
+
+        internal static Packet CreateTeamSelectAck(ushort error, byte teamType)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestTeamSelectAck);
+            packet.WriteUShort(error);
+            packet.WriteByte(teamType);
+            return packet;
+        }
+
+        internal static Packet CreateTeamSelectCmd(string characterName, byte teamType)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestTeamSelectCmd);
+            packet.WriteString(characterName ?? string.Empty, 20);
+            packet.WriteByte(teamType);
+            return packet;
+        }
+
+        internal static Packet CreateTeamTypeCmd(byte teamType)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestTeamTypeCmd);
+            packet.WriteByte(teamType);
+            return packet;
+        }
+
+        internal static Packet CreatePlayerDisjoin(uint handle, uint characterNumber)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestPlayerDisjoin);
+            packet.WriteUInt(handle);
+            packet.WriteUInt(characterNumber);
+            return packet;
+        }
+
         internal static Packet CreateJoinListAck(ushort error,
             IReadOnlyList<KingdomQuestJoinCharacterInfo> joiners)
         {

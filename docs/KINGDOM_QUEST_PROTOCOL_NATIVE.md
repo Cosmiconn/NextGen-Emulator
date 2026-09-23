@@ -78,3 +78,24 @@ Count * KQ_JOIN_CHAR_INFO {
 client request handler is not enabled yet because the request-side selector
 fields have not been extracted into the committed project evidence; no handle
 or membership query is guessed.
+
+
+## Additional source-level request/command layouts
+
+The remaining membership/team packet boundaries are now explicit:
+
+```text
+NC_KQ_JOIN_CANCEL_REQ  0x5807: u32 Handle
+NC_KQ_JOIN_CANCEL_ACK  0x5808: u32 Handle + u16 Error
+NC_KQ_JOIN_LIST_REQ    0x5831: u32 Handle
+NC_KQ_TEAM_SELECT_REQ  0x5837: u8 TeamType
+NC_KQ_TEAM_SELECT_ACK  0x5838: u16 Error + u8 TeamType
+NC_KQ_TEAM_SELECT_CMD  0x5839: Name5[20] + u8 TeamType
+NC_KQ_TEAM_TYPE_CMD    0x583A: u8 TeamType
+NC_KQ_PLAYER_DISJOIN   0x583B: u32 Handle + u32 CharacterNumber
+```
+
+The old project capture's one-byte type-58 packet is therefore no longer
+unknown: it is `NC_KQ_TEAM_TYPE_CMD`. Runtime builders are present for these
+server packets, but request handlers are not enabled until their admission/team
+decision rules and raw `Error` values are proven.

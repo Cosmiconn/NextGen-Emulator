@@ -45,6 +45,7 @@ def main():
         "KingdomQuestListAck = 2",
         "KingdomQuestStatusAck = 4",
         "KingdomQuestJoinAck = 6",
+        "KingdomQuestJoinCancelAck = 8",
         "KingdomQuestScheduleAck = 10",
         "KingdomQuestNotify = 11",
         "KingdomQuestFailed = 19",
@@ -56,6 +57,10 @@ def main():
         "KingdomQuestJoiningAlarmEnd = 37",
         "KingdomQuestJoiningAlarmList = 38",
         "KingdomQuestJoinListAck = 50",
+        "KingdomQuestTeamSelectAck = 56",
+        "KingdomQuestTeamSelectCmd = 57",
+        "KingdomQuestTeamTypeCmd = 58",
+        "KingdomQuestPlayerDisjoin = 59",
     ], "native SH22 KQ names"):
         return 1
 
@@ -139,6 +144,30 @@ def main():
             "packet.WriteUShort((ushort)states.Count);",
             "WriteJoiningAlarmInfo(packet, states[i]);",
         ],
+        "join cancel ack": [
+            "new Packet(SH22Type.KingdomQuestJoinCancelAck)",
+            "packet.WriteUInt(handle);",
+            "packet.WriteUShort(error);",
+        ],
+        "team select ack": [
+            "new Packet(SH22Type.KingdomQuestTeamSelectAck)",
+            "packet.WriteUShort(error);",
+            "packet.WriteByte(teamType);",
+        ],
+        "team select cmd": [
+            "new Packet(SH22Type.KingdomQuestTeamSelectCmd)",
+            "packet.WriteString(characterName ?? string.Empty, 20);",
+            "packet.WriteByte(teamType);",
+        ],
+        "team type cmd": [
+            "new Packet(SH22Type.KingdomQuestTeamTypeCmd)",
+            "packet.WriteByte(teamType);",
+        ],
+        "player disjoin cmd": [
+            "new Packet(SH22Type.KingdomQuestPlayerDisjoin)",
+            "packet.WriteUInt(handle);",
+            "packet.WriteUInt(characterNumber);",
+        ],
         "join list ack": [
             "new Packet(SH22Type.KingdomQuestJoinListAck)",
             "packet.WriteUShort(error);",
@@ -209,6 +238,7 @@ def main():
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
+    print("PASS: join-cancel/team-select/team-type/disjoin wire layouts are source-level named")
     print("PASS: complete KQ client definitions can be stored without scheduler inference")
     print("PASS: LIST_REFRESH serializes only entries supplied by the source-owned definition registry")
     print("PASS: KQ join remains disabled until admission/session rules are source-backed")

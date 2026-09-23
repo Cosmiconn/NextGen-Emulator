@@ -56,30 +56,22 @@ list entry layout before enabling live registration.
    required.
 
 
-## Captured World wire primitives
+## Historical capture interpretation — superseded
 
-The next implementation slice adds definition-neutral packet builders and a
-thread-safe live-instance wire-state registry for layouts already proven by the
-project captures:
+The early capture pass correctly identified the Header-22 KQ family but several
+field names were provisional. The original 2016 command enum and PDB packet
+structures now supersede those guesses:
 
-- type 4: `u32 InstanceID + u16 value`;
-- type 6: `u32 InstanceID + u16 value`;
-- type 19: empty failure packet;
-- type 30: `u16 count + u32 InstanceID[count]`;
-- type 31: `u16 + u32 InstanceID + u16`;
-- type 37: `u32 InstanceID + u16 stateValue`;
-- type 38: `u16 count + {u32 InstanceID,u16 stateValue,u16 typeValue}[count]`.
+- type 3/4 = `NC_KQ_STATUS_REQ/ACK`, not a generic instance-detail pair;
+- type 5/6 = `NC_KQ_JOIN_REQ/ACK`;
+- type 30/31 = `NC_KQ_LIST_DELETE_ACK/LIST_UPDATE_ACK`;
+- type 36/37/38 = joining-alarm / joining-alarm-end / joining-alarm-list;
+- type 50 = `NC_KQ_JOIN_LIST_ACK`, not a localized registration notice;
+- type 58 = `NC_KQ_TEAM_TYPE_CMD`, not an unknown zone-entry status byte.
 
-The unresolved u16 fields deliberately keep neutral names. No scheduler meaning,
-member-count meaning, map meaning, or status enum is assigned yet.
-
-The legacy login-time zero KQ list is unchanged on the wire but now uses the
-named `SH22Type.KingdomQuestList` instead of raw opcode `0x581D`.
-
-CI runs `tools/audit-kingdom-quest-wire.py` to lock these layouts and to keep
-the live KQ list empty until authoritative KingdomQuest definition/schedule
-source rows are imported.
-
+The old observations remain valuable for sequence/timing, but runtime naming and
+serialization follow the native structures in
+`docs/KINGDOM_QUEST_PROTOCOL_NATIVE.md`.
 
 ## Source-backed KQ map catalog
 
@@ -141,26 +133,17 @@ It also does not clone instance-0 spawns by assumption; KQ-specific regen data
 must populate the target instance from authoritative project sources.
 
 
-## Captured instance-detail request is now live
+## Native STATUS_REQ is live
 
-The World server now handles the byte-proven client request
-`CH22Type.GetKQInstanceInfo` (type 3):
+World handles `NC_KQ_STATUS_REQ (0x5803)` as the original PDB structure
+defines it: a single `u32 Handle`. If the Handle exists in
+`KingdomQuestInstanceRegistry`, the server returns
+`NC_KQ_STATUS_ACK (0x5804)` with Handle, Status, Joiner count and Name5 list.
+Unknown Handles are not answered with fabricated state.
 
-```text
-request:  u32 InstanceID
-response: u32 InstanceID + u16 instanceInfoValue   (SH22 type 4)
-```
-
-The response ushort is intentionally **not** aliased to the type-37 state value
-or the type-38 type value. A live registry entry must receive it explicitly
-through `SetInstanceInfoValue`; otherwise the server logs the unresolved
-request and sends no fabricated detail response.
-
-The captured registration request (CH22 type 5) is still deliberately not
-handled. The original flow emits both type 6 and a 26-byte type-50 notice, and
-that type-50 body is not yet sufficiently decoded. CI rejects a premature type-5
-handler until that evidence boundary moves.
-
+`NC_KQ_JOIN_REQ (0x5805)` remains intentionally disabled until the original
+admission/error-code semantics are established. Its wire body itself is already
+known exactly as `u32 Handle`.
 
 ## Explicit World-Handle to Zone-instance routing target
 
