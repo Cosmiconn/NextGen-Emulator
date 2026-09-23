@@ -201,6 +201,15 @@ namespace NextGen.Zone.Data
             bool all = string.Equals(amountToken, "ALL", StringComparison.OrdinalIgnoreCase);
             if (!all && !uint.TryParse(amountToken, out wanted)) return false;
             uint remaining = all ? uint.MaxValue : wanted;
+
+            // Do not turn numeric DELETE_ITEM into an atomic "all requested
+            // quantity must exist" preflight without new native evidence.
+            // The verified NA2016 corpus contains valid Finish scripts whose
+            // delete quantity exceeds the End.ItemLot rewardability minimum
+            // (notably quests 225, 444 and 460). The original script flow can
+            // therefore reach DELETE_ITEM with less than the requested lot.
+            // Preserve the current consume-up-to-available behavior; the bool
+            // only reports whether the full numeric request was satisfied.
             List<Item> matches = new List<Item>();
             foreach (Item item in character.Inventory.InventoryItems.Values)
                 if (item != null && item.ID == itemId) matches.Add(item);
