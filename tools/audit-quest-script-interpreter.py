@@ -113,6 +113,12 @@ def report_low_mob_ids():
     print('REVIEW: selected MobID rows in data_mobinfo.sql:')
     for mob_id in sorted(wanted):
         print(f'  {mob_id}: ' + found.get(mob_id, '<not found>'))
+    expected_names = {0: "'Slime'", 1: "'MushRoom'", 355: "'Mandragora'"}
+    for mob_id, name in expected_names.items():
+        if mob_id not in found or name not in found[mob_id]:
+            print('FAIL: quest-progress MobID mapping changed:', mob_id, name)
+            return False
+    return True
 
 def audit_full_sql(rows):
     stage_names = ('Start', 'Action', 'Finish')
@@ -214,7 +220,8 @@ def audit_full_sql(rows):
     print('PASS: exact opcode corpus counts match the supplied 2304-record source')
     if report_low_item_ids() is False:
         return 1
-    report_low_mob_ids()
+    if report_low_mob_ids() is False:
+        return 1
 
     if invalid_deletes:
         print('FAIL: malformed DELETE_ITEM operands:', invalid_deletes[:20])
