@@ -150,18 +150,59 @@ namespace NextGen.Zone.Handlers
             if (!packet.TryReadUShort(out questId) || !packet.TryReadUInt(out selectedSlot))
                 return;
 
-            // Native Recv_NC_QUEST_REWARD_SELECT_ITEM_INDEX_CMD (0x005BB490)
-            // validates the current quest ID and only stores the DWORD selection
-            // at CQuestZone+0x90C. Completion remains driven by QSC_DONE.
+            DialogSession session;
+            bool resumePending;
             lock (Sync)
             {
-                DialogSession session;
                 if (!Sessions.TryGetValue(client.Character.ID, out session) ||
                     session == null || session.Machine == null ||
                     session.QuestID != questId)
                     return;
+
+                // Native Recv_NC_QUEST_REWARD_SELECT_ITEM_INDEX_CMD (0x005BB490)
+                // validates the current quest ID and stores only the DWORD slot
+                // at CQuestZone+0x90C. Keep that exact behavior for the normal
+                // selection-before-DONE path.
                 session.SelectedRewardSlot = selectedSlot;
+                resumePending = session.RewardSelectionPending;
             }
+
+            if (!resumePending)
+                return;
+
+            // Compatibility closure for the server-forced 0x4412 recovery path:
+            // the original 0x4411 receiver itself is proven store-only, while
+            // the later native wake-up event is still not attributable from the
+            // available binary/capture evidence. Once *our* DONE has already
+            // emitted 0x4412 and is explicitly pending, consume the newly stored
+            // slot as that pending DONE's selection. This never makes an ordinary
+            // pre-DONE 0x4411 complete a quest.
+            ushort nativeError;
+            bool needsSelection;
+            if (QuestRuntime.Complete(client.Character, questId, selectedSlot, true,
+                    out nativeError, out needsSelection))
+            {
+                lock (Sync)
+                {
+                    DialogSession current;
+                    if (Sessions.TryGetValue(client.Character.ID, out current) &&
+                        object.ReferenceEquals(current, session))
+                        session.RewardSelectionPending = false;
+                }
+                ContinueSession(client, session);
+                return;
+            }
+
+            if (needsSelection)
+            {
+                // Invalid/non-selectable slot: keep DONE pending and ask again.
+                SendRewardNeedSelectItem(client.Character, questId);
+                return;
+            }
+
+            if (nativeError != 0)
+                SendQuestCommandError(client.Character, questId, 10, nativeError);
+            EndDialog(client.Character);
         }
         [PacketHandler(CH17Type.ScenarioDoneReq)] public static void ScenarioDoneReqHandler(ZoneClient client,Packet packet){ushort scenarioId;if(!packet.TryReadUShort(out scenarioId))return;DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session==null||session.Machine==null||!session.ScenarioPending||session.PendingScenarioID!=scenarioId)return;uint questId=session.Machine.Graph.Info.QuestID;if(!QuestRuntime.RecordScenarioDone(client.Character,questId,scenarioId))return;session.ScenarioPending=false;session.PendingScenarioID=0;using(var ack=new Packet((ushort)0x440C)){ack.WriteUShort(scenarioId);client.SendPacket(ack);}ContinueSession(client,session);}
         [PacketHandler(CH17Type.NpcDialogResponse)]

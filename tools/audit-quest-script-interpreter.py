@@ -14,6 +14,7 @@ CORPUS = ROOT / "tests/fixtures/quest_script_opcode_corpus.zlib.b64"
 ITEM_SQL = ROOT / "sql/data/data_iteminfo.sql"
 MOB_SQL = ROOT / "sql/data/data_mobinfo.sql"
 DIALOG_SQL = ROOT / "sql/data/data_questdialog.sql"
+HANDLER17 = ROOT / "NextGen.Zone/Handlers/Handler17.cs"
 EXPECTED = {'ACCEPT':2410,'CANCEL':12,'CREATE_ITEM':206,'DELETE_ITEM':1474,'DONE':2603,'END':9446,'GET_ITEM_LOT':104,'GET_PLAYER_EMPTY_INVENTORY':676,'GOTO':4,'IF':3036,'LINK':350,'SAY':19924,'SCENARIO':52,'SET_ABSTATE':51}
 EXPECTED_IF_SHAPES = {('RESULT', '=='): 2256, ('VAR1', '<'): 676, ('RESULT', '<'): 104}
 EXPECTED_DONE_BY_STAGE = {'Start': 351, 'Action': 1, 'Finish': 2251}
@@ -431,6 +432,33 @@ def audit_full_sql(rows):
         return 1
     print('PASS: exactly 8 known no-label-anywhere references remain preserved')
     print('PASS: undefined-label shape = 5 inventory-full MARK100 + 3 RESULT==2 MARK2')
+
+    handler17 = HANDLER17.read_text(encoding='utf-8')
+    handler_start = handler17.find('public static void RewardSelectItemIndexHandler')
+    handler_end = handler17.find('[PacketHandler(CH17Type.ScenarioDoneReq)]', handler_start)
+    if handler_start < 0 or handler_end < 0:
+        print('FAIL: RewardSelectItemIndexHandler audit slice not found')
+        return 1
+    reward_handler = handler17[handler_start:handler_end]
+    required_reward_recovery = [
+        'session.SelectedRewardSlot = selectedSlot;',
+        'resumePending = session.RewardSelectionPending;',
+        'if (!resumePending)',
+        'QuestRuntime.Complete(client.Character, questId, selectedSlot, true,',
+        'session.RewardSelectionPending = false;',
+        'ContinueSession(client, session);',
+        'SendRewardNeedSelectItem(client.Character, questId);',
+    ]
+    missing_recovery = [token for token in required_reward_recovery
+                        if token not in reward_handler]
+    if missing_recovery:
+        print('FAIL: selectable-reward pending-DONE recovery changed:',
+              missing_recovery)
+        return 1
+    if reward_handler.find('QuestRuntime.Complete(') < reward_handler.find('if (!resumePending)'):
+        print('FAIL: ordinary 0x4411 must remain store-only before pending-DONE gate')
+        return 1
+    print('PASS: 0x4411 remains store-only unless 0x4412/DONE recovery is pending')
     for q, st, ln, target, _other, line in sorted(
             undefined, key=lambda x: (int(x[0]), x[1], x[2], x[3].upper())):
         print(f'REVIEW: undefined-label quest={q} stage={st} line={ln} '

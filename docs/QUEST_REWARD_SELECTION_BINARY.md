@@ -79,13 +79,21 @@ That structural agreement is useful for targeting the original handler, but it
 does **not** establish a control-flow relationship with `0x4412` or the stored
 reward slot. No runtime handler is added from adjacency alone.
 
-## UNRESOLVED
+## Emulator recovery closure
 
-After a server-forced 0x4412, the native 0x4411 receiver still only stores the
-slot. The exact later event that causes the pending DONE to be evaluated again
-has not yet been tied to a client/server callsite. No synthetic completion is
-assigned to the 0x4411 receive operation until that wake-up is proven.
+After a server-forced 0x4412, the native 0x4411 receiver is still proven to do
+nothing beyond storing the slot. The exact later event that wakes the pending
+DONE remains **UNRESOLVED as a native-fidelity detail**.
 
-The next primary-evidence target is the original Zone handler/callsite for
-`NC_QUEST_START_REQ (0x4414)` plus all callers that can re-enter the current
-QuestNext/DONE state after `CQuestZone+0x90C` changes.
+For runtime completeness, Handler17 now distinguishes two cases:
+
+- normal 0x4411: store the slot and return, exactly matching the receiver;
+- 0x4411 while `RewardSelectionPending` is already true because this emulator
+  sent 0x4412 from DONE: consume the newly stored slot through the same
+  completion path and resume the existing script machine.
+
+This is an explicitly documented compatibility closure, not an attribution of
+the unknown native wake-up to 0x4411 itself. CI guards that the completion call
+stays behind the pending-DONE test.
+
+An invalid selected slot remains pending and causes 0x4412 to be sent again.

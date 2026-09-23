@@ -110,8 +110,11 @@ The binary tokenizer's default delimiter string at `0x007087FC` is whitespace
 only, and `CQuestParserScript::IsDigitStr` at `0x00636FF0` requires every
 character of the numeric token to be a digit. Therefore the exact native
 preprocessing step that makes those five comma-bearing source lines usable is
-**UNRESOLVED**. The emulator handles only this source-proven trailing-comma
-variant; it does not generalize commas into a new quest-script grammar.
+**UNRESOLVED as a native preprocessing detail**. For the supplied corpus this
+boundary is closed by exact source normalization: the emulator strips one
+trailing comma only from the SAY DialogID token, and CI locks the exact five
+Quest 15 source lines. It does not generalize commas into a new quest-script
+grammar.
 
 ## Runtime alignment
 

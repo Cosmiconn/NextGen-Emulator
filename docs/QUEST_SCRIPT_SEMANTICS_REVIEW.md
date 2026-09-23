@@ -54,14 +54,15 @@ vollständige Korpus-Audit hat inzwischen auch die exakten Trigger klassifiziert
 
 Damit sind fünf Anomalien reale Inventar-voll-Pfade und drei reale
 Dialogauswahl-Pfade. Sie dürfen nicht als bloß tote/unreachable Quelldaten
-abgehakt werden. Der native `CommandRun`-GOTO-Lookup ist zwar als
-success/failure-Verhalten belegt, aber die vollständige native Folge eines
-fehlgeschlagenen Label-Lookups bis zum QuestZone-Scriptzustand ist noch nicht
-hinreichend korreliert. Der Emulator repariert daher weiterhin kein Label und
-beendet einen unresolved/ambiguous Sprung konservativ.
+abgehakt werden. Native `CommandRun` beweist für einen fehlenden GOTO-Lookup
+einen failure-Rückgabewert; die vollständige ursprüngliche UI-/Caller-Folge ist
+nicht weiter aufgelöst.
 
-CI fixiert jetzt nicht nur die acht Quest/Label-Paare, sondern auch Stage und
-Originalkommando, damit diese Evidenzgrenze nicht unbemerkt verändert wird.
+Für den Emulator ist die Grenze deshalb abgeschlossen, ohne Quelldaten zu
+erfinden: ein unresolved/ambiguous Sprung wird geloggt, beendet die lokale
+Script-Session und führt keine erfundene Questmutation aus. CI fixiert Quest,
+Stage, Ziel und Originalkommando aller acht Fälle. Die genaue native
+Fehlerpräsentation bleibt Fidelity-Debt, nicht mehr Runtime-Blocker.
 
 ## Spätere Laufzeit-Auflösungen
 
