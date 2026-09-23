@@ -19,6 +19,57 @@ namespace NextGen.Zone.Handlers
         private static readonly Dictionary<int, DialogSession> Sessions = new Dictionary<int, DialogSession>();
         private static Dictionary<uint, DialogScriptContext> DialogContexts;
         private static HashSet<uint> AmbiguousDialogs;
+        private const ushort QuestSelectStartSuccess = 0x0B41;
+        private const ushort QuestSelectStartFailure = 0x0B47;
+
+        [PacketHandler(CH17Type.QuestSelectStart)]
+        public static void QuestSelectStartHandler(ZoneClient client, Packet packet)
+        {
+            ushort npcId;
+            ushort requestedQuestId;
+            if (!packet.TryReadUShort(out npcId) || !packet.TryReadUShort(out requestedQuestId))
+                return;
+
+            ushort result = QuestSelectStartFailure;
+            Game.Npc target = client.Character.CharacterInTarget as Game.Npc;
+            if (target != null && target.ID == npcId)
+            {
+                uint selectedQuestId;
+                uint dialogId;
+                if (QuestNpcStartResolver.TryResolveForCharacter(
+                        client.Character, target.Point.MobName,
+                        out selectedQuestId, out dialogId) &&
+                    selectedQuestId == requestedQuestId)
+                {
+                    DialogSession current;
+                    lock (Sync)
+                        Sessions.TryGetValue(client.Character.ID, out current);
+
+                    // Handler8 can already have opened the same first page for
+                    // clients following the legacy interaction path. Do not
+                    // duplicate that page, but still acknowledge the proven
+                    // 0x440F request.
+                    if (current == null || current.DialogID != dialogId)
+                        SendDialogPage(client, dialogId);
+
+                    result = QuestSelectStartSuccess;
+                }
+            }
+
+            SendQuestSelectStartAck(client, npcId, requestedQuestId, result);
+        }
+
+        private static void SendQuestSelectStartAck(ZoneClient client, ushort npcId,
+            ushort questId, ushort errorType)
+        {
+            using (var ack = new Packet(SH17Type.QuestSelectStartAck))
+            {
+                ack.WriteUShort(npcId);
+                ack.WriteUShort(questId);
+                ack.WriteUShort(errorType);
+                client.SendPacket(ack);
+            }
+        }
 
         [PacketHandler(CH17Type.RewardSelectItemIndex)] public static void RewardSelectItemIndexHandler(ZoneClient client, Packet packet){ushort questId;uint selectedIndex;if(!packet.TryReadUShort(out questId)||!packet.TryReadUInt(out selectedIndex))return;if(QuestRuntime.Complete(client.Character,questId,selectedIndex,true)){DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session!=null)ContinueSession(client,session);else EndDialog(client.Character);}}
         [PacketHandler(CH17Type.ScenarioDoneReq)] public static void ScenarioDoneReqHandler(ZoneClient client,Packet packet){ushort scenarioId;if(!packet.TryReadUShort(out scenarioId))return;DialogSession session;lock(Sync){Sessions.TryGetValue(client.Character.ID,out session);}if(session==null||!session.ScenarioPending||session.PendingScenarioID!=scenarioId)return;session.ScenarioPending=false;session.PendingScenarioID=0;QuestRuntime.RecordScenarioDone(client.Character,scenarioId);using(var ack=new Packet((ushort)0x440C)){ack.WriteUShort(scenarioId);client.SendPacket(ack);}if(session.Machine!=null)ContinueSession(client,session);}
