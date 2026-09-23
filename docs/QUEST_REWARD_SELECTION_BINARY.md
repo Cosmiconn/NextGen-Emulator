@@ -65,9 +65,27 @@ QuestScriptMachine, resets it when LINK enters a new quest stage, and lets DONE
 consume it. 0x4411 itself only stores the slot, matching the original receive
 handler.
 
+## Adjacent QuestStart protocol is not yet the wake-up
+
+The quest protocol enum places `NC_QUEST_START_REQ/ACK` at
+`0x4414/0x4415`. Secondary PDB-derived structure exports agree on these bodies:
+
+```text
+0x4414 request: u16 QuestID
+0x4415 ack:     u16 err
+```
+
+That structural agreement is useful for targeting the original handler, but it
+does **not** establish a control-flow relationship with `0x4412` or the stored
+reward slot. No runtime handler is added from adjacency alone.
+
 ## UNRESOLVED
 
 After a server-forced 0x4412, the native 0x4411 receiver still only stores the
 slot. The exact later event that causes the pending DONE to be evaluated again
 has not yet been tied to a client/server callsite. No synthetic completion is
 assigned to the 0x4411 receive operation until that wake-up is proven.
+
+The next primary-evidence target is the original Zone handler/callsite for
+`NC_QUEST_START_REQ (0x4414)` plus all callers that can re-enter the current
+QuestNext/DONE state after `CQuestZone+0x90C` changes.

@@ -57,6 +57,13 @@ reward rows. Either the re-entry event must be reconstructed from the original
 client/server path, or authoritative capture/client evidence must prove that the
 0x4412 fallback is unreachable in the supplied normal flow.
 
+The adjacent quest protocol also contains `0x4414/0x4415`
+(`QUEST_START_REQ/ACK`). A separate PDB-derived protocol-structure export
+corroborates a `u16 QuestID` request and `u16 err` acknowledgement, but no
+callsite evidence currently connects that pair to the pending-DONE state.
+Therefore `0x4414` is **not** treated as the wake-up merely because it is
+numerically adjacent to `0x4411/0x4412`.
+
 ### 2. Eight source label misses with reachable trigger shapes
 
 **Status: UNRESOLVED / corpus-active edge paths.**
