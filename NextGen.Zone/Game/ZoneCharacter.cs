@@ -316,10 +316,10 @@ namespace NextGen.Zone.Game
 		}
 
 		// Titel-Fortschritt fuer TOTAL_KILL_MOB (CharacterTitleData.shn Typ
-		// 11), siehe DOCUMENTATION.md Abschnitt 41. Einzige aktuell
-		// angebundene Titel-Kategorie von 127 moeglichen - die meisten
-		// anderen (Gildenkriege, Auktionshaus, Wuerfelspiele, ...) haben
-		// noch keine passende Zaehlstelle im Code.
+		// 11), siehe DOCUMENTATION.md Abschnitt 41. Eine von derzeit sechs
+		// angebundenen Kategorien; die meisten der 127 Typen (z.B.
+		// Gildenkrieg/Auktion/Wuerfelspiel) haben weiterhin keine passende
+		// Laufzeit-Zaehlstelle.
 		public void GiveMobKillTitleProgress()
 		{
 			Character.TotalMobKills++;
@@ -1606,28 +1606,42 @@ namespace NextGen.Zone.Game
 			}
 			else return false;
 		}
-		public InventoryStatus GiveItem(ushort pID, ushort pCount = (ushort) 1)
-		{  // 0 = ok, 1 = inv full, 2 = not found
+		public InventoryStatus GiveItem(ushort pID, ushort pCount = (ushort)1)
+		{
+			return GiveItemLots(pID, pCount);
+		}
+
+		public InventoryStatus GiveItemLots(ushort pID, uint pCount)
+		{
 			ItemInfo inf;
-			if (DataProvider.GetItemInfo(pID, out inf))
+			if (!DataProvider.GetItemInfo(pID, out inf))
+				return InventoryStatus.NotFound;
+			if (pCount == 0)
+				return InventoryStatus.Added;
+
+			int stackLimit = inf.MaxLot > 0 ? Math.Min(inf.MaxLot, ushort.MaxValue) : 1;
+			ulong stacksNeeded = ((ulong)pCount + (uint)stackLimit - 1u) / (uint)stackLimit;
+			int capacity = Inventory.InventoryCount * 24;
+			int emptySlots = Math.Max(0, capacity - Inventory.InventoryItems.Count);
+			if (stacksNeeded > (ulong)emptySlots)
+				return InventoryStatus.Full;
+
+			uint remaining = pCount;
+			while (remaining > 0)
 			{
 				byte targetSlot;
 				if (!Inventory.GetEmptySlot(out targetSlot))
-				{
-					return InventoryStatus.Full; //inventory is full
-				}
+					return InventoryStatus.Full;
 
-					Item equip = new Item(0,(uint)this.ID, inf.ItemID, (sbyte)targetSlot);
-                    equip.UpgradeStats = new UpgradeStats();
-					equip.Save();
-					Inventory.AddToInventory(equip);
-					Handler12.ModifyInventorySlot(this, targetSlot, 0x24, targetSlot, equip);
-				return InventoryStatus.Added;
+				ushort stackAmount = (ushort)Math.Min(remaining, (uint)stackLimit);
+				Item item = new Item(0, (uint)this.ID, inf.ItemID, (sbyte)targetSlot, stackAmount);
+				item.UpgradeStats = new UpgradeStats();
+				item.Save();
+				Inventory.AddToInventory(item);
+				Handler12.ModifyInventorySlot(this, targetSlot, 0x24, targetSlot, item);
+				remaining -= stackAmount;
 			}
-			else
-			{
-				return InventoryStatus.NotFound;
-			}
+			return InventoryStatus.Added;
 		}
 		public void LootItem(ushort id)
 		{

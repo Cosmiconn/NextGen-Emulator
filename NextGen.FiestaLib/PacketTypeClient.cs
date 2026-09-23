@@ -213,11 +213,21 @@ public enum CH42Type : byte {
 }
 
 // Per echtem Paket-Mitschnitt entdeckt (2016er Client gegen Original-
-// Server, Quest-Abgabe-Sequenz bei NPC Julia) - noch nicht implementiert,
-// nur der Opcode dokumentiert. Siehe DOCUMENTATION.md Abschnitt 30.
-// Typ-2 (Antwort auf das NPC-Dialogmenue) beobachtet, 9 Byte.
+// Server, Quest-Abgabe-Sequenz bei NPC Julia). Typ 2 ist durch
+// PROTO_NC_QUEST_SCRIPT_CMD_ACK und CQuestZone::Recv_NC_QUEST_SCRIPT_CMD_ACK
+// vollstaendig aufgeloest: 9 Byte inklusive Opcode, Body =
+// u16 QuestID + u8 QSC command + u32 Result.
 public enum CH17Type : byte {
     NpcDialogResponse = 2,
+    // Header 17 / Type 13 / Opcode 0x440D: Client bestätigt das Ende
+    // eines vom Server gestarteten Quest-Szenarios. Payload: ScenarioID u16.
+    ScenarioDoneReq = 13,
+    // Original Zone.exe / PROTO_NC_QUEST_SELECT_START_REQ:
+    // Header 17 / Type 15 / Opcode 0x440F, Payload: NPCID u16 + QuestID u16.
+    QuestSelectStart = 15,
+    // Header 17 / Type 17 / Opcode 0x4411. Native body:
+    // QuestID u16 + raw QuestData reward-array Slot u32 (0..11).
+    RewardSelectItemIndex = 17,
 }
 // Folgt unmittelbar auf die Quest-Belohnungs-Paketkaskade (SH4Type.Money/
 // SH9Type.GainExp etc.) - vermutlich eine Quest-Log-Bestaetigung. Typ-37
@@ -241,8 +251,7 @@ public enum CH47Type : byte {
     // 4-Byte-Body: [u16 LE ObjektID][byte][byte Einsatz?]. Einsatz/Wurf,
     // beantwortet mit SH47Type.GameStateResult (Typ 101).
     PlaceBetOrRoll = 100,
-    // Leerer Payload. Spiel verlassen, beantwortet mit
-    // SH47Type.LeaveGameResult (Typ 105).
+    // Leerer Payload. Spiel verlassen, beantwortet mit SH47Type.LeaveGameResult (Typ 105).
     LeaveGame = 104,
 }
 }

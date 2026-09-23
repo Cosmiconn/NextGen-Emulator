@@ -321,13 +321,26 @@ namespace NextGen.Zone.Handlers
 					}
 					break;
 				case "Quest":
-					//:TODO Quest Proggresion
+					// QuestData-derived SQL is authoritative for the start dialog.
+					// The resolver uses the original Zone.exe status-priority table when an NPC
+					// has several dialogs. Equal-priority cases still fall back rather than
+					// guessing the remaining original predicates.
+					uint questId;
+					uint questDialogId;
+					QuestScriptStage questStage;
+					if (QuestNpcStartResolver.TryResolveForCharacter(
+							client.Character, npc.Point.MobName,
+							out questId, out questDialogId, out questStage))
+					{
+						Handler17.SendDialogPage(client, questId, questDialogId, questStage);
+						break;
+					}
+
 					using (var packet = new Packet(SH8Type.Interaction))
 					{
 						packet.WriteUShort(npc.ID);
 						client.SendPacket(packet);
 					}
-					Console.WriteLine(npc.Point.RoleArg0);
 					break;
 				default:
 					using (var packet = new Packet(SH8Type.Interaction))
