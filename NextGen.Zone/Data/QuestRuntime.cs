@@ -356,8 +356,14 @@ namespace NextGen.Zone.Data
                     // collapsed into the completion transition.
                     byte completionStatus = IsRepeatable(dataDb, questId) ? PqsSoon : PqsDone;
                     // Native completion is downstream of the successful ItemDB
-                    // quest-reward acknowledgement. Never move the quest to its
-                    // completed state when the reward set cannot be delivered.
+                    // quest-reward acknowledgement, and the ACK handler calls
+                    // QuestNext only after the completion mutation. Keep reward ->
+                    // completion -> remaining Finish-script commands in that order.
+                    // This is observable in the supplied corpus: quests such as
+                    // 230/250 reward an ItemID at DONE and then DELETE_ITEM the
+                    // same ItemID after QuestNext resumes.
+                    // Never move the quest to its completed state when the reward
+                    // set cannot be delivered.
                     if (!ApplyRewards(dataDb, c, questId, selectedIndex)) return false;
                     DateTime completedAt = DateTime.Now;
                     charDb.ExecuteQuery("UPDATE tQuest SET nStatus=@s WHERE nCharNo=@c AND nQuestNo=@q", new MySqlParameter("@s", completionStatus), new MySqlParameter("@c", c.ID), new MySqlParameter("@q", questId));
