@@ -71,6 +71,8 @@ def report_low_item_ids():
         for line in handle:
             m = re.search(r'\bVALUES\s*\(\s*(\d+)\s*,', line, re.I)
             if not m:
+                m = re.match(r'^\s*\(\s*(\d+)\s*,', line)
+            if not m:
                 continue
             item_id = int(m.group(1))
             if item_id in (0, 1, 2, 3) and item_id not in found:
