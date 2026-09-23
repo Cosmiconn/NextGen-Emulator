@@ -221,6 +221,9 @@ public enum CH17Type : byte {
     // Header 17 / Type 13 / Opcode 0x440D: Client bestätigt das Ende
     // eines vom Server gestarteten Quest-Szenarios. Payload: ScenarioID u16.
     ScenarioDoneReq = 13,
+    // Original Zone.exe / PROTO_NC_QUEST_SELECT_START_REQ:
+    // Header 17 / Type 15 / Opcode 0x440F, Payload: NPCID u16 + QuestID u16.
+    QuestSelectStart = 15,
     // Header 17 / Type 17 / Opcode 0x4411: Auswahl eines konkreten
     // selektierbaren Quest-Reward-Items. QuestID u16 + Auswahlindex u32.
     RewardSelectItemIndex = 17,
