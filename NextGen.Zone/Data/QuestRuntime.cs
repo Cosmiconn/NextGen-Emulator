@@ -73,7 +73,10 @@ namespace NextGen.Zone.Data
             {
                 DataTable definitions;
                 using (DatabaseClient dataDb = Program.DatabaseManager.GetClient())
-                    definitions = dataDb.ReadDataTable("SELECT QuestID,Slot,NPCMobCount FROM QuestData_NPCMob WHERE bNPCMob=1 AND NPCMobID=@mob AND NPCMobAction=1", new MySqlParameter("@mob", mobId));
+                    definitions = dataDb.ReadDataTable(
+                        "SELECT QuestID,Slot,NPCMobID,NPCMobCount FROM QuestData_NPCMob " +
+                        "WHERE bNPCMob=1 AND NPCMobAction=1 AND (NPCMobID=@mob OR NPCMobID=0)",
+                        new MySqlParameter("@mob", mobId));
                 if (definitions == null || definitions.Rows.Count == 0) return;
                 using (DatabaseClient charDb = Program.CharDBManager.GetClient())
                 {
@@ -91,7 +94,10 @@ namespace NextGen.Zone.Data
                         uint value = Math.Min(amount, oldValue + 1);
                         charDb.ExecuteQuery("INSERT INTO character_quest_progress (CharID,QuestID,Slot,Progress) VALUES (@c,@q,@slot,@p) ON DUPLICATE KEY UPDATE Progress=@p",
                             new MySqlParameter("@c", character.ID), new MySqlParameter("@q", q), new MySqlParameter("@slot", slot), new MySqlParameter("@p", value));
-                        SendProgress(character, mobId, q);
+                        // NPCMobID 0 is the source-defined wildcard/no-specific-target
+                        // form. Keep the definition TargetID on the wire; capture Quest 8
+                        // proves TargetID 0 is transmitted literally while kills advance it.
+                        SendProgress(character, Convert.ToUInt16(def["NPCMobID"]), q);
                     }
                 }
             }
@@ -167,9 +173,19 @@ namespace NextGen.Zone.Data
 
         private static void SendProgress(ZoneCharacter c, ushort targetId, uint questId)
         {
-            if (targetId == 0) return;
+            // Captured Header-17/Type-13 bodies are:
+            //   01 63 01 BC 03  -> target 355, quest 956
+            //   01 01 00 0A 00  -> target   1, quest 10
+            //   01 00 00 08 00  -> target   0, quest 8
+            // Therefore the proven wire order is byte 0x01 + TargetID u16 +
+            // QuestID u16. The semantic name of the leading byte is not asserted.
             using (var p = new Packet(SH17Type.QuestProgressUpdate))
-            { p.WriteUShort(targetId); p.WriteUShort((ushort)questId); p.WriteByte(0); c.Client.SendPacket(p); }
+            {
+                p.WriteByte(1);
+                p.WriteUShort(targetId);
+                p.WriteUShort((ushort)questId);
+                c.Client.SendPacket(p);
+            }
         }
 
         public static uint GetItemLot(ZoneCharacter character, ushort itemId)
