@@ -11,6 +11,7 @@ VOTE = ROOT / "sql/data/data_kqisvote.sql"
 REASONS = ROOT / "sql/data/data_kqvotedesc.sql"
 RATES = ROOT / "sql/data/data_kqvotemajorityrate.sql"
 DP = ROOT / "NextGen.World/Data/DataProvider.cs"
+TOOL = ROOT / "tools/KingdomQuestSourceDump/Program.cs"
 
 EXPECTED_MAPS = {
     (31, "KDEddyHill"), (33, "KDTrDn"), (34, "KDUnHall"), (35, "KDEnMaze"),
@@ -27,7 +28,7 @@ def data_rows(path):
             if line.lstrip().startswith('(')]
 
 def main():
-    for path in (MAP, TEAM, VOTE, REASONS, RATES, DP):
+    for path in (MAP, TEAM, VOTE, REASONS, RATES, DP, TOOL):
         if not path.is_file():
             print('FAIL: missing', path)
             return 1
@@ -55,8 +56,15 @@ def main():
             print('FAIL: DataProvider KQ source catalog missing', token)
             return 1
 
+    tool = TOOL.read_text(encoding='utf-8')
+    for source in ('\"KingdomQuest.shn\"', '\"KingdomQuestMap.shn\"', '\"KingdomQuestRew.shn\"', '\"KQItem.shn\"'):
+        if source not in tool:
+            print('FAIL: KQ source dumper missing target', source)
+            return 1
+
     print('PASS: 22 KingdomMap=1 source maps locked')
     print('PASS: KQ team/vote metadata corpus locked (8/30/4/2)')
+    print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
     return 0
 
 if __name__ == '__main__':
