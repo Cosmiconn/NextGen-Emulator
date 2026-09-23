@@ -82,6 +82,14 @@ def report_low_item_ids():
     print('REVIEW: low ItemID rows in data_iteminfo.sql:')
     for item_id in range(4):
         print(f'  {item_id}: ' + found.get(item_id, '<not found>'))
+    missing = [item_id for item_id in range(4) if item_id not in found]
+    if missing:
+        print('FAIL: quest corpus depends on missing low ItemIDs:', missing)
+        return False
+    if "'LeatherBoots'" not in found[0]:
+        print('FAIL: ItemID 0 no longer resolves to the verified LeatherBoots row')
+        return False
+    return True
 
 def audit_full_sql(rows):
     stage_names = ('Start', 'Action', 'Finish')
@@ -97,6 +105,7 @@ def audit_full_sql(rows):
     delete_numeric = 0
     invalid_deletes = []
     zero_item_deletes = []
+    zero_item_creates = []
     for q, scripts in rows.items():
         stage_labels = {st:labels(s) for st,s in zip(stage_names, scripts)}
         global_labels = {}
@@ -118,6 +127,12 @@ def audit_full_sql(rows):
                         blank_link_quests.add(q)
                     elif re.fullmatch(r'\d+', operand):
                         links.append((q, int(operand)))
+                elif opcode == 'CREATE_ITEM':
+                    operand = parts[1].strip() if len(parts) > 1 else ''
+                    operand = operand.split(';', 1)[0].strip()
+                    m = re.fullmatch(r'(\d+)\s+(\d+)', operand)
+                    if m and int(m.group(1)) == 0:
+                        zero_item_creates.append((q, st, z))
                 elif opcode == 'DELETE_ITEM':
                     operand = parts[1].strip() if len(parts) > 1 else ''
                     # Quest source permits trailing '; ...' comments on command
@@ -174,15 +189,20 @@ def audit_full_sql(rows):
     print(f'  cross-stage targets with duplicate label names={len(ambiguous)}')
     print('PASS: unknown opcodes=0')
     print('PASS: exact opcode corpus counts match the supplied 2304-record source')
-    report_low_item_ids()
+    if report_low_item_ids() is False:
+        return 1
 
     if invalid_deletes:
         print('FAIL: malformed DELETE_ITEM operands:', invalid_deletes[:20])
         return 1
-    if zero_item_deletes != [('244', 'Finish', 'DELETE_ITEM 0 1')]:
-        print('FAIL: zero-ItemID DELETE_ITEM source anomaly changed:', zero_item_deletes)
+    if zero_item_creates != [('103', 'Start', 'CREATE_ITEM 0000 1')]:
+        print('FAIL: zero-ItemID CREATE_ITEM source usage changed:', zero_item_creates)
         return 1
-    print('REVIEW: preserved source anomaly Quest 244 -> DELETE_ITEM 0 1')
+    print('PASS: Quest 103 preserves CREATE_ITEM 0000 1 against real ItemID 0')
+    if zero_item_deletes != [('244', 'Finish', 'DELETE_ITEM 0 1')]:
+        print('FAIL: zero-ItemID DELETE_ITEM source usage changed:', zero_item_deletes)
+        return 1
+    print('PASS: Quest 244 preserves DELETE_ITEM 0 1 against real ItemID 0')
     if delete_all + delete_numeric != EXPECTED['DELETE_ITEM']:
         print('FAIL: DELETE_ITEM operand coverage changed:',
               'ALL=', delete_all, 'numeric=', delete_numeric,
