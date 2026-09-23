@@ -206,3 +206,24 @@ save/removal and client ChangeZone behavior.
 The bridge does **not** select entry coordinates. They remain explicit
 parameters so later `KingdomQuestMap.shn`/session evidence can supply them.
 No CH22 registration handler calls this bridge yet.
+
+
+## Native Header-22 protocol correction
+
+The original 2016 NC_KQ_* enum and PDB protocol structures now replace the
+capture-era placeholder names. Client type 27 is NC_KQ_LIST_REFRESH_REQ, not
+a generic GotIngame/heartbeat. Server types 28-31 are LIST_TIME/LIST_ADD/
+LIST_DELETE/LIST_UPDATE, and types 36-38 are JOINING_ALARM/
+JOINING_ALARM_END/JOINING_ALARM_LIST.
+
+The inherited 0x581C four-byte constant was a truncated Unix timestamp stub.
+The response is now the native 40-byte ServerTime + struct tm body. Type 29
+remains an exact empty LIST_ADD response (u16 count = 0) until main KQ
+definitions are imported.
+
+STATUS_REQ/ACK is corrected to u32 Handle + u8 Status + u16 joinerCount +
+20-byte Name5 entries.
+
+See docs/KINGDOM_QUEST_PROTOCOL_NATIVE.md for the field table. JOIN_REQ remains
+disabled because source-backed admission/scheduler/session rules are not yet
+loaded, not because its wire structure is unknown.

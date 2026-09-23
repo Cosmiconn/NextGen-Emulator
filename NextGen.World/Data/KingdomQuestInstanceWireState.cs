@@ -5,35 +5,38 @@ using System.Linq;
 namespace NextGen.World.Data
 {
     /// <summary>
-    /// Wire-level state carried by the captured SH22 type-37/type-38 packets.
-    /// The two ushort fields deliberately keep neutral names until their
-    /// source-level KQ definition fields are correlated.
+    /// Live World-side KQ state for the client-visible KQ packet family.
+    /// Field names mirror the original 2016 protocol structures:
+    /// KQ_UPDATE_ITEMS, KQ_JOINING_ALARM_INFO and KQ_STATUS_ACK.
     /// </summary>
     public sealed class KingdomQuestInstanceWireState
     {
-        public uint InstanceID { get; private set; }
-        public ushort StateValue { get; private set; }
-        public ushort TypeValue { get; private set; }
+        private readonly List<string> joinerNames;
 
-        // CH22/3 -> SH22/4 carries an additional captured ushort. Keep it
-        // separate from type-37 StateValue/type-38 TypeValue until the source
-        // definition field is proven.
-        public ushort? InstanceInfoValue { get; private set; }
+        public uint Handle { get; private set; }
+        public byte Status { get; private set; }
+        public ushort ID { get; private set; }
+        public byte MinLevel { get; private set; }
+        public byte MaxLevel { get; private set; }
+        public IReadOnlyList<string> JoinerNames { get { return joinerNames.AsReadOnly(); } }
 
-        public KingdomQuestInstanceWireState(uint instanceId, ushort stateValue,
-            ushort typeValue, ushort? instanceInfoValue = null)
+        public KingdomQuestInstanceWireState(uint handle, byte status, ushort id,
+            byte minLevel, byte maxLevel, IEnumerable<string> names = null)
         {
-            InstanceID = instanceId;
-            StateValue = stateValue;
-            TypeValue = typeValue;
-            InstanceInfoValue = instanceInfoValue;
+            Handle = handle;
+            Status = status;
+            ID = id;
+            MinLevel = minLevel;
+            MaxLevel = maxLevel;
+            joinerNames = names == null ? new List<string>() : new List<string>(names);
+            if (joinerNames.Count > ushort.MaxValue)
+                throw new ArgumentOutOfRangeException("names");
         }
     }
 
     /// <summary>
-    /// Thread-safe registry for live KQ instance wire state. This class contains
-    /// no scheduler or guessed lifecycle rules; authoritative KQ definitions
-    /// will create/update entries later.
+    /// Thread-safe registry. It does not allocate handles, schedule KQs or
+    /// infer status values; a source-backed session owner supplies them.
     /// </summary>
     public static class KingdomQuestInstanceRegistry
     {
@@ -41,52 +44,56 @@ namespace NextGen.World.Data
         private static readonly Dictionary<uint, KingdomQuestInstanceWireState> Instances =
             new Dictionary<uint, KingdomQuestInstanceWireState>();
 
-        public static void Upsert(uint instanceId, ushort stateValue, ushort typeValue)
+        public static void Upsert(uint handle, byte status, ushort id,
+            byte minLevel, byte maxLevel)
         {
             lock (Sync)
             {
                 KingdomQuestInstanceWireState current;
-                ushort? info = Instances.TryGetValue(instanceId, out current)
-                    ? current.InstanceInfoValue
-                    : (ushort?)null;
-                Instances[instanceId] = new KingdomQuestInstanceWireState(
-                    instanceId, stateValue, typeValue, info);
+                IEnumerable<string> names = Instances.TryGetValue(handle, out current)
+                    ? current.JoinerNames
+                    : null;
+                Instances[handle] = new KingdomQuestInstanceWireState(
+                    handle, status, id, minLevel, maxLevel, names);
             }
         }
 
-        public static bool SetInstanceInfoValue(uint instanceId, ushort value)
+        public static bool SetJoiners(uint handle, IEnumerable<string> names)
         {
+            if (names == null) throw new ArgumentNullException("names");
             lock (Sync)
             {
                 KingdomQuestInstanceWireState current;
-                if (!Instances.TryGetValue(instanceId, out current))
+                if (!Instances.TryGetValue(handle, out current))
                     return false;
 
-                Instances[instanceId] = new KingdomQuestInstanceWireState(
-                    current.InstanceID, current.StateValue, current.TypeValue, value);
+                Instances[handle] = new KingdomQuestInstanceWireState(
+                    current.Handle, current.Status, current.ID,
+                    current.MinLevel, current.MaxLevel, names);
                 return true;
             }
         }
 
-        public static bool Remove(uint instanceId)
+        public static bool Remove(uint handle)
         {
             lock (Sync)
-                return Instances.Remove(instanceId);
+                return Instances.Remove(handle);
         }
 
-        public static bool TryGet(uint instanceId, out KingdomQuestInstanceWireState state)
+        public static bool TryGet(uint handle, out KingdomQuestInstanceWireState state)
         {
             lock (Sync)
             {
                 KingdomQuestInstanceWireState current;
-                if (!Instances.TryGetValue(instanceId, out current))
+                if (!Instances.TryGetValue(handle, out current))
                 {
                     state = null;
                     return false;
                 }
+
                 state = new KingdomQuestInstanceWireState(
-                    current.InstanceID, current.StateValue, current.TypeValue,
-                    current.InstanceInfoValue);
+                    current.Handle, current.Status, current.ID,
+                    current.MinLevel, current.MaxLevel, current.JoinerNames);
                 return true;
             }
         }
@@ -95,9 +102,10 @@ namespace NextGen.World.Data
         {
             lock (Sync)
                 return Instances.Values
-                    .OrderBy(v => v.InstanceID)
+                    .OrderBy(v => v.Handle)
                     .Select(v => new KingdomQuestInstanceWireState(
-                        v.InstanceID, v.StateValue, v.TypeValue, v.InstanceInfoValue))
+                        v.Handle, v.Status, v.ID, v.MinLevel, v.MaxLevel,
+                        v.JoinerNames))
                     .ToList()
                     .AsReadOnly();
         }

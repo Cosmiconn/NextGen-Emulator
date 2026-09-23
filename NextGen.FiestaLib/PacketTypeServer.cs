@@ -368,85 +368,23 @@ namespace NextGen.FiestaLib
     // (unterschiedliche Unterlisten, z.B. "alle" vs. "meine Liste").
     public enum SH22Type : byte
     {
-        KingdomQuestList = 29,
-        // Alle folgenden Typen per echtem Mitschnitt (versuch_5, komplette
-        // KQ-Anmeldung/-Session fuer "Lost Mini Dragon (Hardcore)[B]",
-        // Instanz-ID 969) neu gefunden. Siehe DOCUMENTATION.md Abschnitt 54
-        // fuer die vollstaendige Herleitung.
-
-        // Antwort auf CH22Type-Typ3 (Instanz-Detailanfrage). 6-Byte-Body:
-        // [u32 LE InstanzID][u16 LE Status/Anzahl] - Instanz-ID bytegenau
-        // als Echo der Anfrage bestaetigt.
-        KingdomQuestInstanceInfo = 4,
-        Unk4 = KingdomQuestInstanceInfo,
-
-        // 4-Byte-Body: [u32 LE InstanzID][u16 LE unbekannt]. Antwort auf
-        // CH22Type-Typ5 (Anmeldung).
-        KingdomQuestRegistrationAck = 6,
-        Unk6 = KingdomQuestRegistrationAck,
-
-        // Klartext-Broadcast, 74-Byte-Body: [1 Byte Praefix][ASCII-Text
-        // ohne Nullterminierung]. Bytegenau bestaetigt: "Kingdom Quest -
-        // Lost Mini Dragon (Hardcore)[B] will begin in  10 seconds."
-        // (Anmerkung: doppeltes Leerzeichen vor der Zahl im Original-Client
-        // vorhanden, kein Parsing-Artefakt).
-        KingdomQuestCountdown = 11,
-
-        // Leerer Payload (0 Byte) - feuert einmalig exakt beim Scheitern
-        // einer laufenden KQ-Session (hier: Tod als einziger Teilnehmer,
-        // 0 verbleibende Respawns). Unmittelbar gefolgt von einer Serie
-        // SH8Type.GmNotice-Countdown-Nachrichten ("Move to Elderine in
-        // 30/20/10/5 seconds."), die den automatischen Rueckteleport
-        // ankuendigen.
+        // Exact original NC_KQ_* names for the packet family currently used
+        // by the emulator. Layouts are guarded by audit-kingdom-quest-wire.py.
+        KingdomQuestStatusAck = 4,
+        KingdomQuestJoinAck = 6,
+        KingdomQuestNotify = 11,
         KingdomQuestFailed = 19,
+        KingdomQuestListTimeAck = 28,
+        KingdomQuestListAddAck = 29,
+        KingdomQuestListDeleteAck = 30,
+        KingdomQuestListUpdateAck = 31,
+        KingdomQuestJoiningAlarm = 36,
+        KingdomQuestJoiningAlarmEnd = 37,
+        KingdomQuestJoiningAlarmList = 38,
+        KingdomQuestJoinListAck = 50,
 
-        // Periodisches Delta-Update fuer EINE aktive KQ-Instanz. 6- oder
-        // 10-Byte-Body: [u16 LE Anzahl (1 oder 2)][u32 LE InstanzID]
-        // (wiederholt <Anzahl> mal). Tritt gepaart mit Typ 37 auf.
-        KingdomQuestInstanceGroup = 30,
-        Unk30 = KingdomQuestInstanceGroup,
-
-        // Captured recruitment update: [u16][u32 InstanceID][u16].
-        // Exact field semantics remain intentionally unnamed.
-        KingdomQuestRecruitmentUpdate = 31,
-
-        // Periodisches Delta-Update, 6-Byte-Body: [u32 LE InstanzID]
-        // [u16 LE Statuswert]. Feuert fuer eine bestimmte Instanz normal
-        // im Minutentakt, aber im letzten 10-Sekunden-Countdown vor
-        // KQ-Beginn im 1-Sekunden-Takt (10x hintereinander fuer dieselbe
-        // Instanz-ID beobachtet - der Statuswert blieb dabei konstant,
-        // aendert sich also nicht innerhalb einer Instanz ueber die Zeit,
-        // vermutlich eine feste Karten-/Typ-Referenz statt eines
-        // Countdown-Werts).
-        KingdomQuestInstanceState = 37,
-        Unk37 = KingdomQuestInstanceState,
-
-        // Voller Resync aller aktuell aktiven KQ-Instanzen. Body:
-        // [u16 LE Anzahl][{u32 LE InstanzID, u16 LE Statuswert (identisch
-        // zu Typ37), u16 LE zweiter Wert}] * Anzahl. Der zweite Wert pro
-        // Eintrag wiederholt sich fuer mehrere Instanzen mit dem gleichen
-        // Statuswert - vermutlich eine Karten-/Dungeon-ID, die von
-        // mehreren gleichzeitig offenen Instanzen desselben KQ-Typs
-        // geteilt wird. Ueber die Session hinweg schrumpfte die Anzahl
-        // (16 -> 16 -> 5 -> 3 -> 2), konsistent mit ablaufenden/
-        // geschlossenen Instanzen.
-        KingdomQuestInstanceResync = 38,
-        Unk38 = KingdomQuestInstanceResync,
-
-        // Antwort auf CH22Type-Typ23 (?) - 26-Byte-Body, enthaelt eine
-        // leere/nicht lokalisierte ASCII-Platzhalter-Zeichenkette "text"
-        // - deutet auf einen fehlenden Lokalisierungs-String im
-        // Original-Client fuer diese spezifische Meldung hin (z.B. eine
-        // KQ-Anmeldebestaetigung).
-        KingdomQuestRegistrationNotice = 50,
-        Unk50 = KingdomQuestRegistrationNotice,
-
-        // 1-Byte-Body, feuert wiederholt bei jedem Zonen-/Karteneintritt
-        // (immer Teil derselben Paketkaskade wie SH4Type.CharacterInfoEnd
-        // und die weiteren "Unk"-Character-Info-Zusatzpakete, siehe
-        // DOCUMENTATION.md Abschnitt 54.4). Noch nicht mit KQ-Inhalten in
-        // Verbindung gebracht - eventuell ein allgemeiner Zone-Status statt
-        // KQ-spezifisch trotz Header 22.
+        // 1-byte packet seen on zone/map entry. Its exact role is still not
+        // tied to a KQ state transition.
         Unk58 = 58,
     }
 

@@ -128,30 +128,23 @@ public enum CH21Type : byte {
     FriendListDelete = 5,
 }
 public enum CH22Type : byte {
-    // Ursprüngliche Vermutung ("Charaktererstellung, 27 Byte...", siehe
-    // Git-Historie) per echtem Mitschnitt WIDERLEGT: real beobachtete
-    // Pakete sind 2-3 Byte gross und treten nicht nur einmalig, sondern
-    // wiederholt (alle 5-10s) waehrend des laufenden Spiels auf,
-    // insbesondere gehaeuft waehrend einer aktiven KQ-Rekrutierungsphase.
-    // Vermutlich ein leichtgewichtiger "Bin noch da/bereit"-Heartbeat des
-    // Kingdom-Quest-Subsystems statt eines Charaktererstellungs-Pakets.
-    // Der Name wird vorerst beibehalten, da der allererste Vorkommen pro
-    // Session tatsaechlich unmittelbar nach Zonen-Eintritt auftritt.
-    // Siehe DOCUMENTATION.md Abschnitt 54.4.
-    GotIngame = 27,
+    // Original 2016 NC_KQ_* enum names, cross-correlated with the project
+    // captures. Keep request names directional instead of historical guesses.
+    KingdomQuestListReq = 1,
+    KingdomQuestStatusReq = 3,
+    KingdomQuestJoinReq = 5,
+    KingdomQuestJoinCancelReq = 7,
+    KingdomQuestScheduleReq = 9,
+    KingdomQuestEntryResponseReq = 25,
+    KingdomQuestListRefreshReq = 27,
+    KingdomQuestVoteStartReq = 39,
+    KingdomQuestVoteVotingReq = 42,
+    KingdomQuestJoinListReq = 49,
+    KingdomQuestVoteStartCheckReq = 52,
+    KingdomQuestTeamSelectReq = 55,
+
+    // Separate legacy character-creation opcode observed in this header.
     CreateCharacter = 191,
-
-    // Alle folgenden Typen per echtem Mitschnitt (versuch_5, komplette
-    // KQ-Anmeldung fuer "Lost Mini Dragon (Hardcore)[B]") neu gefunden.
-    // Siehe DOCUMENTATION.md Abschnitt 54.4.
-
-    // 4-Byte-Body: [u32 LE KQ-InstanzID]. Anfrage fuer Instanzdetails,
-    // beantwortet mit SH22Type.Unk4.
-    GetKQInstanceInfo = 3,
-    // 4-Byte-Body, identisch zu GetKQInstanceInfo: [u32 LE KQ-InstanzID].
-    // Ca. 1.5s nach GetKQInstanceInfo gesendet - vermutlich die eigentliche
-    // Anmeldung fuer die KQ, beantwortet mit SH22Type.Unk50 und Unk6.
-    RegisterForKQInstance = 5,
 }
 public enum CH28Type : byte {
     GetQuickBar = 2,

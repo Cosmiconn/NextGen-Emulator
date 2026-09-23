@@ -7,96 +7,60 @@ using NextGen.Util;
 
 namespace NextGen.World.Handlers
 {
-   public class Handler22
+    public class Handler22
     {
-       [PacketHandler(CH22Type.GetKQInstanceInfo)]
-       public static void GetKQInstanceInfo(WorldClient client, Packet packet)
-       {
-           uint instanceId;
-           if (!packet.TryReadUInt(out instanceId))
-               return;
+        [PacketHandler(CH22Type.KingdomQuestStatusReq)]
+        public static void KingdomQuestStatus(WorldClient client, Packet packet)
+        {
+            uint handle;
+            if (!packet.TryReadUInt(out handle))
+                return;
 
-           KingdomQuestInstanceWireState state;
-           if (!KingdomQuestInstanceRegistry.TryGet(instanceId, out state) ||
-               !state.InstanceInfoValue.HasValue)
-           {
-               Log.WriteLine(LogLevel.Debug,
-                   "KQ instance detail requested for unresolved instance {0}.", instanceId);
-               return;
-           }
+            KingdomQuestInstanceWireState state;
+            if (!KingdomQuestInstanceRegistry.TryGet(handle, out state))
+            {
+                Log.WriteLine(LogLevel.Debug,
+                    "KQ status requested for unresolved handle {0}.", handle);
+                return;
+            }
 
-           using (Packet response = KingdomQuestProtocol.CreateInstanceInfo(
-               instanceId, state.InstanceInfoValue.Value))
-               client.SendPacket(response);
-       }
+            using (Packet response = KingdomQuestProtocol.CreateStatusAck(state))
+                client.SendPacket(response);
+        }
 
-       [PacketHandler(CH22Type.GotIngame)]
-       public static void GotIngame(WorldClient client, Packet packet)
-       {
-          /* using (var p1 = new Packet(SH4Type.CharacterGuildacademyinfo))
-           {
-           if(client.Character.GuildAcademy != null)
-           {
-    
-              
-           }
-           else
-           {
-               p1.Fill(5, 0);
-           }
-           client.SendPacket(p1);
-           }
-          using (var p2 = new Packet(SH4Type.CharacterGuildinfo))
-           { 
-                  if (client.Character.Guild != null)
-                  {
-                      client.Character.Guild.Details.WriteMessageAsGuildMember(p2, client.Character.Guild);
+        [PacketHandler(CH22Type.KingdomQuestListRefreshReq)]
+        public static void KingdomQuestListRefresh(WorldClient client, Packet packet)
+        {
+            using (Packet time = KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now))
+                client.SendPacket(time);
 
-                  }
-                  else
-                  {
-                      p2.WriteInt(0);
-                  }
-              client.SendPacket(p2);
-           }*/
-           // dafuq no op code..
-           using (var p = new Packet(0x581C))
-           {
-             //p.WriteShort();
-               p.WriteUInt(0x4d0bc167);   // 21h
-               client.SendPacket(p);
-           }
-           // SH22/29 is the captured World-side Kingdom Quest list family.
-           // Until authoritative KingdomQuest definition/schedule rows are loaded,
-           // keep the legacy empty list behavior rather than inventing entries.
-           using (var p3 = new Packet(SH22Type.KingdomQuestList))
-           {
-               p3.WriteUShort(0);
-               client.SendPacket(p3);
-           }
-           
-           using (var p4 = new Packet(21, 7))
-           {
-               p4.WriteByte((byte)client.Character.Friends.Count);
-               client.Character.WriteFriendData(p4);
-               client.SendPacket(p4);
-           }
-           using (var p5 = new Packet(SH2Type.UnkTimePacket))
-           {
-               p5.WriteShort(256);
-               client.SendPacket(p5);
-           }
-           if (!client.Character.IsIngame)
-           {
-               client.Character.IsIngame = true;
+            // No source-backed main KQ definitions/schedules are loaded yet.
+            using (Packet add = KingdomQuestProtocol.CreateEmptyListAdd())
+                client.SendPacket(add);
 
-               client.Character.OneIngameLoginLoad();
-               MasterManager.Instance.SendMasterList(client);
-               //SendMasterList(pClient);
-           }
+            // The client also emits LIST_REFRESH during initial World entry.
+            // Keep unrelated bootstrap work one-time; later refreshes must not
+            // replay login callbacks.
+            if (!client.Character.IsIngame)
+            {
+                using (var friends = new Packet(21, 7))
+                {
+                    friends.WriteByte((byte)client.Character.Friends.Count);
+                    client.Character.WriteFriendData(friends);
+                    client.SendPacket(friends);
+                }
+                using (var timePacket = new Packet(SH2Type.UnkTimePacket))
+                {
+                    timePacket.WriteShort(256);
+                    client.SendPacket(timePacket);
+                }
 
-           Managers.CharacterManager.InvokdeIngame(client.Character);
-           client.Character.OnGotIngame();
-       }
+                client.Character.IsIngame = true;
+                client.Character.OneIngameLoginLoad();
+                MasterManager.Instance.SendMasterList(client);
+                Managers.CharacterManager.InvokdeIngame(client.Character);
+                client.Character.OnGotIngame();
+            }
+        }
     }
 }
