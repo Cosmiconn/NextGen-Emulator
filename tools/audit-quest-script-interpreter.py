@@ -73,6 +73,7 @@ def audit_full_sql(rows):
     delete_all = 0
     delete_numeric = 0
     invalid_deletes = []
+    zero_item_deletes = []
     for q, scripts in rows.items():
         stage_labels = {st:labels(s) for st,s in zip(stage_names, scripts)}
         global_labels = {}
@@ -105,7 +106,18 @@ def audit_full_sql(rows):
                     else:
                         item_id = int(m.group(1))
                         lot = m.group(2).upper()
-                        if item_id <= 0 or item_id > 0xffff:
+                        if item_id == 0:
+                            zero_item_deletes.append((q, st, z))
+                            # The verified source contains exactly one zero-ID
+                            # delete: Quest 244 Finish, DELETE_ITEM 0 1. Its
+                            # end ItemList likewise contains enabled ItemID 0.
+                            # Preserve that source anomaly rather than silently
+                            # rewriting it to another item.
+                            if not (q == '244' and st == 'Finish' and lot == '1'):
+                                invalid_deletes.append((q, st, z))
+                            else:
+                                delete_numeric += 1
+                        elif item_id > 0xffff:
                             invalid_deletes.append((q, st, z))
                         elif lot == 'ALL':
                             delete_all += 1
@@ -143,6 +155,10 @@ def audit_full_sql(rows):
     if invalid_deletes:
         print('FAIL: malformed DELETE_ITEM operands:', invalid_deletes[:20])
         return 1
+    if zero_item_deletes != [('244', 'Finish', 'DELETE_ITEM 0 1')]:
+        print('FAIL: zero-ItemID DELETE_ITEM source anomaly changed:', zero_item_deletes)
+        return 1
+    print('REVIEW: preserved source anomaly Quest 244 -> DELETE_ITEM 0 1')
     if delete_all + delete_numeric != EXPECTED['DELETE_ITEM']:
         print('FAIL: DELETE_ITEM operand coverage changed:',
               'ALL=', delete_all, 'numeric=', delete_numeric,
