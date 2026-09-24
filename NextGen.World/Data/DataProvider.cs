@@ -28,6 +28,7 @@ namespace NextGen.World.Data
         public List<string> KingdomQuestDescriptions { get; private set; }
         public Dictionary<string, KingdomQuestSourceManifestInfo> KingdomQuestSourceManifest { get; private set; }
         public bool HasCompleteKingdomQuestMainSource { get; private set; }
+        public KingdomQuestSourceSchemaCoverage KingdomQuestSchemaCoverage { get; private set; }
 
 		public DataProvider()
 		{
@@ -182,6 +183,17 @@ namespace NextGen.World.Data
             };
             HasCompleteKingdomQuestMainSource =
                 required.All(name => KingdomQuestSourceManifest.ContainsKey(name));
+
+            KingdomQuestSourceManifestInfo main;
+            if (KingdomQuestSourceManifest.TryGetValue("KingdomQuest", out main))
+            {
+                KingdomQuestSchemaCoverage = KingdomQuestNativeSchema.Compare(main);
+                Log.WriteLine(LogLevel.Info,
+                    "KQ KingdomQuest.shn exact native-name coverage: {0}/{1}; source-only={2}.",
+                    KingdomQuestSchemaCoverage.ExactNativeNames.Count,
+                    KingdomQuestNativeSchema.Fields.Count,
+                    KingdomQuestSchemaCoverage.SourceNamesWithoutExactNativeMatch.Count);
+            }
         }
 
         private void LoadMasterReward()

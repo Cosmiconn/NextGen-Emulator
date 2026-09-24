@@ -14,6 +14,7 @@ DESC = ROOT / "sql/data/data_kingdomquestdesc.sql"
 DP = ROOT / "NextGen.World/Data/DataProvider.cs"
 TOOL = ROOT / "tools/KingdomQuestSourceDump/Program.cs"
 WORLD_MANIFEST = ROOT / "NextGen.World/Data/KingdomQuestSourceManifestInfo.cs"
+WORLD_NATIVE_SCHEMA = ROOT / "NextGen.World/Data/KingdomQuestNativeSchema.cs"
 ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 
 EXPECTED_MAPS = {
@@ -31,7 +32,7 @@ def data_rows(path):
             if line.lstrip().startswith('(')]
 
 def main():
-    for path in (MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL, WORLD_MANIFEST, ZONE_CHARACTER):
+    for path in (MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL, WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, ZONE_CHARACTER):
         if not path.is_file():
             print('FAIL: missing', path)
             return 1
@@ -58,6 +59,7 @@ def main():
     provider = DP.read_text(encoding='utf-8')
     world_provider = provider
     world_manifest = WORLD_MANIFEST.read_text(encoding='utf-8')
+    world_native_schema = WORLD_NATIVE_SCHEMA.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
@@ -112,6 +114,39 @@ def main():
         if token not in world_manifest:
             print('FAIL: World KQ manifest structural guard missing', token)
             return 1
+    for token in (
+        '"Handle"',
+        '"Status"',
+        '"NumOfJoiner"',
+        '"tm_StartTime"',
+        '"NextStartMode"',
+        '"RewardIndex"',
+        '"tm_ScheduleTime"',
+        '"MapLink"',
+        '"ScriptLanguage"',
+        '"ScriptInitValue"',
+        '"TeamRegenXY"',
+        'StringComparer.Ordinal',
+        'source.Intersect(native)',
+        'native.Except(source)',
+        'source.Except(native)',
+    ):
+        if token not in world_native_schema:
+            print('FAIL: native KQ schema coverage guard missing', token)
+            return 1
+
+    for forbidden in (
+        'ST_Hour',
+        'ST_Minute',
+        'NextStartDeleyMin',
+        'MinPlayer',
+        'MaxPlayer',
+        'InitValue',
+    ):
+        if forbidden in world_native_schema:
+            print('FAIL: secondary/tutorial SHN aliases leaked into native schema mapping', forbidden)
+            return 1
+
     zone_character = ZONE_CHARACTER.read_text(encoding='utf-8')
     if 'if (id > 120)' in zone_character:
         print('FAIL: legacy map-ID cutoff blocks source-backed KQ maps above 120')
@@ -126,6 +161,7 @@ def main():
     print('PASS: source dumper can require all main SHNs, rejects duplicate basenames and records SHA-256/column manifests')
     print('PASS: source SQL includes machine-readable file/column provenance without gameplay mapping')
     print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
+    print('PASS: KingdomQuest.shn coverage compares only exact PDB field names; no SHN aliases are inferred')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')
     return 0
 

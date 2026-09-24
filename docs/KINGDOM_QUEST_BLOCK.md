@@ -444,3 +444,20 @@ These tables are not a gameplay schema and contain no inferred key or semantic m
 World reads data_kq_source_manifest and data_kq_source_columns when they exist. Each source is accepted only when SHA-256 is present, ColumnCount matches the manifest rows, and zero-based ordinals are contiguous. HasCompleteKingdomQuestMainSource becomes true only when KingdomQuest, KingdomQuestMap, KingdomQuestRew and KQItem are all structurally valid.
 
 This gate does not create definitions or start sessions. It is the required precondition for the later source-to-PROTO_KQ_INFO mapper.
+
+
+## Exact-name schema coverage before mapping
+
+`KingdomQuestNativeSchema` now contains the top-level field names of the
+original 2016 `PROTO_KQ_INFO` exactly as recovered from PDB/source layout.
+When a real `KingdomQuest.shn` manifest is present, World reports three sets:
+
+- source columns whose names exactly equal native fields;
+- native field names not present verbatim in the source;
+- source column names with no exact native-name match.
+
+This is deliberately a diagnostic boundary, not an alias table. Known
+secondary/tutorial spellings such as `ST_Hour`, `NextStartDeleyMin`,
+`MinPlayer` or `InitValue` are specifically forbidden from the native
+mapping class. They can only be mapped after the supplied NA2016 SHN manifest
+and original behavior establish the relationship.
