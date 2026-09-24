@@ -48,6 +48,38 @@ namespace NextGen.FiestaLib.Data
             packet.WriteInt(DayOfYearFromZero);
             packet.WriteInt(IsDaylightSaving);
         }
+
+        public static bool TryRead(Packet packet, out KingdomQuestNativeTime value)
+        {
+            value = null;
+            if (packet == null) return false;
+
+            int second, minute, hour, day, month, year, weekday, yearday, daylight;
+            if (!packet.TryReadInt(out second) ||
+                !packet.TryReadInt(out minute) ||
+                !packet.TryReadInt(out hour) ||
+                !packet.TryReadInt(out day) ||
+                !packet.TryReadInt(out month) ||
+                !packet.TryReadInt(out year) ||
+                !packet.TryReadInt(out weekday) ||
+                !packet.TryReadInt(out yearday) ||
+                !packet.TryReadInt(out daylight))
+                return false;
+
+            value = new KingdomQuestNativeTime
+            {
+                Second = second,
+                Minute = minute,
+                Hour = hour,
+                Day = day,
+                MonthFromZero = month,
+                YearFrom1900 = year,
+                DayOfWeek = weekday,
+                DayOfYearFromZero = yearday,
+                IsDaylightSaving = daylight,
+            };
+            return true;
+        }
     }
 
     /// <summary>
@@ -105,6 +137,78 @@ namespace NextGen.FiestaLib.Data
             packet.WriteLong(DemandClass);
             packet.WriteByte(DemandGender);
         }
+
+        public static bool TryRead(Packet packet, out KingdomQuestClientInfo value)
+        {
+            value = null;
+            if (packet == null || packet.Remaining < WireSize) return false;
+
+            var result = new KingdomQuestClientInfo();
+            if (!TryReadInto(packet, result))
+                return false;
+            value = result;
+            return true;
+        }
+
+        internal static bool TryReadInto(Packet packet, KingdomQuestClientInfo value)
+        {
+            if (packet == null || value == null) return false;
+
+            uint handle;
+            byte status, minLevel, maxLevel, repeatMode, revivalMode, revivalCount, demandGender;
+            ushort numJoiner, id, limitTime, startWaitTime, minPlayers, maxPlayers,
+                repeatCount, demandQuest, demandItem;
+            int startTime;
+            long demandClass;
+            string title;
+            KingdomQuestNativeTime startTm;
+
+            if (!packet.TryReadUInt(out handle) ||
+                !packet.TryReadByte(out status) ||
+                !packet.TryReadUShort(out numJoiner) ||
+                !packet.TryReadUShort(out id) ||
+                !packet.TryReadString(out title, 64) ||
+                !packet.TryReadUShort(out limitTime) ||
+                !packet.TryReadInt(out startTime) ||
+                !KingdomQuestNativeTime.TryRead(packet, out startTm) ||
+                !packet.TryReadUShort(out startWaitTime) ||
+                !packet.TryReadByte(out minLevel) ||
+                !packet.TryReadByte(out maxLevel) ||
+                !packet.TryReadUShort(out minPlayers) ||
+                !packet.TryReadUShort(out maxPlayers) ||
+                !packet.TryReadByte(out repeatMode) ||
+                !packet.TryReadUShort(out repeatCount) ||
+                !packet.TryReadByte(out revivalMode) ||
+                !packet.TryReadByte(out revivalCount) ||
+                !packet.TryReadUShort(out demandQuest) ||
+                !packet.TryReadUShort(out demandItem) ||
+                !packet.TryReadLong(out demandClass) ||
+                !packet.TryReadByte(out demandGender))
+                return false;
+
+            value.Handle = handle;
+            value.Status = status;
+            value.NumOfJoiner = numJoiner;
+            value.ID = id;
+            value.Title = title;
+            value.LimitTime = limitTime;
+            value.StartTime = startTime;
+            value.StartTm = startTm;
+            value.StartWaitTime = startWaitTime;
+            value.MinLevel = minLevel;
+            value.MaxLevel = maxLevel;
+            value.MinPlayers = minPlayers;
+            value.MaxPlayers = maxPlayers;
+            value.PlayerRepeatMode = repeatMode;
+            value.PlayerRepeatCount = repeatCount;
+            value.PlayerRevivalMode = revivalMode;
+            value.PlayerRevivalCount = revivalCount;
+            value.DemandQuest = demandQuest;
+            value.DemandItem = demandItem;
+            value.DemandClass = demandClass;
+            value.DemandGender = demandGender;
+            return true;
+        }
     }
 
     /// <summary>Native PROTO_KQ_MAP_INFO, exactly 26 bytes.</summary>
@@ -123,6 +227,28 @@ namespace NextGen.FiestaLib.Data
             packet.WriteString(MapBase ?? string.Empty, 12);
             packet.WriteString(MapName ?? string.Empty, 12);
             packet.WriteByte(MapClear);
+        }
+
+        public static bool TryRead(Packet packet, out KingdomQuestMapProtocolInfo value)
+        {
+            value = null;
+            byte index, clear;
+            string mapBase, mapName;
+            if (packet == null || packet.Remaining < WireSize ||
+                !packet.TryReadByte(out index) ||
+                !packet.TryReadString(out mapBase, 12) ||
+                !packet.TryReadString(out mapName, 12) ||
+                !packet.TryReadByte(out clear))
+                return false;
+
+            value = new KingdomQuestMapProtocolInfo
+            {
+                MapIndex = index,
+                MapBase = mapBase,
+                MapName = mapName,
+                MapClear = clear,
+            };
+            return true;
         }
     }
 
@@ -146,6 +272,28 @@ namespace NextGen.FiestaLib.Data
             packet.WriteString(Name ?? string.Empty, 20);
             packet.WriteByte(Team);
         }
+
+        public static bool TryRead(Packet packet, out KingdomQuestJoinCharacterInfo value)
+        {
+            value = null;
+            byte level, cls, team;
+            string name;
+            if (packet == null || packet.Remaining < WireSize ||
+                !packet.TryReadByte(out level) ||
+                !packet.TryReadByte(out cls) ||
+                !packet.TryReadString(out name, 20) ||
+                !packet.TryReadByte(out team))
+                return false;
+
+            value = new KingdomQuestJoinCharacterInfo
+            {
+                Level = level,
+                Class = cls,
+                Name = name,
+                Team = team,
+            };
+            return true;
+        }
     }
 
     /// <summary>
@@ -164,6 +312,24 @@ namespace NextGen.FiestaLib.Data
             packet.WriteUInt(CharacterNumber);
             packet.WriteByte(TeamType);
         }
+
+        public static bool TryRead(Packet packet, out KingdomQuestZoneJoinerInfo value)
+        {
+            value = null;
+            uint characterNumber;
+            byte teamType;
+            if (packet == null || packet.Remaining < WireSize ||
+                !packet.TryReadUInt(out characterNumber) ||
+                !packet.TryReadByte(out teamType))
+                return false;
+
+            value = new KingdomQuestZoneJoinerInfo
+            {
+                CharacterNumber = characterNumber,
+                TeamType = teamType,
+            };
+            return true;
+        }
     }
 
     /// <summary>Native SHINE_XY_TYPE, exactly 8 bytes.</summary>
@@ -176,6 +342,19 @@ namespace NextGen.FiestaLib.Data
         {
             packet.WriteUInt(X);
             packet.WriteUInt(Y);
+        }
+
+        public static bool TryRead(Packet packet, out KingdomQuestXY value)
+        {
+            value = null;
+            uint x, y;
+            if (packet == null || packet.Remaining < 8 ||
+                !packet.TryReadUInt(out x) ||
+                !packet.TryReadUInt(out y))
+                return false;
+
+            value = new KingdomQuestXY { X = x, Y = y };
+            return true;
         }
     }
 
@@ -236,6 +415,68 @@ namespace NextGen.FiestaLib.Data
                 if (TeamRegenXY[i] == null) TeamRegenXY[i] = new KingdomQuestXY();
                 TeamRegenXY[i].Write(packet);
             }
+        }
+
+        public static bool TryRead(Packet packet, out KingdomQuestProtocolInfo value)
+        {
+            value = null;
+            if (packet == null || packet.Remaining < WireSize) return false;
+
+            var result = new KingdomQuestProtocolInfo();
+            if (!KingdomQuestClientInfo.TryReadInto(packet, result))
+                return false;
+
+            byte nextStartMode, repeatMode, runCounter, isTeamPvp;
+            ushort nextStartDelay, repeatCount, rewardIndex, demandMobKill;
+            int scheduleTime;
+            KingdomQuestNativeTime scheduleTm;
+            if (!packet.TryReadByte(out nextStartMode) ||
+                !packet.TryReadUShort(out nextStartDelay) ||
+                !packet.TryReadByte(out repeatMode) ||
+                !packet.TryReadUShort(out repeatCount) ||
+                !packet.TryReadUShort(out rewardIndex) ||
+                !packet.TryReadUShort(out demandMobKill) ||
+                !packet.TryReadInt(out scheduleTime) ||
+                !KingdomQuestNativeTime.TryRead(packet, out scheduleTm) ||
+                !packet.TryReadByte(out runCounter))
+                return false;
+
+            var mapLinks = new KingdomQuestMapProtocolInfo[4];
+            for (int i = 0; i < mapLinks.Length; i++)
+            {
+                if (!KingdomQuestMapProtocolInfo.TryRead(packet, out mapLinks[i]))
+                    return false;
+            }
+
+            string scriptLanguage, scriptInitValue;
+            if (!packet.TryReadString(out scriptLanguage, 32) ||
+                !packet.TryReadString(out scriptInitValue, 32) ||
+                !packet.TryReadByte(out isTeamPvp))
+                return false;
+
+            var teamRegen = new KingdomQuestXY[2];
+            for (int i = 0; i < teamRegen.Length; i++)
+            {
+                if (!KingdomQuestXY.TryRead(packet, out teamRegen[i]))
+                    return false;
+            }
+
+            result.NextStartMode = nextStartMode;
+            result.NextStartDelayMin = nextStartDelay;
+            result.RepeatMode = repeatMode;
+            result.RepeatCount = repeatCount;
+            result.RewardIndex = rewardIndex;
+            result.DemandMobKill = demandMobKill;
+            result.ScheduleTime = scheduleTime;
+            result.ScheduleTm = scheduleTm;
+            result.RunCounter = runCounter;
+            result.MapLink = mapLinks;
+            result.ScriptLanguage = scriptLanguage;
+            result.ScriptInitValue = scriptInitValue;
+            result.IsTeamPvp = isTeamPvp;
+            result.TeamRegenXY = teamRegen;
+            value = result;
+            return true;
         }
     }
 }

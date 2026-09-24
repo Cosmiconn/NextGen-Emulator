@@ -237,3 +237,20 @@ CharacterNumber from a player name, select a team, allocate a map, or invent
 missing definition fields. The packets are still not sent over the emulator's
 custom InterServer transport until the native MAKE/ACK decision path is
 resolved.
+
+
+## Native KQ structures are now bidirectional
+
+The shared KQ protocol model now has byte-exact `TryRead` counterparts for
+the existing writers:
+
+- `PROTO_KQ_INFO_CLIENT` (141 bytes);
+- `PROTO_KQ_INFO` (377 bytes);
+- `PROTO_KQ_MAP_INFO` (26 bytes);
+- `KQ_JOIN_CHAR_INFO` (23 bytes);
+- `PROTO_NC_KQ_JOINER` (5 bytes);
+- `SHINE_XY_TYPE` and the native 36-byte `tm`.
+
+This does not add gameplay semantics. It closes the serialization boundary so
+the Zone side can consume the exact World→Zone MAKE/START payloads instead of
+maintaining a second field mapping.

@@ -89,6 +89,12 @@ def main():
         "packet.WriteString(ScriptLanguage ?? string.Empty, 32);",
         "packet.WriteString(ScriptInitValue ?? string.Empty, 32);",
         "new KingdomQuestXY[2]",
+        "public static bool TryRead(Packet packet, out KingdomQuestProtocolInfo value)",
+        "KingdomQuestClientInfo.TryReadInto(packet, result)",
+        "KingdomQuestMapProtocolInfo.TryRead(packet, out mapLinks[i])",
+        "KingdomQuestXY.TryRead(packet, out teamRegen[i])",
+        "public static bool TryRead(Packet packet, out KingdomQuestZoneJoinerInfo value)",
+        "public static bool TryRead(Packet packet, out KingdomQuestJoinCharacterInfo value)",
         "public const int WireSize = 23",
         "public const int WireSize = 5",
         "packet.WriteUInt(CharacterNumber);",
@@ -348,7 +354,7 @@ def main():
     print("PASS: native W2Z_MAKE/START/END/DESTROY and Z2W_MAKE_ACK layouts are isolated from client traffic")
     print("PASS: W2Z_MAKE/START builders consume only explicit full-definition and Zone-roster state")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
-    print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
+    print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers/parsers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
     print("PASS: join-cancel/team-select/team-type/disjoin wire layouts are source-level named")
     print("PASS: JOIN_LIST_REQ is live only when its native ushort Error is explicitly supplied")
