@@ -2,7 +2,9 @@
 # SourceArchive	Server.zip
 # SourceArchiveSha256	b83bf92c7193578a772fcebf4d8b7c8c2a9a642cf0d50d33506f77a75b0e211d
 # ArchiveRoot	Server - Kopie/9Data/Shine
-# Semantics	presence-only; missing files are not aliases and Lua/static-regen equivalence is UNRESOLVED
+# KQRegenLookup	Zone.exe KQRegenTable::kqrt_Load: MobRegen/KingdomQuest/%s.txt -> MobRegen/Instant/%s.txt
+# InstantRegenBasenames	AdlF,AdlFH,Leviathan,Siren,Tower01,Tower02,Tower03,UrgDragon,WarN
+# Semantics	loader-proven static fallback; KDArena/KDMine/KDSpring are absent in both static paths; Lua is not a KQRegenTable fallback
 kind	key	present	archive_path	sha256	size
 script	KQ/AntiHenis/AntiHenis	1	LuaScript/KQ/AntiHenis/AntiHenis.lua	4daac87c87db43ff9b497898882ea6b3e39c3874816a1528b763561366c3e96e	1814
 script	KQ/EmperorSlime/EmperorSlime	1	LuaScript/KQ/EmperorSlime/EmperorSlime.lua	a681745ced8a528e1b0b7bbafe3501edaced726195e4f721087ef0833cb92975	1833

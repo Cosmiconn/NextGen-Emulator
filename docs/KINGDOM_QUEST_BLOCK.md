@@ -1040,13 +1040,30 @@ KDMine
 KDSpring
 ```
 
-Those three maps do have substantial original KQ Lua trees in the archive:
-KDArena contains per-tier `Data1..Data6/Regen.lua`, KDMine contains
-`KDMineData.lua`/`KDMineFunc.lua`, and KDSpring contains
-`KDSpring_Data.lua`/`KDSpring_StepFunc.lua`. That observation does
-**not** establish that Lua data replaces the missing static MobRegen files,
-nor does it establish loader precedence. The equivalence/precedence remains
-`UNRESOLVED` until the original Zone EXE/PDB KQ loader path is correlated.
+Those three maps do have substantial original KQ Lua trees in the archive,
+but the original Zone loader now closes the static-regeneration boundary.
+`KQRegenTable::kqrt_Load(char*)` at `0x004B26B0` first tries
+
+```text
+../9Data/Shine/MobRegen/KingdomQuest/%s.txt
+```
+
+and, only if that load fails, tries
+
+```text
+../9Data/Shine/MobRegen/Instant/%s.txt
+```
+
+The no-argument loader at `0x004B3220` likewise enumerates the
+`KingdomQuest/*.txt` directory first and `Instant/*.txt` second.
+The supplied archive contains exactly nine Instant regen basenames:
+`AdlF`, `AdlFH`, `Leviathan`, `Siren`, `Tower01`,
+`Tower02`, `Tower03`, `UrgDragon`, and `WarN`. None is
+`KDArena`, `KDMine`, or `KDSpring`.
+
+Therefore those three used KQ base maps have no static `KQRegenTable`
+source in either original lookup directory. Their Lua trees are a separate
+runtime source family and are **not** an implicit fallback in this loader.
 
 CI now derives the 27 ScriptLanguage keys and 18 used BaseMap keys directly
 from the provenance-locked SHN SQL, checks them against the runtime-source
@@ -1054,3 +1071,31 @@ manifest, locks the exact 18/9 and 15/3 presence boundaries, and rejects any
 attempt to fill an absent source row with a guessed path/hash/size. This block
 therefore establishes **what original runtime source is present**, not how Zone
 interprets it.
+
+
+## Zone MAKE result branches recovered
+
+The original Zone `WorldManagerSession::wms_NC_KQ_W2Z_MAKED_CMD`
+now closes four native MAKE_ACK results:
+
+```text
+0x0981  success
+0x0982  ERR_KINGDOMQUEST_MAKE_DUPLICATEHANDLE
+0x0983  ERR_KINGDOMQUEST_MAKE_TOOMANYQUEST
+0x098C  ERR_KINGDOMQUEST_MAKE_SCRIPTNOTFOUND
+```
+
+The ScriptLanguage branch copies the 32-byte
+`PROTO_KQ_INFO.ScriptLanguage` field and performs a runtime script-container
+lookup before successful creation. A missing lookup returns `0x098C`.
+This is stronger than source-file presence: the emulator does not yet have an
+equivalent KQ Lua runtime container, so a present
+`LuaScript/<ScriptLanguage>.lua` file alone is not treated as proof that the
+runtime lookup succeeded.
+
+Zone now classifies duplicate Handles atomically inside
+`KingdomQuestZoneRuntimeRegistry.TryMake` and returns the exact
+`0x0982` ACK. Other emulator-local MAKE rejections remain fail-closed until
+their condition is correlated to the original buffer-capacity or script
+container state. In particular, `0x0983` and `0x098C` are modeled as
+native constants but are not used as generic failure codes.

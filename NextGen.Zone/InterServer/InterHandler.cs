@@ -30,16 +30,30 @@ namespace NextGen.Zone.InterServer
                     native.Remaining != 0)
                     return;
 
-                if (!KingdomQuestZoneRuntimeRegistry.TryMake(
-                        definition, mapId, mapInstance))
+                KingdomQuestZoneMakeResult makeResult =
+                    KingdomQuestZoneRuntimeRegistry.TryMake(
+                        definition, mapId, mapInstance);
+
+                if (makeResult == KingdomQuestZoneMakeResult.DuplicateHandle)
                 {
+                    // Original Zone wms_NC_KQ_W2Z_MAKED_CMD returns exactly
+                    // ERR_KINGDOMQUEST_MAKE_DUPLICATEHANDLE (0x0982).
+                    SendKingdomQuestMakeAck(
+                        definition.Handle,
+                        KingdomQuestNativeConstants.MakeAckDuplicateHandle);
+                    return;
+                }
+
+                if (makeResult != KingdomQuestZoneMakeResult.Success)
+                {
+                    // Other local rejections do not yet have a proven mapping
+                    // to the original 0x0983/0x098C branches. Fail closed
+                    // rather than manufacture an Error value.
                     Log.WriteLine(LogLevel.Warn,
                         "Rejected KQ MAKE for map {0} instance {1}.", mapId, mapInstance);
                     return;
                 }
 
-                // Original CParserZone::fc_NC_KQ_Z2W_MAKE_ACK treats exactly
-                // 0x0981 as success. No failure Error is guessed here.
                 SendKingdomQuestMakeAck(
                     definition.Handle, KingdomQuestNativeConstants.MakeAckSuccess);
             }

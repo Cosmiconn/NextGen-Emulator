@@ -495,3 +495,29 @@ World session and validates its KQ Handle/Party state before mutation, then
 runs the recovered order Status 4 -> KQTD_RANDOM division -> represented
 normal LeaveParty -> W2Z START. Any session state the emulator cannot
 represent authoritatively is fail-closed before Status 4.
+
+
+## Zone MAKE_ACK error family and KQRegen lookup
+
+Original Zone executable branches now identify the MAKE result values directly:
+
+```text
+NC_KQ_Z2W_MAKE_ACK.Error
+0x0981  success
+0x0982  duplicate KQ Handle
+0x0983  KQ container/buffer full
+0x098C  ScriptLanguage runtime lookup failed
+```
+
+The duplicate branch is live because the emulator can represent that exact
+condition atomically. The other two failure codes are not used as catch-all
+errors: the original capacity boundary and a source-equivalent loaded Lua
+script container must exist before those branches can be activated faithfully.
+
+The same Zone binary proves the static KQ regen lookup order:
+`MobRegen/KingdomQuest/<name>.txt` first, then
+`MobRegen/Instant/<name>.txt`. Global loading enumerates the same two
+directories in that order. In the supplied Server.zip, none of
+`KDArena`, `KDMine`, or `KDSpring` exists in the Instant directory,
+so their missing KingdomQuest regen file cannot be repaired by the native
+static fallback. Lua files are not consulted by `KQRegenTable`.

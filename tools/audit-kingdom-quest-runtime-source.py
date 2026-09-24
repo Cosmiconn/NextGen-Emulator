@@ -26,6 +26,10 @@ MISSING_SCRIPTS = {
     "KQ/UnderHall2",
 }
 MISSING_STATIC_REGEN = {"KDArena", "KDMine", "KDSpring"}
+INSTANT_REGEN_BASENAMES = {
+    "AdlF", "AdlFH", "Leviathan", "Siren", "Tower01", "Tower02",
+    "Tower03", "UrgDragon", "WarN",
+}
 
 
 def data_rows(path):
@@ -76,7 +80,9 @@ def load_manifest():
         "# SourceArchive\tServer.zip",
         "# SourceArchiveSha256\t" + SOURCE_ARCHIVE_SHA256,
         "# ArchiveRoot\tServer - Kopie/9Data/Shine",
-        "# Semantics\tpresence-only; missing files are not aliases and Lua/static-regen equivalence is UNRESOLVED",
+        "# KQRegenLookup\tZone.exe KQRegenTable::kqrt_Load: MobRegen/KingdomQuest/%s.txt -> MobRegen/Instant/%s.txt",
+        "# InstantRegenBasenames\tAdlF,AdlFH,Leviathan,Siren,Tower01,Tower02,Tower03,UrgDragon,WarN",
+        "# Semantics\tloader-proven static fallback; KDArena/KDMine/KDSpring are absent in both static paths; Lua is not a KQRegenTable fallback",
     )
     for header in required_headers:
         if header not in text:
@@ -211,14 +217,22 @@ def main():
               present_scripts, present_regen)
         return 1
 
-    # Missing source is evidence, not permission to substitute another file.
-    # KDArena/KDMine/KDSpring have Lua trees in Server.zip, but whether those
-    # Lua data files replace static MobRegen input is a Zone loader semantic
-    # that must come from original EXE/PDB before runtime activation.
+    # Zone.exe KQRegenTable::kqrt_Load tries the KingdomQuest directory first
+    # and the Instant directory second. The exact supplied Instant directory
+    # has nine basenames and none can satisfy these three missing KQ names.
+    if MISSING_STATIC_REGEN & INSTANT_REGEN_BASENAMES:
+        print("FAIL: a missing KQ static regen unexpectedly gained an Instant fallback")
+        return 1
+
+    # Lua trees are a separate runtime source family. The recovered
+    # KQRegenTable loader never consults them as a replacement for static
+    # MobRegen input.
     print("PASS: Server.zip provenance locked", SOURCE_ARCHIVE_SHA256)
     print("PASS: 27 exact KingdomQuest.shn ScriptLanguage keys are covered; 18 entrypoints present, 9 explicitly absent")
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
-    print("PASS: missing KQ script/regen sources stay absence evidence; no alias or Lua/static-regen equivalence is inferred")
+    print("PASS: Zone KQRegenTable lookup order is locked to KingdomQuest then Instant")
+    print("PASS: exact Instant regen basenames are locked; KDArena/KDMine/KDSpring have no static fallback")
+    print("PASS: Lua trees are not treated as KQRegenTable fallback")
     return 0
 
 

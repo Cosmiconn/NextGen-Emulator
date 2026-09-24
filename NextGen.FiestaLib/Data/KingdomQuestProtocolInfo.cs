@@ -488,6 +488,9 @@ namespace NextGen.FiestaLib.Data
     public static class KingdomQuestNativeConstants
     {
         public const ushort MakeAckSuccess = 0x0981;
+        public const ushort MakeAckDuplicateHandle = 0x0982;
+        public const ushort MakeAckTooManyQuest = 0x0983;
+        public const ushort MakeAckScriptNotFound = 0x098C;
 
         public const ushort JoinSuccess = 0x0991;
         public const ushort JoinInvalidHandle = 0x0992;

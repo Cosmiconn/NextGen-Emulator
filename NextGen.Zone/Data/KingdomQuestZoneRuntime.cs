@@ -14,6 +14,13 @@ namespace NextGen.Zone.Data
         Ended = 3,
     }
 
+    public enum KingdomQuestZoneMakeResult : byte
+    {
+        RejectedUnmapped = 0,
+        Success = 1,
+        DuplicateHandle = 2,
+    }
+
     public sealed class KingdomQuestZoneRuntimeState
     {
         public uint Handle { get; private set; }
@@ -90,26 +97,27 @@ namespace NextGen.Zone.Data
         private static readonly Dictionary<uint, KingdomQuestZoneRuntimeState> ByHandle =
             new Dictionary<uint, KingdomQuestZoneRuntimeState>();
 
-        public static bool TryMake(KingdomQuestProtocolInfo definition,
+        public static KingdomQuestZoneMakeResult TryMake(
+            KingdomQuestProtocolInfo definition,
             ushort mapId, short mapInstance)
         {
             if (definition == null || mapInstance < 0 ||
                 DataProvider.Instance == null || DataProvider.Instance.MapsByID == null ||
                 MapManager.Instance == null)
-                return false;
+                return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
             MapInfo mapInfo;
             if (!DataProvider.Instance.MapsByID.TryGetValue(mapId, out mapInfo))
-                return false;
+                return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
             KingdomQuestMapProtocolInfo activeMap = null;
             if (definition.MapLink == null || definition.MapLink.Length != 4)
-                return false;
+                return KingdomQuestZoneMakeResult.RejectedUnmapped;
             for (int i = 0; i < definition.MapLink.Length; i++)
             {
                 KingdomQuestMapProtocolInfo candidate = definition.MapLink[i];
                 if (candidate == null)
-                    return false;
+                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
                 bool populated =
                     !string.IsNullOrEmpty(candidate.MapBase) ||
@@ -120,7 +128,7 @@ namespace NextGen.Zone.Data
                 if (activeMap != null ||
                     string.IsNullOrEmpty(candidate.MapBase) ||
                     string.IsNullOrEmpty(candidate.MapName))
-                    return false;
+                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
                 activeMap = candidate;
             }
 
@@ -129,21 +137,21 @@ namespace NextGen.Zone.Data
             if (activeMap == null ||
                 !string.Equals(
                     activeMap.MapBase, mapInfo.ShortName, StringComparison.Ordinal))
-                return false;
+                return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
             lock (Sync)
             {
                 if (ByHandle.ContainsKey(definition.Handle))
-                    return false;
+                    return KingdomQuestZoneMakeResult.DuplicateHandle;
 
                 Map map = MapManager.Instance.GetMap(mapInfo, mapInstance);
                 if (map == null || map.MapID != mapId || map.InstanceID != mapInstance)
-                    return false;
+                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
                 ByHandle.Add(definition.Handle, new KingdomQuestZoneRuntimeState(
                     definition.Handle, mapId, mapInstance,
                     KingdomQuestZoneLifecycleState.Made, definition, null));
-                return true;
+                return KingdomQuestZoneMakeResult.Success;
             }
         }
 

@@ -378,6 +378,9 @@ def main():
 
     if not require(info, [
         "MakeAckSuccess = 0x0981",
+        "MakeAckDuplicateHandle = 0x0982",
+        "MakeAckTooManyQuest = 0x0983",
+        "MakeAckScriptNotFound = 0x098C",
         "JoinSuccess = 0x0991",
         "JoinInvalidHandle = 0x0992",
         "JoinCapacityReached = 0x0993",
@@ -542,10 +545,31 @@ def main():
 
     if not require(zone_inter, [
         "KingdomQuestZoneRuntimeRegistry.TryMake(",
-        "SendKingdomQuestMakeAck(",
+        "KingdomQuestZoneMakeResult.DuplicateHandle",
+        "KingdomQuestNativeConstants.MakeAckDuplicateHandle",
+        "KingdomQuestZoneMakeResult.Success",
         "KingdomQuestNativeConstants.MakeAckSuccess",
-    ], "Zone MAKE success ACK"):
+        "Other local rejections do not yet have a proven mapping",
+    ], "Zone MAKE ACK result routing"):
         return 1
+
+    if not require(zone_runtime, [
+        "enum KingdomQuestZoneMakeResult",
+        "RejectedUnmapped = 0",
+        "Success = 1",
+        "DuplicateHandle = 2",
+        "ByHandle.ContainsKey(definition.Handle)",
+        "return KingdomQuestZoneMakeResult.DuplicateHandle",
+    ], "atomic Zone duplicate-Handle MAKE classification"):
+        return 1
+
+    for forbidden in (
+        "KingdomQuestNativeConstants.MakeAckTooManyQuest);",
+        "KingdomQuestNativeConstants.MakeAckScriptNotFound);",
+    ):
+        if forbidden in zone_inter:
+            print("FAIL: unmapped Zone MAKE failure branch was activated:", forbidden)
+            return 1
 
     if not require(state, [
         "public uint Handle",
