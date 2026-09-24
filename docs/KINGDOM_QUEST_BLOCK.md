@@ -427,3 +427,13 @@ This transport still does **not** decide when MAKE succeeds, invent
 players. No scheduler currently invokes these send methods automatically; they
 are the validated World→Zone execution boundary for the later authoritative
 session owner.
+
+
+## Machine-readable main-source provenance
+
+The KQ source dumper now emits two metadata tables before the raw SHN tables:
+
+- data_kq_source_manifest: SourceName, SHA-256, RecordCount and ColumnCount.
+- data_kq_source_columns: SourceName, zero-based original Ordinal, ColumnName, SHN TypeByte and raw column Length.
+
+These tables are not a gameplay schema and contain no inferred key or semantic mapping. They make the exact project-source bytes and column layout queryable by runtime/audits, so a later KingdomQuest.shn -> PROTO_KQ_INFO mapper can reject a mismatched source snapshot instead of silently accepting it.

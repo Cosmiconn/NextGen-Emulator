@@ -74,6 +74,12 @@ def main():
         'ComputeSha256(path)',
         'sha256={1}; records={2}; columns={3}',
         'writer.Write("-- Columns:")',
+        'WriteManifestSchema(writer)',
+        'WriteManifestRows(writer, table, sourceName, sha256)',
+        'data_kq_source_manifest',
+        'data_kq_source_columns',
+        '`Ordinal` INT UNSIGNED NOT NULL',
+        '`TypeByte` INT UNSIGNED NOT NULL',
     ):
         if token not in tool:
             print('FAIL: KQ source dumper provenance/ambiguity guard missing', token)
@@ -91,6 +97,7 @@ def main():
     print('PASS: KQ description/team/vote metadata corpus locked (39/8/30/4/2)')
     print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
     print('PASS: source dumper can require all main SHNs, rejects duplicate basenames and records SHA-256/column manifests')
+    print('PASS: source SQL includes machine-readable file/column provenance without gameplay mapping')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')
     return 0
 
