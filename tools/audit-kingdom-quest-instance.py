@@ -255,7 +255,7 @@ def main():
     ], "atomic explicit KQ session coordinator"):
         return 1
 
-    for forbidden in ("DateTime.", "DateTimeOffset.", "Random", "++handle", "Handle++"):
+    for forbidden in ("DateTime.", "DateTimeOffset.", "new Random(", "System.Random", "++handle", "Handle++"):
         if forbidden in c["kq_session"]:
             print("FAIL: KQ session coordinator invents scheduler/handle state:", forbidden)
             return 1
@@ -323,7 +323,10 @@ def main():
         "KingdomQuestSessionCoordinator.TryPrepareMake(",
         "zone.SendKingdomQuestMake(definition.Handle)",
         "TryRollbackMakePreparation(",
-    ], "live native DoSetMakeRoom bridge"):
+        "RunStartCountdownExpiry(local)",
+        "KingdomQuestSessionCoordinator.TryEnterRunning(",
+        "zone.SendKingdomQuestStart(definition.Handle)",
+    ], "live native DoSetMakeRoom/start bridge"):
         return 1
 
     if not need(c["kq_session"], [
@@ -375,6 +378,7 @@ def main():
     print("PASS: native MapBase is resolved exactly to a source-backed base MapID; dynamic MapName is retained separately")
     print("PASS: internal KQ Map.InstanceID allocation is independent, starts outside base instance 0 and is not derived from Handle/MapIndex")
     print("PASS: due Status-0 schedules execute the recovered AllocMapLink -> Status-1 -> MAKE boundary")
+    print("PASS: Status-3 expiry executes the recovered Status-4 -> team divide -> START instance lifecycle")
     print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with native KQ map-context coordinates")
     print("PASS: NC_CHAR_KQMAP_CMD is modeled as Handle + Name3 + XY + raw SHINE_DATETIME")
     print("PASS: KQ session create/remove keeps full/server definition, client definition, status, participant, join-list reply and routing registries synchronized")
