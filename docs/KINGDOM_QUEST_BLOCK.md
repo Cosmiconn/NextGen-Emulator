@@ -1086,10 +1086,29 @@ recorded as absence; no alternate filename is promoted to an alias.
 
 Across the 57 exact `KingdomQuest.shn` rows there are 27 distinct
 `ScriptLanguage` keys. The original Zone runtime does not equate
-`ScriptLanguage` with a Lua filename. `KQScriptManager::kqsm_Load` reads
-`../9Data/Shine/World/PineScript.txt`; that exact catalog contains 58 script
-rows, 32 of them under `KQ/`, and the loader enforces a hard capacity of
-64 entries before storing another script.
+`ScriptLanguage` with a Lua filename.
+
+The MAKE-relevant owner is `ScenarioBookShelf`, not `KQScriptManager`.
+`ScenarioBookShelf::sbs_LoadScripts` opens
+`../9Data/Shine/World/PineScript.txt`, reads the `PineScript` table's
+`ScriptName` column, and calls `sbs_Read` for each row. `sbs_Read`
+tries the exact paths in this order:
+
+```text
+../9Data/Shine/ScenarioBookShelf/<ScriptName>.ps
+../9Data/Shine/LuaScript/<ScriptName>.lua
+```
+
+Only after the selected ScenarioBook successfully loads is its name inserted
+into the ScenarioBookShelf lookup tree. The native MAKE branch tests
+`ScenarioBookShelf::sbs_GetScenarioBook(PROTO_KQ_INFO.ScriptLanguage, ...)`;
+a null lookup is the proven `0x098C` condition.
+
+`KQScriptManager::kqsm_Load` is a separate system. It reads the
+`DialogFile` table from the same `World/PineScript.txt` container and
+loads ShineScript text paths under `World/<...>/Script` with a separate
+fallback. Its 64-entry limit belongs to that manager and is **not** evidence
+for the MAKE ScenarioBookShelf capacity.
 
 Every one of the 27 ScriptLanguage keys used by this KQ snapshot is present in
 that original script-source universe:
@@ -1162,13 +1181,13 @@ now closes four native MAKE_ACK results:
 ```
 
 The ScriptLanguage branch copies the 32-byte
-`PROTO_KQ_INFO.ScriptLanguage` field and performs a runtime script-container
-lookup before successful creation. A missing lookup returns `0x098C`.
-The original source catalog proves that this container is mixed-backend rather
-than Lua-only: used keys resolve to either LuaScript or ScenarioBookShelf
-PineScript input. Source-file/catalog presence therefore still does not prove
-that the runtime lookup succeeded; the emulator needs an equivalent loaded
-script container before it can emit `0x098C` or success from that condition.
+`PROTO_KQ_INFO.ScriptLanguage` field and calls
+`ScenarioBookShelf::sbs_GetScenarioBook`. A null runtime lookup returns
+`0x098C`. The original shelf is mixed-backend: `sbs_Read` tries
+PineScript `.ps` first and Lua `.lua` second. Source-file/catalog presence
+therefore still does not prove that the runtime lookup succeeded; the emulator
+needs an equivalent loaded ScenarioBookShelf before it can emit `0x098C` or
+success from that condition.
 
 Zone now classifies duplicate Handles atomically inside
 `KingdomQuestZoneRuntimeRegistry.TryMake` and returns the exact

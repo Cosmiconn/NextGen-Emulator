@@ -81,7 +81,8 @@ def load_manifest():
         "# SourceArchiveSha256\t" + SOURCE_ARCHIVE_SHA256,
         "# ScriptCatalog\tWorld/PineScript.txt",
         "# ScriptCatalogSha256\t8ba15c6d7a5d14f1bd01f94a8403d8a9652868e15e0eee7a7730504c7754440c",
-        "# ScriptCatalogSemantics\tKQScriptManager::kqsm_Load reads 58 catalog rows (32 KQ); the 27 used KQ keys resolve to 18 LuaScript entrypoints plus 9 ScenarioBookShelf .ps sources",
+        "# ScriptCatalogSemantics\tScenarioBookShelf::sbs_LoadScripts reads table PineScript/ScriptName; sbs_Read tries ScenarioBookShelf/<key>.ps then LuaScript/<key>.lua; MAKE uses sbs_GetScenarioBook",
+        "# KQScriptManagerSemantics\tSeparate loader reads DialogFile from World/PineScript.txt and loads ShineScript text; its 64-entry limit is not the MAKE ScenarioBookShelf capacity",
         "# ArchiveRoot\tServer - Kopie/9Data/Shine",
         "# KQRegenLookup\tZone.exe KQRegenTable::kqrt_Load: MobRegen/KingdomQuest/%s.txt -> MobRegen/Instant/%s.txt",
         "# InstantRegenBasenames\tAdlF,AdlFH,Leviathan,Siren,Tower01,Tower02,Tower03,UrgDragon,WarN",
@@ -241,7 +242,8 @@ def main():
     # MobRegen input.
     print("PASS: Server.zip provenance locked", SOURCE_ARCHIVE_SHA256)
     print("PASS: all 27 used KingdomQuest.shn ScriptLanguage keys have original source: 18 Lua + 9 PineScript")
-    print("PASS: original World/PineScript.txt catalog provenance is locked (58 total rows, 32 KQ rows; KQScriptManager capacity 64)")
+    print("PASS: original World/PineScript.txt PineScript catalog provenance is locked; ScenarioBookShelf tries .ps then .lua")
+    print("PASS: MAKE ScriptLanguage lookup is ScenarioBookShelf::sbs_GetScenarioBook; separate KQScriptManager/DialogFile capacity is not conflated")
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
     print("PASS: Zone KQRegenTable lookup order is locked to KingdomQuest then Instant")
     print("PASS: exact Instant regen basenames are locked; KDArena/KDMine/KDSpring have no static fallback")

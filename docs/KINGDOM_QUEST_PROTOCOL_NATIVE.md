@@ -523,14 +523,18 @@ for a free slot, so a live 0x0983 branch would be order-incorrect until the
 source-equivalent script container is represented. `0x098C` is likewise not
 used as a catch-all.
 
-The script container is not Lua-only. Original
-`KQScriptManager::kqsm_Load` reads `World/PineScript.txt`, whose exact
-snapshot contains 58 catalog rows (32 `KQ/` rows), and checks a hard
-64-entry manager capacity. All 27 ScriptLanguage keys used by
-`KingdomQuest.shn` are source-present: 18 as exact Lua entrypoints and 9 as
-exact `ScenarioBookShelf/*.ps` PineScript sources. Therefore absence of a
-`.lua` file is not evidence for `0x098C`; that Error means the original
-runtime script lookup itself failed.
+The MAKE script lookup is owned by `ScenarioBookShelf`, not by
+`KQScriptManager`. `sbs_LoadScripts` reads the `PineScript/ScriptName`
+catalog from `World/PineScript.txt`; `sbs_Read` tries
+`ScenarioBookShelf/<key>.ps` first, then `LuaScript/<key>.lua`, and only
+successfully loaded books enter the lookup tree. MAKE calls
+`sbs_GetScenarioBook(ScriptLanguage,...)`; a null result is `0x098C`.
+
+All 27 KQ ScriptLanguage keys are source-present: 18 as exact Lua entrypoints
+and 9 as exact PineScript sources. Absence of a `.lua` file is therefore not
+evidence for `0x098C`. The separate `KQScriptManager::kqsm_Load` path
+reads `DialogFile` and has its own 64-entry manager; that capacity is not
+the ScenarioBookShelf/MAKE limit.
 
 The same Zone binary proves the static KQ regen lookup order:
 `MobRegen/KingdomQuest/<name>.txt` first, then
