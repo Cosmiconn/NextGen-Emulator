@@ -385,3 +385,21 @@ and both team regen coordinates. The existing 141-byte
 Status and participant-count mutations update both registries atomically. No
 server-only field is reconstructed from the client prefix, and no scheduler
 field is synthesized.
+
+
+## Explicit World→Zone joiner roster
+
+`NC_KQ_W2Z_START_CMD` does not send player names. Its flexible joiner array
+uses native 5-byte `PROTO_NC_KQ_JOINER` entries:
+
+```text
+u32 CharacterNumber
+u8  TeamType
+```
+
+`KingdomQuestZoneJoinerRegistry` now stores exactly those pairs per KQ
+Handle. It is intentionally separate from the client-visible
+Level/Class/Name5/Team roster. No name lookup, Character.ID assumption, party
+lookup or automatic team assignment exists in this registry.
+
+Session removal clears this server-side roster as well.

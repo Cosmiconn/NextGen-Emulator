@@ -168,9 +168,10 @@ namespace NextGen.World.Data
                 bool participants = KingdomQuestParticipantRegistry.Remove(handle);
                 bool joinListReply = KingdomQuestJoinListReplyRegistry.Remove(handle);
                 bool mapContext = KingdomQuestMapContextRegistry.Remove(handle);
+                bool zoneJoiners = KingdomQuestZoneJoinerRegistry.Remove(handle);
                 bool target = KingdomQuestSessionTargetRegistry.Remove(handle);
                 return protocolDefinition || definition || state || participants ||
-                    joinListReply || mapContext || target;
+                    joinListReply || mapContext || zoneJoiners || target;
             }
         }
     }

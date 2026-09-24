@@ -22,6 +22,7 @@ FILES = {
     "kq_session": ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs",
     "kq_protocol_defs": ROOT / "NextGen.World/Data/KingdomQuestProtocolDefinitionRegistry.cs",
     "kq_participants": ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs",
+    "kq_zone_joiners": ROOT / "NextGen.World/Data/KingdomQuestZoneJoinerRegistry.cs",
 }
 
 def need(text, tokens, label):
@@ -153,6 +154,7 @@ def main():
         "public static bool TrySetParticipants",
         "KingdomQuestJoinListReplyRegistry.Remove(handle)",
         "KingdomQuestMapContextRegistry.Remove(handle)",
+        "KingdomQuestZoneJoinerRegistry.Remove(handle)",
         "definition.NumOfJoiner = (ushort)roster.Count;",
         "KingdomQuestParticipantRegistry.Set(handle, roster);",
         "KingdomQuestProtocolDefinitionRegistry.Remove(definition.Handle);",
@@ -177,6 +179,19 @@ def main():
         "Team = source.Team",
     ], "native KQ participant registry"):
         return 1
+    if not need(c["kq_zone_joiners"], [
+        "Dictionary<uint, List<KingdomQuestZoneJoinerInfo>>",
+        "copy.Count > ushort.MaxValue",
+        "CharacterNumber = source.CharacterNumber",
+        "TeamType = source.TeamType",
+        "joiners = current.Select(Clone).ToList().AsReadOnly();",
+    ], "native World -> Zone KQ joiner registry"):
+        return 1
+
+    for forbidden in ("GetClientByChar", "GetClientByName", "Character.ID", "Group", "Party"):
+        if forbidden in c["kq_zone_joiners"]:
+            print("FAIL: KQ Zone joiner registry infers admission/identity:", forbidden)
+            return 1
 
     combined = "\n".join(c.values())
     if "(short)handle" in combined or "(short)Handle" in combined:
@@ -192,6 +207,7 @@ def main():
     print("PASS: KQ session create/remove keeps full/server definition, client definition, status, participant, join-list reply and routing registries synchronized")
     print("PASS: full 377-byte PROTO_KQ_INFO stays source-owned for later native Zone lifecycle")
     print("PASS: KQ participant roster preserves native Level/Class/Name5/Team fields")
+    print("PASS: World -> Zone KQ roster stores only explicit CharacterNumber/TeamType pairs")
     print("PASS: explicit status/participant mutations keep list, STATUS_ACK and JOIN_LIST state synchronized")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0
