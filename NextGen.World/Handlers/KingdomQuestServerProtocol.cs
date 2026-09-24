@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
+using NextGen.World.Data;
 
 namespace NextGen.World.Handlers
 {
@@ -14,6 +15,34 @@ namespace NextGen.World.Handlers
     /// </summary>
     internal static class KingdomQuestServerProtocol
     {
+        internal static bool TryCreateMakeRequest(uint handle, out Packet packet)
+        {
+            KingdomQuestProtocolInfo info;
+            if (!KingdomQuestProtocolDefinitionRegistry.TryGet(handle, out info))
+            {
+                packet = null;
+                return false;
+            }
+
+            packet = CreateMakeRequest(info);
+            return true;
+        }
+
+        internal static bool TryCreateStart(uint handle, out Packet packet)
+        {
+            KingdomQuestProtocolInfo info;
+            IReadOnlyList<KingdomQuestZoneJoinerInfo> joiners;
+            if (!KingdomQuestProtocolDefinitionRegistry.TryGet(handle, out info) ||
+                !KingdomQuestZoneJoinerRegistry.TryGet(handle, out joiners))
+            {
+                packet = null;
+                return false;
+            }
+
+            packet = CreateStart(info, joiners);
+            return true;
+        }
+
         internal static Packet CreateMakeRequest(KingdomQuestProtocolInfo info)
         {
             if (info == null) throw new ArgumentNullException("info");

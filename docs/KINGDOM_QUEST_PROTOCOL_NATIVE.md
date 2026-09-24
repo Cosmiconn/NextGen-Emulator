@@ -220,3 +220,20 @@ connection does not send them yet, because the original Zone allocation
 decision and `Z2W_MAKE_ACK.Error` semantics have not been proven. CI guards
 against accidentally routing these server-only packets through the client KQ
 handler.
+
+
+## Registry-backed native MAKE/START builders
+
+The server-only protocol layer can now build `W2Z_MAKE_REQ` and
+`W2Z_START_CMD` directly from the explicit per-Handle runtime state:
+
+- `KingdomQuestProtocolDefinitionRegistry` supplies the complete 377-byte
+  `PROTO_KQ_INFO`;
+- `KingdomQuestZoneJoinerRegistry` supplies the exact 5-byte
+  CharacterNumber/TeamType roster.
+
+If either source is absent, the builder returns no packet. It does not derive
+CharacterNumber from a player name, select a team, allocate a map, or invent
+missing definition fields. The packets are still not sent over the emulator's
+custom InterServer transport until the native MAKE/ACK decision path is
+resolved.

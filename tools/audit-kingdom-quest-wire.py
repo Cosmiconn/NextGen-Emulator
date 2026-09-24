@@ -331,6 +331,10 @@ def main():
         "joiners[i].Write(packet);",
         "packet.WriteUInt(handle);",
         "packet.WriteUShort(error);",
+        "KingdomQuestProtocolDefinitionRegistry.TryGet(handle, out info)",
+        "KingdomQuestZoneJoinerRegistry.TryGet(handle, out joiners)",
+        "packet = CreateMakeRequest(info);",
+        "packet = CreateStart(info, joiners);",
     ], "native World/Zone KQ lifecycle wire"):
         return 1
 
@@ -342,6 +346,7 @@ def main():
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")
     print("PASS: native W2Z_MAKE/START/END/DESTROY and Z2W_MAKE_ACK layouts are isolated from client traffic")
+    print("PASS: W2Z_MAKE/START builders consume only explicit full-definition and Zone-roster state")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
