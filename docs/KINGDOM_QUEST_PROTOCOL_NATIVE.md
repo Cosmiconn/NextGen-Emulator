@@ -183,3 +183,40 @@ its dead-player allowance, how an entry Reply/EncHandle is produced, how mob
 kills are counted, or how scores are awarded. The variable `SCORE_CMD` /
 `SCORE_SIMPLE_CMD` and reward packets remain outside the runtime until their
 nested/variable structures and gameplay triggers are fully proven.
+
+
+## Original World ↔ Zone KQ lifecycle wire
+
+The PDB also resolves the server-side lifecycle packets. They are now modeled
+in `KingdomQuestServerProtocol`, deliberately separate from client
+`Handler22` traffic:
+
+```text
+NC_KQ_W2Z_MAKE_REQ     0x580D:
+    PROTO_KQ_INFO[377]
+
+NC_KQ_Z2W_MAKE_ACK     0x580E:
+    u32 Handle
+    u16 Error
+
+NC_KQ_W2Z_START_CMD    0x580F:
+    PROTO_KQ_INFO[377]
+    u16 NumOfJoiner
+    PROTO_NC_KQ_JOINER[NumOfJoiner]
+
+PROTO_NC_KQ_JOINER[5]:
+    u32 CharacterNumber
+    u8  TeamType
+
+NC_KQ_Z2W_END_CMD      0x5810:
+    u32 Handle
+
+NC_KQ_W2Z_DESTROY_CMD  0x5811:
+    u32 Handle
+```
+
+These are **wire builders only**. The emulator's current custom World/Zone
+connection does not send them yet, because the original Zone allocation
+decision and `Z2W_MAKE_ACK.Error` semantics have not been proven. CI guards
+against accidentally routing these server-only packets through the client KQ
+handler.

@@ -9,6 +9,7 @@ SENUM = ROOT / "NextGen.FiestaLib/PacketTypeServer.cs"
 PROTO = ROOT / "NextGen.World/Handlers/KingdomQuestProtocol.cs"
 INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 HANDLER = ROOT / "NextGen.World/Handlers/Handler22.cs"
+SERVER_PROTO = ROOT / "NextGen.World/Handlers/KingdomQuestServerProtocol.cs"
 STATE = ROOT / "NextGen.World/Data/KingdomQuestInstanceWireState.cs"
 DEFINITIONS = ROOT / "NextGen.World/Data/KingdomQuestDefinitionRegistry.cs"
 JOIN_LIST_REPLY = ROOT / "NextGen.World/Data/KingdomQuestJoinListReplyRegistry.cs"
@@ -23,7 +24,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, RANGE_REPLIES]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, RANGE_REPLIES]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -34,6 +35,7 @@ def main():
     proto = PROTO.read_text(encoding="utf-8")
     info = INFO.read_text(encoding="utf-8")
     handler = HANDLER.read_text(encoding="utf-8")
+    server_proto = SERVER_PROTO.read_text(encoding="utf-8")
     state = STATE.read_text(encoding="utf-8")
     definitions = DEFINITIONS.read_text(encoding="utf-8")
     join_list_reply = JOIN_LIST_REPLY.read_text(encoding="utf-8")
@@ -88,6 +90,9 @@ def main():
         "packet.WriteString(ScriptInitValue ?? string.Empty, 32);",
         "new KingdomQuestXY[2]",
         "public const int WireSize = 23",
+        "public const int WireSize = 5",
+        "packet.WriteUInt(CharacterNumber);",
+        "packet.WriteByte(TeamType);",
         "packet.WriteString(Name ?? string.Empty, 20);",
         "packet.WriteByte(Team);",
         "YearFrom1900 = local.Year - 1900",
@@ -315,9 +320,28 @@ def main():
             print("FAIL: KQ range-selection semantics were guessed:", guessed)
             return 1
 
+    if not require(server_proto, [
+        "new Packet((ushort)0x580D)",
+        "new Packet((ushort)0x580E)",
+        "new Packet((ushort)0x580F)",
+        "new Packet((ushort)0x5810)",
+        "new Packet((ushort)0x5811)",
+        "info.Write(packet);",
+        "packet.WriteUShort((ushort)joiners.Count);",
+        "joiners[i].Write(packet);",
+        "packet.WriteUInt(handle);",
+        "packet.WriteUShort(error);",
+    ], "native World/Zone KQ lifecycle wire"):
+        return 1
+
+    if "KingdomQuestServerProtocol" in handler:
+        print("FAIL: server-only KQ lifecycle packet used by client Handler22")
+        return 1
+
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")
+    print("PASS: native W2Z_MAKE/START/END/DESTROY and Z2W_MAKE_ACK layouts are isolated from client traffic")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")

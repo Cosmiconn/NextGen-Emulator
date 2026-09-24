@@ -148,6 +148,24 @@ namespace NextGen.FiestaLib.Data
         }
     }
 
+    /// <summary>
+    /// Native PROTO_NC_KQ_JOINER used by NC_KQ_W2Z_START_CMD.
+    /// Layout: u32 chrregnum + u8 TeamType = 5 bytes.
+    /// </summary>
+    public sealed class KingdomQuestZoneJoinerInfo
+    {
+        public const int WireSize = 5;
+
+        public uint CharacterNumber { get; set; }
+        public byte TeamType { get; set; }
+
+        public void Write(Packet packet)
+        {
+            packet.WriteUInt(CharacterNumber);
+            packet.WriteByte(TeamType);
+        }
+    }
+
     /// <summary>Native SHINE_XY_TYPE, exactly 8 bytes.</summary>
     public sealed class KingdomQuestXY
     {
