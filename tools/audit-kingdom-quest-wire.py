@@ -226,6 +226,53 @@ def main():
             "packet.WriteUInt(handle);",
             "packet.WriteUInt(characterNumber);",
         ],
+        "vote start ack": [
+            "new Packet(SH22Type.KingdomQuestVoteStartAck)",
+            "packet.WriteUShort(error);",
+        ],
+        "vote voting cmd": [
+            "new Packet(SH22Type.KingdomQuestVoteVotingCmd)",
+            "packet.WriteString(starter ?? string.Empty, 20);",
+            "packet.WriteString(target ?? string.Empty, 20);",
+            "endTime.Write(packet);",
+            "packet.WriteByte((byte)data.Length);",
+        ],
+        "vote voting ack": [
+            "new Packet(SH22Type.KingdomQuestVoteVotingAck)",
+            "packet.WriteUShort(error);",
+        ],
+        "vote result success": [
+            "new Packet(SH22Type.KingdomQuestVoteResultSuccess)",
+            "packet.WriteString(target ?? string.Empty, 20);",
+            "packet.WriteByte(voteRate);",
+            "packet.WriteByte(yes);",
+            "packet.WriteByte(no);",
+            "packet.WriteByte(cancel);",
+        ],
+        "vote result fail": [
+            "new Packet(SH22Type.KingdomQuestVoteResultFail)",
+            "packet.WriteString(target ?? string.Empty, 20);",
+            "packet.WriteByte(yes);",
+            "packet.WriteByte(no);",
+            "packet.WriteByte(cancel);",
+        ],
+        "vote cancel": [
+            "new Packet(SH22Type.KingdomQuestVoteCancel)",
+            "packet.WriteString(target ?? string.Empty, 20);",
+        ],
+        "vote ban message": [
+            "new Packet(SH22Type.KingdomQuestVoteBanMessage)",
+            "packet.WriteByte(voteRate);",
+        ],
+        "force-link after ban": [
+            "new Packet(SH22Type.KingdomQuestLinkToForceByBan)",
+            "packet.WriteUInt(characterNumber);",
+            "packet.WriteString(mapNames[i] ?? string.Empty, 12);",
+        ],
+        "vote start-check ack": [
+            "new Packet(SH22Type.KingdomQuestVoteStartCheckAck)",
+            "packet.WriteUShort(error);",
+        ],
         "join list ack": [
             "new Packet(SH22Type.KingdomQuestJoinListAck)",
             "packet.WriteUShort(error);",
@@ -357,6 +404,7 @@ def main():
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers/parsers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
     print("PASS: join-cancel/team-select/team-type/disjoin wire layouts are source-level named")
+    print("PASS: vote/start/result/ban wire layouts are source-level modeled without vote policy")
     print("PASS: JOIN_LIST_REQ is live only when its native ushort Error is explicitly supplied")
     print("PASS: LIST_REQ/SCHEDULE_REQ use exact scheduler-supplied response windows, not guessed handle filtering")
     print("PASS: complete KQ client definitions can be stored without scheduler inference")

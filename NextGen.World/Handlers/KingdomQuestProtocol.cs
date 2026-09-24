@@ -285,6 +285,103 @@ namespace NextGen.World.Handlers
             return packet;
         }
 
+        internal static Packet CreateVoteStartAck(ushort error)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestVoteStartAck);
+            packet.WriteUShort(error);
+            return packet;
+        }
+
+        internal static Packet CreateVoteVotingCmd(string starter, string target,
+            byte voteType, KingdomQuestNativeTime endTime, string contents)
+        {
+            if (endTime == null) throw new ArgumentNullException("endTime");
+            byte[] data = Encoding.ASCII.GetBytes(contents ?? string.Empty);
+            if (data.Length > byte.MaxValue) throw new ArgumentOutOfRangeException("contents");
+
+            var packet = new Packet(SH22Type.KingdomQuestVoteVotingCmd);
+            packet.WriteString(starter ?? string.Empty, 20);
+            packet.WriteString(target ?? string.Empty, 20);
+            packet.WriteByte(voteType);
+            endTime.Write(packet);
+            packet.WriteByte((byte)data.Length);
+            packet.WriteBytes(data);
+            return packet;
+        }
+
+        internal static Packet CreateVoteVotingAck(ushort error)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestVoteVotingAck);
+            packet.WriteUShort(error);
+            return packet;
+        }
+
+        internal static Packet CreateVoteResultSuccess(string target,
+            byte voteRate, byte yes, byte no, byte cancel)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestVoteResultSuccess);
+            packet.WriteString(target ?? string.Empty, 20);
+            packet.WriteByte(voteRate);
+            packet.WriteByte(yes);
+            packet.WriteByte(no);
+            packet.WriteByte(cancel);
+            return packet;
+        }
+
+        internal static Packet CreateVoteResultFail(string target,
+            byte yes, byte no, byte cancel)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestVoteResultFail);
+            packet.WriteString(target ?? string.Empty, 20);
+            packet.WriteByte(yes);
+            packet.WriteByte(no);
+            packet.WriteByte(cancel);
+            return packet;
+        }
+
+        internal static Packet CreateVoteCancel(string target)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestVoteCancel);
+            packet.WriteString(target ?? string.Empty, 20);
+            return packet;
+        }
+
+        internal static Packet CreateVoteBanMessage(
+            byte voteRate, byte yes, byte no, byte cancel)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestVoteBanMessage);
+            packet.WriteByte(voteRate);
+            packet.WriteByte(yes);
+            packet.WriteByte(no);
+            packet.WriteByte(cancel);
+            return packet;
+        }
+
+        internal static Packet CreateVoteBanMessageLogoff()
+        {
+            return new Packet(SH22Type.KingdomQuestVoteBanMessageLogoff);
+        }
+
+        internal static Packet CreateLinkToForceByBan(
+            uint characterNumber, IReadOnlyList<string> mapNames)
+        {
+            if (mapNames == null) throw new ArgumentNullException("mapNames");
+            if (mapNames.Count != 4) throw new ArgumentOutOfRangeException("mapNames");
+
+            var packet = new Packet(SH22Type.KingdomQuestLinkToForceByBan);
+            packet.WriteUInt(characterNumber);
+            for (int i = 0; i < 4; i++)
+                packet.WriteString(mapNames[i] ?? string.Empty, 12);
+            return packet;
+        }
+
+        internal static Packet CreateVoteStartCheckAck(ushort error)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestVoteStartCheckAck);
+            packet.WriteUShort(error);
+            return packet;
+        }
+
         internal static Packet CreateJoinListAck(ushort error,
             IReadOnlyList<KingdomQuestJoinCharacterInfo> joiners)
         {

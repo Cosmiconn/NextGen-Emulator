@@ -271,3 +271,27 @@ No value is treated as success, no START is triggered, and the captured
 `0x0991` from the separate client JOIN_ACK path is not reused. A future
 source-backed lifecycle owner may interpret the raw MAKE result once the
 original error semantics are proven.
+
+
+## Vote wire family closed without policy inference
+
+The PDB-derived vote packet bodies are now explicit builders:
+
+```text
+0x5828 VOTE_START_ACK:        u16 Error
+0x5829 VOTE_VOTING_CMD:      Name5 Starter + Name5 Target + u8 VoteType
+                              + tm EndTime + u8 Len + bytes[Len]
+0x582B VOTE_VOTING_ACK:      u16 Error
+0x582C VOTE_RESULT_SUC_CMD:  Name5 Target + u8 VoteRate + u8 Yes + u8 No + u8 Cancel
+0x582D VOTE_RESULT_FAIL_CMD: Name5 Target + u8 Yes + u8 No + u8 Cancel
+0x582E VOTE_CANCEL_CMD:      Name5 Target
+0x582F VOTE_BAN_MSG_CMD:     u8 VoteRate + u8 Yes + u8 No + u8 Cancel
+0x5830 VOTE_BAN_MSG_LOGOFF:  empty
+0x5833 LINK_TO_FORCE_BY_BAN: u32 CharacterNumber + Name3[4]
+0x5835 VOTE_START_CHECK_ACK: u16 Error
+```
+
+These serializers do not decide who may start a vote, which `VoteType` values
+are valid, how the two source majority thresholds are selected, when a vote
+passes, or what any raw Error means. Request handlers remain disabled until
+those rules are tied to original behavior.
