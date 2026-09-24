@@ -202,4 +202,51 @@ namespace NextGen.World.Data
             };
         }
     }
+    /// <summary>
+    /// Exact row from the original shared UseClassTypeInfo.shn table used by
+    /// WorldManager's CharClassDataBox::ccdb_UseClassTypeToBit.
+    /// </summary>
+    public sealed class KingdomQuestUseClassSourceRow
+    {
+        private static readonly string[] FlagColumns =
+        {
+            "Fig", "Cfig", "War", "Gla", "Kni", "Cle", "Hcle", "Pal", "Hol",
+            "Gua", "Arc", "Harc", "Sco", "Sha", "Ran", "Mag", "Wmag", "Enc",
+            "Warl", "Wiz", "Jok", "Chs", "Cru", "Cls", "Ass", "Sen", "Sav",
+        };
+
+        public uint SourceRow { get; private set; }
+        public uint UseClass { get; private set; }
+        public IReadOnlyList<byte> ClassFlags { get; private set; }
+
+        public static KingdomQuestUseClassSourceRow Load(DataRow row)
+        {
+            if (row == null) throw new ArgumentNullException("row");
+            var flags = new byte[FlagColumns.Length];
+            for (int i = 0; i < flags.Length; i++)
+                flags[i] = GetDataTypes.GetByte(row[FlagColumns[i]]);
+
+            return new KingdomQuestUseClassSourceRow
+            {
+                SourceRow = GetDataTypes.GetUint(row["__SourceRow"]),
+                UseClass = GetDataTypes.GetUint(row["UseClass"]),
+                ClassFlags = Array.AsReadOnly(flags),
+            };
+        }
+
+        public long ToDemandClassMask()
+        {
+            // ccdb_UseClassTypeToBit reads Sav..Fig, repeatedly shifts left
+            // and adds the raw byte, then performs one final left shift.
+            // This places Fig at bit 1 through Sav at bit 27.
+            unchecked
+            {
+                ulong value = 0;
+                for (int i = ClassFlags.Count - 1; i >= 0; i--)
+                    value = (value << 1) + ClassFlags[i];
+                value <<= 1;
+                return (long)value;
+            }
+        }
+    }
 }

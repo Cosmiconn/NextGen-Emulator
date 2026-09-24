@@ -33,6 +33,9 @@ namespace NextGen.World.Data
         public IReadOnlyList<KingdomQuestMapSourceRow> KingdomQuestSourceMaps { get; private set; }
         public IReadOnlyList<KingdomQuestRewardSourceRow> KingdomQuestSourceRewards { get; private set; }
         public IReadOnlyList<KingdomQuestItemSourceRow> KingdomQuestSourceItems { get; private set; }
+        public IReadOnlyList<KingdomQuestUseClassSourceRow> KingdomQuestUseClassSourceRows { get; private set; }
+        public Dictionary<uint, long> KingdomQuestDemandClassMasks { get; private set; }
+        public bool HasKingdomQuestUseClassSource { get; private set; }
 
 		public DataProvider()
 		{
@@ -60,6 +63,9 @@ namespace NextGen.World.Data
             KingdomQuestSourceMaps = new List<KingdomQuestMapSourceRow>().AsReadOnly();
             KingdomQuestSourceRewards = new List<KingdomQuestRewardSourceRow>().AsReadOnly();
             KingdomQuestSourceItems = new List<KingdomQuestItemSourceRow>().AsReadOnly();
+            KingdomQuestUseClassSourceRows = new List<KingdomQuestUseClassSourceRow>().AsReadOnly();
+            KingdomQuestDemandClassMasks = new Dictionary<uint, long>();
+            HasKingdomQuestUseClassSource = false;
 
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
@@ -124,12 +130,25 @@ namespace NextGen.World.Data
             if (HasCompleteKingdomQuestMainSource)
                 LoadKingdomQuestMainSourceRows();
 
+            KingdomQuestSourceManifestInfo useClassSource;
+            if (KingdomQuestSourceManifest.TryGetValue("UseClassTypeInfo", out useClassSource) &&
+                KingdomQuestSourceSnapshot.Matches(useClassSource) &&
+                ValidateKingdomQuestSourceTables(new[] { "UseClassTypeInfo" }))
+            {
+                LoadKingdomQuestUseClassSourceRows();
+                HasKingdomQuestUseClassSource = true;
+            }
+
             Log.WriteLine(LogLevel.Info,
                 "Loaded KQ metadata: {0} maps, {1} descriptions, {2} teams, {3} vote flags, {4} vote reasons, {5} vote thresholds; main source={6}.",
                 KingdomQuestMaps.Count, KingdomQuestDescriptions.Count, KingdomQuestTeams.Count,
                 KingdomQuestVoteEnabled.Count, KingdomQuestVoteReasons.Count,
                 KingdomQuestVoteMajorityRates.Count,
                 HasCompleteKingdomQuestMainSource ? "complete" : "absent/incomplete");
+            Log.WriteLine(LogLevel.Info,
+                "Loaded KQ UseClass conversion source: {0} rows; source={1}.",
+                KingdomQuestUseClassSourceRows.Count,
+                HasKingdomQuestUseClassSource ? "complete" : "absent/incomplete");
         }
 
         private void LoadKingdomQuestSourceManifest()
@@ -257,6 +276,31 @@ namespace NextGen.World.Data
             Log.WriteLine(LogLevel.Info,
                 "Loaded exact KQ main source rows: definitions={0}, maps={1}, rewards={2}, items={3}.",
                 definitions.Count, maps.Count, rewards.Count, items.Count);
+        }
+
+        private void LoadKingdomQuestUseClassSourceRows()
+        {
+            var rows = new List<KingdomQuestUseClassSourceRow>();
+            var masks = new Dictionary<uint, long>();
+
+            using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+            {
+                DataTable data = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM `data_useclasstypeinfo` ORDER BY `__SourceRow`; USE `{1}`",
+                    Settings.Instance.zoneMysqlDatabase, Settings.Instance.WorldMysqlDatabase));
+                foreach (DataRow row in data.Rows)
+                {
+                    KingdomQuestUseClassSourceRow source = KingdomQuestUseClassSourceRow.Load(row);
+                    rows.Add(source);
+                    if (masks.ContainsKey(source.UseClass))
+                        throw new InvalidOperationException(
+                            "Duplicate UseClassTypeInfo UseClass " + source.UseClass + ".");
+                    masks[source.UseClass] = source.ToDemandClassMask();
+                }
+            }
+
+            KingdomQuestUseClassSourceRows = rows.AsReadOnly();
+            KingdomQuestDemandClassMasks = masks;
         }
 
         private bool ValidateKingdomQuestSourceTables(IEnumerable<string> sourceNames)

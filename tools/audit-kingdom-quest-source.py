@@ -33,6 +33,9 @@ RAW_SOURCES = {
     "KQItem": (
         ROOT / "sql/data/data_kq_source_40_kqitem.sql",
         "2f641d273017bbd41f41f2ffb88df00ac92c1090b51f6438281bc185b1b2814a", 2, 4),
+    "UseClassTypeInfo": (
+        ROOT / "sql/data/data_kq_source_50_useclasstypeinfo.sql",
+        "0ef94a55e26fb992e0497f825984742df681f94f9bf32167e4defebcbead632d", 39, 28),
 }
 SOURCE_MANIFEST_SQL = ROOT / "sql/data/data_kq_source_00_manifest.sql"
 
@@ -166,7 +169,7 @@ def main():
             return 1
 
     tool = TOOL.read_text(encoding='utf-8')
-    for source in ('\"KingdomQuest.shn\"', '\"KingdomQuestMap.shn\"', '\"KingdomQuestRew.shn\"', '\"KQItem.shn\"'):
+    for source in ('\"KingdomQuest.shn\"', '\"KingdomQuestMap.shn\"', '\"KingdomQuestRew.shn\"', '\"KQItem.shn\"', '\"UseClassTypeInfo.shn\"'):
         if source not in tool:
             print('FAIL: KQ source dumper missing target', source)
             return 1
@@ -202,6 +205,11 @@ def main():
         '"KingdomQuestMap"',
         '"KingdomQuestRew"',
         '"KQItem"',
+        '"UseClassTypeInfo"',
+        'HasKingdomQuestUseClassSource',
+        'LoadKingdomQuestUseClassSourceRows()',
+        'KingdomQuestDemandClassMasks',
+        'ValidateKingdomQuestSourceTables(new[] { "UseClassTypeInfo" })',
     ):
         if token not in world_provider:
             print('FAIL: World KQ provenance loader missing', token)
@@ -277,6 +285,10 @@ def main():
         'class KingdomQuestMapSourceRow',
         'class KingdomQuestRewardSourceRow',
         'class KingdomQuestItemSourceRow',
+        'class KingdomQuestUseClassSourceRow',
+        'ToDemandClassMask()',
+        'value = (value << 1) + ClassFlags[i]',
+        'value <<= 1',
     ):
         if token not in world_source_rows:
             print('FAIL: World exact KQ source model missing', token)
@@ -307,6 +319,7 @@ def main():
         'NumOfJoiner = 0',
         'StartTime = time32',
         'ScheduleTime = time32',
+        'demandClassMasks.TryGetValue(source.UseClass, out demandClass)',
         'DemandClass = demandClass',
         'team.ID != result.ID',
         'result.IsTeamPvp = team.IsTeamPvp',
@@ -367,13 +380,14 @@ def main():
 
     print('PASS: 25 KingdomMap=1 source maps locked')
     print('PASS: KQ description/team/vote metadata corpus locked (39/8/30/4/2)')
-    print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
+    print('PASS: source dumper targets main KQ SHNs plus the exact UseClassTypeInfo scheduler dependency')
     print('PASS: source dumper can require all main SHNs, rejects duplicate basenames and records SHA-256/column manifests')
     print('PASS: source SQL includes machine-readable file/column provenance without gameplay mapping')
-    print('PASS: exact NA2016 main KQ raw corpus locked (57/38/64/2 rows; 35/22/33/4 source columns)')
+    print('PASS: exact NA2016 KQ/source dependency corpus locked (57/38/64/2/39 rows; includes UseClassTypeInfo)')
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
+    print('PASS: World loads exact UseClassTypeInfo and reproduces ccdb_UseClassTypeToBit folding for DemandClass')
     print('PASS: static KQ source projection maps PDB/EXE-correlated fields including packed DemandGender')
     print('PASS: KQ scheduler primitive reproduces current-month/day-hour-minute + minute-step two-entry window from WorldManager.exe')
     print('PASS: scheduled definition projection reproduces initial handle/status/time/team fields while handle ownership remains external')

@@ -56,10 +56,16 @@ namespace NextGen.World.Data
             KingdomQuestSourceDefinition source,
             uint handle,
             DateTime scheduledLocalTime,
-            long demandClass,
+            IReadOnlyDictionary<uint, long> demandClassMasks,
             KingdomQuestTeamInfo team)
         {
             if (source == null) throw new ArgumentNullException("source");
+            if (demandClassMasks == null) throw new ArgumentNullException("demandClassMasks");
+
+            long demandClass;
+            if (!demandClassMasks.TryGetValue(source.UseClass, out demandClass))
+                throw new InvalidOperationException(
+                    "No source-backed UseClassTypeInfo row for KQ UseClass " + source.UseClass + ".");
 
             DateTime local = NormalizeLocal(scheduledLocalTime);
             int time32 = ToNativeTime32(local);

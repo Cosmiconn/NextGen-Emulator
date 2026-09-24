@@ -544,3 +544,25 @@ the EXE proves that source UseClass is passed through
 `ccdb_UseClassTypeToBit`, and the supplied `UseClassTypeInfo.shn` is the
 authoritative conversion table. That dependency must be imported/correlated
 before live list publication; no class mask is guessed.
+
+
+## Source-backed DemandClass conversion
+
+The shared original `UseClassTypeInfo.shn` dependency is now imported with
+SHA-256 `0ef94a55e26fb992e0497f825984742df681f94f9bf32167e4defebcbead632d`
+(39 rows, 28 columns). It is included in the reproducible SHN dumper's
+preferred corpus and is provenance-checked independently of the four main KQ
+tables.
+
+`CharClassDataBox::ccdb_UseClassTypeToBit` at WorldManager
+`.text+0x64A90` looks up the row by `UseClass`, reads the 27 class bytes
+from Sav back through Fig, folds them by shift/add, then shifts once more.
+The runtime reproduces that exact byte folding in
+`KingdomQuestUseClassSourceRow.ToDemandClassMask()`; no class/job ordering is
+invented from names.
+
+`KingdomQuestSourceScheduler.CreateScheduledDefinition` now requires the
+source-backed UseClass mask dictionary and refuses to materialize a definition
+if the referenced UseClass row is absent. This closes the previously external
+DemandClass input while keeping handle allocation and live state transitions
+separate.

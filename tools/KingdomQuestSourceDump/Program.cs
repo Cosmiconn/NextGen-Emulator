@@ -31,6 +31,7 @@ namespace NextGen.KingdomQuestTool
             "KQVoteDesc.shn",
             "KQVoteMajorityRate.shn",
             "KingdomQuestDesc.shn",
+            "UseClassTypeInfo.shn",
         };
 
         private static int Main(string[] args)

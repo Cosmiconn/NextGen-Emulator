@@ -47,6 +47,10 @@ namespace NextGen.World.Data
                     "KQItem", "data_kqitem",
                     "2f641d273017bbd41f41f2ffb88df00ac92c1090b51f6438281bc185b1b2814a",
                     2, 4) },
+                { "UseClassTypeInfo", new ExpectedSource(
+                    "UseClassTypeInfo", "data_useclasstypeinfo",
+                    "0ef94a55e26fb992e0497f825984742df681f94f9bf32167e4defebcbead632d",
+                    39, 28) },
             };
 
         public static IReadOnlyDictionary<string, ExpectedSource> Sources
