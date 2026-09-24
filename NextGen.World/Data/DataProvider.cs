@@ -181,8 +181,16 @@ namespace NextGen.World.Data
                 "KingdomQuestRew",
                 "KQItem",
             };
-            HasCompleteKingdomQuestMainSource =
-                required.All(name => KingdomQuestSourceManifest.ContainsKey(name));
+            HasCompleteKingdomQuestMainSource = required.All(name =>
+            {
+                KingdomQuestSourceManifestInfo source;
+                return KingdomQuestSourceManifest.TryGetValue(name, out source) &&
+                    KingdomQuestSourceSnapshot.Matches(source);
+            });
+
+            if (HasCompleteKingdomQuestMainSource)
+                HasCompleteKingdomQuestMainSource =
+                    ValidateKingdomQuestSourceTables(required);
 
             KingdomQuestSourceManifestInfo main;
             if (KingdomQuestSourceManifest.TryGetValue("KingdomQuest", out main))
@@ -194,6 +202,45 @@ namespace NextGen.World.Data
                     KingdomQuestNativeSchema.Fields.Count,
                     KingdomQuestSchemaCoverage.SourceNamesWithoutExactNativeMatch.Count);
             }
+        }
+
+        private bool ValidateKingdomQuestSourceTables(IEnumerable<string> sourceNames)
+        {
+            using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+            {
+                string zoneDb = Settings.Instance.zoneMysqlDatabase;
+                foreach (string sourceName in sourceNames)
+                {
+                    KingdomQuestSourceSnapshot.ExpectedSource expected;
+                    if (!KingdomQuestSourceSnapshot.TryGet(sourceName, out expected))
+                        return false;
+
+                    string tableName = expected.TableName.Replace("`", "``");
+                    DataTable exists = dbClient.ReadDataTable(string.Format(
+                        "SELECT TABLE_NAME FROM information_schema.TABLES " +
+                        "WHERE TABLE_SCHEMA='{0}' AND TABLE_NAME='{1}'",
+                        zoneDb.Replace("'", "''"),
+                        expected.TableName.Replace("'", "''")));
+                    if (exists == null || exists.Rows.Count != 1)
+                    {
+                        Log.WriteLine(LogLevel.Warn,
+                            "KQ source table missing: {0}.", expected.TableName);
+                        return false;
+                    }
+
+                    DataTable count = dbClient.ReadDataTable(string.Format(
+                        "USE `{0}`; SELECT COUNT(*) AS RowCount FROM `{1}`; USE `{2}`",
+                        zoneDb, tableName, Settings.Instance.WorldMysqlDatabase));
+                    if (count == null || count.Rows.Count != 1 ||
+                        Convert.ToUInt32(count.Rows[0]["RowCount"]) != expected.RecordCount)
+                    {
+                        Log.WriteLine(LogLevel.Warn,
+                            "KQ source table row count mismatch: {0}.", expected.TableName);
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         private void LoadMasterReward()

@@ -16,6 +16,22 @@ TOOL = ROOT / "tools/KingdomQuestSourceDump/Program.cs"
 WORLD_MANIFEST = ROOT / "NextGen.World/Data/KingdomQuestSourceManifestInfo.cs"
 WORLD_NATIVE_SCHEMA = ROOT / "NextGen.World/Data/KingdomQuestNativeSchema.cs"
 ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
+WORLD_SNAPSHOT = ROOT / "NextGen.World/Data/KingdomQuestSourceSnapshot.cs"
+RAW_SOURCES = {
+    "KingdomQuest": (
+        ROOT / "sql/data/data_kq_source_10_kingdomquest.sql",
+        "2a4c5c98005bf7253cc1c149a4260662a5c861a1b8ba38bf78d91ffcc260f6c9", 57, 35),
+    "KingdomQuestMap": (
+        ROOT / "sql/data/data_kq_source_20_kingdomquestmap.sql",
+        "d69edb81a6e265151eaf1108c48ed0ad3fe703bff7e7d4347d276bd53c2fa5e4", 38, 22),
+    "KingdomQuestRew": (
+        ROOT / "sql/data/data_kq_source_30_kingdomquestrew.sql",
+        "a19ad75f5b529a0178d1004182b37ee66703c01646f55f3beab439722e993dd1", 64, 33),
+    "KQItem": (
+        ROOT / "sql/data/data_kq_source_40_kqitem.sql",
+        "2f641d273017bbd41f41f2ffb88df00ac92c1090b51f6438281bc185b1b2814a", 2, 4),
+}
+SOURCE_MANIFEST_SQL = ROOT / "sql/data/data_kq_source_00_manifest.sql"
 
 EXPECTED_MAPS = {
     (30, "KDPrtShip"), (31, "KDEddyHill"), (33, "KDTrDn"), (34, "KDUnHall"), (35, "KDEnMaze"),
@@ -31,8 +47,34 @@ def data_rows(path):
     return [line.strip() for line in path.read_text(encoding='utf-8').splitlines()
             if line.lstrip().startswith('(')]
 
+def row_field_count(line):
+    text = line.strip().rstrip(',;')
+    if text.startswith('(') and text.endswith(')'):
+        text = text[1:-1]
+    quoted = False
+    escaped = False
+    fields = 1
+    for ch in text:
+        if escaped:
+            escaped = False
+            continue
+        if ch == '\\':
+            escaped = True
+            continue
+        if ch == "'":
+            quoted = not quoted
+            continue
+        if ch == ',' and not quoted:
+            fields += 1
+    return fields
+
 def main():
-    for path in (MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL, WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, ZONE_CHARACTER):
+    required_files = [
+        MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
+        WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT,
+        ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
+    ] + [spec[0] for spec in RAW_SOURCES.values()]
+    for path in required_files:
         if not path.is_file():
             print('FAIL: missing', path)
             return 1
@@ -56,10 +98,48 @@ def main():
         print('FAIL: KQ metadata row counts changed:', counts)
         return 1
 
+    manifest_sql = SOURCE_MANIFEST_SQL.read_text(encoding='utf-8')
+    for source_name, (path, sha256, expected_rows, expected_columns) in RAW_SOURCES.items():
+        raw = path.read_text(encoding='utf-8')
+        header = (
+            'sha256=' + sha256 +
+            '; records=' + str(expected_rows) +
+            '; columns=' + str(expected_columns))
+        if header not in raw:
+            print('FAIL: KQ raw source header changed:', source_name)
+            return 1
+        rows = data_rows(path)
+        if len(rows) != expected_rows:
+            print('FAIL: KQ raw source row count changed:', source_name, len(rows))
+            return 1
+        malformed = [i + 1 for i, row in enumerate(rows)
+                     if row_field_count(row) != expected_columns]
+        if malformed:
+            print('FAIL: KQ raw source row width changed:', source_name, malformed[:10])
+            return 1
+        manifest_tuple = "'{0}', '{1}', {2}, {3}".format(
+            source_name, sha256, expected_rows, expected_columns)
+        if manifest_tuple not in manifest_sql:
+            print('FAIL: KQ source manifest tuple changed:', source_name)
+            return 1
+
+    kingdom_source = RAW_SOURCES["KingdomQuest"][0].read_text(encoding='utf-8')
+    for token in (
+        '`ST_Hour` TINYINT UNSIGNED',
+        '`NextStartDeleyMin` SMALLINT UNSIGNED',
+        '`InitValue` VARCHAR(32)',
+        '`UseClass` INT UNSIGNED',
+        '`Undefined 3` TINYINT',
+    ):
+        if token not in kingdom_source:
+            print('FAIL: exact KINGDOM_QUEST source field missing:', token)
+            return 1
+
     provider = DP.read_text(encoding='utf-8')
     world_provider = provider
     world_manifest = WORLD_MANIFEST.read_text(encoding='utf-8')
     world_native_schema = WORLD_NATIVE_SCHEMA.read_text(encoding='utf-8')
+    world_snapshot = WORLD_SNAPSHOT.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
@@ -147,6 +227,26 @@ def main():
             print('FAIL: secondary/tutorial SHN aliases leaked into native schema mapping', forbidden)
             return 1
 
+    for source_name, (_path, sha256, record_count, column_count) in RAW_SOURCES.items():
+        for token in (
+            '"' + source_name + '"',
+            '"' + sha256 + '"',
+            str(record_count) + ', ' + str(column_count),
+        ):
+            if token not in world_snapshot:
+                print('FAIL: World KQ snapshot guard missing', source_name, token)
+                return 1
+
+    for token in (
+        'KingdomQuestSourceSnapshot.Matches(source)',
+        'ValidateKingdomQuestSourceTables(required)',
+        'SELECT COUNT(*) AS RowCount',
+        'expected.RecordCount',
+    ):
+        if token not in world_provider:
+            print('FAIL: World KQ raw-source runtime gate missing', token)
+            return 1
+
     zone_character = ZONE_CHARACTER.read_text(encoding='utf-8')
     if 'if (id > 120)' in zone_character:
         print('FAIL: legacy map-ID cutoff blocks source-backed KQ maps above 120')
@@ -160,6 +260,8 @@ def main():
     print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
     print('PASS: source dumper can require all main SHNs, rejects duplicate basenames and records SHA-256/column manifests')
     print('PASS: source SQL includes machine-readable file/column provenance without gameplay mapping')
+    print('PASS: exact NA2016 main KQ raw corpus locked (57/38/64/2 rows; 35/22/33/4 columns)')
+    print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
     print('PASS: KingdomQuest.shn coverage compares only exact PDB field names; no SHN aliases are inferred')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')
