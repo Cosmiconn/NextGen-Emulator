@@ -68,6 +68,10 @@ jobs:
         shell: bash
         run: python3 tools/audit-kingdom-quest-source.py
 
+      - name: Run Kingdom Quest runtime-source audit
+        shell: bash
+        run: python3 tools/audit-kingdom-quest-runtime-source.py
+
       - name: Run Kingdom Quest instance audit
         shell: bash
         run: python3 tools/audit-kingdom-quest-instance.py

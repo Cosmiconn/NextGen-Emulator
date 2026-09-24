@@ -1002,3 +1002,55 @@ If a joiner session disappears before the countdown expires, START remains at
 Status 3 rather than fabricating a replacement session, party state or
 CharacterNumber. Native disconnect cleanup is therefore the next separate
 lifecycle edge to correlate.
+
+
+## Original KQ script and regen corpus boundary
+
+The supplied `Server.zip` is now locked as an independent runtime-source
+provenance snapshot (SHA-256
+`b83bf92c7193578a772fcebf4d8b7c8c2a9a642cf0d50d33506f77a75b0e211d`).
+`docs/KINGDOM_QUEST_RUNTIME_SOURCE_MANIFEST.tsv` records only exact
+case-sensitive source presence under `Server - Kopie/9Data/Shine`, including
+path, SHA-256 and byte size for files that are actually present. Absence is
+recorded as absence; no alternate filename is promoted to an alias.
+
+Across the 57 exact `KingdomQuest.shn` rows there are 27 distinct
+`ScriptLanguage` keys. Eighteen have the exact corresponding
+`LuaScript/<ScriptLanguage>.lua` entrypoint in this archive. Nine do not:
+
+```text
+KQ/GordonMaster
+KQ/Honeying
+KQ/KQHBat1
+KQ/KQHBat2
+KQ/KQHBat3
+KQ/KQHBat4
+KQ/KQHBat5
+KQ/UnderHall
+KQ/UnderHall2
+```
+
+The same 57 definitions use 18 distinct `KingdomQuestMap.BaseMap` values.
+Fifteen have an exact
+`MobRegen/KingdomQuest/<BaseMap>.txt` source. Three do not:
+
+```text
+KDArena
+KDMine
+KDSpring
+```
+
+Those three maps do have substantial original KQ Lua trees in the archive:
+KDArena contains per-tier `Data1..Data6/Regen.lua`, KDMine contains
+`KDMineData.lua`/`KDMineFunc.lua`, and KDSpring contains
+`KDSpring_Data.lua`/`KDSpring_StepFunc.lua`. That observation does
+**not** establish that Lua data replaces the missing static MobRegen files,
+nor does it establish loader precedence. The equivalence/precedence remains
+`UNRESOLVED` until the original Zone EXE/PDB KQ loader path is correlated.
+
+CI now derives the 27 ScriptLanguage keys and 18 used BaseMap keys directly
+from the provenance-locked SHN SQL, checks them against the runtime-source
+manifest, locks the exact 18/9 and 15/3 presence boundaries, and rejects any
+attempt to fill an absent source row with a guessed path/hash/size. This block
+therefore establishes **what original runtime source is present**, not how Zone
+interprets it.

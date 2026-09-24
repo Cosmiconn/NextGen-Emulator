@@ -1,0 +1,51 @@
+# Kingdom Quest runtime-source presence manifest
+# SourceArchive	Server.zip
+# SourceArchiveSha256	b83bf92c7193578a772fcebf4d8b7c8c2a9a642cf0d50d33506f77a75b0e211d
+# ArchiveRoot	Server - Kopie/9Data/Shine
+# Semantics	presence-only; missing files are not aliases and Lua/static-regen equivalence is UNRESOLVED
+kind	key	present	archive_path	sha256	size
+script	KQ/AntiHenis/AntiHenis	1	LuaScript/KQ/AntiHenis/AntiHenis.lua	4daac87c87db43ff9b497898882ea6b3e39c3874816a1528b763561366c3e96e	1814
+script	KQ/EmperorSlime/EmperorSlime	1	LuaScript/KQ/EmperorSlime/EmperorSlime.lua	a681745ced8a528e1b0b7bbafe3501edaced726195e4f721087ef0833cb92975	1833
+script	KQ/GoldHill/GoldHill	1	LuaScript/KQ/GoldHill/GoldHill.lua	c9b8a01fe34c369f5ecf2bc31b87390b6d701031f1a7baf52d38411690b00d8e	1661
+script	KQ/GordonMaster	0			
+script	KQ/HMiniDragon/HMiniDragon	1	LuaScript/KQ/HMiniDragon/HMiniDragon.lua	fc739c0ae4de6bbcdfc9b3ee3c920b5d2648edc3de4304c04bc7577231e1c478	1727
+script	KQ/Honeying	0			
+script	KQ/KDArena/KDArena1	1	LuaScript/KQ/KDArena/KDArena1.lua	e9b5f1874e345d31c5ff189fc9cf38b24ab9fad6e6f299956c85a86ca27efc19	982
+script	KQ/KDArena/KDArena2	1	LuaScript/KQ/KDArena/KDArena2.lua	c12b165b062919a08e11eec95797d2400f6cda58c1293e8e021a31fd9a30b564	982
+script	KQ/KDArena/KDArena3	1	LuaScript/KQ/KDArena/KDArena3.lua	d4531585d982b0e9bd7729ff7ce0a187ac19f89a775e8594e9a09a90354faaa9	982
+script	KQ/KDArena/KDArena4	1	LuaScript/KQ/KDArena/KDArena4.lua	517903e74f6add4a6c36a862abc68fa912d817f7f57804c66d7f60ec459bbb59	982
+script	KQ/KDArena/KDArena5	1	LuaScript/KQ/KDArena/KDArena5.lua	116260a4fb727a2852ac2edfcd0802214fbc37adad46e883027d2960ffa6945c	982
+script	KQ/KDArena/KDArena6	1	LuaScript/KQ/KDArena/KDArena6.lua	4f9950a390eb2abd850398c1b99189d5b4739dd84283a8cc34ba094b1fbaedf1	982
+script	KQ/KDFargels/KDFargels	1	LuaScript/KQ/KDFargels/KDFargels.lua	79cd7549d49d4d7ed8eb61df4e45ae115c0ababffbaae166bfaf0f05d25f09ab	3931
+script	KQ/KDMine/KDMine	1	LuaScript/KQ/KDMine/KDMine.lua	fc02a774f3d7ab7455b9809fe0ca96e380760cab851e2febc4794aef122b56b0	5001
+script	KQ/KDSpring/KDSpring	1	LuaScript/KQ/KDSpring/KDSpring.lua	8e3b691944022e04ec05f31d4ffca52b999b8b30f61ce5e4faa1798205849f24	13788
+script	KQ/KQHBat1	0			
+script	KQ/KQHBat2	0			
+script	KQ/KQHBat3	0			
+script	KQ/KQHBat4	0			
+script	KQ/KQHBat5	0			
+script	KQ/KingSlime/KingSlime	1	LuaScript/KQ/KingSlime/KingSlime.lua	a31a590c78d68a33f8b47d66da194af23d3dfcb1c8d2d72821e510413eab39c5	1814
+script	KQ/Kingkong/Kingkong	1	LuaScript/KQ/Kingkong/Kingkong.lua	a6026eac4bc615ffdcb5af3c97b8614d811e3d439e76b13537d24443361ceea1	1481
+script	KQ/LegendOfBijou/LegendOfBijou	1	LuaScript/KQ/LegendOfBijou/LegendOfBijou.lua	0c68dc9ef4752f2a9df182b651c7f4bd36500a44732e75a76c9fefd4473da0a7	1709
+script	KQ/MaraPirate/MaraPirate	1	LuaScript/KQ/MaraPirate/MaraPirate.lua	a2a7c7092547037a9341d2e8a14ae34f1cbc154589c462c50169af311bb3a5e0	1730
+script	KQ/MiniDragon/MiniDragon	1	LuaScript/KQ/MiniDragon/MiniDragon.lua	b6c9e8f32d9b3adf26bc28ed506d2cebef7e7159e3578ebd75e153ecb1ba8554	1721
+script	KQ/UnderHall	0			
+script	KQ/UnderHall2	0			
+regen	KDAntiHenis	1	MobRegen/KingdomQuest/KDAntiHenis.txt	5ae9c5eaa0a9cd14460a84fb040cdaf97596dc28f35d3e07201ed079e7f4c9bf	8137
+regen	KDArena	0			
+regen	KDEddyHill	1	MobRegen/KingdomQuest/KDEddyHill.txt	197226d3393aaaab3c0ddf08a7accd4365cc2b1249d267e4823ae00fe1b651b3	8091
+regen	KDEnMaze	1	MobRegen/KingdomQuest/KDEnMaze.txt	63c4da27ff6a5e38ec0433c514b8a3f9e17e52948a7d31afd5559dc3c91f7306	9001
+regen	KDFargels	1	MobRegen/KingdomQuest/KDFargels.txt	dbc4ba3489c4ee8f9a00170818417d03d03540df22dc7b220b1ed36bffba357d	9883
+regen	KDGoldHill	1	MobRegen/KingdomQuest/KDGoldHill.txt	30c62c4f2ca598e4529a1cab3685b4081e37db27954e083a7bd04ced9ce5cb82	14130
+regen	KDGreenHill	1	MobRegen/KingdomQuest/KDGreenHill.txt	bcec8bbbb62b337ec82f1385493a07b7b445ac3a82baebf57b988ec294fdef0d	6208
+regen	KDHBat1	1	MobRegen/KingdomQuest/KDHBat1.txt	cb55ba04eb3bffa7a353ea2d2200d1881720e9c4162addbe085135fa8f65e1bf	1181
+regen	KDHDragon	1	MobRegen/KingdomQuest/KDHDragon.txt	f59ba92251a2b4e5fe5dad4629a929c24b0341a5bac67a67598eb3c7122da0cc	4647
+regen	KDHoneying	1	MobRegen/KingdomQuest/KDHoneying.txt	b497a4a11600b3ec51d1245b9a14c6573750f401cf6a9a667b9728fae950c458	7595
+regen	KDKingkong	1	MobRegen/KingdomQuest/KDKingkong.txt	6c418f1f94948e63a74e2f52e7ce6fd1d6793f4b54e20b464b69027a2a70455e	9974
+regen	KDMDragon	1	MobRegen/KingdomQuest/KDMDragon.txt	79f3ef89177d2d51005889be35c772b5e28bd4a609ec5575d027509d034b2bb1	4490
+regen	KDMine	0			
+regen	KDPrtShip	1	MobRegen/KingdomQuest/KDPrtShip.txt	9b29f05c67f0f6abad9bf647384a113632a85f2b0d926847644a1ac653c7c04b	7834
+regen	KDSpider	1	MobRegen/KingdomQuest/KDSpider.txt	88c7d94a8919ff6152a051754c41d09a8186cef5174646f5980af3864506b882	7423
+regen	KDSpring	0			
+regen	KDUnHall	1	MobRegen/KingdomQuest/KDUnHall.txt	511904745ac0f885de866f961b62d688415f2ed3a5e93fd2073fa1a1b89cdd94	7312
+regen	KDVictor	1	MobRegen/KingdomQuest/KDVictor.txt	777da6aab1991e05810d4aabc382abc687ce2c4a30edc9eebf7d53e010206e3e	3133
