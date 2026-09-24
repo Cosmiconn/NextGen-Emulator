@@ -18,6 +18,7 @@ WORLD_NATIVE_SCHEMA = ROOT / "NextGen.World/Data/KingdomQuestNativeSchema.cs"
 ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 WORLD_SNAPSHOT = ROOT / "NextGen.World/Data/KingdomQuestSourceSnapshot.cs"
 WORLD_SOURCE_ROWS = ROOT / "NextGen.World/Data/KingdomQuestSourceRows.cs"
+WORLD_SOURCE_PROJECTION = ROOT / "NextGen.World/Data/KingdomQuestSourceProjection.cs"
 RAW_SOURCES = {
     "KingdomQuest": (
         ROOT / "sql/data/data_kq_source_10_kingdomquest.sql",
@@ -73,6 +74,7 @@ def main():
     required_files = [
         MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
+        WORLD_SOURCE_PROJECTION,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -155,6 +157,7 @@ def main():
     world_native_schema = WORLD_NATIVE_SCHEMA.read_text(encoding='utf-8')
     world_snapshot = WORLD_SNAPSHOT.read_text(encoding='utf-8')
     world_source_rows = WORLD_SOURCE_ROWS.read_text(encoding='utf-8')
+    world_source_projection = WORLD_SOURCE_PROJECTION.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
@@ -278,6 +281,36 @@ def main():
             return 1
 
     for token in (
+        'ApplyProvenStaticFields',
+        'target.ID = (ushort)source.ID',
+        'target.NextStartDelayMin = source.NextStartDeleyMin',
+        'target.ScriptInitValue = source.InitValue',
+        'target.RewardIndex = (ushort)source.RewardIndex',
+        'target.DemandMobKill = source.DemandMobKill',
+    ):
+        if token not in world_source_projection:
+            print('FAIL: proven KQ source projection missing', token)
+            return 1
+
+    for forbidden in (
+        'target.Handle =',
+        'target.Status =',
+        'target.NumOfJoiner =',
+        'target.StartTime =',
+        'target.StartTm =',
+        'target.DemandClass =',
+        'target.MapLink =',
+        'target.ScheduleTime =',
+        'target.ScheduleTm =',
+        'target.RunCounter =',
+        'target.IsTeamPvp =',
+        'target.TeamRegenXY =',
+    ):
+        if forbidden in world_source_projection:
+            print('FAIL: unresolved KQ field leaked into static source projection', forbidden)
+            return 1
+
+    for token in (
         'LoadKingdomQuestMainSourceRows()',
         'ORDER BY `__SourceRow`',
         'KingdomQuestSourceDefinition.Load(row)',
@@ -306,6 +339,7 @@ def main():
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
+    print('PASS: static KQ source projection maps only PDB-correlated fields; dynamic/admission/map/team fields remain excluded')
     print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
     print('PASS: KingdomQuest.shn coverage compares only exact PDB field names; no SHN aliases are inferred')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')

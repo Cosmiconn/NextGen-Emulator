@@ -461,3 +461,33 @@ secondary/tutorial spellings such as `ST_Hour`, `NextStartDeleyMin`,
 `MinPlayer` or `InitValue` are specifically forbidden from the native
 mapping class. They can only be mapped after the supplied NA2016 SHN manifest
 and original behavior establish the relationship.
+
+
+## PDB-bounded KINGDOM_QUEST source projection
+
+The supplied WorldManager PDB exposes the original table-header type
+`KINGDOM_QUEST` and the native `PROTO_KQ_INFO` member names. The runtime now
+has `KingdomQuestSourceProjection.ApplyProvenStaticFields`, but it is
+intentionally a partial projection.
+
+It copies exact/static counterparts such as ID/title/limits/player gates,
+repeat/revival fields, DemandQuest/DemandItem/DemandGender, RewardIndex,
+DemandMobKill and ScriptLanguage. Two source/protocol naming differences are
+now explicitly correlated from the original PDB types:
+
+```text
+KINGDOM_QUEST::NextStartDeleyMin  -> PROTO_KQ_INFO::NextStartDelayMin
+KINGDOM_QUEST::InitValue          -> PROTO_KQ_INFO::ScriptInitValue
+```
+
+The mapper is CI-forbidden from assigning:
+
+- Handle, Status or NumOfJoiner;
+- StartTime/tm_StartTime from the source ST_* components;
+- DemandClass from UseClass;
+- resolved PROTO_KQ_MAP_INFO entries from source MapLink indices;
+- ScheduleTime/tm_ScheduleTime or RunCounter;
+- IsTeamPVP or TeamRegenXY.
+
+Those fields require the original scheduler/admission/map/team behavior and are
+not filled with defaults disguised as semantics.
