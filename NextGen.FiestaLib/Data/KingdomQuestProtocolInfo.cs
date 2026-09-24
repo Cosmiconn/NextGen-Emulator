@@ -503,6 +503,11 @@ namespace NextGen.FiestaLib.Data
         public const ushort JoinCancelSuccess = 0x09A1;
         public const ushort JoinCancelNotJoined = 0x09A2;
 
+        public const ushort JoinListSuccess = 0x3118;
+        public const ushort JoinListInvalidHandle = 0x3119;
+        public const ushort JoinListCooldown = 0x311A;
+        public const int JoinListCooldownSeconds = 5;
+
         public const int JoinHardCapacity = 100;
 
         public const byte StatusScheduled = 0;

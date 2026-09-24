@@ -825,8 +825,11 @@ join those KQs as neutral TeamType 2 and are divided only at start.
 The participant count and team values now have an explicit combined native
 membership owner. `KingdomQuestMembershipEntry` carries CharacterNumber,
 Level, Class, Name and TeamType together and projects both
-`KQ_JOIN_CHAR_INFO` and `PROTO_NC_KQ_JOINER`. It never resolves a name to
-a CharacterNumber or derives the latter from the emulator Character.ID.
+`KQ_JOIN_CHAR_INFO` and `PROTO_NC_KQ_JOINER`. The registry itself never
+reconciles names with IDs. When a live World character supplies a new native
+row, `KingdomQuestCharacterIdentity` can now source CharacterNumber from the
+emulator's already-correlated `Character.ID == chrregnum/nCharNo`
+representation.
 
 The original `DoSetStart` Status-3 path is now also recovered. When the
 10-second byte counter reaches zero, World writes Status 4, calls
@@ -846,13 +849,13 @@ normalizes the WELL output by 2^-32, multiplies by 1e11, truncates and reduces
 modulo 1000. `KingdomQuestNativeRandom` models that integer path from an
 explicit original-style time32 seed; no .NET Random policy is substituted.
 
-`KQTeam_LeaveParty` is the remaining live-runtime gate. Original World first
+`KQTeam_LeaveParty` remains the live-runtime gate. Original World first
 refreshes each joiner's party/raid state; raid members execute `RaidLeave`,
-otherwise a non-0xFFFF party executes `LeaveParty`. The current emulator has
-no authoritative Raid model and the native CharacterNumber-to-World-session
-mapping is not yet proven. Therefore Status 4 and W2Z START are documented and
-modeled as source behavior but are **not yet executed live**. This is now an
-emulator-routing/state gap, not unresolved KQ protocol semantics.
+otherwise a non-0xFFFF party executes `LeaveParty`. CharacterNumber is now
+correlated to the emulator's existing `Character.ID`/chrregnum identity, so
+the remaining blocker is specifically authoritative party/raid mutation:
+the current emulator has a normal Group model but no native-equivalent Raid
+owner. Status 4 and W2Z START must not bypass that original leave step.
 
 `KingdomQuestStartCountdownRegistry` retains the ten-second deadline and
 `KingdomQuestDoneSkipRegistry` retains raw Status-6 reason bytes. Later
@@ -906,6 +909,29 @@ CharacterNumber. Empty scheduler/SetJoining rosters remain authoritative empty
 membership in all views.
 
 PDB `CWMClientSession::GetCharRegNo` proves that native CharacterNumber is
-the first DWORD `PROTO_NC_CHAR_BASE_CMD::chrregnum`. Correlation of that
-field to the emulator's persisted `Character.ID` is still pending and no cast
-or equality assumption has been introduced.
+the first DWORD `PROTO_NC_CHAR_BASE_CMD::chrregnum`. The original Character
+server names the corresponding `PROTO_NC_CHAR_CHARDATA_REQ` value
+`nCharNo`, and the original DB's `p_Char_Create` returns
+`nCharNo = @@IDENTITY`. Independently, the emulator already writes
+`Character.ID` into the first `PROTO_AVATARINFORMATION::chrregnum` field
+for CharacterList/Create responses. This closes the identity correlation:
+`KingdomQuestCharacterIdentity` uses the existing persisted
+`Character.ID` as native CharacterNumber; no KQ-only remapping is created.
+
+
+## Native JOIN_LIST result and cooldown closed
+
+Original `CKQServer::Recv_NC_KQ_JOIN_LIST_REQ` resolves the remaining
+JOIN_LIST response semantics. The request body remains `u32 Handle`, but
+when the session's current KQ is Status 4 the server substitutes that
+session-owned Handle before looking up the KQ buffer.
+
+The exact ACK results are `0x3118` success, `0x3119` missing KQ buffer,
+and `0x311A` cooldown. The supplied original `SingleData.shn` contains
+`KQPlayerList_ResetListCoolTime = 5`, so the live handler enforces the same
+five-second interval between successful JOIN_LIST replies. Only success
+updates the per-session timestamp; error replies carry an empty roster.
+
+This removes the old `KingdomQuestJoinListReplyRegistry` dependency from
+the client handler. The participant payload remains the native
+`KQ_JOIN_CHAR_INFO` projection of the source-owned membership state.

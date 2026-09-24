@@ -150,22 +150,49 @@ namespace NextGen.World.Handlers
         [PacketHandler(CH22Type.KingdomQuestJoinListReq)]
         public static void KingdomQuestJoinList(WorldClient client, Packet packet)
         {
-            uint handle;
-            if (!packet.TryReadUInt(out handle))
+            uint requestedHandle;
+            if (!packet.TryReadUInt(out requestedHandle))
                 return;
 
-            ushort error;
-            IReadOnlyList<KingdomQuestJoinCharacterInfo> participants;
-            if (!KingdomQuestJoinListReplyRegistry.TryGet(handle, out error) ||
-                !KingdomQuestParticipantRegistry.TryGet(handle, out participants))
+            // Original Recv_NC_KQ_JOIN_LIST_REQ substitutes the session-owned
+            // KQ Handle only while that KQ is Status 4; otherwise it uses the
+            // request Handle unchanged.
+            uint effectiveHandle = requestedHandle;
+            if (client.KingdomQuestHandle.HasValue)
             {
-                Log.WriteLine(LogLevel.Debug,
-                    "KQ join-list requested for unresolved handle/error {0}.", handle);
+                KingdomQuestProtocolInfo current;
+                if (KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        client.KingdomQuestHandle.Value, out current) &&
+                    current.Status == KingdomQuestNativeConstants.StatusRunning)
+                    effectiveHandle = client.KingdomQuestHandle.Value;
+            }
+
+            IReadOnlyList<KingdomQuestJoinCharacterInfo> participants;
+            if (!KingdomQuestParticipantRegistry.TryGet(
+                    effectiveHandle, out participants))
+            {
+                using (Packet invalid = KingdomQuestProtocol.CreateJoinListAck(
+                    KingdomQuestNativeConstants.JoinListInvalidHandle,
+                    new KingdomQuestJoinCharacterInfo[0]))
+                    client.SendPacket(invalid);
                 return;
             }
 
-            using (Packet response =
-                KingdomQuestProtocol.CreateJoinListAck(error, participants))
+            int now = KingdomQuestSourceScheduler.ToNativeTime32(DateTime.Now);
+            if (client.KingdomQuestJoinListLastRequestTime.HasValue &&
+                (long)client.KingdomQuestJoinListLastRequestTime.Value +
+                    KingdomQuestNativeConstants.JoinListCooldownSeconds > now)
+            {
+                using (Packet cooldown = KingdomQuestProtocol.CreateJoinListAck(
+                    KingdomQuestNativeConstants.JoinListCooldown,
+                    new KingdomQuestJoinCharacterInfo[0]))
+                    client.SendPacket(cooldown);
+                return;
+            }
+
+            client.KingdomQuestJoinListLastRequestTime = now;
+            using (Packet response = KingdomQuestProtocol.CreateJoinListAck(
+                KingdomQuestNativeConstants.JoinListSuccess, participants))
                 client.SendPacket(response);
         }
 

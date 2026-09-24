@@ -29,6 +29,15 @@ namespace NextGen.World.Networking
 		public bool Pong { get; set; }
         internal bool KingdomQuestListTimeSent { get; set; }
         internal List<KingdomQuestClientInfo> KingdomQuestListSnapshot { get; private set; }
+
+        // Native CWMClientSession::nKQHandle uses 0xFFFFFFFF for no
+        // membership. Nullable is the emulator-side equivalent and avoids
+        // conflating a real u32 Handle with a sentinel.
+        internal uint? KingdomQuestHandle { get; set; }
+
+        // Recv_NC_KQ_JOIN_LIST_REQ stores the last successful list request
+        // time and applies SingleData.KQPlayerList_ResetListCoolTime.
+        internal int? KingdomQuestJoinListLastRequestTime { get; set; }
 		#endregion
 		#region .ctor
 		public WorldClient(Socket socket)

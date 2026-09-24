@@ -12,7 +12,10 @@ namespace NextGen.World.Handlers
         public static void WriteBasicCharInfo(WorldCharacter wchar, Packet packet)
         {
             
-            packet.WriteInt(wchar.Character.ID); //charid
+            // Original PROTO_AVATARINFORMATION begins with u32 chrregnum.
+            // Character.ID is the emulator's already-established native
+            // character registration number representation.
+            packet.WriteInt(wchar.Character.ID);
             packet.FillPadding(wchar.Character.Name, 0x10);
             packet.WriteInt(0);//unk
             packet.WriteShort((short)wchar.Character.CharLevel); //level

@@ -105,20 +105,29 @@ server packets, but request handlers are not enabled until their admission/team
 decision rules and raw `Error` values are proven.
 
 
-## JOIN_LIST_REQ live without an invented Error code
+## JOIN_LIST_REQ Error/cooldown behavior recovered
 
-`NC_KQ_JOIN_LIST_REQ (0x5831)` is now handled as its native body defines it:
-one `u32 Handle`.
+`NC_KQ_JOIN_LIST_REQ (0x5831)` is one `u32 Handle`. The original
+`CKQServer::Recv_NC_KQ_JOIN_LIST_REQ` now closes the ACK semantics:
 
-The response path deliberately does not assume that `0` or the observed
-`0x0991` from `JOIN_ACK` is also the `JOIN_LIST_ACK.nError` value.
-`KingdomQuestJoinListReplyRegistry` must receive the exact per-Handle
-`ushort Error` from a later authoritative admission/session owner. Only when
-that value **and** the native Level/Class/Name5/Team participant roster exist
-does World emit `NC_KQ_JOIN_LIST_ACK`.
+```text
+0x3118  success
+0x3119  requested/effective KQ BF does not exist
+0x311A  list-request cooldown has not elapsed
+```
 
-This makes the request path operational without collapsing two distinct Error
-fields into one guessed constant.
+Before the BF lookup, World checks the session-owned current KQ Handle with
+`InKQStatusRunning`. When that current KQ is Status 4, its Handle replaces
+the request Handle; otherwise the request Handle is used unchanged.
+
+The cooldown is source-backed as well. The original `SingleData.shn` entry
+`KQPlayerList_ResetListCoolTime` is exactly `5`. The server compares the
+last successful JOIN_LIST request time plus five seconds against current
+`_time32`; only a successful response updates that timestamp. Invalid-handle
+and cooldown replies carry a zero entry count.
+
+The live handler now follows those branches directly. It no longer depends on
+the former external `KingdomQuestJoinListReplyRegistry` Error placeholder.
 
 
 ## LIST_REQ / SCHEDULE_REQ selection recovered from WorldManager.exe
@@ -450,13 +459,23 @@ project both client `KQ_JOIN_CHAR_INFO` and World-to-Zone
 independent registries.
 
 Original `CWMClientSession::GetCharRegNo` returns the first DWORD of the
-stored `PROTO_NC_CHAR_BASE_CMD`, i.e. `chrregnum`. The relation from that
-original field to the emulator's `Character.ID` is still `UNRESOLVED`.
-Until it is correlated, no live JOIN/START path is allowed to manufacture
-native CharacterNumber from the emulator ID.
+stored `PROTO_NC_CHAR_BASE_CMD`, i.e. `chrregnum`. That identity is now
+cross-correlated through three independent original/runtime paths:
+
+- World sends `PROTO_NC_CHAR_CHARDATA_REQ::chrregnum`; the original
+  Character server logs the same request value as `nCharNo` and uses it for
+  `p_Char_GetAllData(@nCharNo)`;
+- original `p_Char_Create` returns `nCharNo = @@IDENTITY`;
+- the emulator already serializes `Character.ID` in the first
+  `PROTO_AVATARINFORMATION::chrregnum` position in CharacterList/Create
+  responses.
+
+`KingdomQuestCharacterIdentity` therefore exposes `Character.ID` as the
+emulator's existing native CharacterNumber/chrregnum representation; this is
+not a KQ-specific ID guess.
 
 The source-proven Status-3 expiry itself is no longer unresolved. What still
-blocks live W2Z START is the preceding native `KQTeam_LeaveParty` session
-behavior: original World distinguishes RaidLeave from normal LeaveParty using
-session-owned raid/party state that the current emulator does not yet model
-authoritatively.
+blocks fully faithful W2Z START is the preceding native
+`KQTeam_LeaveParty` session behavior: original World distinguishes
+`RaidLeave` from normal `LeaveParty` using raid/party state that the
+current emulator does not yet model authoritatively.

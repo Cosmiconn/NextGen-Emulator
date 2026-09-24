@@ -23,6 +23,8 @@ MEMBERSHIP = ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs"
 CHARACTER = ROOT / "NextGen.Database/Storage/Character.cs"
 READ_METHODS = ROOT / "NextGen.Database/DataStore/ReadMethods.cs"
 WORLD_SCHEMA = ROOT / "sql/world/schema.sql"
+IDENTITY = ROOT / "NextGen.World/Data/KingdomQuestCharacterIdentity.cs"
+PACKET_HELPER = ROOT / "NextGen.World/Handlers/PacketHelper.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -32,7 +34,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -57,6 +59,8 @@ def main():
     read_methods = READ_METHODS.read_text(encoding="utf-8")
     world_schema = WORLD_SCHEMA.read_text(encoding="utf-8")
     membership = MEMBERSHIP.read_text(encoding="utf-8")
+    identity = IDENTITY.read_text(encoding="utf-8")
+    packet_helper = PACKET_HELPER.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -317,10 +321,17 @@ def main():
         "[PacketHandler(CH22Type.KingdomQuestStatusReq)]",
         "KingdomQuestProtocol.CreateStatusAck(state)",
         "[PacketHandler(CH22Type.KingdomQuestJoinListReq)]",
-        "packet.TryReadUInt(out handle)",
-        "KingdomQuestJoinListReplyRegistry.TryGet(handle, out error)",
-        "KingdomQuestParticipantRegistry.TryGet(handle, out participants)",
-        "KingdomQuestProtocol.CreateJoinListAck(error, participants)",
+        "packet.TryReadUInt(out requestedHandle)",
+        "client.KingdomQuestHandle.HasValue",
+        "current.Status == KingdomQuestNativeConstants.StatusRunning",
+        "effectiveHandle = client.KingdomQuestHandle.Value",
+        "KingdomQuestParticipantRegistry.TryGet(",
+        "KingdomQuestNativeConstants.JoinListInvalidHandle",
+        "client.KingdomQuestJoinListLastRequestTime.HasValue",
+        "KingdomQuestNativeConstants.JoinListCooldownSeconds > now",
+        "KingdomQuestNativeConstants.JoinListCooldown",
+        "client.KingdomQuestJoinListLastRequestTime = now",
+        "KingdomQuestNativeConstants.JoinListSuccess",
         "[PacketHandler(CH22Type.KingdomQuestListRefreshReq)]",
         "if (!client.KingdomQuestListTimeSent)",
         "KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now)",
@@ -354,6 +365,10 @@ def main():
         "JoinAlreadyInRequestedKq = 0x099A",
         "JoinCancelSuccess = 0x09A1",
         "JoinCancelNotJoined = 0x09A2",
+        "JoinListSuccess = 0x3118",
+        "JoinListInvalidHandle = 0x3119",
+        "JoinListCooldown = 0x311A",
+        "JoinListCooldownSeconds = 5",
         "StatusMakeRequested = 1",
         "StatusJoining = 2",
         "StatusNoMap = 8",
@@ -492,15 +507,31 @@ def main():
             print("FAIL: KQ definition registry invents runtime scheduling/routing:", forbidden)
             return 1
 
-    if not require(join_list_reply, [
-        "Dictionary<uint, ushort>",
-        "ErrorByHandle[handle] = error;",
-        "ErrorByHandle.TryGetValue(handle, out error)",
-    ], "explicit JOIN_LIST_ACK error registry"):
+    if "KingdomQuestJoinListReplyRegistry" in handler:
+        print("FAIL: recovered JOIN_LIST_ACK errors regressed to external placeholder state")
         return 1
 
-    if "0x0991" in join_list_reply or "return 0;" in join_list_reply:
-        print("FAIL: JOIN_LIST_ACK error value was guessed")
+    if not require(world_client, [
+        "uint? KingdomQuestHandle",
+        "int? KingdomQuestJoinListLastRequestTime",
+    ], "native KQ session handle/list cooldown state"):
+        return 1
+
+    if not require(identity, [
+        "class KingdomQuestCharacterIdentity",
+        "TryGetCharacterNumber",
+        "character.Character.ID < 0",
+        "unchecked((uint)character.Character.ID)",
+        "PROTO_NC_CHAR_CHARDATA_REQ",
+        "p_Char_Create returns nCharNo = @@IDENTITY",
+        "PROTO_AVATARINFORMATION chrregnum",
+    ], "source-correlated native CharacterNumber identity"):
+        return 1
+
+    if not require(packet_helper, [
+        "PROTO_AVATARINFORMATION begins with u32 chrregnum",
+        "packet.WriteInt(wchar.Character.ID);",
+    ], "existing avatar chrregnum serialization"):
         return 1
 
     if "KingdomQuestRangeReplyRegistry" in handler:
@@ -554,6 +585,8 @@ def main():
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers/parsers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
+    print("PASS: JOIN_LIST errors 0x3118/0x3119/0x311A and exact 5-second SingleData cooldown are live")
+    print("PASS: emulator Character.ID is source-correlated to native chrregnum/CharacterNumber through existing avatar serialization")
     print("PASS: join-cancel/team-select/team-type/disjoin wire layouts are source-level named")
     print("PASS: vote/start/result/ban wire layouts are source-level modeled without vote policy")
     print("PASS: JOIN_LIST_REQ is live only when its native ushort Error is explicitly supplied")
