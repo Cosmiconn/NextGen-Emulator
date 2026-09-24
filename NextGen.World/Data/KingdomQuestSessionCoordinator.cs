@@ -10,14 +10,14 @@ namespace NextGen.World.Data
     /// registries used by list/status/transfer paths.
     ///
     /// It intentionally allocates and schedules nothing. The caller supplies a
-    /// complete native client definition, the exact joiner names, source-backed
+    /// complete native 377-byte definition, the exact joiner roster, source-backed
     /// MapID and emulator-internal Map.InstanceID.
     /// </summary>
     public static class KingdomQuestSessionCoordinator
     {
         private static readonly object Sync = new object();
 
-        public static bool TryCreate(KingdomQuestClientInfo definition,
+        public static bool TryCreate(KingdomQuestProtocolInfo definition,
             IEnumerable<KingdomQuestJoinCharacterInfo> participants,
             ushort mapId, short mapInstance)
         {
@@ -35,10 +35,13 @@ namespace NextGen.World.Data
 
             lock (Sync)
             {
+                KingdomQuestProtocolInfo existingProtocolDefinition;
                 KingdomQuestClientInfo existingDefinition;
                 KingdomQuestInstanceWireState existingState;
                 KingdomQuestSessionTarget existingTarget;
-                if (KingdomQuestDefinitionRegistry.TryGet(definition.Handle, out existingDefinition) ||
+                if (KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        definition.Handle, out existingProtocolDefinition) ||
+                    KingdomQuestDefinitionRegistry.TryGet(definition.Handle, out existingDefinition) ||
                     KingdomQuestInstanceRegistry.TryGet(definition.Handle, out existingState) ||
                     KingdomQuestSessionTargetRegistry.TryGet(definition.Handle, out existingTarget))
                     return false;
@@ -50,6 +53,7 @@ namespace NextGen.World.Data
 
                 try
                 {
+                    KingdomQuestProtocolDefinitionRegistry.Upsert(definition);
                     KingdomQuestDefinitionRegistry.Upsert(definition);
                     KingdomQuestInstanceRegistry.Upsert(
                         definition.Handle,
@@ -69,6 +73,7 @@ namespace NextGen.World.Data
                 }
                 catch
                 {
+                    KingdomQuestProtocolDefinitionRegistry.Remove(definition.Handle);
                     KingdomQuestDefinitionRegistry.Remove(definition.Handle);
                     KingdomQuestInstanceRegistry.Remove(definition.Handle);
                     KingdomQuestParticipantRegistry.Remove(definition.Handle);
@@ -82,19 +87,26 @@ namespace NextGen.World.Data
         {
             lock (Sync)
             {
+                KingdomQuestProtocolInfo protocolDefinition;
                 KingdomQuestClientInfo definition;
                 KingdomQuestInstanceWireState state;
-                if (!KingdomQuestDefinitionRegistry.TryGet(handle, out definition) ||
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(handle, out definition) ||
                     !KingdomQuestInstanceRegistry.TryGet(handle, out state))
                     return false;
 
                 byte oldStatus = definition.Status;
+                protocolDefinition.Status = status;
                 definition.Status = status;
+                KingdomQuestProtocolDefinitionRegistry.Upsert(protocolDefinition);
                 KingdomQuestDefinitionRegistry.Upsert(definition);
                 if (KingdomQuestInstanceRegistry.SetStatus(handle, status))
                     return true;
 
+                protocolDefinition.Status = oldStatus;
                 definition.Status = oldStatus;
+                KingdomQuestProtocolDefinitionRegistry.Upsert(protocolDefinition);
                 KingdomQuestDefinitionRegistry.Upsert(definition);
                 return false;
             }
@@ -113,16 +125,21 @@ namespace NextGen.World.Data
 
             lock (Sync)
             {
+                KingdomQuestProtocolInfo protocolDefinition;
                 KingdomQuestClientInfo definition;
                 KingdomQuestInstanceWireState state;
                 IReadOnlyList<KingdomQuestJoinCharacterInfo> oldRoster;
-                if (!KingdomQuestDefinitionRegistry.TryGet(handle, out definition) ||
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(handle, out definition) ||
                     !KingdomQuestInstanceRegistry.TryGet(handle, out state) ||
                     !KingdomQuestParticipantRegistry.TryGet(handle, out oldRoster))
                     return false;
 
                 ushort oldCount = definition.NumOfJoiner;
+                protocolDefinition.NumOfJoiner = (ushort)roster.Count;
                 definition.NumOfJoiner = (ushort)roster.Count;
+                KingdomQuestProtocolDefinitionRegistry.Upsert(protocolDefinition);
                 KingdomQuestDefinitionRegistry.Upsert(definition);
                 KingdomQuestParticipantRegistry.Set(handle, roster);
 
@@ -130,7 +147,9 @@ namespace NextGen.World.Data
                 if (KingdomQuestInstanceRegistry.SetJoiners(handle, names))
                     return true;
 
+                protocolDefinition.NumOfJoiner = oldCount;
                 definition.NumOfJoiner = oldCount;
+                KingdomQuestProtocolDefinitionRegistry.Upsert(protocolDefinition);
                 KingdomQuestDefinitionRegistry.Upsert(definition);
                 KingdomQuestParticipantRegistry.Set(handle, oldRoster);
                 KingdomQuestInstanceRegistry.SetJoiners(
@@ -143,14 +162,15 @@ namespace NextGen.World.Data
         {
             lock (Sync)
             {
+                bool protocolDefinition = KingdomQuestProtocolDefinitionRegistry.Remove(handle);
                 bool definition = KingdomQuestDefinitionRegistry.Remove(handle);
                 bool state = KingdomQuestInstanceRegistry.Remove(handle);
                 bool participants = KingdomQuestParticipantRegistry.Remove(handle);
                 bool joinListReply = KingdomQuestJoinListReplyRegistry.Remove(handle);
                 bool mapContext = KingdomQuestMapContextRegistry.Remove(handle);
                 bool target = KingdomQuestSessionTargetRegistry.Remove(handle);
-                return definition || state || participants || joinListReply ||
-                    mapContext || target;
+                return protocolDefinition || definition || state || participants ||
+                    joinListReply || mapContext || target;
             }
         }
     }

@@ -20,6 +20,7 @@ FILES = {
     "server_types": ROOT / "NextGen.FiestaLib/PacketTypeServer.cs",
     "inter_header": ROOT / "NextGen.InterLib/Networking/InterHeader.cs",
     "kq_session": ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs",
+    "kq_protocol_defs": ROOT / "NextGen.World/Data/KingdomQuestProtocolDefinitionRegistry.cs",
     "kq_participants": ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs",
 }
 
@@ -122,7 +123,21 @@ def main():
         return 1
     if not need(c["inter_header"], ["KingdomQuestTransfer = 0x4004"], "internal KQ inter-server opcode"):
         return 1
+    if not need(c["kq_protocol_defs"], [
+        "Dictionary<uint, KingdomQuestProtocolInfo>",
+        "source.MapLink.Length != 4",
+        "source.TeamRegenXY.Length != 2",
+        "NextStartMode = source.NextStartMode",
+        "RewardIndex = source.RewardIndex",
+        "DemandMobKill = source.DemandMobKill",
+        "ScheduleTm = CloneTime(source.ScheduleTm)",
+        "MapLink = new KingdomQuestMapProtocolInfo[4]",
+        "TeamRegenXY = new KingdomQuestXY[2]",
+    ], "full native PROTO_KQ_INFO registry"):
+        return 1
+
     if not need(c["kq_session"], [
+        "KingdomQuestProtocolDefinitionRegistry.TryGet(",
         "KingdomQuestDefinitionRegistry.TryGet(definition.Handle",
         "KingdomQuestInstanceRegistry.TryGet(definition.Handle",
         "KingdomQuestSessionTargetRegistry.TryGet(definition.Handle",
@@ -130,6 +145,7 @@ def main():
         "KingdomQuestParticipantRegistry.Set(definition.Handle, roster);",
         "KingdomQuestSessionTargetRegistry.TryCreate(",
         "definition.Handle, mapId, mapInstance",
+        "KingdomQuestProtocolDefinitionRegistry.Upsert(definition);",
         "KingdomQuestDefinitionRegistry.Upsert(definition);",
         "KingdomQuestInstanceRegistry.Upsert(",
         "KingdomQuestInstanceRegistry.SetJoiners(",
@@ -139,6 +155,7 @@ def main():
         "KingdomQuestMapContextRegistry.Remove(handle)",
         "definition.NumOfJoiner = (ushort)roster.Count;",
         "KingdomQuestParticipantRegistry.Set(handle, roster);",
+        "KingdomQuestProtocolDefinitionRegistry.Remove(definition.Handle);",
         "KingdomQuestDefinitionRegistry.Remove(definition.Handle);",
         "KingdomQuestInstanceRegistry.Remove(definition.Handle);",
         "KingdomQuestParticipantRegistry.Remove(definition.Handle);",
@@ -172,7 +189,8 @@ def main():
     print("PASS: KQ Handle -> source MapID/internal MapInstance mapping is explicit")
     print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with native KQ map-context coordinates")
     print("PASS: NC_CHAR_KQMAP_CMD is modeled as Handle + Name3 + XY + raw SHINE_DATETIME")
-    print("PASS: KQ session create/remove keeps definition, status, participant, join-list reply and routing registries synchronized")
+    print("PASS: KQ session create/remove keeps full/server definition, client definition, status, participant, join-list reply and routing registries synchronized")
+    print("PASS: full 377-byte PROTO_KQ_INFO stays source-owned for later native Zone lifecycle")
     print("PASS: KQ participant roster preserves native Level/Class/Name5/Team fields")
     print("PASS: explicit status/participant mutations keep list, STATUS_ACK and JOIN_LIST state synchronized")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")

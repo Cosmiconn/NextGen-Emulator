@@ -368,3 +368,20 @@ those coordinates in the existing Zone transfer bridge. A byte-exact
 `NC_CHAR_KQMAP_CMD` builder is present, but it is not automatically injected
 into the transfer sequence because the supplied capture does not prove its
 ordering relative to `ChangeZone`.
+
+
+## Full native server definition retained per session
+
+A live session can no longer be created from only the 141-byte client-list
+prefix. `KingdomQuestSessionCoordinator.TryCreate` now requires a complete
+`KingdomQuestProtocolInfo` (`PROTO_KQ_INFO`, 377 bytes).
+
+`KingdomQuestProtocolDefinitionRegistry` deep-copies and retains every native
+server/session field needed by the original World→Zone lifecycle, including
+schedule fields, all four map links, script language/init value, team-PvP flag
+and both team regen coordinates. The existing 141-byte
+`KingdomQuestDefinitionRegistry` remains the client-visible projection.
+
+Status and participant-count mutations update both registries atomically. No
+server-only field is reconstructed from the client prefix, and no scheduler
+field is synthesized.
