@@ -146,8 +146,9 @@ namespace NextGen.World.Data
                 bool definition = KingdomQuestDefinitionRegistry.Remove(handle);
                 bool state = KingdomQuestInstanceRegistry.Remove(handle);
                 bool participants = KingdomQuestParticipantRegistry.Remove(handle);
+                bool joinListReply = KingdomQuestJoinListReplyRegistry.Remove(handle);
                 bool target = KingdomQuestSessionTargetRegistry.Remove(handle);
-                return definition || state || participants || target;
+                return definition || state || participants || joinListReply || target;
             }
         }
     }
