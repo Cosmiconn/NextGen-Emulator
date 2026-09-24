@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lock original NA2016 Kingdom Quest Lua/static-regen source presence."""
+"""Lock original NA2016 Kingdom Quest script/static-regen source presence."""
 from pathlib import Path
 import csv
 import hashlib
@@ -12,9 +12,9 @@ KQ_SQL = ROOT / "sql/data/data_kq_source_10_kingdomquest.sql"
 MAP_SQL = ROOT / "sql/data/data_kq_source_20_kingdomquestmap.sql"
 
 SOURCE_ARCHIVE_SHA256 = "b83bf92c7193578a772fcebf4d8b7c8c2a9a642cf0d50d33506f77a75b0e211d"
-CANONICAL_ROWS_SHA256 = "1a79fea8ea4136fee23bc51e051f8bb61e636a1a86a6265b572abb3409c450e6"
+CANONICAL_ROWS_SHA256 = "e4a9c437d8dd44911bd04def351a6a26cdac1423ee633bcace998b586ebe83e7"
 
-MISSING_SCRIPTS = {
+PINE_SCRIPT_KEYS = {
     "KQ/GordonMaster",
     "KQ/Honeying",
     "KQ/KQHBat1",
@@ -79,6 +79,9 @@ def load_manifest():
     required_headers = (
         "# SourceArchive\tServer.zip",
         "# SourceArchiveSha256\t" + SOURCE_ARCHIVE_SHA256,
+        "# ScriptCatalog\tWorld/PineScript.txt",
+        "# ScriptCatalogSha256\t8ba15c6d7a5d14f1bd01f94a8403d8a9652868e15e0eee7a7730504c7754440c",
+        "# ScriptCatalogSemantics\tKQScriptManager::kqsm_Load reads 58 catalog rows (32 KQ); the 27 used KQ keys resolve to 18 LuaScript entrypoints plus 9 ScenarioBookShelf .ps sources",
         "# ArchiveRoot\tServer - Kopie/9Data/Shine",
         "# KQRegenLookup\tZone.exe KQRegenTable::kqrt_Load: MobRegen/KingdomQuest/%s.txt -> MobRegen/Instant/%s.txt",
         "# InstantRegenBasenames\tAdlF,AdlFH,Leviathan,Siren,Tower01,Tower02,Tower03,UrgDragon,WarN",
@@ -165,8 +168,8 @@ def main():
         key for key, row in script_rows.items() if row["present"] == "0"}
     missing_regen = {
         key for key, row in regen_rows.items() if row["present"] == "0"}
-    if missing_scripts != MISSING_SCRIPTS:
-        print("FAIL: exact missing KQ Lua entrypoint set changed",
+    if missing_scripts:
+        print("FAIL: a used KQ ScriptLanguage lost its original Lua/Pine source",
               sorted(missing_scripts))
         return 1
     if missing_regen != MISSING_STATIC_REGEN:
@@ -175,6 +178,8 @@ def main():
         return 1
 
     present_scripts = 0
+    present_lua_scripts = 0
+    present_pine_scripts = 0
     present_regen = 0
     sha_rx = re.compile(r"^[0-9a-f]{64}$")
     for row in rows:
@@ -203,7 +208,12 @@ def main():
 
         if row["kind"] == "script":
             present_scripts += 1
-            expected_path = "LuaScript/" + key + ".lua"
+            if key in PINE_SCRIPT_KEYS:
+                present_pine_scripts += 1
+                expected_path = "ScenarioBookShelf/" + key + ".ps"
+            else:
+                present_lua_scripts += 1
+                expected_path = "LuaScript/" + key + ".lua"
         else:
             present_regen += 1
             expected_path = "MobRegen/KingdomQuest/" + key + ".txt"
@@ -212,9 +222,11 @@ def main():
                   key)
             return 1
 
-    if (present_scripts, present_regen) != (18, 15):
-        print("FAIL: KQ runtime-source presence counts changed",
-              present_scripts, present_regen)
+    if (present_scripts, present_lua_scripts,
+            present_pine_scripts, present_regen) != (27, 18, 9, 15):
+        print("FAIL: KQ runtime-source presence/backend counts changed",
+              present_scripts, present_lua_scripts,
+              present_pine_scripts, present_regen)
         return 1
 
     # Zone.exe KQRegenTable::kqrt_Load tries the KingdomQuest directory first
@@ -228,7 +240,8 @@ def main():
     # KQRegenTable loader never consults them as a replacement for static
     # MobRegen input.
     print("PASS: Server.zip provenance locked", SOURCE_ARCHIVE_SHA256)
-    print("PASS: 27 exact KingdomQuest.shn ScriptLanguage keys are covered; 18 entrypoints present, 9 explicitly absent")
+    print("PASS: all 27 used KingdomQuest.shn ScriptLanguage keys have original source: 18 Lua + 9 PineScript")
+    print("PASS: original World/PineScript.txt catalog provenance is locked (58 total rows, 32 KQ rows; KQScriptManager capacity 64)")
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
     print("PASS: Zone KQRegenTable lookup order is locked to KingdomQuest then Instant")
     print("PASS: exact Instant regen basenames are locked; KDArena/KDMine/KDSpring have no static fallback")

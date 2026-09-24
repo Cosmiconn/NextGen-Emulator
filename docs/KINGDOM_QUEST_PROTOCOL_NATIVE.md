@@ -511,8 +511,17 @@ NC_KQ_Z2W_MAKE_ACK.Error
 
 The duplicate branch is live because the emulator can represent that exact
 condition atomically. The other two failure codes are not used as catch-all
-errors: the original capacity boundary and a source-equivalent loaded Lua
+errors: the original capacity boundary and a source-equivalent loaded KQ
 script container must exist before those branches can be activated faithfully.
+
+The script container is not Lua-only. Original
+`KQScriptManager::kqsm_Load` reads `World/PineScript.txt`, whose exact
+snapshot contains 58 catalog rows (32 `KQ/` rows), and checks a hard
+64-entry manager capacity. All 27 ScriptLanguage keys used by
+`KingdomQuest.shn` are source-present: 18 as exact Lua entrypoints and 9 as
+exact `ScenarioBookShelf/*.ps` PineScript sources. Therefore absence of a
+`.lua` file is not evidence for `0x098C`; that Error means the original
+runtime script lookup itself failed.
 
 The same Zone binary proves the static KQ regen lookup order:
 `MobRegen/KingdomQuest/<name>.txt` first, then

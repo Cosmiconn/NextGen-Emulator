@@ -1062,20 +1062,25 @@ path, SHA-256 and byte size for files that are actually present. Absence is
 recorded as absence; no alternate filename is promoted to an alias.
 
 Across the 57 exact `KingdomQuest.shn` rows there are 27 distinct
-`ScriptLanguage` keys. Eighteen have the exact corresponding
-`LuaScript/<ScriptLanguage>.lua` entrypoint in this archive. Nine do not:
+`ScriptLanguage` keys. The original Zone runtime does not equate
+`ScriptLanguage` with a Lua filename. `KQScriptManager::kqsm_Load` reads
+`../9Data/Shine/World/PineScript.txt`; that exact catalog contains 58 script
+rows, 32 of them under `KQ/`, and the loader enforces a hard capacity of
+64 entries before storing another script.
 
-```text
-KQ/GordonMaster
-KQ/Honeying
-KQ/KQHBat1
-KQ/KQHBat2
-KQ/KQHBat3
-KQ/KQHBat4
-KQ/KQHBat5
-KQ/UnderHall
-KQ/UnderHall2
-```
+Every one of the 27 ScriptLanguage keys used by this KQ snapshot is present in
+that original script-source universe:
+
+- 18 resolve to exact `LuaScript/<ScriptLanguage>.lua` entrypoints;
+- 9 are the older PineScript form and resolve to exact
+  `ScenarioBookShelf/<ScriptLanguage>.ps` files:
+  `GordonMaster`, `Honeying`, `KQHBat1..5`, `UnderHall` and
+  `UnderHall2`.
+
+The nine PineScript-backed definitions were previously reported as "missing
+Lua scripts". That interpretation was too narrow and is now removed. They are
+source-present; what remains unimplemented is an emulator runtime equivalent
+of the original script container/ScenarioBookShelf loader.
 
 The same 57 definitions use 18 distinct `KingdomQuestMap.BaseMap` values.
 Fifteen have an exact
@@ -1114,10 +1119,11 @@ runtime source family and are **not** an implicit fallback in this loader.
 
 CI now derives the 27 ScriptLanguage keys and 18 used BaseMap keys directly
 from the provenance-locked SHN SQL, checks them against the runtime-source
-manifest, locks the exact 18/9 and 15/3 presence boundaries, and rejects any
-attempt to fill an absent source row with a guessed path/hash/size. This block
-therefore establishes **what original runtime source is present**, not how Zone
-interprets it.
+manifest, locks the exact 18-Lua/9-Pine script backend split and the 15/3
+static-regen presence boundary, and rejects any guessed replacement for absent
+regen input. The original `World/PineScript.txt` SHA-256 is also locked.
+This establishes **what original runtime source is present** without pretending
+that source presence is the same thing as successful runtime script loading.
 
 
 ## Zone MAKE result branches recovered
@@ -1135,10 +1141,11 @@ now closes four native MAKE_ACK results:
 The ScriptLanguage branch copies the 32-byte
 `PROTO_KQ_INFO.ScriptLanguage` field and performs a runtime script-container
 lookup before successful creation. A missing lookup returns `0x098C`.
-This is stronger than source-file presence: the emulator does not yet have an
-equivalent KQ Lua runtime container, so a present
-`LuaScript/<ScriptLanguage>.lua` file alone is not treated as proof that the
-runtime lookup succeeded.
+The original source catalog proves that this container is mixed-backend rather
+than Lua-only: used keys resolve to either LuaScript or ScenarioBookShelf
+PineScript input. Source-file/catalog presence therefore still does not prove
+that the runtime lookup succeeded; the emulator needs an equivalent loaded
+script container before it can emit `0x098C` or success from that condition.
 
 Zone now classifies duplicate Handles atomically inside
 `KingdomQuestZoneRuntimeRegistry.TryMake` and returns the exact
