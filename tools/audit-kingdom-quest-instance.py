@@ -15,6 +15,9 @@ FILES = {
     "map": ROOT / "NextGen.Zone/Game/Map.cs",
     "kq_target": ROOT / "NextGen.World/Data/KingdomQuestSessionTarget.cs",
     "kq_transfer": ROOT / "NextGen.World/Data/KingdomQuestTransferService.cs",
+    "kq_map_context": ROOT / "NextGen.World/Data/KingdomQuestMapContext.cs",
+    "kq_protocol": ROOT / "NextGen.World/Handlers/KingdomQuestProtocol.cs",
+    "server_types": ROOT / "NextGen.FiestaLib/PacketTypeServer.cs",
     "inter_header": ROOT / "NextGen.InterLib/Networking/InterHeader.cs",
     "kq_session": ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs",
     "kq_participants": ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs",
@@ -72,12 +75,38 @@ def main():
 
     if not need(c["kq_transfer"], [
         "KingdomQuestSessionTargetRegistry.TryGet(handle, out target)",
+        "KingdomQuestMapContextRegistry.TryGet(handle, out context)",
         "Program.GetZoneByMap(character.Character.PositionInfo.Map)",
         "currentZone.SendKingdomQuestTransferRequest(",
         "target.MapID",
         "target.MapInstance",
+        "context.X",
+        "context.Y",
     ], "World KQ transfer bridge"):
         return 1
+    if not need(c["kq_map_context"], [
+        "public uint Handle",
+        "public string MapName",
+        "public int X",
+        "public int Y",
+        "public uint NativeDate",
+        "KingdomQuestSessionTargetRegistry.TryGet(handle, out target)",
+        "KingdomQuestMaps.TryGetValue(",
+        "Encoding.ASCII.GetByteCount(map.ShortName) > 12",
+    ], "native KQ map context"):
+        return 1
+    if not need(c["server_types"], ["KingdomQuestMapCmd = 26"], "NC_CHAR_KQMAP_CMD opcode"):
+        return 1
+    if not need(c["kq_protocol"], [
+        "new Packet(SH16Type.KingdomQuestMapCmd)",
+        "packet.WriteUInt(context.Handle);",
+        "packet.WriteString(context.MapName ?? string.Empty, 12);",
+        "packet.WriteInt(context.X);",
+        "packet.WriteInt(context.Y);",
+        "packet.WriteUInt(context.NativeDate);",
+    ], "NC_CHAR_KQMAP_CMD serializer"):
+        return 1
+
     if not need(c["zone_connection"], [
         "SendKingdomQuestTransferRequest",
         "new InterPacket(InterHeader.KingdomQuestTransfer)",
@@ -107,6 +136,7 @@ def main():
         "KingdomQuestInstanceRegistry.SetStatus(handle, status)",
         "public static bool TrySetParticipants",
         "KingdomQuestJoinListReplyRegistry.Remove(handle)",
+        "KingdomQuestMapContextRegistry.Remove(handle)",
         "definition.NumOfJoiner = (ushort)roster.Count;",
         "KingdomQuestParticipantRegistry.Set(handle, roster);",
         "KingdomQuestDefinitionRegistry.Remove(definition.Handle);",
@@ -140,7 +170,8 @@ def main():
     print("PASS: internal MapInstance survives Zone -> World -> Zone transfer")
     print("PASS: native 32-bit KQ Handle remains separate from internal Map.InstanceID")
     print("PASS: KQ Handle -> source MapID/internal MapInstance mapping is explicit")
-    print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with explicit coordinates")
+    print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with native KQ map-context coordinates")
+    print("PASS: NC_CHAR_KQMAP_CMD is modeled as Handle + Name3 + XY + raw SHINE_DATETIME")
     print("PASS: KQ session create/remove keeps definition, status, participant, join-list reply and routing registries synchronized")
     print("PASS: KQ participant roster preserves native Level/Class/Name5/Team fields")
     print("PASS: explicit status/participant mutations keep list, STATUS_ACK and JOIN_LIST state synchronized")

@@ -441,6 +441,10 @@ namespace NextGen.FiestaLib
     // (Typ 38, 4 Byte) - vermutlich Bestaetigung/Quest-Log-Update.
     public enum SH16Type : byte
     {
+        // Original PROTO_NC_CHAR_KQMAP_CMD (0x101A):
+        // u32 Handle + Name3[12] + SHINE_XY_TYPE{int x,int y} +
+        // raw packed SHINE_DATETIME u32.
+        KingdomQuestMapCmd = 26,
         Unknown38 = 38,
     }
     // Gluecksspielhaus ("Lucky House") - eigene, zusaetzliche Zone-

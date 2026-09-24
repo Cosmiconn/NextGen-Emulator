@@ -338,3 +338,33 @@ input directories instead of silently emitting the same SQL table twice. Each
 exported table now records the source file SHA-256 plus a raw
 `column-name:type-byte:length` manifest before the SQL DDL. This keeps later
 field mapping tied to the exact NA2016 source bytes rather than only a filename.
+
+
+## Native character KQ-map context
+
+Original PDB data resolves `PROTO_NC_CHAR_KQMAP_CMD` at opcode `0x101A`
+(Header 16, Type 26):
+
+```text
+u32 Handle
+char MapName[12]
+i32 X
+i32 Y
+u32 SHINE_DATETIME (packed)
+```
+
+The same Handle/MapName/XY/date fields also occur in the original character
+data structure, and the PDB-derived proxy correlation confirms that the XY pair
+decodes as real coordinates.
+
+`KingdomQuestMapContextRegistry` now stores this context per live KQ Handle.
+MapName is derived from the already source-backed `MapInfo.ShortName`, never
+accepted as an independent caller string. The packed date remains a raw
+`uint`; its 4-bit year field's epoch is still UNRESOLVED.
+
+`KingdomQuestTransferService.TryRequest(character, handle)` no longer accepts
+free X/Y arguments. It requires an explicit native KQ map context and reuses
+those coordinates in the existing Zone transfer bridge. A byte-exact
+`NC_CHAR_KQMAP_CMD` builder is present, but it is not automatically injected
+into the transfer sequence because the supplied capture does not prove its
+ordering relative to `ChangeZone`.

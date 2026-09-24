@@ -9,13 +9,15 @@ namespace NextGen.World.Data
     /// </summary>
     public static class KingdomQuestTransferService
     {
-        public static bool TryRequest(WorldCharacter character, uint handle, int x, int y)
+        public static bool TryRequest(WorldCharacter character, uint handle)
         {
             if (character == null || character.Character == null)
                 return false;
 
             KingdomQuestSessionTarget target;
-            if (!KingdomQuestSessionTargetRegistry.TryGet(handle, out target))
+            KingdomQuestMapContext context;
+            if (!KingdomQuestSessionTargetRegistry.TryGet(handle, out target) ||
+                !KingdomQuestMapContextRegistry.TryGet(handle, out context))
                 return false;
 
             ZoneConnection currentZone =
@@ -27,8 +29,8 @@ namespace NextGen.World.Data
                 character.Character.Name,
                 target.MapID,
                 target.MapInstance,
-                x,
-                y);
+                context.X,
+                context.Y);
             return true;
         }
     }

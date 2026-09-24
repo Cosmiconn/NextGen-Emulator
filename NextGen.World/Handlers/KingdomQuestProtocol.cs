@@ -15,6 +15,20 @@ namespace NextGen.World.Handlers
     /// </summary>
     internal static class KingdomQuestProtocol
     {
+        internal static Packet CreateCharacterKqMap(
+            KingdomQuestMapContext context)
+        {
+            if (context == null) throw new ArgumentNullException("context");
+
+            var packet = new Packet(SH16Type.KingdomQuestMapCmd);
+            packet.WriteUInt(context.Handle);
+            packet.WriteString(context.MapName ?? string.Empty, 12);
+            packet.WriteInt(context.X);
+            packet.WriteInt(context.Y);
+            packet.WriteUInt(context.NativeDate);
+            return packet;
+        }
+
         internal static Packet CreateStatusAck(KingdomQuestInstanceWireState state)
         {
             if (state == null) throw new ArgumentNullException("state");
