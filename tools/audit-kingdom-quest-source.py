@@ -85,6 +85,30 @@ def main():
             print('FAIL: KQ source dumper provenance/ambiguity guard missing', token)
             return 1
 
+    for token in (
+        'KingdomQuestSourceManifest',
+        'HasCompleteKingdomQuestMainSource',
+        'LoadKingdomQuestSourceManifest()',
+        'data_kq_source_manifest',
+        'data_kq_source_columns',
+        '"KingdomQuest"',
+        '"KingdomQuestMap"',
+        '"KingdomQuestRew"',
+        '"KQItem"',
+    ):
+        if token not in world_provider:
+            print('FAIL: World KQ provenance loader missing', token)
+            return 1
+
+    for token in (
+        'Sha256.Length != 64',
+        'ColumnCount != (uint)Columns.Count',
+        'Columns[i].Ordinal != (uint)i',
+        'IsStructurallyValid()',
+    ):
+        if token not in world_manifest:
+            print('FAIL: World KQ manifest structural guard missing', token)
+            return 1
     zone_character = ZONE_CHARACTER.read_text(encoding='utf-8')
     if 'if (id > 120)' in zone_character:
         print('FAIL: legacy map-ID cutoff blocks source-backed KQ maps above 120')
@@ -98,6 +122,7 @@ def main():
     print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
     print('PASS: source dumper can require all main SHNs, rejects duplicate basenames and records SHA-256/column manifests')
     print('PASS: source SQL includes machine-readable file/column provenance without gameplay mapping')
+    print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')
     return 0
 
