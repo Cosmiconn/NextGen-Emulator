@@ -598,3 +598,18 @@ The emulator now models that predicate without adding a lower-bound check.
 Actual DB persistence/load and the later Name5-based
 `JoinerInfoUpdateByLogin` session rebind remain separate so no handle-only
 reconnect is invented.
+
+
+## Character save-location KQ persistence wire
+
+Original Zone `PROTO_NC_CHARSAVE_LOCATION_CMD` is exactly 48 bytes. PDB
+field names and `ShinePlayer::so_SaveLocation` offsets correlate it as
+`u32 chrregnum`, a 20-byte normal coordinate (MapName[12]+X+Y),
+`u32 kqhandle`, `map_kq[12]`, and `coord_kq(X,Y)`.
+
+That KQ suffix feeds the original Character DB save-location procedure, which
+persists `nKQHandle/sKQMap/nKQX/nKQY` and timestamps `dKQDate` with
+`GetDate()`. The shared protocol model now preserves those exact 48 bytes.
+The emulator does not yet replace its normal location-save policy with this
+packet because Zone's native normal-return `coord` selection has additional
+special-map branches that are still being correlated.

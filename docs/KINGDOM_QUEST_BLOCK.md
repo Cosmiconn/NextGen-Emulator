@@ -1074,6 +1074,37 @@ invoking that rebind are still intentionally separate work; no handle-only
 reconnect is activated.
 
 
+
+### Native character save-location persistence boundary
+
+The original Zone PDB names `PROTO_NC_CHARSAVE_LOCATION_CMD` fields as
+`chrregnum`, `coord`, `kqhandle`, `map_kq` and `coord_kq`.
+`ShinePlayer::so_SaveLocation` writes a **48-byte** structure with these exact
+offsets:
+
+```text
+0x00  u32 chrregnum
+0x04  coord: char MapName[12] + i32 X + i32 Y
+0x18  u32 kqhandle
+0x1C  char map_kq[12]
+0x28  coord_kq: i32 X + i32 Y
+0x30  end
+```
+
+The corresponding original Character DB procedure `p_Char_SaveLocation`
+receives the KQ handle/map/X/Y alongside the normal login location and writes
+`nKQHandle`, `sKQMap`, `nKQX`, `nKQY`, while setting
+`dKQDate=GetDate()`. `p_Char_GetKQMap` later returns that state for the
+World login reconnect path.
+
+`CharacterSaveLocationProtocolInfo` now models this wire boundary byte-for-byte.
+It is intentionally **not** wired into `ZoneCharacter.Save()` yet: the first
+`coord` is not simply "current KQ position" on every special-map branch, and
+the original `so_SaveLocation` contains return-location logic that must be
+correlated before replacing the emulator's normal location save. This keeps KQ
+persistence source-correct instead of overwriting the normal return location
+with a guessed base-map coordinate.
+
 ## Original KQ script and regen corpus boundary
 
 The supplied `Server.zip` is now locked as an independent runtime-source

@@ -8,6 +8,7 @@ CENUM = ROOT / "NextGen.FiestaLib/PacketTypeClient.cs"
 SENUM = ROOT / "NextGen.FiestaLib/PacketTypeServer.cs"
 PROTO = ROOT / "NextGen.World/Handlers/KingdomQuestProtocol.cs"
 INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
+CHAR_SAVE_LOCATION = ROOT / "NextGen.FiestaLib/Data/CharacterSaveLocationProtocolInfo.cs"
 HANDLER = ROOT / "NextGen.World/Handlers/Handler22.cs"
 SERVER_PROTO = ROOT / "NextGen.World/Handlers/KingdomQuestServerProtocol.cs"
 STATE = ROOT / "NextGen.World/Data/KingdomQuestInstanceWireState.cs"
@@ -38,7 +39,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME]
+    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -48,6 +49,7 @@ def main():
     senum = SENUM.read_text(encoding="utf-8")
     proto = PROTO.read_text(encoding="utf-8")
     info = INFO.read_text(encoding="utf-8")
+    char_save_location = CHAR_SAVE_LOCATION.read_text(encoding="utf-8")
     handler = HANDLER.read_text(encoding="utf-8")
     server_proto = SERVER_PROTO.read_text(encoding="utf-8")
     state = STATE.read_text(encoding="utf-8")
@@ -376,6 +378,21 @@ def main():
     add_pos = handler.find("KingdomQuestAdmissionCoordinator.TryAddMembership(", disjoin_pos)
     if precheck_pos < 0 or disjoin_pos < precheck_pos or add_pos < disjoin_pos:
         print("FAIL: JOIN request no longer preserves prison/same-handle -> PlayerDisjoin -> PlayerJoin order")
+        return 1
+
+    if not require(char_save_location, [
+        "class CharacterSaveLocationProtocolInfo",
+        "WireSize = 48",
+        "MapNameSize = 12",
+        "packet.WriteUInt(CharacterNumber)",
+        "packet.WriteString(MapName ?? string.Empty, MapNameSize)",
+        "packet.WriteUInt(KingdomQuestHandle)",
+        "packet.WriteString(",
+        "KingdomQuestMapName ?? string.Empty, MapNameSize",
+        "packet.WriteInt(KingdomQuestX)",
+        "packet.WriteInt(KingdomQuestY)",
+        "Zone.pdb names the fields chrregnum, coord, kqhandle, map_kq",
+    ], "native 48-byte character save-location/KQ persistence boundary"):
         return 1
 
     if not require(info, [
@@ -735,6 +752,7 @@ def main():
 
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
     print("PASS: original prison minutes are loaded fail-closed; unresolved creation default is not guessed")
+    print("PASS: PROTO_NC_CHARSAVE_LOCATION_CMD is modeled as exact 48-byte normal+KQ location persistence wire")
     print("PASS: JOIN_CANCEL 0x09A1/0x09A2 is live and removes session-owned current membership before echoing the request Handle")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")
