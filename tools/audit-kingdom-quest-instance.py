@@ -167,9 +167,8 @@ def main():
         "KingdomQuestServerProtocol.TryCreateStart(handle, out native)",
         "new InterPacket(InterHeader.KingdomQuestMake)",
         "new InterPacket(InterHeader.KingdomQuestStart)",
-        "new InterPacket(InterHeader.KingdomQuestEnd)",
         "new InterPacket(InterHeader.KingdomQuestDestroy)",
-    ], "World -> Zone KQ lifecycle transport"):
+    ], "World -> Zone KQ MAKE/START/DESTROY transport"):
         return 1
     if not need(c["kq_make_ack"], [
         "Dictionary<uint, ushort>",
@@ -182,6 +181,16 @@ def main():
     if "error == 0" in c["kq_make_ack"] or "0x0991" in c["kq_make_ack"]:
         print("FAIL: MAKE_ACK reused an unrelated/invented success value")
         return 1
+    if not need(c["world_inter"], [
+        "[InterPacketHandler(InterHeader.KingdomQuestEnd)]",
+        "native.OpCode != 0x5810",
+        "KingdomQuestSessionCoordinator.TrySetDone(handle)",
+        "zone.SendKingdomQuestDestroy(handle)",
+        "KingdomQuestMapAllocationRegistry.Free(handle)",
+        "FreeKingdomQuestJoinerSessions(handle)",
+    ], "Zone -> World END and World -> Zone DESTROY lifecycle"):
+        return 1
+
     if not need(c["world_inter"], [
         "[InterPacketHandler(InterHeader.KingdomQuestMakeAck)]",
         "native.OpCode != 0x580E",
@@ -200,15 +209,16 @@ def main():
     if not need(c["zone_inter"], [
         "[InterPacketHandler(InterHeader.KingdomQuestMake)]",
         "[InterPacketHandler(InterHeader.KingdomQuestStart)]",
-        "[InterPacketHandler(InterHeader.KingdomQuestEnd)]",
         "[InterPacketHandler(InterHeader.KingdomQuestDestroy)]",
         "native.OpCode != 0x580D",
         "native.OpCode != 0x580F",
         "KingdomQuestProtocolInfo.TryRead(native, out definition)",
         "KingdomQuestZoneJoinerInfo.TryRead(native, out joiner)",
-        "TryReadHandleOnlyNativeKqPacket(packet, 0x5810, out handle)",
         "TryReadHandleOnlyNativeKqPacket(packet, 0x5811, out handle)",
-    ], "Zone lifecycle native-body parser"):
+        "public static void SendKingdomQuestEnd(uint handle)",
+        "new Packet((ushort)0x5810)",
+        "new InterPacket(InterHeader.KingdomQuestEnd)",
+    ], "Zone KQ MAKE/START/DESTROY parser and native Z2W END sender"):
         return 1
     if not need(c["kq_protocol_defs"], [
         "Dictionary<uint, KingdomQuestProtocolInfo>",
@@ -386,7 +396,7 @@ def main():
     print("PASS: KQ participant roster preserves native Level/Class/Name5/Team fields")
     print("PASS: World -> Zone KQ roster stores only explicit CharacterNumber/TeamType pairs")
     print("PASS: combined KQ membership owns CharacterNumber plus Level/Class/Name/TeamType and projects both wire rosters without identity inference")
-    print("PASS: internal MAKE/START/END/DESTROY transport carries and validates native NC_KQ bodies")
+    print("PASS: internal MAKE/START/DESTROY transport carries native W2Z bodies and END carries native Z2W body")
     print("PASS: Zone KQ lifecycle uses explicit Handle/MapID/Map.InstanceID without allocation inference")
     print("PASS: Z2W_MAKE_ACK preserves raw Error and applies the executable-proven 0x0981 success transition")
     print("PASS: explicit status/participant mutations keep list, STATUS_ACK and JOIN_LIST state synchronized")
