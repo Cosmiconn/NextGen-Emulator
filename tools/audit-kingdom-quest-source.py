@@ -20,6 +20,7 @@ WORLD_SNAPSHOT = ROOT / "NextGen.World/Data/KingdomQuestSourceSnapshot.cs"
 WORLD_SOURCE_ROWS = ROOT / "NextGen.World/Data/KingdomQuestSourceRows.cs"
 WORLD_SOURCE_PROJECTION = ROOT / "NextGen.World/Data/KingdomQuestSourceProjection.cs"
 WORLD_SOURCE_SCHEDULER = ROOT / "NextGen.World/Data/KingdomQuestSourceScheduler.cs"
+WORLD_MAP_ALLOCATOR = ROOT / "NextGen.World/Data/KingdomQuestMapAllocationRegistry.cs"
 RAW_SOURCES = {
     "KingdomQuest": (
         ROOT / "sql/data/data_kq_source_10_kingdomquest.sql",
@@ -78,7 +79,7 @@ def main():
     required_files = [
         MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
-        WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER,
+        WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER, WORLD_MAP_ALLOCATOR,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -163,6 +164,7 @@ def main():
     world_source_rows = WORLD_SOURCE_ROWS.read_text(encoding='utf-8')
     world_source_projection = WORLD_SOURCE_PROJECTION.read_text(encoding='utf-8')
     world_source_scheduler = WORLD_SOURCE_SCHEDULER.read_text(encoding='utf-8')
+    world_map_allocator = WORLD_MAP_ALLOCATOR.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
@@ -353,6 +355,42 @@ def main():
             print('FAIL: original DoSchedule-ignored KQ source time field became active', forbidden)
             return 1
 
+    for token in (
+        'SlotsPerSourceRow = 10',
+        'definitions[i].ID == definition.ID',
+        'source.MapLinkColumns[linkIndex]',
+        'sourceMapIndex == -1',
+        'map.SourceRow != (uint)sourceMapIndex',
+        'map.NumOfMap > SlotsPerSourceRow',
+        'GetEmptyMapLinkLocked(sourceMapIndex, map)',
+        'map.ClearColumns[slot] == 0',
+        '!allocatedBySourceRow[sourceMapIndex, slot].HasValue',
+        'allocatedBySourceRow[sourceMapIndex, slot] =',
+        'definition.Handle',
+        'MapIndex = (byte)slot',
+        'MapBase = map.BaseMap',
+        'MapName = map.MapColumns[slot]',
+        'MapClear = clear',
+        'FreeLocked(definition.Handle)',
+    ):
+        if token not in world_map_allocator:
+            print('FAIL: native KQ map-slot allocation primitive missing', token)
+            return 1
+
+    for forbidden in (
+        'KingdomQuestSessionTargetRegistry',
+        'Map.InstanceID',
+        'MapInstance =',
+        '(short)slot',
+    ):
+        allocator_code = world_map_allocator.split('namespace NextGen.World.Data', 1)[1]
+        if forbidden in allocator_code and forbidden != 'Map.InstanceID':
+            print('FAIL: native KQ map-slot allocator leaked emulator routing', forbidden)
+            return 1
+    if 'does not choose an emulator' not in world_map_allocator:
+        print('FAIL: KQ map allocator lost native/emulator routing boundary documentation')
+        return 1
+
     for forbidden in (
         'target.Handle =',
         'target.Status =',
@@ -406,6 +444,7 @@ def main():
     print('PASS: scheduled definition projection reproduces initial status/time/team fields')
     print('PASS: live scheduler owns native Handle sequence from zero, exact ID/ScheduleTime dedupe and 300-entry capacity')
     print('PASS: scheduler publishes Status-0 definitions atomically to protocol/client/status/empty-participant views only when exact source gates pass')
+    print('PASS: native map allocation resolves first matching KQ ID, four source-row links, 10-slot reservation and rollback without inventing Map.InstanceID')
     print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
     print('PASS: KingdomQuest.shn coverage compares only exact PDB field names; no SHN aliases are inferred')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')

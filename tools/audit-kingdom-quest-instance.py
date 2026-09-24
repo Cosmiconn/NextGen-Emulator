@@ -28,6 +28,7 @@ FILES = {
     "world_zone_connection": ROOT / "NextGen.World/InterServer/ZoneConnection.cs",
     "world_inter": ROOT / "NextGen.World/InterServer/InterHandler.cs",
     "kq_make_ack": ROOT / "NextGen.World/Data/KingdomQuestMakeAckRegistry.cs",
+    "kq_map_allocator": ROOT / "NextGen.World/Data/KingdomQuestMapAllocationRegistry.cs",
 }
 
 def need(text, tokens, label):
@@ -263,6 +264,25 @@ def main():
             print("FAIL: KQ Zone joiner registry infers admission/identity:", forbidden)
             return 1
 
+    if not need(c["kq_map_allocator"], [
+        "SlotsPerSourceRow = 10",
+        "MapIndex = (byte)slot",
+        "MapBase = map.BaseMap",
+        "MapName = map.MapColumns[slot]",
+        "MapClear = clear",
+        "FreeLocked(definition.Handle)",
+    ], "native KQ source map-slot allocation"):
+        return 1
+    for forbidden in (
+        "KingdomQuestSessionTargetRegistry.TryCreate(",
+        "MapManager.Instance.GetMap(",
+        "(short)slot",
+        "MapInstance = (short)",
+    ):
+        if forbidden in c["kq_map_allocator"]:
+            print("FAIL: native KQ MapIndex slot was conflated with emulator map-instance routing:", forbidden)
+            return 1
+
     combined = "\n".join(c.values())
     if "(short)handle" in combined or "(short)Handle" in combined:
         print("FAIL: native World KQ Handle conflated with internal Map.InstanceID")
@@ -272,6 +292,7 @@ def main():
     print("PASS: internal MapInstance survives Zone -> World -> Zone transfer")
     print("PASS: native 32-bit KQ Handle remains separate from internal Map.InstanceID")
     print("PASS: KQ Handle -> source MapID/internal MapInstance mapping is explicit")
+    print("PASS: native KingdomQuestMap MapIndex allocation stays separate from emulator Map.InstanceID routing")
     print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with native KQ map-context coordinates")
     print("PASS: NC_CHAR_KQMAP_CMD is modeled as Handle + Name3 + XY + raw SHINE_DATETIME")
     print("PASS: KQ session create/remove keeps full/server definition, client definition, status, participant, join-list reply and routing registries synchronized")

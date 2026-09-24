@@ -676,3 +676,46 @@ owns map allocation later.
 As a result, LIST/SCHEDULE/STATUS now have a real source-backed scheduler owner
 instead of waiting for an external registry feeder, while the next map-routing
 step remains gated on the still-to-be-correlated `AllocMapLink` behavior.
+
+
+## Native KingdomQuestMap slot allocation recovered
+
+The original WorldManager map allocator is now correlated byte-for-byte with
+the supplied `KingdomQuest.shn` and `KingdomQuestMap.shn` rows.
+
+`CKQServer::AllocMapLink(PROTO_KQ_INFO*)` first scans the original
+`KINGDOM_QUEST` table from row zero and uses the **first** row whose `ID`
+matches the scheduled definition. Its four 16-bit fields beginning at source
+offset `0x66` are the four SHN columns already preserved as
+`MapLink`, `Undefined 0`, `Undefined 1`, and `Undefined 2`. A value
+of `0xFFFF` means no link; every other value is a zero-based
+`KingdomQuestMap.shn` source-row index.
+
+For each referenced map row, `GetEmptyMapLink` reads `NumOfMap` and scans
+slot numbers from zero upward. The original allocation table is exactly ten
+DWORD owners per `KingdomQuestMap` row, initialized to `0xFFFFFFFF`.
+For a slot:
+
+- if its corresponding source `Clear` byte is zero, the slot is returned
+  immediately and is not owner-reserved;
+- otherwise it is available only when the allocation-table owner is
+  `0xFFFFFFFF`;
+- when selected with nonzero `Clear`, that owner is replaced by the KQ
+  Handle.
+
+`PROTO_KQ_MAP_INFO` is then filled exactly from the selected source slot:
+`MapIndex = slot`, `MapBase = BaseMap`, `MapName = Map[slot]`, and
+`MapClear = Clear[slot]`. If any of the four links cannot allocate, the
+original function calls `FreeMapLink(Handle)`, which scans every source row
+and all ten owner cells and resets every cell owned by that Handle.
+
+All 38 supplied NA2016 `KingdomQuestMap.shn` rows have all ten Clear bytes
+set to `1`, so every selected slot in this corpus uses exclusive Handle
+reservation.
+
+`KingdomQuestMapAllocationRegistry` now reproduces exactly that native
+source-slot ownership and fills the server-side `PROTO_KQ_INFO.MapLink`
+array. It deliberately does **not** create a
+`KingdomQuestSessionTarget`, choose a MapID, or derive an emulator
+`Map.InstanceID` from native `MapIndex`. The latter remains a distinct
+routing namespace until the Zone-side map-name behavior is correlated.
