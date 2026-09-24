@@ -98,7 +98,7 @@ def main():
     if not need(c["server_types"], ["KingdomQuestMapCmd = 26"], "NC_CHAR_KQMAP_CMD opcode"):
         return 1
     if not need(c["kq_protocol"], [
-        "new Packet(SH16Type.KingdomQuestMapCmd)",
+        "new Packet((ushort)0x101A)",
         "packet.WriteUInt(context.Handle);",
         "packet.WriteString(context.MapName ?? string.Empty, 12);",
         "packet.WriteInt(context.X);",

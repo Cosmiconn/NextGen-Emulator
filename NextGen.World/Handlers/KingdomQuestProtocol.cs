@@ -20,7 +20,7 @@ namespace NextGen.World.Handlers
         {
             if (context == null) throw new ArgumentNullException("context");
 
-            var packet = new Packet(SH16Type.KingdomQuestMapCmd);
+            var packet = new Packet((ushort)0x101A);
             packet.WriteUInt(context.Handle);
             packet.WriteString(context.MapName ?? string.Empty, 12);
             packet.WriteInt(context.X);
