@@ -159,6 +159,133 @@ namespace NextGen.World.Data
         }
 
         /// <summary>
+        /// Reproduces the WorldManager DoSetMakeRoom boundary after a scheduled
+        /// entry becomes due: allocate the native KingdomQuestMap slot, resolve
+        /// its proven MapBase to a source-backed MapID, allocate an independent
+        /// emulator Map.InstanceID, publish Status 1, then let the caller send
+        /// NC_KQ_W2Z_MAKE_REQ.
+        /// </summary>
+        public static bool TryPrepareMake(uint handle,
+            out KingdomQuestSessionTarget target)
+        {
+            target = null;
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo clientDefinition;
+                KingdomQuestInstanceWireState state;
+                KingdomQuestSessionTarget existingTarget;
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(
+                        handle, out clientDefinition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state) ||
+                    KingdomQuestSessionTargetRegistry.TryGet(
+                        handle, out existingTarget))
+                    return false;
+
+                if (protocolDefinition.Status !=
+                        KingdomQuestNativeConstants.StatusScheduled ||
+                    clientDefinition.Status !=
+                        KingdomQuestNativeConstants.StatusScheduled ||
+                    state.Status != KingdomQuestNativeConstants.StatusScheduled)
+                    return false;
+
+                DataProvider provider = DataProvider.Instance;
+                if (provider == null ||
+                    !provider.HasCompleteKingdomQuestMainSource)
+                    return false;
+
+                if (!KingdomQuestMapAllocationRegistry.TryAllocate(
+                        protocolDefinition,
+                        provider.KingdomQuestSourceDefinitions,
+                        provider.KingdomQuestSourceMaps))
+                {
+                    // Native DoSetMakeRoom writes Status 8 when AllocMapLink
+                    // cannot reserve all source slots.
+                    TrySetStatus(handle, KingdomQuestNativeConstants.StatusNoMap);
+                    return false;
+                }
+
+                if (!KingdomQuestSessionTargetRegistry.TryAllocateNative(
+                        handle, protocolDefinition, out target))
+                {
+                    KingdomQuestMapAllocationRegistry.Free(handle);
+                    target = null;
+                    return false;
+                }
+
+                protocolDefinition.Status =
+                    KingdomQuestNativeConstants.StatusMakeRequested;
+                clientDefinition.Status =
+                    KingdomQuestNativeConstants.StatusMakeRequested;
+                KingdomQuestProtocolDefinitionRegistry.Upsert(protocolDefinition);
+                KingdomQuestDefinitionRegistry.Upsert(clientDefinition);
+
+                if (KingdomQuestInstanceRegistry.SetStatus(
+                        handle, KingdomQuestNativeConstants.StatusMakeRequested))
+                    return true;
+
+                KingdomQuestProtocolDefinitionRegistry.Upsert(
+                    ResetPreparedMapLinks(
+                        protocolDefinition,
+                        KingdomQuestNativeConstants.StatusScheduled));
+                clientDefinition.Status =
+                    KingdomQuestNativeConstants.StatusScheduled;
+                KingdomQuestDefinitionRegistry.Upsert(clientDefinition);
+                KingdomQuestSessionTargetRegistry.Remove(handle);
+                KingdomQuestMapAllocationRegistry.Free(handle);
+                target = null;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Emulator-transport rollback only. Native gameplay does not observe
+        /// this path; it is used when the already-prepared MAKE cannot be
+        /// delivered to the Zone connection that owns the proven base map.
+        /// </summary>
+        public static bool TryRollbackMakePreparation(uint handle)
+        {
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo clientDefinition;
+                KingdomQuestInstanceWireState state;
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(
+                        handle, out clientDefinition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state) ||
+                    state.Status != KingdomQuestNativeConstants.StatusMakeRequested)
+                    return false;
+
+                KingdomQuestSessionTargetRegistry.Remove(handle);
+                KingdomQuestMapAllocationRegistry.Free(handle);
+
+                protocolDefinition = ResetPreparedMapLinks(
+                    protocolDefinition,
+                    KingdomQuestNativeConstants.StatusScheduled);
+                clientDefinition.Status =
+                    KingdomQuestNativeConstants.StatusScheduled;
+                KingdomQuestProtocolDefinitionRegistry.Upsert(protocolDefinition);
+                KingdomQuestDefinitionRegistry.Upsert(clientDefinition);
+                return KingdomQuestInstanceRegistry.SetStatus(
+                    handle, KingdomQuestNativeConstants.StatusScheduled);
+            }
+        }
+
+        private static KingdomQuestProtocolInfo ResetPreparedMapLinks(
+            KingdomQuestProtocolInfo definition, byte status)
+        {
+            definition.Status = status;
+            definition.MapLink = new KingdomQuestMapProtocolInfo[4];
+            for (int i = 0; i < definition.MapLink.Length; i++)
+                definition.MapLink[i] = new KingdomQuestMapProtocolInfo();
+            return definition;
+        }
+
+        /// <summary>
         /// Applies the original World-side NC_KQ_Z2W_MAKE_ACK branch.
         /// Non-0x0981 ACKs execute SetNoMapBF => Status 8. A successful ACK
         /// may enter SetJoining only from Status 1/2; SetJoining clears the
@@ -219,6 +346,7 @@ namespace NextGen.World.Data
                 bool mapContext = KingdomQuestMapContextRegistry.Remove(handle);
                 bool zoneJoiners = KingdomQuestZoneJoinerRegistry.Remove(handle);
                 bool target = KingdomQuestSessionTargetRegistry.Remove(handle);
+                KingdomQuestMapAllocationRegistry.Free(handle);
                 return protocolDefinition || definition || state || participants ||
                     joinListReply || mapContext || zoneJoiners || target;
             }

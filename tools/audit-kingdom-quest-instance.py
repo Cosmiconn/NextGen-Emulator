@@ -29,6 +29,8 @@ FILES = {
     "world_inter": ROOT / "NextGen.World/InterServer/InterHandler.cs",
     "kq_make_ack": ROOT / "NextGen.World/Data/KingdomQuestMakeAckRegistry.cs",
     "kq_map_allocator": ROOT / "NextGen.World/Data/KingdomQuestMapAllocationRegistry.cs",
+    "kq_map_route": ROOT / "NextGen.World/Data/KingdomQuestMapRouteResolver.cs",
+    "kq_scheduler": ROOT / "NextGen.World/Data/KingdomQuestSourceScheduler.cs",
 }
 
 def need(text, tokens, label):
@@ -78,6 +80,16 @@ def main():
         "DataProvider.Instance.KingdomQuestMaps.ContainsKey(mapId)",
         "new KingdomQuestSessionTarget(handle, mapId, mapInstance)",
         "Tuple.Create(mapId, mapInstance)",
+        "public byte NativeMapIndex",
+        "public string NativeMapBase",
+        "public string NativeMapName",
+        "TryAllocateNative(",
+        "NextInternalInstanceByMap",
+        "next < 1",
+        "next > short.MaxValue",
+        "mapLink.MapIndex",
+        "mapLink.MapBase",
+        "mapLink.MapName",
     ], "explicit KQ wire-instance to map-instance mapping"):
         return 1
 
@@ -139,6 +151,8 @@ def main():
         return 1
     if not need(c["kq_zone_runtime"], [
         "KingdomQuestZoneLifecycleState",
+        "activeMap.MapBase, mapInfo.ShortName, StringComparison.Ordinal",
+        "!string.IsNullOrEmpty(candidate.MapName)",
         "KingdomQuestProtocolInfo.TryRead(reader, out clone)",
         "DataProvider.Instance.MapsByID.TryGetValue(mapId, out mapInfo)",
         "MapManager.Instance.GetMap(mapInfo, mapInstance)",
@@ -264,6 +278,34 @@ def main():
             print("FAIL: KQ Zone joiner registry infers admission/identity:", forbidden)
             return 1
 
+    if not need(c["kq_map_route"], [
+        "TryResolveScheduledMap",
+        "TryResolveAllocatedMap",
+        "StringComparison.Ordinal",
+        "source.MapLinkColumns[i]",
+    ], "source-backed native MapBase route resolution"):
+        return 1
+
+    if not need(c["kq_scheduler"], [
+        "RunMakeRoom(local)",
+        "definition.ScheduleTime > currentTime",
+        "KingdomQuestMapRouteResolver.TryResolveScheduledMap(",
+        "KingdomQuestSessionCoordinator.TryPrepareMake(",
+        "zone.SendKingdomQuestMake(definition.Handle)",
+        "TryRollbackMakePreparation(",
+    ], "live native DoSetMakeRoom bridge"):
+        return 1
+
+    if not need(c["kq_session"], [
+        "public static bool TryPrepareMake",
+        "KingdomQuestMapAllocationRegistry.TryAllocate(",
+        "KingdomQuestSessionTargetRegistry.TryAllocateNative(",
+        "KingdomQuestNativeConstants.StatusMakeRequested",
+        "public static bool TryRollbackMakePreparation",
+        "KingdomQuestMapAllocationRegistry.Free(handle)",
+    ], "atomic KQ MAKE preparation"):
+        return 1
+
     if not need(c["kq_map_allocator"], [
         "SlotsPerSourceRow = 10",
         "MapIndex = (byte)slot",
@@ -284,15 +326,25 @@ def main():
             return 1
 
     combined = "\n".join(c.values())
-    if "(short)handle" in combined or "(short)Handle" in combined:
-        print("FAIL: native World KQ Handle conflated with internal Map.InstanceID")
-        return 1
+    for forbidden in (
+        "(short)handle",
+        "(short)Handle",
+        "(short)mapLink.MapIndex",
+        "MapInstance = mapLink.MapIndex",
+        "MapInstance = (short)definition.Handle",
+    ):
+        if forbidden in combined:
+            print("FAIL: native KQ identity conflated with internal Map.InstanceID:", forbidden)
+            return 1
 
     print("PASS: MapManager can allocate requested internal map instances")
     print("PASS: internal MapInstance survives Zone -> World -> Zone transfer")
     print("PASS: native 32-bit KQ Handle remains separate from internal Map.InstanceID")
     print("PASS: KQ Handle -> source MapID/internal MapInstance mapping is explicit")
     print("PASS: native KingdomQuestMap MapIndex allocation stays separate from emulator Map.InstanceID routing")
+    print("PASS: native MapBase is resolved exactly to a source-backed base MapID; dynamic MapName is retained separately")
+    print("PASS: internal KQ Map.InstanceID allocation is independent, starts outside base instance 0 and is not derived from Handle/MapIndex")
+    print("PASS: due Status-0 schedules execute the recovered AllocMapLink -> Status-1 -> MAKE boundary")
     print("PASS: World KQ transfer requests reuse ZoneCharacter.ChangeMap with native KQ map-context coordinates")
     print("PASS: NC_CHAR_KQMAP_CMD is modeled as Handle + Name3 + XY + raw SHINE_DATETIME")
     print("PASS: KQ session create/remove keeps full/server definition, client definition, status, participant, join-list reply and routing registries synchronized")

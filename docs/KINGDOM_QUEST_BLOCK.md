@@ -719,3 +719,65 @@ array. It deliberately does **not** create a
 `KingdomQuestSessionTarget`, choose a MapID, or derive an emulator
 `Map.InstanceID` from native `MapIndex`. The latter remains a distinct
 routing namespace until the Zone-side map-name behavior is correlated.
+
+
+## Zone MapBase routing and live DoSetMakeRoom
+
+The supplied Zone PDB/EXE now closes the remaining native-map routing
+ambiguity. In `WorldManagerSession::wms_NC_KQ_W2Z_MAKE_REQ`
+(`.text+0x96790`) each populated `PROTO_KQ_MAP_INFO` is handled in two
+different namespaces:
+
+- `MapName` is checked by `KingdomQuestContainer::kqc_MapUseCheck` and is
+  used as the dynamic `FieldMap` identity;
+- `MapBase` is passed to the original global `mapdatabox` lookup to obtain
+  the static map data used to construct that field.
+
+So `MapBase -> MapInfo.ShortName` is now an executable-proven correlation,
+not a name-based guess. The resolver uses an exact ordinal string comparison
+against the already source-backed `KingdomMap=1` catalog.
+
+The exact supplied NA2016 snapshot is also locked to one active source
+`MapLink` for every one of its 57 `KingdomQuest.shn` rows. Its 38
+`KingdomQuestMap.shn` rows reference 23 distinct `BaseMap` names, all of
+which exist in that source-backed KQ map catalog. This is deliberately treated
+as a property of this provenance-locked corpus. A future source snapshot with
+multiple active links is not silently reduced to one map.
+
+The native and emulator namespaces remain separate:
+
+```text
+u32 Handle             native World KQ identity
+u8  MapIndex           native slot inside one KingdomQuestMap row
+MapName[12]            native dynamic FieldMap identity
+MapBase[12]            native static mapdatabox identity
+u16 MapID              emulator/source-backed base map ID
+i16 Map.InstanceID     emulator-internal dynamic instance
+```
+
+`KingdomQuestSessionTargetRegistry.TryAllocateNative` now retains
+`MapIndex/MapBase/MapName` but allocates `Map.InstanceID` independently
+from a per-MapID counter beginning at 1. Instance 0 remains the emulator's
+loaded/base map. No cast or arithmetic derives the internal instance from the
+native Handle or MapIndex.
+
+WorldManager's `CKQServer::DoSetMakeRoom` is also live for due scheduler
+entries. The original branch is reproduced as:
+
+```text
+Status == 0 && ScheduleTime <= now
+    -> AllocMapLink
+       failure: Status = 8
+       success: Status = 1; send NC_KQ_W2Z_MAKE_REQ
+```
+
+Before consuming a native map slot the emulator requires an active Zone that
+owns the proven `MapBase` MapID. That availability check is internal
+transport plumbing; when no such Zone is connected the KQ remains Status 0 and
+no native slot is consumed. If enqueueing the already-prepared MAKE fails, an
+explicit emulator-only rollback restores Status 0 and frees the reservation.
+
+Zone now independently validates that the internal MAKE routing MapID resolves
+to the same exact `MapBase` carried by the native request before creating the
+requested internal map instance. This prevents internal transport metadata from
+silently redirecting a native KQ definition to a different base map.

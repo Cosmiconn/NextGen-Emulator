@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NextGen.FiestaLib.Data;
 
 namespace NextGen.World.Data
 {
@@ -14,12 +15,24 @@ namespace NextGen.World.Data
         public uint Handle { get; private set; }
         public ushort MapID { get; private set; }
         public short MapInstance { get; private set; }
+        public byte NativeMapIndex { get; private set; }
+        public string NativeMapBase { get; private set; }
+        public string NativeMapName { get; private set; }
 
         internal KingdomQuestSessionTarget(uint handle, ushort mapId, short mapInstance)
+            : this(handle, mapId, mapInstance, 0, string.Empty, string.Empty)
+        {
+        }
+
+        internal KingdomQuestSessionTarget(uint handle, ushort mapId, short mapInstance,
+            byte nativeMapIndex, string nativeMapBase, string nativeMapName)
         {
             Handle = handle;
             MapID = mapId;
             MapInstance = mapInstance;
+            NativeMapIndex = nativeMapIndex;
+            NativeMapBase = nativeMapBase ?? string.Empty;
+            NativeMapName = nativeMapName ?? string.Empty;
         }
     }
 
@@ -37,6 +50,8 @@ namespace NextGen.World.Data
             new Dictionary<uint, KingdomQuestSessionTarget>();
         private static readonly Dictionary<Tuple<ushort, short>, uint> ByMapInstance =
             new Dictionary<Tuple<ushort, short>, uint>();
+        private static readonly Dictionary<ushort, int> NextInternalInstanceByMap =
+            new Dictionary<ushort, int>();
 
         public static bool TryCreate(uint handle, ushort mapId, short mapInstance,
             out KingdomQuestSessionTarget target)
@@ -61,6 +76,58 @@ namespace NextGen.World.Data
             }
         }
 
+        public static bool TryAllocateNative(
+            uint handle,
+            KingdomQuestProtocolInfo definition,
+            out KingdomQuestSessionTarget target)
+        {
+            target = null;
+            if (definition == null || definition.Handle != handle)
+                return false;
+
+            MapInfo mapInfo;
+            KingdomQuestMapProtocolInfo mapLink;
+            if (!KingdomQuestMapRouteResolver.TryResolveAllocatedMap(
+                    definition, out mapInfo, out mapLink))
+                return false;
+
+            lock (Sync)
+            {
+                if (ByHandle.ContainsKey(handle))
+                    return false;
+
+                int next;
+                if (!NextInternalInstanceByMap.TryGetValue(mapInfo.ID, out next) ||
+                    next < 1)
+                    next = 1;
+
+                // Instance 0 is the emulator's loaded/base map. Dynamic KQ
+                // instances live in a separate monotonically allocated range.
+                // This counter is intentionally unrelated to Handle/MapIndex.
+                while (next <= short.MaxValue &&
+                    ByMapInstance.ContainsKey(
+                        Tuple.Create(mapInfo.ID, (short)next)))
+                    next++;
+
+                if (next > short.MaxValue)
+                    return false;
+
+                short mapInstance = (short)next;
+                var key = Tuple.Create(mapInfo.ID, mapInstance);
+                target = new KingdomQuestSessionTarget(
+                    handle,
+                    mapInfo.ID,
+                    mapInstance,
+                    mapLink.MapIndex,
+                    mapLink.MapBase,
+                    mapLink.MapName);
+                ByHandle.Add(handle, target);
+                ByMapInstance.Add(key, handle);
+                NextInternalInstanceByMap[mapInfo.ID] = next + 1;
+                return true;
+            }
+        }
+
         public static bool TryGet(uint handle, out KingdomQuestSessionTarget target)
         {
             lock (Sync)
@@ -73,7 +140,8 @@ namespace NextGen.World.Data
                 }
 
                 target = new KingdomQuestSessionTarget(
-                    current.Handle, current.MapID, current.MapInstance);
+                    current.Handle, current.MapID, current.MapInstance,
+                    current.NativeMapIndex, current.NativeMapBase, current.NativeMapName);
                 return true;
             }
         }
@@ -98,7 +166,8 @@ namespace NextGen.World.Data
                 return ByHandle.Values
                     .OrderBy(v => v.Handle)
                     .Select(v => new KingdomQuestSessionTarget(
-                        v.Handle, v.MapID, v.MapInstance))
+                        v.Handle, v.MapID, v.MapInstance,
+                        v.NativeMapIndex, v.NativeMapBase, v.NativeMapName))
                     .ToList()
                     .AsReadOnly();
         }
@@ -109,6 +178,7 @@ namespace NextGen.World.Data
             {
                 ByHandle.Clear();
                 ByMapInstance.Clear();
+                NextInternalInstanceByMap.Clear();
             }
         }
     }

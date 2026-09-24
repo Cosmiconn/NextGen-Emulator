@@ -102,6 +102,35 @@ namespace NextGen.Zone.Data
             if (!DataProvider.Instance.MapsByID.TryGetValue(mapId, out mapInfo))
                 return false;
 
+            KingdomQuestMapProtocolInfo activeMap = null;
+            if (definition.MapLink == null || definition.MapLink.Length != 4)
+                return false;
+            for (int i = 0; i < definition.MapLink.Length; i++)
+            {
+                KingdomQuestMapProtocolInfo candidate = definition.MapLink[i];
+                if (candidate == null)
+                    return false;
+
+                bool populated =
+                    !string.IsNullOrEmpty(candidate.MapBase) ||
+                    !string.IsNullOrEmpty(candidate.MapName);
+                if (!populated)
+                    continue;
+
+                if (activeMap != null ||
+                    string.IsNullOrEmpty(candidate.MapBase) ||
+                    string.IsNullOrEmpty(candidate.MapName))
+                    return false;
+                activeMap = candidate;
+            }
+
+            // Zone.exe wms_NC_KQ_W2Z_MAKE_REQ uses MapName as the dynamic
+            // FieldMap identity but indexes the original mapdatabox by MapBase.
+            if (activeMap == null ||
+                !string.Equals(
+                    activeMap.MapBase, mapInfo.ShortName, StringComparison.Ordinal))
+                return false;
+
             lock (Sync)
             {
                 if (ByHandle.ContainsKey(definition.Handle))

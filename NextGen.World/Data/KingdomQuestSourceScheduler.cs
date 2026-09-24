@@ -118,7 +118,7 @@ namespace NextGen.World.Data
             return value;
         }
 
-        private static int ToNativeTime32(DateTime local)
+        internal static int ToNativeTime32(DateTime local)
         {
             long seconds = new DateTimeOffset(local).ToUnixTimeSeconds();
             if (seconds < int.MinValue || seconds > int.MaxValue)
@@ -284,12 +284,81 @@ namespace NextGen.World.Data
 
             lock (sync)
             {
-                if (lastScheduleMinute.HasValue &&
-                    lastScheduleMinute.Value == minute)
-                    return;
+                if (!lastScheduleMinute.HasValue ||
+                    lastScheduleMinute.Value != minute)
+                {
+                    PublishScheduleWindow(local);
+                    lastScheduleMinute = minute;
+                }
 
-                PublishScheduleWindow(local);
-                lastScheduleMinute = minute;
+                RunMakeRoom(local);
+            }
+        }
+
+        private void RunMakeRoom(DateTime localNow)
+        {
+            int currentTime = KingdomQuestSourceScheduler.ToNativeTime32(localNow);
+            IReadOnlyList<KingdomQuestProtocolInfo> scheduled =
+                KingdomQuestProtocolDefinitionRegistry.Snapshot();
+
+            for (int i = 0; i < scheduled.Count; i++)
+            {
+                KingdomQuestProtocolInfo definition = scheduled[i];
+                if (definition.Status != KingdomQuestNativeConstants.StatusScheduled ||
+                    definition.ScheduleTime > currentTime)
+                    continue;
+
+                MapInfo mapInfo;
+                if (!KingdomQuestMapRouteResolver.TryResolveScheduledMap(
+                        definition.ID, out mapInfo))
+                {
+                    Log.WriteLine(LogLevel.Error,
+                        "KQ {0} Handle {1} has no unique source-backed MapBase route.",
+                        definition.ID, definition.Handle);
+                    continue;
+                }
+
+                NextGen.World.InterServer.ZoneConnection zone = null;
+                if (Program.Zones != null)
+                {
+                    foreach (NextGen.World.InterServer.ZoneConnection candidate
+                        in Program.Zones.Values)
+                    {
+                        if (candidate.Maps != null &&
+                            candidate.Maps.Exists(v => v.ID == mapInfo.ID))
+                        {
+                            zone = candidate;
+                            break;
+                        }
+                    }
+                }
+
+                // The original broadcasts MAKE to active Zones. Here the
+                // emulator waits for the Zone that owns the proven base MapID
+                // before consuming a native map slot.
+                if (zone == null)
+                    continue;
+
+                KingdomQuestSessionTarget target;
+                if (!KingdomQuestSessionCoordinator.TryPrepareMake(
+                        definition.Handle, out target))
+                    continue;
+
+                if (target.MapID != mapInfo.ID ||
+                    !zone.SendKingdomQuestMake(definition.Handle))
+                {
+                    KingdomQuestSessionCoordinator.TryRollbackMakePreparation(
+                        definition.Handle);
+                    Log.WriteLine(LogLevel.Error,
+                        "KQ MAKE transport rollback for Handle {0}.",
+                        definition.Handle);
+                    continue;
+                }
+
+                Log.WriteLine(LogLevel.Debug,
+                    "KQ MAKE requested: Handle {0}, native map {1}, MapID {2}, internal instance {3}.",
+                    definition.Handle, target.NativeMapName,
+                    target.MapID, target.MapInstance);
             }
         }
 

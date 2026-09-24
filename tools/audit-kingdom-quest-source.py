@@ -21,6 +21,7 @@ WORLD_SOURCE_ROWS = ROOT / "NextGen.World/Data/KingdomQuestSourceRows.cs"
 WORLD_SOURCE_PROJECTION = ROOT / "NextGen.World/Data/KingdomQuestSourceProjection.cs"
 WORLD_SOURCE_SCHEDULER = ROOT / "NextGen.World/Data/KingdomQuestSourceScheduler.cs"
 WORLD_MAP_ALLOCATOR = ROOT / "NextGen.World/Data/KingdomQuestMapAllocationRegistry.cs"
+WORLD_MAP_ROUTE = ROOT / "NextGen.World/Data/KingdomQuestMapRouteResolver.cs"
 RAW_SOURCES = {
     "KingdomQuest": (
         ROOT / "sql/data/data_kq_source_10_kingdomquest.sql",
@@ -54,6 +55,41 @@ def data_rows(path):
     return [line.strip() for line in path.read_text(encoding='utf-8').splitlines()
             if line.lstrip().startswith('(')]
 
+def split_row_fields(line):
+    text = line.strip().rstrip(',;')
+    if text.startswith('(') and text.endswith(')'):
+        text = text[1:-1]
+    fields = []
+    current = []
+    quoted = False
+    escaped = False
+    for ch in text:
+        if escaped:
+            current.append(ch)
+            escaped = False
+            continue
+        if ch == '\\':
+            current.append(ch)
+            escaped = True
+            continue
+        if ch == "'":
+            current.append(ch)
+            quoted = not quoted
+            continue
+        if ch == ',' and not quoted:
+            fields.append(''.join(current).strip())
+            current = []
+            continue
+        current.append(ch)
+    fields.append(''.join(current).strip())
+    return fields
+
+def unquote_sql(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
+        return value[1:-1].replace("\\'", "'").replace("\\\\", "\\")
+    return value
+
 def row_field_count(line):
     text = line.strip().rstrip(',;')
     if text.startswith('(') and text.endswith(')'):
@@ -80,6 +116,7 @@ def main():
         MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
         WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER, WORLD_MAP_ALLOCATOR,
+        WORLD_MAP_ROUTE,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -145,6 +182,22 @@ def main():
             return 1
 
     kingdom_source = RAW_SOURCES["KingdomQuest"][0].read_text(encoding='utf-8')
+    for row in data_rows(RAW_SOURCES["KingdomQuest"][0]):
+        fields = split_row_fields(row)
+        links = [int(fields[i]) for i in (27, 28, 29, 30)]
+        if sum(1 for value in links if value != -1) != 1:
+            print('FAIL: supplied NA2016 KQ definition is no longer single-map:', links)
+            return 1
+
+    source_map_bases = set()
+    for row in data_rows(RAW_SOURCES["KingdomQuestMap"][0]):
+        fields = split_row_fields(row)
+        source_map_bases.add(unquote_sql(fields[2]))
+    known_kq_maps = set(name for _map_id, name in EXPECTED_MAPS)
+    if len(source_map_bases) != 23 or not source_map_bases.issubset(known_kq_maps):
+        print('FAIL: KQ MapBase corpus no longer resolves into source-backed KingdomMap=1 maps')
+        return 1
+
     for token in (
         '`ST_Hour` TINYINT UNSIGNED',
         '`NextStartDeleyMin` SMALLINT UNSIGNED',
@@ -165,6 +218,7 @@ def main():
     world_source_projection = WORLD_SOURCE_PROJECTION.read_text(encoding='utf-8')
     world_source_scheduler = WORLD_SOURCE_SCHEDULER.read_text(encoding='utf-8')
     world_map_allocator = WORLD_MAP_ALLOCATOR.read_text(encoding='utf-8')
+    world_map_route = WORLD_MAP_ROUTE.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
@@ -377,6 +431,32 @@ def main():
             print('FAIL: native KQ map-slot allocation primitive missing', token)
             return 1
 
+    for token in (
+        'TryResolveScheduledMap',
+        'candidate.ID >= 0 && (ushort)candidate.ID == kqId',
+        'source.MapLinkColumns[i]',
+        'sourceMapIndex >= 0',
+        'sourceMap.SourceRow != (uint)sourceMapIndex',
+        'TryResolveAllocatedMap',
+        'candidate.ShortName, mapBase, StringComparison.Ordinal',
+    ):
+        if token not in world_map_route:
+            print('FAIL: source-backed KQ MapBase route resolver missing', token)
+            return 1
+
+    for token in (
+        'RunMakeRoom(local)',
+        'definition.Status != KingdomQuestNativeConstants.StatusScheduled',
+        'definition.ScheduleTime > currentTime',
+        'KingdomQuestMapRouteResolver.TryResolveScheduledMap(',
+        'KingdomQuestSessionCoordinator.TryPrepareMake(',
+        'zone.SendKingdomQuestMake(definition.Handle)',
+        'TryRollbackMakePreparation(',
+    ):
+        if token not in world_source_scheduler:
+            print('FAIL: native DoSetMakeRoom runtime bridge missing', token)
+            return 1
+
     for forbidden in (
         'KingdomQuestSessionTargetRegistry',
         'Map.InstanceID',
@@ -436,6 +516,8 @@ def main():
     print('PASS: source SQL includes machine-readable file/column provenance without gameplay mapping')
     print('PASS: exact NA2016 KQ/source dependency corpus locked (57/38/64/2/39 rows; includes UseClassTypeInfo)')
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
+    print('PASS: supplied NA2016 definitions are locked to one active MapLink and 23 source-backed MapBase identities')
+    print('PASS: native MapBase resolves exactly to source-backed MapInfo.ShortName without MapIndex/instance inference')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
     print('PASS: World loads exact UseClassTypeInfo and reproduces ccdb_UseClassTypeToBit folding for DemandClass')
