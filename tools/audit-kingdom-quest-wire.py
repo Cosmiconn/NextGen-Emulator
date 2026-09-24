@@ -30,6 +30,7 @@ PACKET_HELPER = ROOT / "NextGen.World/Handlers/PacketHelper.cs"
 ADMISSION = ROOT / "NextGen.World/Data/KingdomQuestAdmissionCoordinator.cs"
 INTER_HEADER = ROOT / "NextGen.InterLib/Networking/InterHeader.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
+ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -39,7 +40,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME]
+    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, ZONE_CHARACTER]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -71,6 +72,7 @@ def main():
     admission = ADMISSION.read_text(encoding="utf-8")
     inter_header = INTER_HEADER.read_text(encoding="utf-8")
     zone_runtime = ZONE_RUNTIME.read_text(encoding="utf-8")
+    zone_character = ZONE_CHARACTER.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -454,6 +456,63 @@ def main():
         print("FAIL: unresolved original nPrisonMin default was guessed as zero")
         return 1
 
+    if not require(character, [
+        "public int? KingdomQuestHandle",
+        "public string KingdomQuestMapName",
+        "public int? KingdomQuestX",
+        "public int? KingdomQuestY",
+        "public DateTime? KingdomQuestDate",
+        "0xFFFFFFFF no-KQ value",
+    ], "source-backed Character KQ persistence state"):
+        return 1
+
+    for source_text, label in (
+        (read_methods, "Zone/shared character KQ DB load"),
+        (world_client, "World character-list KQ DB load"),
+    ):
+        if not require(source_text, [
+            'row.IsNull("KQHandle")',
+            'GetDataTypes.GetInt(row["KQHandle"])',
+            'row.IsNull("KQMap")',
+            'row["KQMap"].ToString()',
+            'row.IsNull("KQX")',
+            'row.IsNull("KQY")',
+            'row.IsNull("KQDate")',
+            'Convert.ToDateTime(row["KQDate"])',
+        ], label):
+            return 1
+
+    if not require(world_schema, [
+        '`KQHandle` INT NULL DEFAULT NULL',
+        '`KQMap` VARCHAR(16) NULL DEFAULT NULL',
+        '`KQX` INT NULL DEFAULT NULL',
+        '`KQY` INT NULL DEFAULT NULL',
+        '`KQDate` DATETIME NULL DEFAULT NULL',
+        'p_Char_SaveLocation parameters',
+        'GetDate()',
+    ], "source-backed KQ persistence schema"):
+        return 1
+
+    if not require(zone_runtime, [
+        "public static bool TryGetByMap(",
+        "current.MapID == mapId",
+        "current.MapInstance == mapInstance",
+    ], "KQ instance reverse lookup for save-location suffix"):
+        return 1
+
+    if not require(zone_character, [
+        "KingdomQuestZoneRuntimeRegistry.TryGetByMap(",
+        "kingdomQuestHandle = unchecked((int)kingdomQuestState.Handle)",
+        "link.MapBase, Map.MapInfo.ShortName",
+        "kingdomQuestMapName = link.MapName",
+        "Character.KingdomQuestHandle = kingdomQuestHandle",
+        '"KQHandle=@kqHandle, KQMap=@kqMap, KQX=@kqX, KQY=@kqY, "',
+        '"KQDate=CURRENT_TIMESTAMP "',
+        'new MySqlParameter("@kqHandle", Character.KingdomQuestHandle)',
+        'new MySqlParameter("@kqMap", Character.KingdomQuestMapName ?? string.Empty)',
+    ], "live native KQ save-location suffix persistence"):
+        return 1
+
     if not require(admission, [
         "class KingdomQuestAdmissionCoordinator",
         "!client.Character.Character.PrisonMinutes.HasValue",
@@ -753,6 +812,7 @@ def main():
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
     print("PASS: original prison minutes are loaded fail-closed; unresolved creation default is not guessed")
     print("PASS: PROTO_NC_CHARSAVE_LOCATION_CMD is modeled as exact 48-byte normal+KQ location persistence wire")
+    print("PASS: Zone save persists the source-backed KQ handle/dynamic-map/XY suffix and DB-side timestamp without inventing native return-location policy")
     print("PASS: JOIN_CANCEL 0x09A1/0x09A2 is live and removes session-owned current membership before echoing the request Handle")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")

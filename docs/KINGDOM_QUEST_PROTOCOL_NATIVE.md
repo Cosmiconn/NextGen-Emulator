@@ -630,7 +630,14 @@ field names and `ShinePlayer::so_SaveLocation` offsets correlate it as
 
 That KQ suffix feeds the original Character DB save-location procedure, which
 persists `nKQHandle/sKQMap/nKQX/nKQY` and timestamps `dKQDate` with
-`GetDate()`. The shared protocol model now preserves those exact 48 bytes.
-The emulator does not yet replace its normal location-save policy with this
-packet because Zone's native normal-return `coord` selection has additional
-special-map branches that are still being correlated.
+`GetDate()`. The shared protocol model preserves those exact 48 bytes.
+
+Zone disassembly further proves that the KQ suffix is independent of the
+normal return-coordinate selection: it always stores
+`FieldMap::fm_GetKQhandle()`, current FieldMap name and current X/Y.
+The FieldMap constructor initializes the handle to `0xFFFFFFFF`. The
+emulator now persists this suffix live, preserving a KQ instance's native
+dynamic MapName and using a DB-side current timestamp. It still does not
+replace the first/normal coordinate's existing policy: the native function has
+separate rollback-event, guild-tournament, regen-city-link and other branches
+that must be modeled before that return-location decision can be changed.

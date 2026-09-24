@@ -23,6 +23,18 @@ namespace NextGen.Database.Storage
        // emulator-only provenance sentinel: null means the original value was
        // not supplied, and KQ JOIN must not silently treat it as zero.
        public short? PrisonMinutes { get; set; }
+
+       // Original World00_Character.p_Char_SaveLocation persists
+       // nKQHandle(int), sKQMap(nvarchar(16)), nKQX/nKQY(int) and dKQDate.
+       // Keep the DB handle signed so the native 0xFFFFFFFF no-KQ value is
+       // represented losslessly as -1. NULL is emulator-only "not persisted
+       // yet" state for databases created before this source-backed path.
+       public int? KingdomQuestHandle { get; set; }
+       public string KingdomQuestMapName { get; set; }
+       public int? KingdomQuestX { get; set; }
+       public int? KingdomQuestY { get; set; }
+       public DateTime? KingdomQuestDate { get; set; }
+
        // Kill Points aus PvP-Kills - anders als Fame (nie aus der DB
        // geladen/gespeichert) wird das hier wirklich persistiert, siehe
        // ReadMethods.cs und DatabaseHelper.cs. DOCUMENTATION.md Abschnitt 26.

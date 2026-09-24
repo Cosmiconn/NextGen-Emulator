@@ -205,6 +205,59 @@ namespace NextGen.Zone.Game
 				Character.PositionInfo.Map = (byte)Map.MapID;
 			}
 
+            // Original ShinePlayer::so_SaveLocation writes the KQ suffix
+            // independently of the normal return coordinate:
+            // fm_GetKQhandle + current FieldMap name + current XY. The normal
+            // coord above remains the emulator's existing policy until the
+            // native rollback/tournament/regen-city branches are all modeled.
+            int kingdomQuestHandle = -1;
+            string kingdomQuestMapName =
+                Map == null || Map.MapInfo == null
+                    ? string.Empty
+                    : Map.MapInfo.ShortName;
+            int kingdomQuestX = Position == null
+                ? Character.PositionInfo.XPos
+                : Position.X;
+            int kingdomQuestY = Position == null
+                ? Character.PositionInfo.YPos
+                : Position.Y;
+
+            KingdomQuestZoneRuntimeState kingdomQuestState;
+            if (Map != null &&
+                KingdomQuestZoneRuntimeRegistry.TryGetByMap(
+                    Map.MapID, Map.InstanceID, out kingdomQuestState))
+            {
+                kingdomQuestHandle = unchecked((int)kingdomQuestState.Handle);
+
+                // MAKE already validated one populated native MapLink whose
+                // MapBase equals this source-backed base map. Save the native
+                // dynamic FieldMap identity, not the emulator base ShortName.
+                if (kingdomQuestState.Definition != null &&
+                    kingdomQuestState.Definition.MapLink != null)
+                {
+                    for (int i = 0;
+                        i < kingdomQuestState.Definition.MapLink.Length; i++)
+                    {
+                        KingdomQuestMapProtocolInfo link =
+                            kingdomQuestState.Definition.MapLink[i];
+                        if (link != null &&
+                            !string.IsNullOrEmpty(link.MapName) &&
+                            string.Equals(
+                                link.MapBase, Map.MapInfo.ShortName,
+                                StringComparison.Ordinal))
+                        {
+                            kingdomQuestMapName = link.MapName;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            Character.KingdomQuestHandle = kingdomQuestHandle;
+            Character.KingdomQuestMapName = kingdomQuestMapName;
+            Character.KingdomQuestX = kingdomQuestX;
+            Character.KingdomQuestY = kingdomQuestY;
+
 			DateTime start = DateTime.Now;
             ushort Mountfood = 0;
             ushort MountID = 0xffff;
@@ -225,7 +278,9 @@ namespace NextGen.Zone.Game
 						"PvPKillTitleTier=@pvpKillTitleTier, NpcBuyCount=@npcBuyCount, NpcBuyTitleTier=@npcBuyTitleTier, " +
 						"NpcSellCount=@npcSellCount, NpcSellTitleTier=@npcSellTitleTier, " +
 						"FriendCount=@friendCount, FriendCountTitleTier=@friendCountTitleTier, " +
-						"TotalTitlesEarned=@totalTitlesEarned, FameCountTitleTier=@fameCountTitleTier " +
+						"TotalTitlesEarned=@totalTitlesEarned, FameCountTitleTier=@fameCountTitleTier, " +
+                        "KQHandle=@kqHandle, KQMap=@kqMap, KQX=@kqX, KQY=@kqY, " +
+                        "KQDate=CURRENT_TIMESTAMP " +
 						"WHERE CharID=@charId",
 						new MySqlParameter("@xPos", Character.PositionInfo.XPos),
 						new MySqlParameter("@yPos", Character.PositionInfo.YPos),
@@ -265,6 +320,10 @@ namespace NextGen.Zone.Game
 						new MySqlParameter("@friendCountTitleTier", Character.FriendCountTitleTier),
 						new MySqlParameter("@totalTitlesEarned", Character.TotalTitlesEarned),
 						new MySqlParameter("@fameCountTitleTier", Character.FameCountTitleTier),
+                        new MySqlParameter("@kqHandle", Character.KingdomQuestHandle),
+                        new MySqlParameter("@kqMap", Character.KingdomQuestMapName ?? string.Empty),
+                        new MySqlParameter("@kqX", Character.KingdomQuestX),
+                        new MySqlParameter("@kqY", Character.KingdomQuestY),
 						new MySqlParameter("@charId", Character.ID));
 
 				TimeSpan savetime = DateTime.Now - start;

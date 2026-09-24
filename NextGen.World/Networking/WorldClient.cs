@@ -113,6 +113,21 @@ namespace NextGen.World.Networking
                         ch.PrisonMinutes = row.IsNull("PrisonMin")
                             ? (short?)null
                             : GetDataTypes.Getshort(row["PrisonMin"]);
+                        ch.KingdomQuestHandle = row.IsNull("KQHandle")
+                            ? (int?)null
+                            : GetDataTypes.GetInt(row["KQHandle"]);
+                        ch.KingdomQuestMapName = row.IsNull("KQMap")
+                            ? null
+                            : row["KQMap"].ToString();
+                        ch.KingdomQuestX = row.IsNull("KQX")
+                            ? (int?)null
+                            : GetDataTypes.GetInt(row["KQX"]);
+                        ch.KingdomQuestY = row.IsNull("KQY")
+                            ? (int?)null
+                            : GetDataTypes.GetInt(row["KQY"]);
+                        ch.KingdomQuestDate = row.IsNull("KQDate")
+                            ? (DateTime?)null
+                            : Convert.ToDateTime(row["KQDate"]);
                         ch.GameSettings = Database.DataStore.ReadMethods.GetGameSettings(ch.ID, Program.DatabaseManager);
                         ch.ClientSettings = Database.DataStore.ReadMethods.GetClientSettings(ch.ID, Program.DatabaseManager);
                         ch.Shortcuts = Database.DataStore.ReadMethods.GetShortcuts(ch.ID, Program.DatabaseManager);

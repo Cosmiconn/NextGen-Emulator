@@ -45,6 +45,15 @@ CREATE TABLE `characters` (
   -- from the backup catalog. NULL is therefore an emulator provenance
   -- sentinel meaning "original value unknown"; never collapse it to zero.
   `PrisonMin` SMALLINT NULL DEFAULT NULL,
+  -- Original World00_Character.p_Char_SaveLocation parameters are
+  -- nKQHandle int, sKQMap nvarchar(16), nKQX/nKQY int; dKQDate is stamped
+  -- with GetDate(). NULL here is only an emulator migration sentinel for a
+  -- row that has not yet passed through the source-backed save path.
+  `KQHandle` INT NULL DEFAULT NULL,
+  `KQMap` VARCHAR(16) NULL DEFAULT NULL,
+  `KQX` INT NULL DEFAULT NULL,
+  `KQY` INT NULL DEFAULT NULL,
+  `KQDate` DATETIME NULL DEFAULT NULL,
   `CurHP` INT NOT NULL DEFAULT 0,
   `CurSP` INT NOT NULL DEFAULT 0,
   `StatPoints` TINYINT UNSIGNED NOT NULL DEFAULT 0,

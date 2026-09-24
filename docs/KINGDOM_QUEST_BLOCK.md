@@ -1097,13 +1097,26 @@ receives the KQ handle/map/X/Y alongside the normal login location and writes
 `dKQDate=GetDate()`. `p_Char_GetKQMap` later returns that state for the
 World login reconnect path.
 
-`CharacterSaveLocationProtocolInfo` now models this wire boundary byte-for-byte.
-It is intentionally **not** wired into `ZoneCharacter.Save()` yet: the first
-`coord` is not simply "current KQ position" on every special-map branch, and
-the original `so_SaveLocation` contains return-location logic that must be
-correlated before replacing the emulator's normal location save. This keeps KQ
-persistence source-correct instead of overwriting the normal return location
-with a guessed base-map coordinate.
+`CharacterSaveLocationProtocolInfo` models this wire boundary byte-for-byte.
+The KQ suffix is now also persisted live. Direct Zone disassembly shows that
+after the normal-coordinate selection completes, `so_SaveLocation` always
+writes `FieldMap::fm_GetKQhandle()`, the current FieldMap name and current
+player X/Y into the KQ half of the 48-byte structure. `FieldMap` construction
+initializes that handle to `0xFFFFFFFF`, so non-KQ maps have the native
+no-KQ value; represented KQ instances save their exact dynamic `MapName`
+rather than the emulator's base-map short name.
+
+The supplied Character DB procedure proves the storage boundary:
+`p_Char_SaveLocation` receives `nKQHandle int`,
+`sKQMap nvarchar(16)`, `nKQX/nKQY int`, writes those four columns, and
+sets `dKQDate=GetDate()`. The emulator schema/storage/Zone save path now
+mirrors that suffix and uses the database timestamp.
+
+The first/normal `coord` remains deliberately on the emulator's existing
+save policy. Native `so_SaveLocation` selects it through additional
+rollback-event, guild-tournament, regen-city-link and other special-map
+branches. Those branches are not replaced with a guessed "return map" merely
+to make reconnect appear complete.
 
 ## Original KQ script and regen corpus boundary
 

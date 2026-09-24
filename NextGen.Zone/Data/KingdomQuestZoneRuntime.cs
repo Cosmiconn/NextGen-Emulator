@@ -242,6 +242,27 @@ namespace NextGen.Zone.Data
                 return ByHandle.Remove(handle);
         }
 
+        public static bool TryGetByMap(
+            ushort mapId, short mapInstance,
+            out KingdomQuestZoneRuntimeState state)
+        {
+            lock (Sync)
+            {
+                foreach (KingdomQuestZoneRuntimeState current in ByHandle.Values)
+                {
+                    if (current.MapID == mapId &&
+                        current.MapInstance == mapInstance)
+                    {
+                        state = current.Clone();
+                        return true;
+                    }
+                }
+
+                state = null;
+                return false;
+            }
+        }
+
         public static bool TryGet(uint handle, out KingdomQuestZoneRuntimeState state)
         {
             lock (Sync)

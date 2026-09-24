@@ -173,6 +173,21 @@ namespace NextGen.Database.DataStore
                     ch.PrisonMinutes = row.IsNull("PrisonMin")
                         ? (short?)null
                         : GetDataTypes.Getshort(row["PrisonMin"]);
+                    ch.KingdomQuestHandle = row.IsNull("KQHandle")
+                        ? (int?)null
+                        : GetDataTypes.GetInt(row["KQHandle"]);
+                    ch.KingdomQuestMapName = row.IsNull("KQMap")
+                        ? null
+                        : row["KQMap"].ToString();
+                    ch.KingdomQuestX = row.IsNull("KQX")
+                        ? (int?)null
+                        : GetDataTypes.GetInt(row["KQX"]);
+                    ch.KingdomQuestY = row.IsNull("KQY")
+                        ? (int?)null
+                        : GetDataTypes.GetInt(row["KQY"]);
+                    ch.KingdomQuestDate = row.IsNull("KQDate")
+                        ? (DateTime?)null
+                        : Convert.ToDateTime(row["KQDate"]);
                     ch.KillPoints = GetDataTypes.GetInt(row["KillPoints"]);
                     ch.TotalMobKills = GetDataTypes.GetUint(row["TotalMobKills"]);
                     ch.MobKillTitleTier = (byte)GetDataTypes.GetInt(row["MobKillTitleTier"]);
