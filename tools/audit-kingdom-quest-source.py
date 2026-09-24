@@ -23,6 +23,8 @@ WORLD_SOURCE_SCHEDULER = ROOT / "NextGen.World/Data/KingdomQuestSourceScheduler.
 WORLD_MAP_ALLOCATOR = ROOT / "NextGen.World/Data/KingdomQuestMapAllocationRegistry.cs"
 WORLD_MAP_ROUTE = ROOT / "NextGen.World/Data/KingdomQuestMapRouteResolver.cs"
 WORLD_START_GATE = ROOT / "NextGen.World/Data/KingdomQuestStartGate.cs"
+WORLD_MEMBERSHIP = ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs"
+WORLD_RANDOM = ROOT / "NextGen.World/Data/KingdomQuestNativeRandom.cs"
 WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 RAW_SOURCES = {
@@ -119,7 +121,7 @@ def main():
         MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
         WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER, WORLD_MAP_ALLOCATOR,
-        WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_SESSION, NATIVE_INFO,
+        WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM, WORLD_SESSION, NATIVE_INFO,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -223,6 +225,8 @@ def main():
     world_map_allocator = WORLD_MAP_ALLOCATOR.read_text(encoding='utf-8')
     world_map_route = WORLD_MAP_ROUTE.read_text(encoding='utf-8')
     world_start_gate = WORLD_START_GATE.read_text(encoding='utf-8')
+    world_membership = WORLD_MEMBERSHIP.read_text(encoding='utf-8')
+    world_random = WORLD_RANDOM.read_text(encoding='utf-8')
     world_session = WORLD_SESSION.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -470,7 +474,7 @@ def main():
         'definition.StartWaitTime * 60L',
         'definition.NumOfJoiner < definition.MinPlayers',
         'team.TeamDivideType !=',
-        'AutomaticSplitTeamDivideType',
+        'UserSelectTeamDivideType',
         'team0 == 0 || team1 == 0',
         'Math.Abs(team0 - team1) > team.MaxMemberGap',
         'DoneSkipReasonNotReady',
@@ -482,7 +486,10 @@ def main():
 
     for token in (
         'StatusStartCountdown = 3',
+        'StatusRunning = 4',
         'StatusDoneSkip = 6',
+        'RandomTeamDivideType = 1',
+        'UserSelectTeamDivideType = 2',
         'StartCountdownSeconds = 10',
         'DoneSkipReasonNotReady = 2',
         'DoneSkipReasonTeamGap = 3',
@@ -513,14 +520,60 @@ def main():
             print('FAIL: live native KQ start gate missing', token)
             return 1
 
-    for forbidden in (
-        'StatusRunning = 4',
-        'StatusStart = 4',
-        'SendKingdomQuestStart(',
+    for token in (
+        'class KingdomQuestMembershipEntry',
+        'public uint CharacterNumber',
+        'public byte Level',
+        'public byte Class',
+        'public string Name',
+        'public byte TeamType',
+        'ToClientInfo()',
+        'ToZoneInfo()',
+        'never infers one identity from the other',
     ):
-        if forbidden in world_start_gate or forbidden in world_session or forbidden in world_source_scheduler:
-            print('FAIL: unresolved post-countdown KQ start semantics were guessed', forbidden)
+        if token not in world_membership:
+            print('FAIL: combined native KQ membership owner missing', token)
             return 1
+
+    for token in (
+        'class KingdomQuestRandomTeamDivider',
+        'team.TeamDivideType != KingdomQuestNativeConstants.RandomTeamDivideType',
+        'int half = members.Count / 2',
+        'ushort sample = random.Next1000()',
+        'if (sample < 500)',
+        'team1 >= half && team0 < half',
+        'team0 >= half && team1 < half',
+        'members[i].TeamType = selected',
+    ):
+        if token not in world_start_gate:
+            print('FAIL: native KQTD_RANDOM split missing', token)
+            return 1
+
+    for token in (
+        'crtState * 0x343fdu + 0x269ec3u',
+        '(crtState >> 16) & 0x7fffu',
+        'new uint[16]',
+        '2.3283064365386963e-10',
+        '100000000000.0',
+        'scaled % 1000UL',
+        '0xfed22169u',
+    ):
+        if token not in world_random:
+            print('FAIL: source-correlated RandomBox/WELL512 path missing', token)
+            return 1
+
+    for token in (
+        'KingdomQuestMembershipRegistry.Set(',
+        'new KingdomQuestMembershipEntry[0]',
+        'KingdomQuestMembershipRegistry.TryGet(',
+    ):
+        if token not in world_source_scheduler:
+            print('FAIL: scheduler is not using authoritative combined KQ membership', token)
+            return 1
+
+    if 'SendKingdomQuestStart(' in world_source_scheduler:
+        print('FAIL: W2Z START enabled before native party/raid leave and CharacterNumber session routing are represented')
+        return 1
 
     for forbidden in (
         'KingdomQuestSessionTargetRegistry',
@@ -584,7 +637,10 @@ def main():
     print('PASS: supplied NA2016 definitions are locked to one active MapLink and 23 source-backed MapBase identities')
     print('PASS: native MapBase resolves exactly to source-backed MapInfo.ShortName without MapIndex/instance inference')
     print('PASS: DoSetStart/KQTeam_CanKQStart drives Status-2 into proven Status-3 countdown or Status-6 SetDoneSkip reasons 2/3')
-    print('PASS: post-countdown Status/START transition remains explicitly unresolved and is not guessed')
+    print('PASS: PDB enum names lock KQTD_RANDOM=1 and KQTD_USERSELECT=2; supplied team rows are RANDOM')
+    print('PASS: native KQTD_RANDOM assignment and RandomBox/WELL512 path are source-correlated')
+    print('PASS: combined membership owns CharacterNumber and client identity together without inference')
+    print('PASS: Status-3 expiry to Status 4/DivideRandom/LeaveParty/START is source-proven; live START remains gated on unmodeled party/raid/session routing')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
     print('PASS: World loads exact UseClassTypeInfo and reproduces ccdb_UseClassTypeToBit folding for DemandClass')

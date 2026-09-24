@@ -783,7 +783,7 @@ requested internal map instance. This prevents internal transport metadata from
 silently redirecting a native KQ definition to a different base map.
 
 
-## Live DoSetStart gate without guessing post-countdown start
+## Live DoSetStart gate and recovered post-countdown start sequence
 
 The original WorldManager `CKQServer::DoSetStart` /
 `KQTeam_CanKQStart` branch is now connected to the live scheduler after a
@@ -807,7 +807,7 @@ Status 2
     KQTeamDivideType != 2 or no KQTeam row
       -> Status 3, exact 10-second countdown
 
-    KQTeamDivideType == 2:
+    KQTeamDivideType == 2 (KQTD_USERSELECT):
       either team empty
         -> SetDoneSkip(reason 2), Status 6
       abs(team0-team1) > MaxMemberGap
@@ -816,20 +816,47 @@ Status 2
         -> Status 3, exact 10-second countdown
 ```
 
-The participant count and team values are read from the already synchronized
-native participant registry; no party/group balancing rule is introduced.
-For the supplied NA2016 KQTeam corpus every row still has divide type 1, so
-the type-2 branch remains source-correct but inactive for those rows.
+The original PDB names the divide enum values used by these branches:
+`KQTD_RANDOM=1` and `KQTD_USERSELECT=2`. The PlayerJoin-time
+smaller-team branch is therefore the USERSELECT initialization path, not the
+random divider. Every supplied NA2016 KQTeam row has divide type 1: players
+join those KQs as neutral TeamType 2 and are divided only at start.
 
-`KingdomQuestStartCountdownRegistry` retains the exact ten-second deadline
-for Status 3 and `KingdomQuestDoneSkipRegistry` retains the raw reason byte
-for Status 6. Both are lifecycle evidence/state only.
+The participant count and team values now have an explicit combined native
+membership owner. `KingdomQuestMembershipEntry` carries CharacterNumber,
+Level, Class, Name and TeamType together and projects both
+`KQ_JOIN_CHAR_INFO` and `PROTO_NC_KQ_JOINER`. It never resolves a name to
+a CharacterNumber or derives the latter from the emulator Character.ID.
 
-What happens **after** that ten-second Status-3 deadline is still
-`UNRESOLVED`. The emulator does not invent Status 4, does not send
-`NC_KQ_W2Z_START_CMD`, and does not infer the later delete/repeat behavior
-of `SetDoneSkip` until the original EXE/PDB path for those transitions is
-correlated.
+The original `DoSetStart` Status-3 path is now also recovered. When the
+10-second byte counter reaches zero, World writes Status 4, calls
+`KQTeam_DivideRandom`, then `KQTeam_LeaveParty`, then sends
+`NC_KQ_W2Z_START_CMD`.
+
+`KQTeam_DivideRandom` runs only for `KQTD_RANDOM=1`. It computes
+`floor(joiners/2)`, consumes one `RandomBox::rb_1000()` sample per native
+joiner in BF order, prefers team 1 below 500 and team 0 at/above 500, and
+forces the opposite team whenever the preferred team already reached the
+half-size while the other has not. The odd extra player remains random after
+both sides reach the half-size.
+
+The exact random source is also correlated from the executable:
+`RandomBox` seeds 16 WELL512 words from MSVCRT `rand()`; `rb_1000`
+normalizes the WELL output by 2^-32, multiplies by 1e11, truncates and reduces
+modulo 1000. `KingdomQuestNativeRandom` models that integer path from an
+explicit original-style time32 seed; no .NET Random policy is substituted.
+
+`KQTeam_LeaveParty` is the remaining live-runtime gate. Original World first
+refreshes each joiner's party/raid state; raid members execute `RaidLeave`,
+otherwise a non-0xFFFF party executes `LeaveParty`. The current emulator has
+no authoritative Raid model and the native CharacterNumber-to-World-session
+mapping is not yet proven. Therefore Status 4 and W2Z START are documented and
+modeled as source behavior but are **not yet executed live**. This is now an
+emulator-routing/state gap, not unresolved KQ protocol semantics.
+
+`KingdomQuestStartCountdownRegistry` retains the ten-second deadline and
+`KingdomQuestDoneSkipRegistry` retains raw Status-6 reason bytes. Later
+SetDoneSkip cleanup/repeat behavior remains `UNRESOLVED`.
 
 
 ## Character DB prison state and native JOIN_CANCEL
@@ -855,3 +882,30 @@ is echoed in the ACK, but native `PlayerDisjoin` itself uses the
 session-owned current KQ Handle. The live handler stays disabled until the
 emulator has that session membership plus native CharacterNumber under one
 atomic owner.
+
+
+## Native membership identity boundary
+
+The original World joiner buffer contains both client-visible character shape
+and server-side identity. To prevent accidental reconstruction across separate
+registries, `KingdomQuestMembershipRegistry` is now the authoritative
+combined representation for lifecycle work. Each row owns:
+
+```text
+u32 CharacterNumber
+u8  Level
+u8  Class
+Name5[20]
+u8  TeamType
+```
+
+It can project the 23-byte client `KQ_JOIN_CHAR_INFO` and 5-byte
+World-to-Zone `PROTO_NC_KQ_JOINER` without lookup. Participant-only
+mutations invalidate nonempty server identity projections rather than guess a
+CharacterNumber. Empty scheduler/SetJoining rosters remain authoritative empty
+membership in all views.
+
+PDB `CWMClientSession::GetCharRegNo` proves that native CharacterNumber is
+the first DWORD `PROTO_NC_CHAR_BASE_CMD::chrregnum`. Correlation of that
+field to the emulator's persisted `Character.ID` is still pending and no cast
+or equality assumption has been introduced.

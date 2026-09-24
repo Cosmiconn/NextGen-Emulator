@@ -23,6 +23,7 @@ FILES = {
     "kq_protocol_defs": ROOT / "NextGen.World/Data/KingdomQuestProtocolDefinitionRegistry.cs",
     "kq_participants": ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs",
     "kq_zone_joiners": ROOT / "NextGen.World/Data/KingdomQuestZoneJoinerRegistry.cs",
+    "kq_membership": ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs",
     "kq_zone_runtime": ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs",
     "zone_inter": ROOT / "NextGen.Zone/InterServer/InterHandler.cs",
     "world_zone_connection": ROOT / "NextGen.World/InterServer/ZoneConnection.cs",
@@ -242,6 +243,10 @@ def main():
         "KingdomQuestZoneJoinerRegistry.Remove(handle)",
         "definition.NumOfJoiner = (ushort)roster.Count;",
         "KingdomQuestParticipantRegistry.Set(handle, roster);",
+        "public static bool TrySetMembership",
+        "KingdomQuestMembershipRegistry.Set(handle, roster)",
+        "KingdomQuestZoneJoinerRegistry.Set(handle, zoneRoster)",
+        "KingdomQuestMembershipRegistry.Remove(handle)",
         "KingdomQuestProtocolDefinitionRegistry.Remove(definition.Handle);",
         "KingdomQuestDefinitionRegistry.Remove(definition.Handle);",
         "KingdomQuestInstanceRegistry.Remove(definition.Handle);",
@@ -264,6 +269,31 @@ def main():
         "Team = source.Team",
     ], "native KQ participant registry"):
         return 1
+    if not need(c["kq_membership"], [
+        "class KingdomQuestMembershipEntry",
+        "public uint CharacterNumber",
+        "public byte Level",
+        "public byte Class",
+        "public string Name",
+        "public byte TeamType",
+        "ToClientInfo()",
+        "ToZoneInfo()",
+        "never infers one identity from the other",
+        "Dictionary<uint, List<KingdomQuestMembershipEntry>>",
+    ], "combined native KQ membership identity"):
+        return 1
+
+    for forbidden in (
+        "Character.ID",
+        "GetClientByChar",
+        "GetClientByName",
+        "Group",
+        "Party",
+    ):
+        if forbidden in c["kq_membership"]:
+            print("FAIL: combined KQ membership registry infers native identity/session state:", forbidden)
+            return 1
+
     if not need(c["kq_zone_joiners"], [
         "Dictionary<uint, List<KingdomQuestZoneJoinerInfo>>",
         "copy.Count > ushort.MaxValue",
@@ -351,6 +381,7 @@ def main():
     print("PASS: full 377-byte PROTO_KQ_INFO stays source-owned for later native Zone lifecycle")
     print("PASS: KQ participant roster preserves native Level/Class/Name5/Team fields")
     print("PASS: World -> Zone KQ roster stores only explicit CharacterNumber/TeamType pairs")
+    print("PASS: combined KQ membership owns CharacterNumber plus Level/Class/Name/TeamType and projects both wire rosters without identity inference")
     print("PASS: internal MAKE/START/END/DESTROY transport carries and validates native NC_KQ bodies")
     print("PASS: Zone KQ lifecycle uses explicit Handle/MapID/Map.InstanceID without allocation inference")
     print("PASS: Z2W_MAKE_ACK preserves raw Error and applies the executable-proven 0x0981 success transition")

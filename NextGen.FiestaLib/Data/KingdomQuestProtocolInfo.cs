@@ -509,6 +509,7 @@ namespace NextGen.FiestaLib.Data
         public const byte StatusMakeRequested = 1;
         public const byte StatusJoining = 2;
         public const byte StatusStartCountdown = 3;
+        public const byte StatusRunning = 4;
         public const byte StatusDone = 5;
         public const byte StatusDoneSkip = 6;
         public const byte StatusNoMap = 8;
@@ -518,7 +519,10 @@ namespace NextGen.FiestaLib.Data
         public const byte DoneSkipReasonNotReady = 2;
         public const byte DoneSkipReasonTeamGap = 3;
 
-        public const ushort AutomaticSplitTeamDivideType = 2;
+        // Original PDB KQ_TEAM_DIVIDE_TYPE names + executable branches:
+        // 1 = KQTD_RANDOM, 2 = KQTD_USERSELECT.
+        public const ushort RandomTeamDivideType = 1;
+        public const ushort UserSelectTeamDivideType = 2;
         public const byte NeutralTeamType = 2;
     }
 

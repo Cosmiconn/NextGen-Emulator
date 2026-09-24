@@ -170,6 +170,12 @@ namespace NextGen.World.Data
                     KingdomQuestParticipantRegistry.Set(
                         definition.Handle,
                         new KingdomQuestJoinCharacterInfo[0]);
+                    KingdomQuestMembershipRegistry.Set(
+                        definition.Handle,
+                        new KingdomQuestMembershipEntry[0]);
+                    KingdomQuestZoneJoinerRegistry.Set(
+                        definition.Handle,
+                        new KingdomQuestZoneJoinerInfo[0]);
                     return true;
                 }
                 catch
@@ -178,6 +184,8 @@ namespace NextGen.World.Data
                     KingdomQuestDefinitionRegistry.Remove(definition.Handle);
                     KingdomQuestInstanceRegistry.Remove(definition.Handle);
                     KingdomQuestParticipantRegistry.Remove(definition.Handle);
+                    KingdomQuestMembershipRegistry.Remove(definition.Handle);
+                    KingdomQuestZoneJoinerRegistry.Remove(definition.Handle);
                     throw;
                 }
             }
@@ -308,8 +316,8 @@ namespace NextGen.World.Data
                 if (definition.Status != KingdomQuestNativeConstants.StatusJoining)
                     continue;
 
-                IReadOnlyList<KingdomQuestJoinCharacterInfo> participants;
-                if (!KingdomQuestParticipantRegistry.TryGet(
+                IReadOnlyList<KingdomQuestMembershipEntry> participants;
+                if (!KingdomQuestMembershipRegistry.TryGet(
                         definition.Handle, out participants))
                     continue;
 

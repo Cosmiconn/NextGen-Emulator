@@ -19,6 +19,7 @@ SESSION_COORDINATOR = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.
 MAKE_ACK_REGISTRY = ROOT / "NextGen.World/Data/KingdomQuestMakeAckRegistry.cs"
 WORLD_INTER = ROOT / "NextGen.World/InterServer/InterHandler.cs"
 ZONE_INTER = ROOT / "NextGen.Zone/InterServer/InterHandler.cs"
+MEMBERSHIP = ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs"
 CHARACTER = ROOT / "NextGen.Database/Storage/Character.cs"
 READ_METHODS = ROOT / "NextGen.Database/DataStore/ReadMethods.cs"
 WORLD_SCHEMA = ROOT / "sql/world/schema.sql"
@@ -31,7 +32,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -55,6 +56,7 @@ def main():
     character = CHARACTER.read_text(encoding="utf-8")
     read_methods = READ_METHODS.read_text(encoding="utf-8")
     world_schema = WORLD_SCHEMA.read_text(encoding="utf-8")
+    membership = MEMBERSHIP.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -355,7 +357,8 @@ def main():
         "StatusMakeRequested = 1",
         "StatusJoining = 2",
         "StatusNoMap = 8",
-        "AutomaticSplitTeamDivideType = 2",
+        "RandomTeamDivideType = 1",
+        "UserSelectTeamDivideType = 2",
         "NeutralTeamType = 2",
     ], "native KQ admission/lifecycle constants"):
         return 1
@@ -393,6 +396,30 @@ def main():
         print("FAIL: KQ join-cancel enabled before current membership/CharacterNumber mutation is represented")
         return 1
 
+    if not require(membership, [
+        "class KingdomQuestMembershipEntry",
+        "public uint CharacterNumber",
+        "public byte Level",
+        "public byte Class",
+        "public string Name",
+        "public byte TeamType",
+        "ToClientInfo()",
+        "ToZoneInfo()",
+        "never infers one identity from the other",
+    ], "combined KQ native membership identity"):
+        return 1
+
+    for forbidden in (
+        "Character.ID",
+        "GetClientByChar",
+        "GetClientByName",
+        "Group",
+        "Party",
+    ):
+        if forbidden in membership:
+            print("FAIL: KQ membership owner infers native identity/session state:", forbidden)
+            return 1
+
     if not require(session_coordinator, [
         "TryApplyMakeAck",
         "error != KingdomQuestNativeConstants.MakeAckSuccess",
@@ -407,7 +434,10 @@ def main():
         "1UL << characterClass",
         "definition.DemandGender & genderBit",
         "AssignInitialTeam",
-        "team.TeamDivideType != KingdomQuestNativeConstants.AutomaticSplitTeamDivideType",
+        "public static bool TrySetMembership",
+        "KingdomQuestMembershipRegistry.Set(handle, roster)",
+        "KingdomQuestZoneJoinerRegistry.Set(handle, zoneRoster)",
+        "team.TeamDivideType != KingdomQuestNativeConstants.UserSelectTeamDivideType",
         "team1Count <= team0Count",
     ], "native KQ admission/MAKE transition rules"):
         return 1
@@ -535,7 +565,8 @@ def main():
     print("PASS: JOIN_ACK 0x0991..0x099A admission results are source-level recovered; network JOIN remains gated on missing prison/current-KQ mutation state")
     print("PASS: Z2W_MAKE_ACK 0x0981 success now drives the proven World Status 1/2 -> 2 transition; non-success drives Status 8")
     print("PASS: Zone emits MAKE_ACK only for the proven successful MAKE path; no failure Error is guessed")
-    print("PASS: TeamDivideType 2 automatic split behavior is modeled; supplied divide-type-1 rows resolve to native TeamType 2")
+    print("PASS: PDB names lock TeamDivideType 1=RANDOM and 2=USERSELECT; PlayerJoin type-2 initial assignment remains source-modeled")
+    print("PASS: one combined membership owner carries CharacterNumber plus client identity fields into both native roster projections")
     return 0
 
 if __name__ == "__main__":

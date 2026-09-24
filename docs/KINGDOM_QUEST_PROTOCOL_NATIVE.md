@@ -361,19 +361,37 @@ same native source values: `Job << 2` and `Male << 7`.
 
 The original JOIN request first rejects prison/already-in-target, then calls
 `PlayerDisjoin(session)` **before** attempting `PlayerJoin` for the new
-Handle. The emulator currently has no native `prisonmin` character state,
-so JOIN remains disabled rather than treating the absent state as zero.
+Handle. The emulator now carries the original DB-backed prison minute value
+fail-closed as nullable state. JOIN remains disabled because session-owned
+current KQ membership and authoritative native CharacterNumber mutation are
+not yet connected; an unknown prison value is never treated as zero.
 
-## Initial team assignment recovered
+## Team divide modes and initial assignment recovered
+
+The original PDB names the enum values used by the executable:
+`KQTD_RANDOM=1` and `KQTD_USERSELECT=2`.
 
 `CKQServer::PlayerJoin` calls `GetKQTeamData(KQ ID)`. If no row exists, or
-if `KQTeamDivideType != 2`, it writes TeamType `2`. If the divide type is
-exactly `2`, it assigns the currently smaller native team counter; a tie
-selects numeric team `1`.
+if the divide type is not USERSELECT (2), it writes neutral TeamType `2`.
+For USERSELECT (2), the initial join chooses the currently smaller native team
+counter; a tie selects numeric team `1`. That is an initialization for the
+user-select mode, not the random-start divider.
 
-Every supplied NA2016 `KQTeam.shn` row has `KQTeamDivideType = 1`.
-Consequently the original automatic JOIN path assigns TeamType `2` for this
-entire supplied KQTeam corpus.
+Every supplied NA2016 `KQTeam.shn` row is RANDOM (1). Those joins therefore
+remain neutral TeamType 2 until the start sequence invokes
+`KQTeam_DivideRandom`.
+
+At the Status-3 countdown expiry, `DoSetStart` writes Status 4, executes
+`KQTeam_DivideRandom`, then `KQTeam_LeaveParty`, then sends
+`NC_KQ_W2Z_START_CMD`. RANDOM division walks native joiners in order and
+uses one `RandomBox::rb_1000()` sample each: values below 500 prefer team 1,
+otherwise team 0, with floor(N/2) caps forcing balance while only one side has
+reached that cap.
+
+The executable also closes `RandomBox::rb_1000`: 16 MSVCRT-rand-seeded
+WELL512 words feed the WELL output; it is normalized by 2^-32, multiplied by
+1e11, truncated and reduced modulo 1000. The emulator source model preserves
+that algorithm rather than substituting a framework RNG.
 
 
 ## Original prison state and JOIN_CANCEL result recovered
@@ -421,3 +439,24 @@ list, clears the session KQ handle to `0xFFFFFFFF`, and returns 1.
 JOIN and JOIN_CANCEL handlers remain network-disabled until that authoritative
 session membership/CharacterNumber mutation is represented atomically; the
 new Error constants are evidence, not a guessed activation.
+
+
+## Combined native membership owner
+
+`KingdomQuestMembershipEntry` binds native `CharacterNumber`,
+Level/Class/Name and TeamType in one row. From that one row the runtime can
+project both client `KQ_JOIN_CHAR_INFO` and World-to-Zone
+`PROTO_NC_KQ_JOINER`, avoiding a name/ID reconciliation guess between two
+independent registries.
+
+Original `CWMClientSession::GetCharRegNo` returns the first DWORD of the
+stored `PROTO_NC_CHAR_BASE_CMD`, i.e. `chrregnum`. The relation from that
+original field to the emulator's `Character.ID` is still `UNRESOLVED`.
+Until it is correlated, no live JOIN/START path is allowed to manufacture
+native CharacterNumber from the emulator ID.
+
+The source-proven Status-3 expiry itself is no longer unresolved. What still
+blocks live W2Z START is the preceding native `KQTeam_LeaveParty` session
+behavior: original World distinguishes RaidLeave from normal LeaveParty using
+session-owned raid/party state that the current emulator does not yet model
+authoritatively.

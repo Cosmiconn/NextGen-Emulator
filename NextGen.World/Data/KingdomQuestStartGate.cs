@@ -46,15 +46,15 @@ namespace NextGen.World.Data
     /// Pure CKQServer::DoSetStart/KQTeam_CanKQStart decision logic recovered
     /// from the original NA2016 WorldManager executable.
     ///
-    /// It does not decide what follows the native Status-3 ten-second
-    /// countdown. That later transition remains UNRESOLVED.
+    /// Status-3 expiry is modeled separately below from the recovered
+    /// DoSetStart/KQTeam_DivideRandom sequence.
     /// </summary>
     public static class KingdomQuestStartGate
     {
         public static KingdomQuestStartDecision Evaluate(
             KingdomQuestProtocolInfo definition,
             int currentTime32,
-            IReadOnlyList<KingdomQuestJoinCharacterInfo> participants,
+            IReadOnlyList<KingdomQuestMembershipEntry> participants,
             KingdomQuestTeamInfo team)
         {
             if (definition == null)
@@ -86,7 +86,7 @@ namespace NextGen.World.Data
             // source KQTeamDivideType is exactly 2. All other types bypass.
             if (team == null ||
                 team.TeamDivideType !=
-                    KingdomQuestNativeConstants.AutomaticSplitTeamDivideType)
+                    KingdomQuestNativeConstants.UserSelectTeamDivideType)
                 return KingdomQuestStartDecision.Countdown();
 
             int team0 = 0;
@@ -97,9 +97,9 @@ namespace NextGen.World.Data
                     throw new InvalidOperationException(
                         "KQ participant entry is null.");
 
-                if (participants[i].Team == 0)
+                if (participants[i].TeamType == 0)
                     team0++;
-                else if (participants[i].Team == 1)
+                else if (participants[i].TeamType == 1)
                     team1++;
             }
 
@@ -115,9 +115,61 @@ namespace NextGen.World.Data
         }
     }
 
+
+    /// <summary>
+    /// Exact CKQServer::KQTeam_DivideRandom assignment for KQTD_RANDOM (1).
+    /// The supplied random source reproduces RandomBox::rb_1000.
+    /// </summary>
+    public static class KingdomQuestRandomTeamDivider
+    {
+        public static void Apply(
+            IList<KingdomQuestMembershipEntry> members,
+            KingdomQuestTeamInfo team,
+            KingdomQuestNativeRandom random)
+        {
+            if (members == null) throw new ArgumentNullException("members");
+            if (random == null) throw new ArgumentNullException("random");
+            if (team == null ||
+                team.TeamDivideType != KingdomQuestNativeConstants.RandomTeamDivideType)
+                return;
+
+            int half = members.Count / 2;
+            int team0 = 0;
+            int team1 = 0;
+
+            for (int i = 0; i < members.Count; i++)
+            {
+                if (members[i] == null)
+                    throw new InvalidOperationException("KQ membership entry is null.");
+
+                ushort sample = random.Next1000();
+                byte selected;
+                if (sample < 500)
+                {
+                    selected = 1;
+                    if (team1 >= half && team0 < half)
+                        selected = 0;
+                }
+                else
+                {
+                    selected = 0;
+                    if (team0 >= half && team1 < half)
+                        selected = 1;
+                }
+
+                members[i].TeamType = selected;
+                if (selected == 0)
+                    team0++;
+                else
+                    team1++;
+            }
+        }
+    }
+
     /// <summary>
     /// World-side record of the executable-proven Status-3 ten-second
-    /// countdown deadline. Expiry behavior is intentionally not synthesized.
+    /// countdown deadline. The executable-proven expiry target is Status 4,
+    /// followed by random division (type 1), party/raid leave and W2Z START.
     /// </summary>
     public static class KingdomQuestStartCountdownRegistry
     {

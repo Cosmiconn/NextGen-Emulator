@@ -145,7 +145,23 @@ namespace NextGen.World.Data
 
                 List<string> names = roster.Select(v => v.Name).ToList();
                 if (KingdomQuestInstanceRegistry.SetJoiners(handle, names))
+                {
+                    if (roster.Count == 0)
+                    {
+                        KingdomQuestMembershipRegistry.Set(
+                            handle, new KingdomQuestMembershipEntry[0]);
+                        KingdomQuestZoneJoinerRegistry.Set(
+                            handle, new KingdomQuestZoneJoinerInfo[0]);
+                    }
+                    else
+                    {
+                        // A participant-only mutation cannot authoritatively
+                        // manufacture native CharacterNumber identities.
+                        KingdomQuestMembershipRegistry.Remove(handle);
+                        KingdomQuestZoneJoinerRegistry.Remove(handle);
+                    }
                     return true;
+                }
 
                 protocolDefinition.NumOfJoiner = oldCount;
                 definition.NumOfJoiner = oldCount;
@@ -154,6 +170,85 @@ namespace NextGen.World.Data
                 KingdomQuestParticipantRegistry.Set(handle, oldRoster);
                 KingdomQuestInstanceRegistry.SetJoiners(
                     handle, oldRoster.Select(v => v.Name));
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Atomically publishes the original KQ_JOINER_BF identity into both
+        /// client-visible and World->Zone projections. CharacterNumber and
+        /// Name/Class/Level are supplied together; no identity lookup occurs.
+        /// </summary>
+        public static bool TrySetMembership(uint handle,
+            IEnumerable<KingdomQuestMembershipEntry> members)
+        {
+            if (members == null)
+                return false;
+
+            List<KingdomQuestMembershipEntry> roster =
+                members.Select(v => v == null ? null : v.Clone()).ToList();
+            if (roster.Count > byte.MaxValue ||
+                roster.Any(v => v == null || v.Name == null))
+                return false;
+
+            List<KingdomQuestJoinCharacterInfo> clientRoster =
+                roster.Select(v => v.ToClientInfo()).ToList();
+            List<KingdomQuestZoneJoinerInfo> zoneRoster =
+                roster.Select(v => v.ToZoneInfo()).ToList();
+            List<string> names = roster.Select(v => v.Name).ToList();
+
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo definition;
+                KingdomQuestInstanceWireState state;
+                IReadOnlyList<KingdomQuestJoinCharacterInfo> oldParticipants;
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(
+                        handle, out definition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state) ||
+                    !KingdomQuestParticipantRegistry.TryGet(
+                        handle, out oldParticipants))
+                    return false;
+
+                IReadOnlyList<KingdomQuestMembershipEntry> oldMembership;
+                bool hadMembership =
+                    KingdomQuestMembershipRegistry.TryGet(
+                        handle, out oldMembership);
+                IReadOnlyList<KingdomQuestZoneJoinerInfo> oldZoneRoster;
+                bool hadZoneRoster =
+                    KingdomQuestZoneJoinerRegistry.TryGet(
+                        handle, out oldZoneRoster);
+
+                ushort oldCount = definition.NumOfJoiner;
+                protocolDefinition.NumOfJoiner = (ushort)roster.Count;
+                definition.NumOfJoiner = (ushort)roster.Count;
+                KingdomQuestProtocolDefinitionRegistry.Upsert(protocolDefinition);
+                KingdomQuestDefinitionRegistry.Upsert(definition);
+                KingdomQuestParticipantRegistry.Set(handle, clientRoster);
+                KingdomQuestMembershipRegistry.Set(handle, roster);
+                KingdomQuestZoneJoinerRegistry.Set(handle, zoneRoster);
+
+                if (KingdomQuestInstanceRegistry.SetJoiners(handle, names))
+                    return true;
+
+                protocolDefinition.NumOfJoiner = oldCount;
+                definition.NumOfJoiner = oldCount;
+                KingdomQuestProtocolDefinitionRegistry.Upsert(protocolDefinition);
+                KingdomQuestDefinitionRegistry.Upsert(definition);
+                KingdomQuestParticipantRegistry.Set(handle, oldParticipants);
+                KingdomQuestInstanceRegistry.SetJoiners(
+                    handle, oldParticipants.Select(v => v.Name));
+
+                if (hadMembership)
+                    KingdomQuestMembershipRegistry.Set(handle, oldMembership);
+                else
+                    KingdomQuestMembershipRegistry.Remove(handle);
+                if (hadZoneRoster)
+                    KingdomQuestZoneJoinerRegistry.Set(handle, oldZoneRoster);
+                else
+                    KingdomQuestZoneJoinerRegistry.Remove(handle);
                 return false;
             }
         }
@@ -398,10 +493,7 @@ namespace NextGen.World.Data
                     return false;
 
                 if (TrySetStatus(handle, KingdomQuestNativeConstants.StatusJoining))
-                {
-                    KingdomQuestZoneJoinerRegistry.Remove(handle);
                     return true;
-                }
 
                 TrySetParticipants(handle, oldRoster);
                 return false;
@@ -419,12 +511,13 @@ namespace NextGen.World.Data
                 bool joinListReply = KingdomQuestJoinListReplyRegistry.Remove(handle);
                 bool mapContext = KingdomQuestMapContextRegistry.Remove(handle);
                 bool zoneJoiners = KingdomQuestZoneJoinerRegistry.Remove(handle);
+                bool membership = KingdomQuestMembershipRegistry.Remove(handle);
                 bool target = KingdomQuestSessionTargetRegistry.Remove(handle);
                 KingdomQuestStartCountdownRegistry.Remove(handle);
                 KingdomQuestDoneSkipRegistry.Remove(handle);
                 KingdomQuestMapAllocationRegistry.Free(handle);
                 return protocolDefinition || definition || state || participants ||
-                    joinListReply || mapContext || zoneJoiners || target;
+                    joinListReply || mapContext || zoneJoiners || membership || target;
             }
         }
     }
@@ -497,7 +590,7 @@ namespace NextGen.World.Data
             KingdomQuestTeamInfo team, ref byte team0Count, ref byte team1Count)
         {
             if (team == null ||
-                team.TeamDivideType != KingdomQuestNativeConstants.AutomaticSplitTeamDivideType)
+                team.TeamDivideType != KingdomQuestNativeConstants.UserSelectTeamDivideType)
                 return KingdomQuestNativeConstants.NeutralTeamType;
 
             if (team1Count <= team0Count)
