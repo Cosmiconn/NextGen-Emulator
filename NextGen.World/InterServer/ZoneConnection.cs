@@ -200,18 +200,6 @@ namespace NextGen.World.InterServer
             }
         }
 
-        public void SendKingdomQuestEnd(uint handle)
-        {
-            using (Packet native = KingdomQuestServerProtocol.CreateEnd(handle))
-            using (var packet = new InterPacket(InterHeader.KingdomQuestEnd))
-            {
-                byte[] body = native.ToNormalArray();
-                packet.WriteInt(body.Length);
-                packet.WriteBytes(body);
-                SendPacket(packet);
-            }
-        }
-
         public void SendKingdomQuestDestroy(uint handle)
         {
             using (Packet native = KingdomQuestServerProtocol.CreateDestroy(handle))

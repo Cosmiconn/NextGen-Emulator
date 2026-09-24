@@ -545,3 +545,25 @@ An entry becomes Status 11 only if a later-`ScheduleTime` entry with the same
 KQ ID is also in that 5..10 range. The subsequent pass performs
 `FreeMapLink`, `FreeJoiner`, then `Del(Handle)`. No semantic names are
 invented for raw Status 7, 9 or 10.
+
+
+## Z2W END, SetDone and logout preservation
+
+`NC_KQ_Z2W_END_CMD (0x5810)` is Zone-to-World, not World-to-Zone. The
+original World parser reads its `u32 Handle` and invokes
+`CKQServer::SetDone`. SetDone writes Status 5, broadcasts W2Z DESTROY,
+frees the native map-link allocation, then FreeJoiner clears live sessions'
+KQ Handle. The scheduler entry and KQ joiner buffer are retained for the
+later `DelOldShceduleList` lifecycle.
+
+The emulator transport now follows the same direction and order; there is no
+World-side END sender.
+
+Original `CWMClientSession::Logout` also defines disconnect behavior:
+`InKQStatusRunning(nKQHandle)` is true only for an existing Status-4 KQ.
+Logout calls `PlayerDisjoin` only when that check is false. Thus running
+KQ membership survives disconnect by design, while non-running membership is
+removed through the normal PlayerDisjoin path. Reconnect restoration depends
+on the original Character DB `nKQHandle` plus
+`JoinerInfoUpdateByLogin` and remains separate until that persistence is
+represented.

@@ -493,6 +493,31 @@ namespace NextGen.World.Data
         }
 
         /// <summary>
+        /// Applies CKQServer::SetDone's only registry mutation: find the
+        /// existing Handle and write Status 5. The original function has no
+        /// prior-status gate. DESTROY, FreeMapLink and FreeJoiner are kept in
+        /// the Zone-END handler in their original order.
+        /// </summary>
+        public static bool TrySetDone(uint handle)
+        {
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo definition;
+                KingdomQuestInstanceWireState state;
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(
+                        handle, out definition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state))
+                    return false;
+
+                return TrySetStatus(
+                    handle, KingdomQuestNativeConstants.StatusDone);
+            }
+        }
+
+        /// <summary>
         /// Applies the source-proven SetDoneSkip Status-6/reason mutation.
         /// The scheduler runtime preserves the recovered side-effect order:
         /// DESTROY, FreeMapLink, notify, FreeJoiner, JOINING_ALARM_END.

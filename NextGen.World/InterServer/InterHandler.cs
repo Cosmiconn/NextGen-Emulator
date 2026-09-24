@@ -11,6 +11,74 @@ namespace NextGen.World.InterServer
 {
 	public sealed class InterHandler
 	{
+        [InterPacketHandler(InterHeader.KingdomQuestEnd)]
+        public static void KingdomQuestEnd(ZoneConnection zc, InterPacket packet)
+        {
+            int length;
+            byte[] nativeBytes;
+            if (!packet.TryReadInt(out length) ||
+                length < 2 ||
+                !packet.TryReadBytes(length, out nativeBytes) ||
+                packet.Remaining != 0)
+                return;
+
+            using (var native = new FiestaLib.Networking.Packet(nativeBytes))
+            {
+                uint handle;
+                if (native.OpCode != 0x5810 ||
+                    !native.TryReadUInt(out handle) ||
+                    native.Remaining != 0)
+                    return;
+
+                // CParserZone::fc_NC_KQ_Z2W_END_CMD calls SetDone(Handle).
+                // SetDone order: Status 5 -> W2Z DESTROY -> FreeMapLink ->
+                // FreeJoiner. It does not delete the scheduler entry here.
+                if (!KingdomQuestSessionCoordinator.TrySetDone(handle))
+                    return;
+
+                if (Program.Zones != null)
+                {
+                    foreach (ZoneConnection zone in Program.Zones.Values)
+                        zone.SendKingdomQuestDestroy(handle);
+                }
+
+                KingdomQuestMapAllocationRegistry.Free(handle);
+                FreeKingdomQuestJoinerSessions(handle);
+
+                Log.WriteLine(LogLevel.Info,
+                    "KQ END applied: Handle {0} entered native Status 5.",
+                    handle);
+            }
+        }
+
+        private static void FreeKingdomQuestJoinerSessions(uint handle)
+        {
+            IReadOnlyList<KingdomQuestMembershipEntry> members;
+            if (ClientManager.Instance == null ||
+                !KingdomQuestMembershipRegistry.TryGet(handle, out members))
+                return;
+
+            for (int i = 0; i < members.Count; i++)
+            {
+                KingdomQuestMembershipEntry member = members[i];
+                if (member == null || member.CharacterNumber > int.MaxValue)
+                    continue;
+
+                WorldClient client = ClientManager.Instance.GetClientByCharID(
+                    (int)member.CharacterNumber);
+                if (client == null ||
+                    client.Character == null ||
+                    client.Character.Character == null ||
+                    unchecked((uint)client.Character.Character.ID) !=
+                        member.CharacterNumber)
+                    continue;
+
+                if (client.KingdomQuestHandle.HasValue &&
+                    client.KingdomQuestHandle.Value == handle)
+                    client.KingdomQuestHandle = null;
+            }
+        }
+
         [InterPacketHandler(InterHeader.KingdomQuestMakeAck)]
         public static void KingdomQuestMakeAck(ZoneConnection zc, InterPacket packet)
         {
@@ -204,6 +272,7 @@ namespace NextGen.World.InterServer
               if (client == null)
                   return;
 
+              Handler22.KingdomQuestLogout(client);
 			  client.Character.Loggeout(client);
 			  ClientManager.Instance.RemoveClient(client);
 			}

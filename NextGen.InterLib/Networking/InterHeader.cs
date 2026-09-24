@@ -43,9 +43,10 @@
         // current Zone to reuse ZoneCharacter.ChangeMap for a KQ target.
         KingdomQuestTransfer = 0x4004,
 
-        // Emulator-internal transport for the already-modeled native KQ
-        // World -> Zone lifecycle. Bodies contain the original NC_KQ packet
-        // bytes plus explicit emulator MapID/Map.InstanceID where required.
+        // Emulator-internal transport for native KQ server lifecycle bodies.
+        // MAKE/START/DESTROY are World -> Zone. END and MAKE_ACK are Zone ->
+        // World, matching the original NC_KQ W2Z/Z2W names. MAKE also carries
+        // explicit emulator MapID/Map.InstanceID routing metadata.
         KingdomQuestMake = 0x4005,
         KingdomQuestStart = 0x4006,
         KingdomQuestEnd = 0x4007,

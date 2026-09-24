@@ -211,6 +211,27 @@ namespace NextGen.World.Handlers
             return true;
         }
 
+        /// <summary>
+        /// Mirrors the KQ branch inside CWMClientSession::Logout.
+        /// Native World calls PlayerDisjoin only when InKQStatusRunning
+        /// returns false. Status 4 therefore deliberately preserves the
+        /// KQ_JOINER_BF entry for reconnect.
+        /// </summary>
+        internal static void KingdomQuestLogout(WorldClient client)
+        {
+            if (client == null || !client.KingdomQuestHandle.HasValue)
+                return;
+
+            KingdomQuestProtocolInfo definition;
+            bool running =
+                KingdomQuestProtocolDefinitionRegistry.TryGet(
+                    client.KingdomQuestHandle.Value, out definition) &&
+                definition.Status == KingdomQuestNativeConstants.StatusRunning;
+
+            if (!running)
+                PlayerDisjoin(client);
+        }
+
         [PacketHandler(CH22Type.KingdomQuestJoinReq)]
         public static void KingdomQuestJoin(WorldClient client, Packet packet)
         {

@@ -1036,8 +1036,19 @@ authoritative destination for the native START body.
 
 If a joiner session disappears before the countdown expires, START remains at
 Status 3 rather than fabricating a replacement session, party state or
-CharacterNumber. Native disconnect cleanup is therefore the next separate
-lifecycle edge to correlate.
+CharacterNumber.
+
+The native logout edge is now correlated. `CWMClientSession::Logout`
+passes the session-owned KQ Handle to `CKQServer::InKQStatusRunning`.
+That helper returns true only when the Handle exists and the KQ Status is
+exactly 4. Logout calls `PlayerDisjoin(session)` only when the result is
+false. The emulator now applies the same rule on both socket disconnect and
+Zone-reported disconnect: pre-start/non-running memberships are removed using
+the already-live native PlayerDisjoin sequence, while Status-4 membership is
+deliberately retained for reconnect. Login restoration remains a separate
+persistence step because original `JoinerInfoUpdateByLogin` consumes the
+Character-DB-backed `nKQHandle`; the emulator does not yet persist that
+field.
 
 
 ## Original KQ script and regen corpus boundary
@@ -1135,3 +1146,34 @@ Zone now classifies duplicate Handles atomically inside
 their condition is correlated to the original buffer-capacity or script
 container state. In particular, `0x0983` and `0x098C` are modeled as
 native constants but are not used as generic failure codes.
+
+
+## Native Zone END and World SetDone direction
+
+The previous emulator transport had `NC_KQ_Z2W_END_CMD (0x5810)`
+available in the wrong direction. The original
+`CParserZone::fc_NC_KQ_Z2W_END_CMD` at `0x0042AAC0` validates the
+incoming native packet, reads its `u32 Handle`, and calls
+`CKQServer::SetDone(Handle)`.
+
+`SetDone` at `0x00454860` is exact and small:
+
+```text
+find Handle; if absent return 0
+Status = 5
+Send_NC_KQ_W2Z_DESTROY_CMD(Handle)
+FreeMapLink(Handle)
+FreeJoiner(scheduleIndex)
+return 1
+```
+
+It does not delete the scheduler entry and does not send the skip-only
+NOTIFY/JOINING_ALARM_END messages. Deletion remains owned by the recovered
+`DelOldShceduleList` pass.
+
+The internal transport now matches those directions: Zone owns the
+`0x5810` sender, World owns the END receiver, and World responds with the
+existing W2Z DESTROY broadcast after entering Status 5. `FreeJoiner` is
+represented by clearing only currently live matching sessions'
+`KingdomQuestHandle`; the combined KQ membership rows remain intact until
+old-schedule deletion, matching the native joiner-buffer lifetime.

@@ -54,6 +54,7 @@ namespace NextGen.World.Networking
 		void WorldClient_OnDisconnect(object sender, SessionCloseEventArgs e)
 		{
 			Log.WriteLine(LogLevel.Debug, "{0} Disconnected.", this.Host);
+            Handler22.KingdomQuestLogout(this);
 			ClientManager.Instance.RemoveClient(this);
 		}
 		void WorldClient_OnPacket(object sender, PacketReceivedEventArgs e)

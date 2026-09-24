@@ -116,17 +116,6 @@ namespace NextGen.Zone.InterServer
             }
         }
 
-        [InterPacketHandler(InterHeader.KingdomQuestEnd)]
-        public static void HandleKingdomQuestEnd(WorldConnector connector, InterPacket packet)
-        {
-            uint handle;
-            if (!TryReadHandleOnlyNativeKqPacket(packet, 0x5810, out handle))
-                return;
-
-            if (!KingdomQuestZoneRuntimeRegistry.TryEnd(handle))
-                Log.WriteLine(LogLevel.Warn, "Rejected KQ END for handle {0}.", handle);
-        }
-
         [InterPacketHandler(InterHeader.KingdomQuestDestroy)]
         public static void HandleKingdomQuestDestroy(WorldConnector connector, InterPacket packet)
         {
@@ -177,6 +166,25 @@ namespace NextGen.Zone.InterServer
                 return native.OpCode == expectedOpcode &&
                     native.TryReadUInt(out handle) &&
                     native.Remaining == 0;
+        }
+
+        /// <summary>
+        /// Sends original NC_KQ_Z2W_END_CMD (0x5810) from Zone to World.
+        /// The Zone gameplay owner must call this only after its own native
+        /// completion condition has been established; this method invents no
+        /// success/fail policy.
+        /// </summary>
+        public static void SendKingdomQuestEnd(uint handle)
+        {
+            using (var native = new Packet((ushort)0x5810))
+            using (var packet = new InterPacket(InterHeader.KingdomQuestEnd))
+            {
+                native.WriteUInt(handle);
+                byte[] body = native.ToNormalArray();
+                packet.WriteInt(body.Length);
+                packet.WriteBytes(body);
+                WorldConnector.Instance.SendPacket(packet);
+            }
         }
 
         public static void SendKingdomQuestMakeAck(uint handle, ushort error)

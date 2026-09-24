@@ -18,6 +18,7 @@ WORLD_CLIENT = ROOT / "NextGen.World/Networking/WorldClient.cs"
 SESSION_COORDINATOR = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 MAKE_ACK_REGISTRY = ROOT / "NextGen.World/Data/KingdomQuestMakeAckRegistry.cs"
 WORLD_INTER = ROOT / "NextGen.World/InterServer/InterHandler.cs"
+WORLD_ZONE_CONNECTION = ROOT / "NextGen.World/InterServer/ZoneConnection.cs"
 ZONE_INTER = ROOT / "NextGen.Zone/InterServer/InterHandler.cs"
 MEMBERSHIP = ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs"
 CHARACTER = ROOT / "NextGen.Database/Storage/Character.cs"
@@ -37,7 +38,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -57,6 +58,7 @@ def main():
     session_coordinator = SESSION_COORDINATOR.read_text(encoding="utf-8")
     make_ack_registry = MAKE_ACK_REGISTRY.read_text(encoding="utf-8")
     world_inter = WORLD_INTER.read_text(encoding="utf-8")
+    world_zone_connection = WORLD_ZONE_CONNECTION.read_text(encoding="utf-8")
     zone_inter = ZONE_INTER.read_text(encoding="utf-8")
     character = CHARACTER.read_text(encoding="utf-8")
     read_methods = READ_METHODS.read_text(encoding="utf-8")
@@ -531,6 +533,62 @@ def main():
     ], "native KQ admission/MAKE transition rules"):
         return 1
 
+    if not require(world_inter, [
+        "[InterPacketHandler(InterHeader.KingdomQuestEnd)]",
+        "native.OpCode != 0x5810",
+        "KingdomQuestSessionCoordinator.TrySetDone(handle)",
+        "zone.SendKingdomQuestDestroy(handle)",
+        "KingdomQuestMapAllocationRegistry.Free(handle)",
+        "FreeKingdomQuestJoinerSessions(handle)",
+        "client.KingdomQuestHandle = null",
+    ], "native Z2W END -> World SetDone lifecycle"):
+        return 1
+
+    if "SendKingdomQuestEnd(" in world_zone_connection:
+        print("FAIL: native Z2W END regressed to a World->Zone sender")
+        return 1
+
+    if not require(zone_inter, [
+        "public static void SendKingdomQuestEnd(uint handle)",
+        "new Packet((ushort)0x5810)",
+        "new InterPacket(InterHeader.KingdomQuestEnd)",
+        "WorldConnector.Instance.SendPacket(packet)",
+    ], "native Zone->World END sender"):
+        return 1
+
+    if "[InterPacketHandler(InterHeader.KingdomQuestEnd)]" in zone_inter:
+        print("FAIL: native Z2W END is incorrectly consumed as World->Zone")
+        return 1
+
+    if not require(session_coordinator, [
+        "public static bool TrySetDone(uint handle)",
+        "KingdomQuestNativeConstants.StatusDone",
+        "The original function has no",
+        "prior-status gate",
+    ], "native SetDone Status-5 mutation"):
+        return 1
+
+    if not require(handler, [
+        "internal static void KingdomQuestLogout(WorldClient client)",
+        "definition.Status == KingdomQuestNativeConstants.StatusRunning",
+        "if (!running)",
+        "PlayerDisjoin(client)",
+    ], "native Logout InKQStatusRunning gate"):
+        return 1
+
+    if not require(world_client, [
+        "Handler22.KingdomQuestLogout(this);",
+        "ClientManager.Instance.RemoveClient(this);",
+    ], "socket logout KQ cleanup order"):
+        return 1
+
+    if not require(world_inter, [
+        "Handler22.KingdomQuestLogout(client);",
+        "client.Character.Loggeout(client);",
+        "ClientManager.Instance.RemoveClient(client);",
+    ], "Zone-reported logout KQ cleanup order"):
+        return 1
+
     if not require(make_ack_registry, [
         "KingdomQuestNativeConstants.MakeAckSuccess",
         "IsSuccess(ushort error)",
@@ -675,7 +733,9 @@ def main():
     print("PASS: JOIN_CANCEL 0x09A1/0x09A2 is live and removes session-owned current membership before echoing the request Handle")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")
-    print("PASS: native W2Z_MAKE/START/END/DESTROY and Z2W_MAKE_ACK layouts are isolated from client traffic")
+    print("PASS: native W2Z_MAKE/START/DESTROY and Z2W_END/MAKE_ACK directions are isolated from client traffic")
+    print("PASS: Z2W END drives exact World SetDone Status5 -> DESTROY -> FreeMapLink -> FreeJoiner lifecycle")
+    print("PASS: native Logout disjoins non-running KQs but preserves Status-4 membership for reconnect")
     print("PASS: W2Z_MAKE/START builders consume only explicit full-definition and Zone-roster state")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers/parsers are explicit")
