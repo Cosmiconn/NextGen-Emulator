@@ -131,6 +131,20 @@ namespace NextGen.Zone.InterServer
                     native.Remaining == 0;
         }
 
+        public static void SendKingdomQuestMakeAck(uint handle, ushort error)
+        {
+            using (var native = new Packet((ushort)0x580E))
+            using (var packet = new InterPacket(InterHeader.KingdomQuestMakeAck))
+            {
+                native.WriteUInt(handle);
+                native.WriteUShort(error);
+                byte[] body = native.ToNormalArray();
+                packet.WriteInt(body.Length);
+                packet.WriteBytes(body);
+                WorldConnector.Instance.SendPacket(packet);
+            }
+        }
+
         [InterPacketHandler(InterHeader.KingdomQuestTransfer)]
         public static void HandleKingdomQuestTransfer(WorldConnector connector, InterPacket packet)
         {

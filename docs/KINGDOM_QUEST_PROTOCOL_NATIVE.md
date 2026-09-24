@@ -254,3 +254,20 @@ the existing writers:
 This does not add gameplay semantics. It closes the serialization boundary so
 the Zone side can consume the exact World→Zone MAKE/START payloads instead of
 maintaining a second field mapping.
+
+
+## Raw MAKE_ACK return path
+
+The emulator inter-server bridge now also carries the original
+`NC_KQ_Z2W_MAKE_ACK (0x580E)` body back from Zone to World:
+
+```text
+u32 Handle
+u16 Error
+```
+
+World stores that ushort unchanged in `KingdomQuestMakeAckRegistry`.
+No value is treated as success, no START is triggered, and the captured
+`0x0991` from the separate client JOIN_ACK path is not reused. A future
+source-backed lifecycle owner may interpret the raw MAKE result once the
+original error semantics are proven.

@@ -26,6 +26,8 @@ FILES = {
     "kq_zone_runtime": ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs",
     "zone_inter": ROOT / "NextGen.Zone/InterServer/InterHandler.cs",
     "world_zone_connection": ROOT / "NextGen.World/InterServer/ZoneConnection.cs",
+    "world_inter": ROOT / "NextGen.World/InterServer/InterHandler.cs",
+    "kq_make_ack": ROOT / "NextGen.World/Data/KingdomQuestMakeAckRegistry.cs",
 }
 
 def need(text, tokens, label):
@@ -131,6 +133,7 @@ def main():
         "KingdomQuestStart = 0x4006",
         "KingdomQuestEnd = 0x4007",
         "KingdomQuestDestroy = 0x4008",
+        "KingdomQuestMakeAck = 0x4009",
     ], "internal KQ inter-server opcodes"):
         return 1
     if not need(c["kq_zone_runtime"], [
@@ -152,6 +155,28 @@ def main():
         "new InterPacket(InterHeader.KingdomQuestDestroy)",
     ], "World -> Zone KQ lifecycle transport"):
         return 1
+    if not need(c["kq_make_ack"], [
+        "Dictionary<uint, ushort>",
+        "ErrorByHandle[handle] = error;",
+        "ErrorByHandle.TryGetValue(handle, out error)",
+    ], "raw native KQ MAKE_ACK error registry"):
+        return 1
+    if "error == 0" in c["kq_make_ack"] or "0x0991" in c["kq_make_ack"]:
+        print("FAIL: MAKE_ACK raw Error gained invented success semantics")
+        return 1
+    if not need(c["world_inter"], [
+        "[InterPacketHandler(InterHeader.KingdomQuestMakeAck)]",
+        "native.OpCode != 0x580E",
+        "KingdomQuestMakeAckRegistry.Set(handle, error)",
+    ], "Zone -> World native KQ MAKE_ACK transport"):
+        return 1
+    if not need(c["zone_inter"], [
+        "public static void SendKingdomQuestMakeAck(uint handle, ushort error)",
+        "new Packet((ushort)0x580E)",
+        "new InterPacket(InterHeader.KingdomQuestMakeAck)",
+    ], "explicit raw KQ MAKE_ACK sender"):
+        return 1
+
     if not need(c["zone_inter"], [
         "[InterPacketHandler(InterHeader.KingdomQuestMake)]",
         "[InterPacketHandler(InterHeader.KingdomQuestStart)]",
@@ -251,6 +276,7 @@ def main():
     print("PASS: World -> Zone KQ roster stores only explicit CharacterNumber/TeamType pairs")
     print("PASS: internal MAKE/START/END/DESTROY transport carries and validates native NC_KQ bodies")
     print("PASS: Zone KQ lifecycle uses explicit Handle/MapID/Map.InstanceID without allocation inference")
+    print("PASS: Z2W_MAKE_ACK raw Error can return to World without invented success semantics")
     print("PASS: explicit status/participant mutations keep list, STATUS_ACK and JOIN_LIST state synchronized")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0

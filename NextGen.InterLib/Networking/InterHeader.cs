@@ -50,6 +50,7 @@
         KingdomQuestStart = 0x4006,
         KingdomQuestEnd = 0x4007,
         KingdomQuestDestroy = 0x4008,
+        KingdomQuestMakeAck = 0x4009,
 
         //Guild Shit
         ZONE_AcademyMemberJoined = 0x4101,

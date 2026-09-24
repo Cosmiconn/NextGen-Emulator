@@ -11,6 +11,33 @@ namespace NextGen.World.InterServer
 {
 	public sealed class InterHandler
 	{
+        [InterPacketHandler(InterHeader.KingdomQuestMakeAck)]
+        public static void KingdomQuestMakeAck(ZoneConnection zc, InterPacket packet)
+        {
+            int length;
+            byte[] nativeBytes;
+            if (!packet.TryReadInt(out length) ||
+                length < 2 ||
+                !packet.TryReadBytes(length, out nativeBytes) ||
+                packet.Remaining != 0)
+                return;
+
+            using (var native = new FiestaLib.Networking.Packet(nativeBytes))
+            {
+                uint handle;
+                ushort error;
+                if (native.OpCode != 0x580E ||
+                    !native.TryReadUInt(out handle) ||
+                    !native.TryReadUShort(out error) ||
+                    native.Remaining != 0)
+                    return;
+
+                KingdomQuestMakeAckRegistry.Set(handle, error);
+                Log.WriteLine(LogLevel.Debug,
+                    "KQ MAKE_ACK handle {0} raw error 0x{1:X4}.", handle, error);
+            }
+        }
+
 		[InterPacketHandler(InterHeader.Worldmsg)]
 		public static void HandleWorldMessage(ZoneConnection zc, InterPacket packet)
 		{
