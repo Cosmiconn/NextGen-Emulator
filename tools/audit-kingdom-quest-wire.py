@@ -58,10 +58,13 @@ def main():
         "KingdomQuestScheduleAck = 10",
         "KingdomQuestNotify = 11",
         "KingdomQuestFailed = 19",
+        "KingdomQuestRestDeadNum = 24",
+        "KingdomQuestEntryResponseAck = 26",
         "KingdomQuestListTimeAck = 28",
         "KingdomQuestListAddAck = 29",
         "KingdomQuestListDeleteAck = 30",
         "KingdomQuestListUpdateAck = 31",
+        "KingdomQuestMobKillNumber = 34",
         "KingdomQuestJoiningAlarm = 36",
         "KingdomQuestJoiningAlarmEnd = 37",
         "KingdomQuestJoiningAlarmList = 38",
@@ -136,6 +139,41 @@ def main():
             "packet.WriteUInt(states[i].Handle);",
             "packet.WriteByte(states[i].Status);",
             "packet.WriteUShort((ushort)states[i].JoinerNames.Count);",
+        ],
+        "remaining dead count": [
+            "new Packet(SH22Type.KingdomQuestRestDeadNum)",
+            "packet.WriteByte(number);",
+        ],
+        "entry response ack": [
+            "new Packet(SH22Type.KingdomQuestEntryResponseAck)",
+            "packet.WriteByte(reply);",
+            "packet.WriteUInt(encodedHandle);",
+        ],
+        "mob kill count": [
+            "new Packet(SH22Type.KingdomQuestMobKillNumber)",
+            "packet.WriteUShort(currentMobKill);",
+            "packet.WriteUShort(demandMobKill);",
+        ],
+        "team score info": [
+            "new Packet(SH22Type.KingdomQuestScoreInfo)",
+            "packet.WriteUInt(redScore);",
+            "packet.WriteUInt(blueScore);",
+        ],
+        "score board info": [
+            "new Packet(SH22Type.KingdomQuestScoreBoardInfo)",
+            "packet.WriteByte(useRound);",
+            "packet.WriteByte(round);",
+            "packet.WriteByte(redWinFlag);",
+            "packet.WriteByte(redScore);",
+            "packet.WriteByte(blueWinFlag);",
+            "packet.WriteByte(blueScore);",
+        ],
+        "winter event score": [
+            "new Packet(SH22Type.KingdomQuestWinterEvent2014Score)",
+            "packet.WriteByte(redWinFlag);",
+            "packet.WriteByte(redScore);",
+            "packet.WriteByte(blueWinFlag);",
+            "packet.WriteByte(blueScore);",
         ],
         "joining alarm": [
             "new Packet(SH22Type.KingdomQuestJoiningAlarm)",
@@ -279,6 +317,7 @@ def main():
 
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
+    print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")

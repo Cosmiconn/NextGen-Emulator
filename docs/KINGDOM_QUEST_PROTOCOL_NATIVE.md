@@ -156,3 +156,30 @@ starts at +9 and is a fixed 64-byte array.
 
 The capture remains evidence for batching/order, but it no longer supports the
 old variable-title or guessed sub-list framing.
+
+
+## Simple runtime lifecycle broadcasts
+
+Several later KQ packets are now byte-exact builders because their PDB bodies
+are fully self-contained:
+
+```text
+NC_KQ_RESTDEADNUM_CMD       0x5818: u8 Number
+NC_KQ_ENTRYRESPONCE_ACK     0x581A: u8 Reply + u32 EncHandle
+NC_KQ_MOBKILLNUMBER_CMD     0x5822: u16 CurrentMobKill + u16 DemandMobKill
+NC_KQ_SCORE_INFO_CMD        0x5836: u32 Score[2]
+NC_KQ_SCORE_BOARD_INFO_CMD  0x583C:
+    u8 UseRound + u8 Round
+    + TEAM_SCORE_INFO Red
+    + TEAM_SCORE_INFO Blue
+NC_KQ_WINTER_EVENT_2014_SCORE_CMD 0x583D:
+    TEAM_SCORE_INFO Red + TEAM_SCORE_INFO Blue
+
+TEAM_SCORE_INFO = u8 WinFlag + u8 Score.
+```
+
+These are serialization primitives only. They do not invent when a KQ decrements
+its dead-player allowance, how an entry Reply/EncHandle is produced, how mob
+kills are counted, or how scores are awarded. The variable `SCORE_CMD` /
+`SCORE_SIMPLE_CMD` and reward packets remain outside the runtime until their
+nested/variable structures and gameplay triggers are fully proven.

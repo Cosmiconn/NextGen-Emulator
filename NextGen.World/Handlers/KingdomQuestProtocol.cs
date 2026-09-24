@@ -144,6 +144,62 @@ namespace NextGen.World.Handlers
             return packet;
         }
 
+        internal static Packet CreateRestDeadNum(byte number)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestRestDeadNum);
+            packet.WriteByte(number);
+            return packet;
+        }
+
+        internal static Packet CreateEntryResponseAck(byte reply, uint encodedHandle)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestEntryResponseAck);
+            packet.WriteByte(reply);
+            packet.WriteUInt(encodedHandle);
+            return packet;
+        }
+
+        internal static Packet CreateMobKillNumber(ushort currentMobKill,
+            ushort demandMobKill)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestMobKillNumber);
+            packet.WriteUShort(currentMobKill);
+            packet.WriteUShort(demandMobKill);
+            return packet;
+        }
+
+        internal static Packet CreateScoreInfo(uint redScore, uint blueScore)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestScoreInfo);
+            packet.WriteUInt(redScore);
+            packet.WriteUInt(blueScore);
+            return packet;
+        }
+
+        internal static Packet CreateScoreBoardInfo(byte useRound, byte round,
+            byte redWinFlag, byte redScore, byte blueWinFlag, byte blueScore)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestScoreBoardInfo);
+            packet.WriteByte(useRound);
+            packet.WriteByte(round);
+            packet.WriteByte(redWinFlag);
+            packet.WriteByte(redScore);
+            packet.WriteByte(blueWinFlag);
+            packet.WriteByte(blueScore);
+            return packet;
+        }
+
+        internal static Packet CreateWinterEventScore(byte redWinFlag,
+            byte redScore, byte blueWinFlag, byte blueScore)
+        {
+            var packet = new Packet(SH22Type.KingdomQuestWinterEvent2014Score);
+            packet.WriteByte(redWinFlag);
+            packet.WriteByte(redScore);
+            packet.WriteByte(blueWinFlag);
+            packet.WriteByte(blueScore);
+            return packet;
+        }
+
         internal static Packet CreateNotify(string message)
         {
             byte[] data = Encoding.ASCII.GetBytes(message ?? string.Empty);
