@@ -205,6 +205,7 @@ namespace NextGen.KingdomQuestTool
             writer.WriteLine();
             writer.WriteLine("DROP TABLE IF EXISTS `{0}`;", sqlName);
             writer.WriteLine("CREATE TABLE `{0}` (", sqlName);
+            writer.WriteLine("  `__SourceRow` INT UNSIGNED NOT NULL,");
 
             for (int i = 0; i < table.Columns.Count; i++)
             {
@@ -217,20 +218,19 @@ namespace NextGen.KingdomQuestTool
 
             if (table.Rows.Count != 0)
             {
-                writer.Write("INSERT INTO `{0}` (", sqlName);
+                writer.Write("INSERT INTO `{0}` (`__SourceRow`", sqlName);
                 for (int i = 0; i < table.Columns.Count; i++)
                 {
-                    if (i != 0) writer.Write(", ");
-                    writer.Write("`{0}`", EscapeIdentifier(table.Columns[i].ColumnName));
+                    writer.Write(", `{0}`", EscapeIdentifier(table.Columns[i].ColumnName));
                 }
                 writer.WriteLine(") VALUES");
 
                 for (int r = 0; r < table.Rows.Count; r++)
                 {
-                    writer.Write("  (");
+                    writer.Write("  ({0}", r);
                     for (int c = 0; c < table.Columns.Count; c++)
                     {
-                        if (c != 0) writer.Write(", ");
+                        writer.Write(", ");
                         WriteValue(writer, table.Rows[r][c]);
                     }
                     writer.WriteLine(r + 1 == table.Rows.Count ? ");" : "),");

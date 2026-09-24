@@ -113,9 +113,22 @@ def main():
             print('FAIL: KQ raw source row count changed:', source_name, len(rows))
             return 1
         malformed = [i + 1 for i, row in enumerate(rows)
-                     if row_field_count(row) != expected_columns]
+                     if row_field_count(row) != expected_columns + 1]
         if malformed:
             print('FAIL: KQ raw source row width changed:', source_name, malformed[:10])
+            return 1
+        ordinals = []
+        for row in rows:
+            match = re.match(r'^\s*\((\d+)\s*,', row)
+            if not match:
+                print('FAIL: KQ raw source row has no __SourceRow:', source_name)
+                return 1
+            ordinals.append(int(match.group(1)))
+        if ordinals != list(range(expected_rows)):
+            print('FAIL: KQ raw source ordinals changed:', source_name, ordinals[:10])
+            return 1
+        if '`__SourceRow` INT UNSIGNED NOT NULL' not in raw:
+            print('FAIL: KQ raw source table lost __SourceRow:', source_name)
             return 1
         manifest_tuple = "'{0}', '{1}', {2}, {3}".format(
             source_name, sha256, expected_rows, expected_columns)
@@ -161,6 +174,8 @@ def main():
         'writer.Write("-- Columns:")',
         'WriteManifestSchema(writer)',
         'WriteManifestRows(writer, table, sourceName, sha256)',
+        '`__SourceRow` INT UNSIGNED NOT NULL',
+        'writer.Write("  ({0}", r)',
         'data_kq_source_manifest',
         'data_kq_source_columns',
         '`Ordinal` INT UNSIGNED NOT NULL',
@@ -260,7 +275,8 @@ def main():
     print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
     print('PASS: source dumper can require all main SHNs, rejects duplicate basenames and records SHA-256/column manifests')
     print('PASS: source SQL includes machine-readable file/column provenance without gameplay mapping')
-    print('PASS: exact NA2016 main KQ raw corpus locked (57/38/64/2 rows; 35/22/33/4 columns)')
+    print('PASS: exact NA2016 main KQ raw corpus locked (57/38/64/2 rows; 35/22/33/4 source columns)')
+    print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
     print('PASS: KingdomQuest.shn coverage compares only exact PDB field names; no SHN aliases are inferred')
