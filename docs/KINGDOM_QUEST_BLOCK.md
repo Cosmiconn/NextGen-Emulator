@@ -566,3 +566,29 @@ source-backed UseClass mask dictionary and refuses to materialize a definition
 if the referenced UseClass row is absent. This closes the previously external
 DemandClass input while keeping handle allocation and live state transitions
 separate.
+
+
+## Native client list selection and refresh deltas recovered
+
+Original `WorldManager.exe` closes the earlier LIST/SCHEDULE range blocker.
+`CParserClient::fc_NC_KQ_LIST_REQ` (`.text+0x12980`) and
+`fc_NC_KQ_SCHEDULE_REQ` (`.text+0x12E00`) validate the two request Handle
+fields but do not use them for filtering. LIST returns every scheduler entry
+whose unsigned Status is 0..4; SCHEDULE returns every scheduler entry. ACK
+start/end Handles come from the first/last returned entry.
+
+`CKQServer::Ack_NC_KQ_LIST_REFRESH` (`.text+0x549E0`) is also recovered:
+LIST_TIME is one-shot per client session, followed by delete/update/add deltas
+against that session's prior Status<=4 snapshot. Update compares only Status
+and NumOfJoiner. LIST_ADD is flushed in 53-entry groups, matching both the
+executable's 0x1D26 threshold and the existing 53/53/8 packet capture.
+
+The live handlers now reproduce those source-backed rules and no longer depend
+on the old exact-request-pair range registry. Empty ACKs use
+NewStartHandle=0xFFFFFFFF; the original leaves empty NewEndHandle
+uninitialized, so the emulator deliberately zeroes it rather than reproduce
+stack-memory disclosure.
+
+This closes list-selection/refresh semantics, but it does **not** activate
+JOIN admission or synthesize scheduler entries. Live scheduler ownership,
+status transitions and map lifecycle remain separate work.

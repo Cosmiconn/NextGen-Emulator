@@ -49,9 +49,11 @@ joining-alarm list.
 
 ## Runtime consequence
 
-World now answers STATUS_REQ from typed live state and LIST_REFRESH_REQ with a
-complete LIST_TIME_ACK plus an empty LIST_ADD_ACK. Repeated KQ refreshes no
-longer replay unrelated one-time World-login callbacks.
+World answers STATUS_REQ from typed live state. LIST_REFRESH_REQ now follows
+the original per-session refresh model: LIST_TIME_ACK is sent once, then the
+visible (Status 0..4) snapshot is compared with the session's prior snapshot
+and only LIST_DELETE/LIST_UPDATE/LIST_ADD deltas are emitted. Repeated KQ
+refreshes still do not replay unrelated one-time World-login callbacks.
 
 JOIN_REQ remains disabled even though its packet structures are known:
 admission still requires source-backed KQ definitions, schedule/status and
@@ -117,26 +119,53 @@ This makes the request path operational without collapsing two distinct Error
 fields into one guessed constant.
 
 
-## LIST_REQ and SCHEDULE_REQ live through explicit response windows
+## LIST_REQ / SCHEDULE_REQ selection recovered from WorldManager.exe
 
-The PDB proves both request bodies but not the WorldManager's range-selection
-algorithm:
+The PDB bodies remain:
 
 ```text
 NC_KQ_LIST_REQ      (0x5801): u32 StartHandle + u32 EndHandle
 NC_KQ_SCHEDULE_REQ  (0x5809): u32 StartHandle + u32 EndHandle
 ```
 
-World now handles both without assuming inclusive/exclusive bounds or paging
-rules. `KingdomQuestRangeReplyRegistry` keys an **exact requested pair** to
-an explicitly supplied `NewStartHandle`, `NewEndHandle` and ordered list
-of KQ Handles. The handler resolves those Handles through the source-owned
-definition registry and emits the already-native LIST_ACK/SCHEDULE_ACK
-serializers.
+The original NA2016 executable closes the previously unresolved selection
+behavior. `CParserClient::fc_NC_KQ_LIST_REQ` at `.text+0x12980` validates
+the request but never reads either handle for selection. It walks the complete
+377-byte scheduler array and copies the 141-byte client prefix only when the
+unsigned Status byte is <= 4. `NewStartHandle` and `NewEndHandle` are the
+first and last emitted Handles.
 
-No comparison, sorting or automatic range filter is performed in the reply
-registry. Until the real scheduler supplies a window, the request is logged and
-left unanswered rather than receiving fabricated list contents.
+`CParserClient::fc_NC_KQ_SCHEDULE_REQ` at `.text+0x12E00` also ignores the
+request bounds, but copies the 141-byte prefix of **every** scheduler entry.
+Its ACK bounds are the first and last scheduler Handles.
+
+The previous exact-pair `KingdomQuestRangeReplyRegistry` workaround is
+therefore no longer used by the live handlers. This is not an inferred paging
+rule; the original handlers simply do not apply the request values.
+
+For an empty result the original code explicitly writes
+`NewStartHandle = 0xFFFFFFFF` and count zero, but leaves the four
+`NewEndHandle` bytes uninitialized on its stack. The emulator writes zero for
+those bytes instead of reproducing an original memory-disclosure bug. No
+gameplay meaning is assigned to that sanitized empty `NewEndHandle`.
+
+## LIST_REFRESH delta behavior recovered
+
+`CKQServer::Ack_NC_KQ_LIST_REFRESH` at `.text+0x549E0` keeps a per-client
+snapshot of the same Status<=4 visible list. On the first refresh it sends the
+40-byte LIST_TIME_ACK once. It then performs, in order:
+
+```text
+old handle absent now                  -> LIST_DELETE_ACK
+same handle, Status/NumOfJoiner changed -> LIST_UPDATE_ACK
+new handle absent in old snapshot       -> LIST_ADD_ACK
+```
+
+The session snapshot is then replaced with the current visible list. LIST_ADD
+is flushed at 53 entries: the executable checks the accumulated
+`2 + 141*N` body against `0x1D26` after adding an entry. The project's
+existing captures independently show 53 / 53 / 8 entry batches, so the runtime
+now uses the same 53-entry batch boundary.
 
 
 ## Capture correlation for LIST_ADD_ACK

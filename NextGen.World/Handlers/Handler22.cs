@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using NextGen.FiestaLib;
+using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
 using NextGen.World.Networking;
 using NextGen.World.Data;
@@ -9,77 +11,120 @@ namespace NextGen.World.Handlers
 {
     public class Handler22
     {
-        private static bool TryResolveRangeEntries(KingdomQuestRangeReply reply,
-            out System.Collections.Generic.IReadOnlyList<
-                NextGen.FiestaLib.Data.KingdomQuestClientInfo> entries)
-        {
-            var resolved = new System.Collections.Generic.List<
-                NextGen.FiestaLib.Data.KingdomQuestClientInfo>();
+        // WorldManager.exe CParserClient::fc_NC_KQ_LIST_REQ compares Status
+        // as an unsigned byte and includes exactly values 0..4.
+        private const byte ClientVisibleMaxStatus = 4;
 
-            for (int i = 0; i < reply.Handles.Count; i++)
+        // Ack_NC_KQ_LIST_REFRESH flushes LIST_ADD after the accumulated
+        // (2 + 141*N) body reaches 0x1D26. That happens at N=53 and matches
+        // the project's observed 53/53/8 capture batches.
+        private const int ListAddBatchEntries = 53;
+
+        private static IReadOnlyList<KingdomQuestClientInfo> SnapshotClientVisible()
+        {
+            IReadOnlyList<KingdomQuestClientInfo> snapshot =
+                KingdomQuestDefinitionRegistry.Snapshot();
+            var visible = new List<KingdomQuestClientInfo>();
+            for (int i = 0; i < snapshot.Count; i++)
             {
-                NextGen.FiestaLib.Data.KingdomQuestClientInfo info;
-                if (!KingdomQuestDefinitionRegistry.TryGet(reply.Handles[i], out info))
-                {
-                    entries = null;
-                    return false;
-                }
-                resolved.Add(info);
+                if (snapshot[i].Status <= ClientVisibleMaxStatus)
+                    visible.Add(snapshot[i]);
+            }
+            return visible.AsReadOnly();
+        }
+
+        private static IReadOnlyList<KingdomQuestClientInfo> SnapshotAllScheduled()
+        {
+            IReadOnlyList<KingdomQuestProtocolInfo> snapshot =
+                KingdomQuestProtocolDefinitionRegistry.Snapshot();
+            var entries = new List<KingdomQuestClientInfo>(snapshot.Count);
+            for (int i = 0; i < snapshot.Count; i++)
+                entries.Add(snapshot[i]);
+            return entries.AsReadOnly();
+        }
+
+        private static void ResolveAckBounds(
+            IReadOnlyList<KingdomQuestClientInfo> entries,
+            out uint newStartHandle, out uint newEndHandle)
+        {
+            if (entries == null) throw new ArgumentNullException("entries");
+            if (entries.Count == 0)
+            {
+                // The original empty branch writes NewStartHandle=-1 and
+                // NumOfKQ=0 but leaves NewEndHandle as uninitialized stack
+                // bytes. Never reproduce that memory disclosure.
+                newStartHandle = uint.MaxValue;
+                newEndHandle = 0;
+                return;
             }
 
-            entries = resolved.AsReadOnly();
-            return true;
+            newStartHandle = entries[0].Handle;
+            newEndHandle = entries[entries.Count - 1].Handle;
+        }
+
+        private static Dictionary<uint, KingdomQuestClientInfo> IndexByHandle(
+            IEnumerable<KingdomQuestClientInfo> entries)
+        {
+            var result = new Dictionary<uint, KingdomQuestClientInfo>();
+            foreach (KingdomQuestClientInfo entry in entries)
+                result[entry.Handle] = entry;
+            return result;
+        }
+
+        private static void SendListAdds(WorldClient client,
+            IReadOnlyList<KingdomQuestClientInfo> additions)
+        {
+            for (int offset = 0; offset < additions.Count; offset += ListAddBatchEntries)
+            {
+                int count = Math.Min(ListAddBatchEntries, additions.Count - offset);
+                var batch = new List<KingdomQuestClientInfo>(count);
+                for (int i = 0; i < count; i++)
+                    batch.Add(additions[offset + i]);
+
+                using (Packet add = KingdomQuestProtocol.CreateListAdd(batch.AsReadOnly()))
+                    client.SendPacket(add);
+            }
         }
 
         [PacketHandler(CH22Type.KingdomQuestListReq)]
         public static void KingdomQuestList(WorldClient client, Packet packet)
         {
-            uint startHandle;
-            uint endHandle;
-            if (!packet.TryReadUInt(out startHandle) ||
-                !packet.TryReadUInt(out endHandle))
+            uint ignoredStartHandle;
+            uint ignoredEndHandle;
+            if (!packet.TryReadUInt(out ignoredStartHandle) ||
+                !packet.TryReadUInt(out ignoredEndHandle))
                 return;
 
-            KingdomQuestRangeReply reply;
-            System.Collections.Generic.IReadOnlyList<
-                NextGen.FiestaLib.Data.KingdomQuestClientInfo> entries;
-            if (!KingdomQuestRangeReplyRegistry.TryGetList(
-                    startHandle, endHandle, out reply) ||
-                !TryResolveRangeEntries(reply, out entries))
-            {
-                Log.WriteLine(LogLevel.Debug,
-                    "KQ list range unresolved: {0}..{1}.", startHandle, endHandle);
-                return;
-            }
+            // Original WorldManager validates the two request fields but never
+            // reads either one for selection. It sends every Status <= 4 entry.
+            IReadOnlyList<KingdomQuestClientInfo> entries = SnapshotClientVisible();
+            uint newStartHandle;
+            uint newEndHandle;
+            ResolveAckBounds(entries, out newStartHandle, out newEndHandle);
 
             using (Packet response = KingdomQuestProtocol.CreateListAck(
-                DateTimeOffset.Now, reply.NewStartHandle, reply.NewEndHandle, entries))
+                DateTimeOffset.Now, newStartHandle, newEndHandle, entries))
                 client.SendPacket(response);
         }
 
         [PacketHandler(CH22Type.KingdomQuestScheduleReq)]
         public static void KingdomQuestSchedule(WorldClient client, Packet packet)
         {
-            uint startHandle;
-            uint endHandle;
-            if (!packet.TryReadUInt(out startHandle) ||
-                !packet.TryReadUInt(out endHandle))
+            uint ignoredStartHandle;
+            uint ignoredEndHandle;
+            if (!packet.TryReadUInt(out ignoredStartHandle) ||
+                !packet.TryReadUInt(out ignoredEndHandle))
                 return;
 
-            KingdomQuestRangeReply reply;
-            System.Collections.Generic.IReadOnlyList<
-                NextGen.FiestaLib.Data.KingdomQuestClientInfo> entries;
-            if (!KingdomQuestRangeReplyRegistry.TryGetSchedule(
-                    startHandle, endHandle, out reply) ||
-                !TryResolveRangeEntries(reply, out entries))
-            {
-                Log.WriteLine(LogLevel.Debug,
-                    "KQ schedule range unresolved: {0}..{1}.", startHandle, endHandle);
-                return;
-            }
+            // Original WorldManager likewise ignores the request bounds here,
+            // but unlike LIST_REQ it serializes the entire scheduler array.
+            IReadOnlyList<KingdomQuestClientInfo> entries = SnapshotAllScheduled();
+            uint newStartHandle;
+            uint newEndHandle;
+            ResolveAckBounds(entries, out newStartHandle, out newEndHandle);
 
             using (Packet response = KingdomQuestProtocol.CreateScheduleAck(
-                reply.NewStartHandle, reply.NewEndHandle, entries))
+                newStartHandle, newEndHandle, entries))
                 client.SendPacket(response);
         }
 
@@ -110,8 +155,7 @@ namespace NextGen.World.Handlers
                 return;
 
             ushort error;
-            System.Collections.Generic.IReadOnlyList<
-                NextGen.FiestaLib.Data.KingdomQuestJoinCharacterInfo> participants;
+            IReadOnlyList<KingdomQuestJoinCharacterInfo> participants;
             if (!KingdomQuestJoinListReplyRegistry.TryGet(handle, out error) ||
                 !KingdomQuestParticipantRegistry.TryGet(handle, out participants))
             {
@@ -128,12 +172,62 @@ namespace NextGen.World.Handlers
         [PacketHandler(CH22Type.KingdomQuestListRefreshReq)]
         public static void KingdomQuestListRefresh(WorldClient client, Packet packet)
         {
-            using (Packet time = KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now))
-                client.SendPacket(time);
+            if (!client.KingdomQuestListTimeSent)
+            {
+                using (Packet time = KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now))
+                    client.SendPacket(time);
+                client.KingdomQuestListTimeSent = true;
+            }
 
-            var definitions = KingdomQuestDefinitionRegistry.Snapshot();
-            using (Packet add = KingdomQuestProtocol.CreateListAdd(definitions))
-                client.SendPacket(add);
+            IReadOnlyList<KingdomQuestClientInfo> current = SnapshotClientVisible();
+            List<KingdomQuestClientInfo> previous = client.KingdomQuestListSnapshot;
+            Dictionary<uint, KingdomQuestClientInfo> currentByHandle =
+                IndexByHandle(current);
+            Dictionary<uint, KingdomQuestClientInfo> previousByHandle =
+                IndexByHandle(previous);
+
+            var deleted = new List<uint>();
+            var updated = new List<KingdomQuestClientInfo>();
+            for (int i = 0; i < previous.Count; i++)
+            {
+                KingdomQuestClientInfo now;
+                if (!currentByHandle.TryGetValue(previous[i].Handle, out now))
+                {
+                    deleted.Add(previous[i].Handle);
+                    continue;
+                }
+
+                if (previous[i].Status != now.Status ||
+                    previous[i].NumOfJoiner != now.NumOfJoiner)
+                    updated.Add(now);
+            }
+
+            if (deleted.Count != 0)
+            {
+                using (Packet remove =
+                    KingdomQuestProtocol.CreateListDelete(deleted.AsReadOnly()))
+                    client.SendPacket(remove);
+            }
+
+            if (updated.Count != 0)
+            {
+                using (Packet update =
+                    KingdomQuestProtocol.CreateListUpdateFromDefinitions(
+                        updated.AsReadOnly()))
+                    client.SendPacket(update);
+            }
+
+            var added = new List<KingdomQuestClientInfo>();
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (!previousByHandle.ContainsKey(current[i].Handle))
+                    added.Add(current[i]);
+            }
+            SendListAdds(client, added.AsReadOnly());
+
+            previous.Clear();
+            for (int i = 0; i < current.Count; i++)
+                previous.Add(current[i]);
 
             // The client also emits LIST_REFRESH during initial World entry.
             // Keep unrelated bootstrap work one-time; later refreshes must not

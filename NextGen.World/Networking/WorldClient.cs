@@ -27,11 +27,14 @@ namespace NextGen.World.Networking
 		public WorldCharacter Character { get; set; }
 		public DateTime lastPing { get; set; }
 		public bool Pong { get; set; }
+        internal bool KingdomQuestListTimeSent { get; set; }
+        internal List<KingdomQuestClientInfo> KingdomQuestListSnapshot { get; private set; }
 		#endregion
 		#region .ctor
 		public WorldClient(Socket socket)
 			: base(socket)
 		{
+            KingdomQuestListSnapshot = new List<KingdomQuestClientInfo>();
 			base.OnPacket += new EventHandler<PacketReceivedEventArgs>(WorldClient_OnPacket);
 			base.OnDisconnect += new EventHandler<SessionCloseEventArgs>(WorldClient_OnDisconnect);
 		}

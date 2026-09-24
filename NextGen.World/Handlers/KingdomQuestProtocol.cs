@@ -144,6 +144,25 @@ namespace NextGen.World.Handlers
             return packet;
         }
 
+        internal static Packet CreateListUpdateFromDefinitions(
+            IReadOnlyList<KingdomQuestClientInfo> entries)
+        {
+            if (entries == null) throw new ArgumentNullException("entries");
+            if (entries.Count > ushort.MaxValue) throw new ArgumentOutOfRangeException("entries");
+
+            var packet = new Packet(SH22Type.KingdomQuestListUpdateAck);
+            packet.WriteUShort((ushort)entries.Count);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i] == null)
+                    throw new ArgumentException("KQ list-update entry is null.", "entries");
+                packet.WriteUInt(entries[i].Handle);
+                packet.WriteByte(entries[i].Status);
+                packet.WriteUShort(entries[i].NumOfJoiner);
+            }
+            return packet;
+        }
+
         internal static Packet CreateRestDeadNum(byte number)
         {
             var packet = new Packet(SH22Type.KingdomQuestRestDeadNum);

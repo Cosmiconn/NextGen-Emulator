@@ -14,7 +14,7 @@ STATE = ROOT / "NextGen.World/Data/KingdomQuestInstanceWireState.cs"
 DEFINITIONS = ROOT / "NextGen.World/Data/KingdomQuestDefinitionRegistry.cs"
 JOIN_LIST_REPLY = ROOT / "NextGen.World/Data/KingdomQuestJoinListReplyRegistry.cs"
 PARTICIPANTS = ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs"
-RANGE_REPLIES = ROOT / "NextGen.World/Data/KingdomQuestRangeReplyRegistry.cs"
+WORLD_CLIENT = ROOT / "NextGen.World/Networking/WorldClient.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -24,7 +24,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, RANGE_REPLIES]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -40,7 +40,7 @@ def main():
     definitions = DEFINITIONS.read_text(encoding="utf-8")
     join_list_reply = JOIN_LIST_REPLY.read_text(encoding="utf-8")
     participants = PARTICIPANTS.read_text(encoding="utf-8")
-    range_replies = RANGE_REPLIES.read_text(encoding="utf-8")
+    world_client = WORLD_CLIENT.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -290,10 +290,13 @@ def main():
 
     if not require(handler, [
         "[PacketHandler(CH22Type.KingdomQuestListReq)]",
-        "KingdomQuestRangeReplyRegistry.TryGetList(",
+        "SnapshotClientVisible()",
+        "snapshot[i].Status <= ClientVisibleMaxStatus",
+        "ResolveAckBounds(entries, out newStartHandle, out newEndHandle)",
         "KingdomQuestProtocol.CreateListAck(",
         "[PacketHandler(CH22Type.KingdomQuestScheduleReq)]",
-        "KingdomQuestRangeReplyRegistry.TryGetSchedule(",
+        "SnapshotAllScheduled()",
+        "KingdomQuestProtocolDefinitionRegistry.Snapshot()",
         "KingdomQuestProtocol.CreateScheduleAck(",
         "[PacketHandler(CH22Type.KingdomQuestStatusReq)]",
         "KingdomQuestProtocol.CreateStatusAck(state)",
@@ -303,9 +306,12 @@ def main():
         "KingdomQuestParticipantRegistry.TryGet(handle, out participants)",
         "KingdomQuestProtocol.CreateJoinListAck(error, participants)",
         "[PacketHandler(CH22Type.KingdomQuestListRefreshReq)]",
+        "if (!client.KingdomQuestListTimeSent)",
         "KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now)",
-        "KingdomQuestDefinitionRegistry.Snapshot()",
-        "KingdomQuestProtocol.CreateListAdd(definitions)",
+        "KingdomQuestProtocol.CreateListDelete(",
+        "KingdomQuestProtocol.CreateListUpdateFromDefinitions(",
+        "SendListAdds(client, added.AsReadOnly())",
+        "ListAddBatchEntries = 53",
         "if (!client.Character.IsIngame)",
     ], "KQ status/list-refresh handlers"):
         return 1
@@ -360,18 +366,24 @@ def main():
         print("FAIL: JOIN_LIST_ACK error value was guessed")
         return 1
 
-    if not require(range_replies, [
-        "Dictionary<Tuple<uint, uint>, KingdomQuestRangeReply> ListReplies",
-        "Dictionary<Tuple<uint, uint>, KingdomQuestRangeReply> ScheduleReplies",
-        "target[Tuple.Create(requestStartHandle, requestEndHandle)] = reply;",
-        "target.TryGetValue(Tuple.Create(requestStartHandle, requestEndHandle)",
-    ], "explicit KQ list/schedule range replies"):
+    if "KingdomQuestRangeReplyRegistry" in handler:
+        print("FAIL: obsolete guessed KQ range-reply workaround is still live")
         return 1
 
-    for guessed in ("requestStartHandle <=", "requestEndHandle >=", ".Where(", ".OrderBy("):
-        if guessed in range_replies:
-            print("FAIL: KQ range-selection semantics were guessed:", guessed)
-            return 1
+    if not require(world_client, [
+        "KingdomQuestListTimeSent",
+        "List<KingdomQuestClientInfo> KingdomQuestListSnapshot",
+        "KingdomQuestListSnapshot = new List<KingdomQuestClientInfo>()",
+    ], "per-session native KQ refresh snapshot"):
+        return 1
+
+    if not require(proto, [
+        "CreateListUpdateFromDefinitions",
+        "packet.WriteUInt(entries[i].Handle);",
+        "packet.WriteByte(entries[i].Status);",
+        "packet.WriteUShort(entries[i].NumOfJoiner);",
+    ], "definition-backed KQ list-update wire"):
+        return 1
 
     if not require(server_proto, [
         "new Packet((ushort)0x580D)",
@@ -406,7 +418,9 @@ def main():
     print("PASS: join-cancel/team-select/team-type/disjoin wire layouts are source-level named")
     print("PASS: vote/start/result/ban wire layouts are source-level modeled without vote policy")
     print("PASS: JOIN_LIST_REQ is live only when its native ushort Error is explicitly supplied")
-    print("PASS: LIST_REQ/SCHEDULE_REQ use exact scheduler-supplied response windows, not guessed handle filtering")
+    print("PASS: LIST_REQ ignores request bounds and exposes only Status 0..4; SCHEDULE_REQ exposes the full scheduler array")
+    print("PASS: LIST_REFRESH keeps a per-session visible snapshot and emits native delete/update/add deltas in original order")
+    print("PASS: LIST_ADD refresh batches use the original/capture-correlated 53-entry threshold")
     print("PASS: complete KQ client definitions can be stored without scheduler inference")
     print("PASS: LIST_REFRESH serializes only entries supplied by the source-owned definition registry")
     print("PASS: KQ join remains disabled until admission/session rules are source-backed")
