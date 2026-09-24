@@ -616,9 +616,14 @@ def main():
         "RejectedUnmapped = 0",
         "Success = 1",
         "DuplicateHandle = 2",
+        "NativeContainerFull = 3",
+        "NativeContainerCapacity = 300",
         "ByHandle.ContainsKey(definition.Handle)",
         "return KingdomQuestZoneMakeResult.DuplicateHandle",
-    ], "atomic Zone duplicate-Handle MAKE classification"):
+        "ByHandle.Count >= NativeContainerCapacity",
+        "return KingdomQuestZoneMakeResult.NativeContainerFull",
+        "transport must not emit 0x0983 until",
+    ], "atomic Zone duplicate/capacity MAKE classification"):
         return 1
 
     for forbidden in (
@@ -753,7 +758,8 @@ def main():
     print("PASS: JOIN_ACK 0x0991..0x099A is live for characters with known original PrisonMin; unknown provenance remains fail-closed")
     print("PASS: successful JOIN/CANCEL preserves native PlayerDisjoin/PlayerJoin list-broadcast ordering and propagates PLAYER_DISJOIN to Zone")
     print("PASS: Z2W_MAKE_ACK 0x0981 success now drives the proven World Status 1/2 -> 2 transition; non-success drives Status 8")
-    print("PASS: Zone emits MAKE_ACK only for the proven successful MAKE path; no failure Error is guessed")
+    print("PASS: Zone emits live MAKE_ACK only for success/duplicate; 0x0983 remains gated behind the not-yet-represented preceding script lookup")
+    print("PASS: native Zone KingdomQuestContainer capacity is locked to 300 fixed KQElement slots")
     print("PASS: PDB names lock TeamDivideType 1=RANDOM and 2=USERSELECT; PlayerJoin type-2 initial assignment remains source-modeled")
     print("PASS: one combined membership owner carries CharacterNumber plus client identity fields into both native roster projections")
     return 0

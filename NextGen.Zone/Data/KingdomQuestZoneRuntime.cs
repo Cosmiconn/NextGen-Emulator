@@ -19,6 +19,7 @@ namespace NextGen.Zone.Data
         RejectedUnmapped = 0,
         Success = 1,
         DuplicateHandle = 2,
+        NativeContainerFull = 3,
     }
 
     public sealed class KingdomQuestZoneRuntimeState
@@ -93,6 +94,11 @@ namespace NextGen.Zone.Data
     /// </summary>
     public static class KingdomQuestZoneRuntimeRegistry
     {
+        // Zone.exe RTTI identifies the global owner as
+        // KingdomQuest::KingdomQuestContainer : List<KQElement>. Its
+        // constructor/destructor walks exactly 0x12C fixed KQElement slots.
+        public const int NativeContainerCapacity = 300;
+
         private static readonly object Sync = new object();
         private static readonly Dictionary<uint, KingdomQuestZoneRuntimeState> ByHandle =
             new Dictionary<uint, KingdomQuestZoneRuntimeState>();
@@ -143,6 +149,13 @@ namespace NextGen.Zone.Data
             {
                 if (ByHandle.ContainsKey(definition.Handle))
                     return KingdomQuestZoneMakeResult.DuplicateHandle;
+
+                // The native MAKE handler checks script lookup before this
+                // pool-full branch. We classify the proven 300-slot boundary
+                // here, but the transport must not emit 0x0983 until the
+                // preceding script-container lookup is represented too.
+                if (ByHandle.Count >= NativeContainerCapacity)
+                    return KingdomQuestZoneMakeResult.NativeContainerFull;
 
                 Map map = MapManager.Instance.GetMap(mapInfo, mapInstance);
                 if (map == null || map.MapID != mapId || map.InstanceID != mapInstance)

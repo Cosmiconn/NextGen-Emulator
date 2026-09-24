@@ -510,9 +510,18 @@ NC_KQ_Z2W_MAKE_ACK.Error
 ```
 
 The duplicate branch is live because the emulator can represent that exact
-condition atomically. The other two failure codes are not used as catch-all
-errors: the original capacity boundary and a source-equivalent loaded KQ
-script container must exist before those branches can be activated faithfully.
+condition atomically. The container boundary is also now source-correlated:
+RTTI identifies the global Zone owner as
+`KingdomQuest::KingdomQuestContainer : List<KQElement>`, and its fixed
+construction/destruction loop has exactly `0x12C = 300` KQElement slots.
+The native "Buffer full" MAKE branch is therefore the exact 300-slot
+`0x0983` condition.
+
+The emulator models that capacity but does not send `0x0983` yet. Original
+MAKE performs ScriptLanguage runtime lookup before testing the KQ container
+for a free slot, so a live 0x0983 branch would be order-incorrect until the
+source-equivalent script container is represented. `0x098C` is likewise not
+used as a catch-all.
 
 The script container is not Lua-only. Original
 `KQScriptManager::kqsm_Load` reads `World/PineScript.txt`, whose exact

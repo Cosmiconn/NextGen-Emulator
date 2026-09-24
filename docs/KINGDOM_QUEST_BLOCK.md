@@ -1149,10 +1149,23 @@ script container before it can emit `0x098C` or success from that condition.
 
 Zone now classifies duplicate Handles atomically inside
 `KingdomQuestZoneRuntimeRegistry.TryMake` and returns the exact
-`0x0982` ACK. Other emulator-local MAKE rejections remain fail-closed until
-their condition is correlated to the original buffer-capacity or script
-container state. In particular, `0x0983` and `0x098C` are modeled as
-native constants but are not used as generic failure codes.
+`0x0982` ACK.
+
+The native container-full boundary is now correlated as well. RTTI on the
+global Zone KQ owner identifies
+`KingdomQuest::KingdomQuestContainer : List<KQElement>`; its fixed-array
+construction/destruction path walks exactly `0x12C` elements, i.e. **300
+native KQ slots**. The MAKE branch that logs
+`WorldManagerSession::wms_NC_KQ_W2Z_MAKED_CMD : Buffer full` returns
+`0x0983`. The Zone registry therefore models the same 300-entry capacity and
+can classify `NativeContainerFull`.
+
+That classification is deliberately not yet converted into a live
+`0x0983` ACK. In the original MAKE order, ScriptLanguage runtime lookup
+occurs before the container-full test. Until the mixed Lua/Pine script
+container lookup is represented, emitting `0x0983` from capacity alone
+could invert the original error precedence. `0x098C` likewise remains gated
+on that real runtime lookup rather than file-presence heuristics.
 
 
 ## Native Zone END and World SetDone direction
