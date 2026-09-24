@@ -99,3 +99,19 @@ The old project capture's one-byte type-58 packet is therefore no longer
 unknown: it is `NC_KQ_TEAM_TYPE_CMD`. Runtime builders are present for these
 server packets, but request handlers are not enabled until their admission/team
 decision rules and raw `Error` values are proven.
+
+
+## JOIN_LIST_REQ live without an invented Error code
+
+`NC_KQ_JOIN_LIST_REQ (0x5831)` is now handled as its native body defines it:
+one `u32 Handle`.
+
+The response path deliberately does not assume that `0` or the observed
+`0x0991` from `JOIN_ACK` is also the `JOIN_LIST_ACK.nError` value.
+`KingdomQuestJoinListReplyRegistry` must receive the exact per-Handle
+`ushort Error` from a later authoritative admission/session owner. Only when
+that value **and** the native Level/Class/Name5/Team participant roster exist
+does World emit `NC_KQ_JOIN_LIST_ACK`.
+
+This makes the request path operational without collapsing two distinct Error
+fields into one guessed constant.

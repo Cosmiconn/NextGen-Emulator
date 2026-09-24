@@ -11,6 +11,8 @@ INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 HANDLER = ROOT / "NextGen.World/Handlers/Handler22.cs"
 STATE = ROOT / "NextGen.World/Data/KingdomQuestInstanceWireState.cs"
 DEFINITIONS = ROOT / "NextGen.World/Data/KingdomQuestDefinitionRegistry.cs"
+JOIN_LIST_REPLY = ROOT / "NextGen.World/Data/KingdomQuestJoinListReplyRegistry.cs"
+PARTICIPANTS = ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -20,7 +22,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, STATE, DEFINITIONS]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -33,11 +35,14 @@ def main():
     handler = HANDLER.read_text(encoding="utf-8")
     state = STATE.read_text(encoding="utf-8")
     definitions = DEFINITIONS.read_text(encoding="utf-8")
+    join_list_reply = JOIN_LIST_REPLY.read_text(encoding="utf-8")
+    participants = PARTICIPANTS.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestStatusReq = 3",
         "KingdomQuestJoinReq = 5",
         "KingdomQuestListRefreshReq = 27",
+        "KingdomQuestJoinListReq = 49",
     ], "native CH22 KQ request names"):
         return 1
 
@@ -186,6 +191,11 @@ def main():
     if not require(handler, [
         "[PacketHandler(CH22Type.KingdomQuestStatusReq)]",
         "KingdomQuestProtocol.CreateStatusAck(state)",
+        "[PacketHandler(CH22Type.KingdomQuestJoinListReq)]",
+        "packet.TryReadUInt(out handle)",
+        "KingdomQuestJoinListReplyRegistry.TryGet(handle, out error)",
+        "KingdomQuestParticipantRegistry.TryGet(handle, out participants)",
+        "KingdomQuestProtocol.CreateJoinListAck(error, participants)",
         "[PacketHandler(CH22Type.KingdomQuestListRefreshReq)]",
         "KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now)",
         "KingdomQuestDefinitionRegistry.Snapshot()",
@@ -233,12 +243,24 @@ def main():
             print("FAIL: KQ definition registry invents runtime scheduling/routing:", forbidden)
             return 1
 
+    if not require(join_list_reply, [
+        "Dictionary<uint, ushort>",
+        "ErrorByHandle[handle] = error;",
+        "ErrorByHandle.TryGetValue(handle, out error)",
+    ], "explicit JOIN_LIST_ACK error registry"):
+        return 1
+
+    if "0x0991" in join_list_reply or "return 0;" in join_list_reply:
+        print("FAIL: JOIN_LIST_ACK error value was guessed")
+        return 1
+
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ LIST_TIME_ACK is full 40-byte body, not legacy 4-byte stub")
     print("PASS: PROTO_KQ_INFO_CLIENT=141 and PROTO_KQ_INFO=377 serializers are explicit")
     print("PASS: NC_KQ_JOIN_LIST_ACK uses native 23-byte KQ_JOIN_CHAR_INFO entries")
     print("PASS: join-cancel/team-select/team-type/disjoin wire layouts are source-level named")
+    print("PASS: JOIN_LIST_REQ is live only when its native ushort Error is explicitly supplied")
     print("PASS: complete KQ client definitions can be stored without scheduler inference")
     print("PASS: LIST_REFRESH serializes only entries supplied by the source-owned definition registry")
     print("PASS: KQ join remains disabled until admission/session rules are source-backed")

@@ -28,6 +28,29 @@ namespace NextGen.World.Handlers
                 client.SendPacket(response);
         }
 
+        [PacketHandler(CH22Type.KingdomQuestJoinListReq)]
+        public static void KingdomQuestJoinList(WorldClient client, Packet packet)
+        {
+            uint handle;
+            if (!packet.TryReadUInt(out handle))
+                return;
+
+            ushort error;
+            System.Collections.Generic.IReadOnlyList<
+                NextGen.FiestaLib.Data.KingdomQuestJoinCharacterInfo> participants;
+            if (!KingdomQuestJoinListReplyRegistry.TryGet(handle, out error) ||
+                !KingdomQuestParticipantRegistry.TryGet(handle, out participants))
+            {
+                Log.WriteLine(LogLevel.Debug,
+                    "KQ join-list requested for unresolved handle/error {0}.", handle);
+                return;
+            }
+
+            using (Packet response =
+                KingdomQuestProtocol.CreateJoinListAck(error, participants))
+                client.SendPacket(response);
+        }
+
         [PacketHandler(CH22Type.KingdomQuestListRefreshReq)]
         public static void KingdomQuestListRefresh(WorldClient client, Packet packet)
         {
