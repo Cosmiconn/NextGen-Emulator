@@ -63,8 +63,9 @@ namespace NextGen.World.Data
                     return false;
 
                 var updated = current.Select(v => v.Clone()).ToList();
+                uint targetCharacterNumber = characterNumber;
                 int index = updated.FindIndex(
-                    v => v.CharacterNumber == characterNumber);
+                    v => v.CharacterNumber == targetCharacterNumber);
                 if (index < 0)
                     return false;
 
