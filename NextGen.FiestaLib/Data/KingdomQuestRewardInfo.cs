@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NextGen.FiestaLib.Networking;
 
 namespace NextGen.FiestaLib.Data
 {
@@ -156,10 +157,112 @@ namespace NextGen.FiestaLib.Data
     public static class KingdomQuestRewardProtocolConstants
     {
         public const ushort RewardRequestOpCode = 0x5815;
+        public const ushort RewardSuccessAckOpCode = 0x5816;
+        public const ushort RewardFailAckOpCode = 0x5817;
+
         public const int NetPacketZoneHeaderSize = 6;
         public const int ItemCreateRequestBaseSize = 23;
         public const int RewardRequestPayloadBaseSize = 35;
         public const int RewardSuccessAckSize = 8;
         public const int RewardFailAckSize = 10;
+    }
+
+    /// <summary>
+    /// Original PROTO_NC_KQ_REWARDSUC_ACK payload. GameDBSession validates
+    /// ClientHandle -> player and CharacterNumber before forwarding LockIndex
+    /// to the player's item-store transaction path.
+    /// </summary>
+    public sealed class KingdomQuestRewardSuccessAckInfo
+    {
+        public const int WireSize = 8;
+
+        public ushort ClientHandle { get; private set; }
+        public uint CharacterNumber { get; private set; }
+        public ushort LockIndex { get; private set; }
+
+        public void Write(Packet packet)
+        {
+            if (packet == null) throw new ArgumentNullException("packet");
+            packet.WriteUShort(ClientHandle);
+            packet.WriteUInt(CharacterNumber);
+            packet.WriteUShort(LockIndex);
+        }
+
+        public static bool TryRead(
+            Packet packet, out KingdomQuestRewardSuccessAckInfo value)
+        {
+            value = null;
+            if (packet == null || packet.Remaining < WireSize)
+                return false;
+
+            ushort clientHandle;
+            uint characterNumber;
+            ushort lockIndex;
+            if (!packet.TryReadUShort(out clientHandle) ||
+                !packet.TryReadUInt(out characterNumber) ||
+                !packet.TryReadUShort(out lockIndex))
+                return false;
+
+            value = new KingdomQuestRewardSuccessAckInfo
+            {
+                ClientHandle = clientHandle,
+                CharacterNumber = characterNumber,
+                LockIndex = lockIndex,
+            };
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Original PROTO_NC_KQ_REWARDFAIL_ACK payload. The Error field is
+    /// preserved byte-for-byte, although the recovered Zone
+    /// GameDBSession::gds_NC_KQ_REWARDFAIL_ACK handler does not read it; after
+    /// validating player identity it forwards only LockIndex to the distinct
+    /// item-store failure/rollback transaction path.
+    /// </summary>
+    public sealed class KingdomQuestRewardFailAckInfo
+    {
+        public const int WireSize = 10;
+
+        public ushort ClientHandle { get; private set; }
+        public uint CharacterNumber { get; private set; }
+        public ushort LockIndex { get; private set; }
+        public ushort Error { get; private set; }
+
+        public void Write(Packet packet)
+        {
+            if (packet == null) throw new ArgumentNullException("packet");
+            packet.WriteUShort(ClientHandle);
+            packet.WriteUInt(CharacterNumber);
+            packet.WriteUShort(LockIndex);
+            packet.WriteUShort(Error);
+        }
+
+        public static bool TryRead(
+            Packet packet, out KingdomQuestRewardFailAckInfo value)
+        {
+            value = null;
+            if (packet == null || packet.Remaining < WireSize)
+                return false;
+
+            ushort clientHandle;
+            uint characterNumber;
+            ushort lockIndex;
+            ushort error;
+            if (!packet.TryReadUShort(out clientHandle) ||
+                !packet.TryReadUInt(out characterNumber) ||
+                !packet.TryReadUShort(out lockIndex) ||
+                !packet.TryReadUShort(out error))
+                return false;
+
+            value = new KingdomQuestRewardFailAckInfo
+            {
+                ClientHandle = clientHandle,
+                CharacterNumber = characterNumber,
+                LockIndex = lockIndex,
+                Error = error,
+            };
+            return true;
+        }
     }
 }

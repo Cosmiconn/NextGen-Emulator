@@ -1328,9 +1328,24 @@ The same function constructs native `NC_KQ_REWARD_REQ` opcode `0x5815`.
 Its fixed payload base is 35 bytes: `u32 fame + u64 cen` plus the 23-byte
 base of `PROTO_NC_ITEMDB_CREATEITEMLIST_REQ`, followed by its variable item
 list. PDB sizes also close `REWARDSUC_ACK` at 8 bytes and
-`REWARDFAIL_ACK` at 10 bytes. These sizes/constants are modeled, but no
-GameDB-equivalent send/ACK path is activated before item generation,
-persistence, and the scenario completion trigger are source-equivalent.
+`REWARDFAIL_ACK` at 10 bytes. Their exact native opcodes are `0x5816`
+and `0x5817`. Both begin with the six-byte `NETPACKETZONEHEADER`
+(`u16 clienthandle + u32 charregistnumber`), followed by `u16 lockindex`;
+FAIL appends `u16 error`.
+
+The original Zone ACK handlers additionally close the transaction identity
+boundary. Both resolve `clienthandle` back to a player and require the
+player's CharacterNumber to equal the ACK `charregistnumber` before touching
+the item store. Success passes the ACK LockIndex into one item-store virtual
+transaction method; Fail passes the same LockIndex into a different virtual
+method. Their exact method names/commit semantics are still unresolved from
+PDB types, so the emulator does not label or invoke them yet. Importantly,
+the FAIL handler never reads its trailing `error` field; the field remains
+modeled because it is still part of the native wire structure.
+
+These packet structures are modeled byte-for-byte, but no GameDB-equivalent
+send/ACK path is activated before item generation, transaction persistence,
+and the scenario completion trigger are source-equivalent.
 
 
 ## Zone MAKE result branches recovered

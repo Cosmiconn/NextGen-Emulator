@@ -248,11 +248,21 @@ later types are not promoted to KQ behavior without another native path.
 
 Zone builds `NC_KQ_REWARD_REQ` with opcode `0x5815`. Its fixed payload
 base is 35 bytes (`u32 fame + u64 cen + 23-byte item-create request base`)
-before the variable item list. Native reward-success and reward-fail ACK
-structures are 8 and 10 bytes respectively. No live grant/GameDB path is
-enabled yet because the exact ShineReward source must be imported into the
-runtime and the existing item-generation/persistence boundary must be
-correlated before mutation.
+before the variable item list. Native `REWARDSUC_ACK=0x5816` is exactly
+8 payload bytes and `REWARDFAIL_ACK=0x5817` exactly 10:
+`u16 clienthandle + u32 charregistnumber + u16 lockindex`, with FAIL adding
+`u16 error`.
+
+Both original GameDB ACK handlers resolve and validate the player identity
+before applying the LockIndex to the player's item-store object. Success and
+Fail call different item-store virtual methods. Their symbolic method names
+remain unresolved, so no commit/rollback label is invented in code. The
+FAIL handler does not read the packet's Error field at all; the emulator still
+preserves it in the native structure.
+
+No live grant/GameDB path is enabled yet because the exact ShineReward source
+must be loaded into the runtime and the item-generation/transaction boundary
+must be source-correlated before mutation.
 
 
 ## Original World ↔ Zone KQ lifecycle wire
