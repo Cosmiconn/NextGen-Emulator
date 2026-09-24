@@ -13,6 +13,7 @@ RATES = ROOT / "sql/data/data_kqvotemajorityrate.sql"
 DESC = ROOT / "sql/data/data_kingdomquestdesc.sql"
 DP = ROOT / "NextGen.World/Data/DataProvider.cs"
 TOOL = ROOT / "tools/KingdomQuestSourceDump/Program.cs"
+WORLD_MANIFEST = ROOT / "NextGen.World/Data/KingdomQuestSourceManifestInfo.cs"
 ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 
 EXPECTED_MAPS = {
@@ -30,7 +31,7 @@ def data_rows(path):
             if line.lstrip().startswith('(')]
 
 def main():
-    for path in (MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL, ZONE_CHARACTER):
+    for path in (MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL, WORLD_MANIFEST, ZONE_CHARACTER):
         if not path.is_file():
             print('FAIL: missing', path)
             return 1
@@ -55,6 +56,8 @@ def main():
         return 1
 
     provider = DP.read_text(encoding='utf-8')
+    world_provider = provider
+    world_manifest = WORLD_MANIFEST.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
