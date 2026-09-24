@@ -20,10 +20,6 @@ namespace NextGen.World.Data
             if (source == null) throw new ArgumentNullException("source");
             if (target == null) throw new ArgumentNullException("target");
             if (source.ID < 0) throw new InvalidOperationException("Negative KQ source ID.");
-            if (source.RewardIndex > ushort.MaxValue)
-                throw new InvalidOperationException("KQ RewardIndex exceeds native ushort field.");
-            if (source.DemandGender < 0)
-                throw new InvalidOperationException("Negative KQ DemandGender.");
 
             target.ID = (ushort)source.ID;
             target.Title = source.Title ?? string.Empty;
@@ -39,7 +35,13 @@ namespace NextGen.World.Data
             target.PlayerRevivalCount = source.PlayerRevivalCount;
             target.DemandQuest = source.DemandQuest;
             target.DemandItem = source.DemandItem;
-            target.DemandGender = (byte)source.DemandGender;
+
+            // WorldManager.exe 0x45580F..0x45582F (CKQServer::AddNewScheduleList)
+            // reads both signed SHN bytes as raw bytes and packs the protocol
+            // field as (Undefined3 * 2) + DemandGender, with byte overflow.
+            target.DemandGender = unchecked((byte)(
+                unchecked((byte)source.Undefined3) * 2 +
+                unchecked((byte)source.DemandGender)));
 
             target.NextStartMode = source.NextStartMode;
 
@@ -51,7 +53,8 @@ namespace NextGen.World.Data
 
             target.RepeatMode = source.RepeatMode;
             target.RepeatCount = source.RepeatCount;
-            target.RewardIndex = (ushort)source.RewardIndex;
+            // The original AddNewScheduleList reads only WORD [KINGDOM_QUEST+0x62].
+            target.RewardIndex = unchecked((ushort)source.RewardIndex);
             target.DemandMobKill = source.DemandMobKill;
             target.ScriptLanguage = source.ScriptLanguage ?? string.Empty;
 

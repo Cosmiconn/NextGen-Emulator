@@ -19,6 +19,7 @@ ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 WORLD_SNAPSHOT = ROOT / "NextGen.World/Data/KingdomQuestSourceSnapshot.cs"
 WORLD_SOURCE_ROWS = ROOT / "NextGen.World/Data/KingdomQuestSourceRows.cs"
 WORLD_SOURCE_PROJECTION = ROOT / "NextGen.World/Data/KingdomQuestSourceProjection.cs"
+WORLD_SOURCE_SCHEDULER = ROOT / "NextGen.World/Data/KingdomQuestSourceScheduler.cs"
 RAW_SOURCES = {
     "KingdomQuest": (
         ROOT / "sql/data/data_kq_source_10_kingdomquest.sql",
@@ -74,7 +75,7 @@ def main():
     required_files = [
         MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
-        WORLD_SOURCE_PROJECTION,
+        WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -158,6 +159,7 @@ def main():
     world_snapshot = WORLD_SNAPSHOT.read_text(encoding='utf-8')
     world_source_rows = WORLD_SOURCE_ROWS.read_text(encoding='utf-8')
     world_source_projection = WORLD_SOURCE_PROJECTION.read_text(encoding='utf-8')
+    world_source_scheduler = WORLD_SOURCE_SCHEDULER.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
@@ -285,11 +287,44 @@ def main():
         'target.ID = (ushort)source.ID',
         'target.NextStartDelayMin = source.NextStartDeleyMin',
         'target.ScriptInitValue = source.InitValue',
-        'target.RewardIndex = (ushort)source.RewardIndex',
+        'target.RewardIndex = unchecked((ushort)source.RewardIndex)',
+        'source.Undefined3) * 2',
+        'source.DemandGender',
         'target.DemandMobKill = source.DemandMobKill',
     ):
         if token not in world_source_projection:
             print('FAIL: proven KQ source projection missing', token)
+            return 1
+
+    for token in (
+        'ScheduleWindowSize = 2',
+        'source.ST_Day - 1',
+        '.AddHours(source.ST_Hour)',
+        '.AddMinutes(source.ST_Minute)',
+        'source.NextStartDeleyMin',
+        'while (next < currentMinute)',
+        'Status = 0',
+        'NumOfJoiner = 0',
+        'StartTime = time32',
+        'ScheduleTime = time32',
+        'DemandClass = demandClass',
+        'team.ID != result.ID',
+        'result.IsTeamPvp = team.IsTeamPvp',
+        'team.RegenXRed',
+        'team.RegenYBlue',
+    ):
+        if token not in world_source_scheduler:
+            print('FAIL: PDB/EXE-bounded KQ scheduler projection missing', token)
+            return 1
+
+    for forbidden in (
+        'source.ST_Year',
+        'source.ST_Month',
+        'source.ST_Second',
+    ):
+        scheduler_logic = world_source_scheduler.split('public static IReadOnlyList<DateTime> GetNextScheduleTimes', 1)[1]
+        if forbidden in scheduler_logic.split('public static KingdomQuestProtocolInfo CreateScheduledDefinition', 1)[0]:
+            print('FAIL: original DoSchedule-ignored KQ source time field became active', forbidden)
             return 1
 
     for forbidden in (
@@ -339,7 +374,9 @@ def main():
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
-    print('PASS: static KQ source projection maps only PDB-correlated fields; dynamic/admission/map/team fields remain excluded')
+    print('PASS: static KQ source projection maps PDB/EXE-correlated fields including packed DemandGender')
+    print('PASS: KQ scheduler primitive reproduces current-month/day-hour-minute + minute-step two-entry window from WorldManager.exe')
+    print('PASS: scheduled definition projection reproduces initial handle/status/time/team fields while handle ownership remains external')
     print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
     print('PASS: KingdomQuest.shn coverage compares only exact PDB field names; no SHN aliases are inferred')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')

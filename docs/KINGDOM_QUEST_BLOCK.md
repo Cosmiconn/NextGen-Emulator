@@ -491,3 +491,56 @@ The mapper is CI-forbidden from assigning:
 
 Those fields require the original scheduler/admission/map/team behavior and are
 not filled with defaults disguised as semantics.
+
+
+## Original WorldManager scheduler recovered
+
+The supplied NA2016 `WorldManager.exe` and PDB now close the basic schedule
+calculation without field-name inference.
+
+PDB procedure records resolve:
+
+```text
+CKQServer::GetNextScheduleTime  .text+0x51160
+CKQServer::AddNewScheduleList   .text+0x545D0
+CKQServer::DoSchedule           .text+0x54E40
+CharClassDataBox::ccdb_UseClassTypeToBit .text+0x64A90
+```
+
+The matching executable path proves that `DoSchedule` builds the candidate
+`tm` from source `ST_Day/ST_Hour/ST_Minute`, but copies the current local
+month/year and zeroes seconds. `ST_Year`, `ST_Month` and `ST_Second` are
+not read on this path. It passes source `NextStartDeleyMin` directly to
+`GetNextScheduleTime`.
+
+`GetNextScheduleTime` advances the candidate by that many `tm_min` minutes
+until it is at-or-after the current minute, then emits exactly two consecutive
+schedule entries. `KingdomQuestSourceScheduler.GetNextScheduleTimes` now
+models only that proven behavior; it does not publish entries or own handles.
+
+`AddNewScheduleList` further proves that a newly materialized
+`PROTO_KQ_INFO` starts with status/joiner count zero and uses the same
+`time32/localtime` value for both StartTime/tm_StartTime and
+ScheduleTime/tm_ScheduleTime. The scheduler projection accepts an externally
+resolved DemandClass and handle, because ownership of those inputs is separate.
+
+The same executable also corrects one earlier partial mapping:
+
+```text
+PROTO_KQ_INFO.DemandGender =
+    byte(KINGDOM_QUEST.Undefined3 * 2 + KINGDOM_QUEST.DemandGender)
+```
+
+and reads only the low 16 bits of source RewardIndex. The projection now follows
+those byte/word operations exactly.
+
+Finally, `AddNewScheduleList` calls `GetKQTeamData(KINGDOM_QUEST::ID)` and
+copies only IsTeamPVP plus red/blue regen XY into the native definition, or
+zeroes those fields when no KQTeam row exists. Team divide semantics remain
+UNRESOLVED and are not used here.
+
+DemandClass is still deliberately external to the scheduler projection:
+the EXE proves that source UseClass is passed through
+`ccdb_UseClassTypeToBit`, and the supplied `UseClassTypeInfo.shn` is the
+authoritative conversion table. That dependency must be imported/correlated
+before live list publication; no class mask is guessed.
