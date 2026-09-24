@@ -23,6 +23,9 @@ FILES = {
     "kq_protocol_defs": ROOT / "NextGen.World/Data/KingdomQuestProtocolDefinitionRegistry.cs",
     "kq_participants": ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs",
     "kq_zone_joiners": ROOT / "NextGen.World/Data/KingdomQuestZoneJoinerRegistry.cs",
+    "kq_zone_runtime": ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs",
+    "zone_inter": ROOT / "NextGen.Zone/InterServer/InterHandler.cs",
+    "world_zone_connection": ROOT / "NextGen.World/InterServer/ZoneConnection.cs",
 }
 
 def need(text, tokens, label):
@@ -122,7 +125,45 @@ def main():
         "client.Character.ChangeMap(mapId, x, y, mapInstance);",
     ], "Zone KQ transfer dispatch"):
         return 1
-    if not need(c["inter_header"], ["KingdomQuestTransfer = 0x4004"], "internal KQ inter-server opcode"):
+    if not need(c["inter_header"], [
+        "KingdomQuestTransfer = 0x4004",
+        "KingdomQuestMake = 0x4005",
+        "KingdomQuestStart = 0x4006",
+        "KingdomQuestEnd = 0x4007",
+        "KingdomQuestDestroy = 0x4008",
+    ], "internal KQ inter-server opcodes"):
+        return 1
+    if not need(c["kq_zone_runtime"], [
+        "KingdomQuestZoneLifecycleState",
+        "KingdomQuestProtocolInfo.TryRead(reader, out clone)",
+        "DataProvider.Instance.MapsByID.TryGetValue(mapId, out mapInfo)",
+        "MapManager.Instance.GetMap(mapInfo, mapInstance)",
+        "KingdomQuestZoneLifecycleState.Made",
+        "KingdomQuestZoneLifecycleState.Started",
+        "KingdomQuestZoneLifecycleState.Ended",
+    ], "Zone-local native KQ lifecycle state"):
+        return 1
+    if not need(c["world_zone_connection"], [
+        "KingdomQuestServerProtocol.TryCreateMakeRequest(handle, out native)",
+        "KingdomQuestServerProtocol.TryCreateStart(handle, out native)",
+        "new InterPacket(InterHeader.KingdomQuestMake)",
+        "new InterPacket(InterHeader.KingdomQuestStart)",
+        "new InterPacket(InterHeader.KingdomQuestEnd)",
+        "new InterPacket(InterHeader.KingdomQuestDestroy)",
+    ], "World -> Zone KQ lifecycle transport"):
+        return 1
+    if not need(c["zone_inter"], [
+        "[InterPacketHandler(InterHeader.KingdomQuestMake)]",
+        "[InterPacketHandler(InterHeader.KingdomQuestStart)]",
+        "[InterPacketHandler(InterHeader.KingdomQuestEnd)]",
+        "[InterPacketHandler(InterHeader.KingdomQuestDestroy)]",
+        "native.OpCode != 0x580D",
+        "native.OpCode != 0x580F",
+        "KingdomQuestProtocolInfo.TryRead(native, out definition)",
+        "KingdomQuestZoneJoinerInfo.TryRead(native, out joiner)",
+        "TryReadHandleOnlyNativeKqPacket(packet, 0x5810, out handle)",
+        "TryReadHandleOnlyNativeKqPacket(packet, 0x5811, out handle)",
+    ], "Zone lifecycle native-body parser"):
         return 1
     if not need(c["kq_protocol_defs"], [
         "Dictionary<uint, KingdomQuestProtocolInfo>",
@@ -208,6 +249,8 @@ def main():
     print("PASS: full 377-byte PROTO_KQ_INFO stays source-owned for later native Zone lifecycle")
     print("PASS: KQ participant roster preserves native Level/Class/Name5/Team fields")
     print("PASS: World -> Zone KQ roster stores only explicit CharacterNumber/TeamType pairs")
+    print("PASS: internal MAKE/START/END/DESTROY transport carries and validates native NC_KQ bodies")
+    print("PASS: Zone KQ lifecycle uses explicit Handle/MapID/Map.InstanceID without allocation inference")
     print("PASS: explicit status/participant mutations keep list, STATUS_ACK and JOIN_LIST state synchronized")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0

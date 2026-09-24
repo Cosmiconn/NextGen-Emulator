@@ -6,6 +6,7 @@ using NextGen.FiestaLib.Data;
 using NextGen.InterLib.Networking;
 using NextGen.Util;
 using NextGen.World.Data;
+using NextGen.World.Handlers;
 
 namespace NextGen.World.InterServer
 {
@@ -158,6 +159,70 @@ namespace NextGen.World.InterServer
                 this.SendPacket(packet);
             }
         }
+        public bool SendKingdomQuestMake(uint handle)
+        {
+            KingdomQuestSessionTarget target;
+            if (!KingdomQuestSessionTargetRegistry.TryGet(handle, out target))
+                return false;
+
+            Packet native;
+            if (!KingdomQuestServerProtocol.TryCreateMakeRequest(handle, out native))
+                return false;
+
+            using (native)
+            using (var packet = new InterPacket(InterHeader.KingdomQuestMake))
+            {
+                byte[] body = native.ToNormalArray();
+                packet.WriteUShort(target.MapID);
+                packet.WriteShort(target.MapInstance);
+                packet.WriteInt(body.Length);
+                packet.WriteBytes(body);
+                SendPacket(packet);
+                return true;
+            }
+        }
+
+        public bool SendKingdomQuestStart(uint handle)
+        {
+            Packet native;
+            if (!KingdomQuestServerProtocol.TryCreateStart(handle, out native))
+                return false;
+
+            using (native)
+            using (var packet = new InterPacket(InterHeader.KingdomQuestStart))
+            {
+                byte[] body = native.ToNormalArray();
+                packet.WriteInt(body.Length);
+                packet.WriteBytes(body);
+                SendPacket(packet);
+                return true;
+            }
+        }
+
+        public void SendKingdomQuestEnd(uint handle)
+        {
+            using (Packet native = KingdomQuestServerProtocol.CreateEnd(handle))
+            using (var packet = new InterPacket(InterHeader.KingdomQuestEnd))
+            {
+                byte[] body = native.ToNormalArray();
+                packet.WriteInt(body.Length);
+                packet.WriteBytes(body);
+                SendPacket(packet);
+            }
+        }
+
+        public void SendKingdomQuestDestroy(uint handle)
+        {
+            using (Packet native = KingdomQuestServerProtocol.CreateDestroy(handle))
+            using (var packet = new InterPacket(InterHeader.KingdomQuestDestroy))
+            {
+                byte[] body = native.ToNormalArray();
+                packet.WriteInt(body.Length);
+                packet.WriteBytes(body);
+                SendPacket(packet);
+            }
+        }
+
         public void SendKingdomQuestTransferRequest(string characterName,
             ushort mapId, short mapInstance, int x, int y)
         {

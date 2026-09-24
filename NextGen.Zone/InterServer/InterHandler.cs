@@ -12,6 +12,125 @@ namespace NextGen.Zone.InterServer
 {
 	public sealed class InterHandler
 	{
+        [InterPacketHandler(InterHeader.KingdomQuestMake)]
+        public static void HandleKingdomQuestMake(WorldConnector connector, InterPacket packet)
+        {
+            ushort mapId;
+            short mapInstance;
+            byte[] nativeBytes;
+            if (!TryReadNativeKqPacket(packet, out nativeBytes, out mapId, out mapInstance))
+                return;
+
+            using (var native = new Packet(nativeBytes))
+            {
+                KingdomQuestProtocolInfo definition;
+                if (native.OpCode != 0x580D ||
+                    !KingdomQuestProtocolInfo.TryRead(native, out definition) ||
+                    native.Remaining != 0 ||
+                    !KingdomQuestZoneRuntimeRegistry.TryMake(
+                        definition, mapId, mapInstance))
+                {
+                    Log.WriteLine(LogLevel.Warn,
+                        "Rejected KQ MAKE for map {0} instance {1}.", mapId, mapInstance);
+                }
+            }
+        }
+
+        [InterPacketHandler(InterHeader.KingdomQuestStart)]
+        public static void HandleKingdomQuestStart(WorldConnector connector, InterPacket packet)
+        {
+            byte[] nativeBytes;
+            if (!TryReadNativeKqPacket(packet, out nativeBytes))
+                return;
+
+            using (var native = new Packet(nativeBytes))
+            {
+                KingdomQuestProtocolInfo definition;
+                ushort count;
+                if (native.OpCode != 0x580F ||
+                    !KingdomQuestProtocolInfo.TryRead(native, out definition) ||
+                    !native.TryReadUShort(out count))
+                    return;
+
+                var joiners = new List<KingdomQuestZoneJoinerInfo>(count);
+                for (int i = 0; i < count; i++)
+                {
+                    KingdomQuestZoneJoinerInfo joiner;
+                    if (!KingdomQuestZoneJoinerInfo.TryRead(native, out joiner))
+                        return;
+                    joiners.Add(joiner);
+                }
+
+                if (native.Remaining != 0 ||
+                    !KingdomQuestZoneRuntimeRegistry.TryStart(definition, joiners))
+                    Log.WriteLine(LogLevel.Warn,
+                        "Rejected KQ START for handle {0}.", definition.Handle);
+            }
+        }
+
+        [InterPacketHandler(InterHeader.KingdomQuestEnd)]
+        public static void HandleKingdomQuestEnd(WorldConnector connector, InterPacket packet)
+        {
+            uint handle;
+            if (!TryReadHandleOnlyNativeKqPacket(packet, 0x5810, out handle))
+                return;
+
+            if (!KingdomQuestZoneRuntimeRegistry.TryEnd(handle))
+                Log.WriteLine(LogLevel.Warn, "Rejected KQ END for handle {0}.", handle);
+        }
+
+        [InterPacketHandler(InterHeader.KingdomQuestDestroy)]
+        public static void HandleKingdomQuestDestroy(WorldConnector connector, InterPacket packet)
+        {
+            uint handle;
+            if (!TryReadHandleOnlyNativeKqPacket(packet, 0x5811, out handle))
+                return;
+
+            if (!KingdomQuestZoneRuntimeRegistry.Remove(handle))
+                Log.WriteLine(LogLevel.Warn, "Rejected KQ DESTROY for handle {0}.", handle);
+        }
+
+        private static bool TryReadNativeKqPacket(InterPacket packet, out byte[] nativeBytes)
+        {
+            nativeBytes = null;
+            int length;
+            return packet != null &&
+                packet.TryReadInt(out length) &&
+                length >= 2 &&
+                packet.TryReadBytes(length, out nativeBytes) &&
+                packet.Remaining == 0;
+        }
+
+        private static bool TryReadNativeKqPacket(InterPacket packet, out byte[] nativeBytes,
+            out ushort mapId, out short mapInstance)
+        {
+            nativeBytes = null;
+            mapId = 0;
+            mapInstance = 0;
+            int length;
+            return packet != null &&
+                packet.TryReadUShort(out mapId) &&
+                packet.TryReadShort(out mapInstance) &&
+                packet.TryReadInt(out length) &&
+                length >= 2 &&
+                packet.TryReadBytes(length, out nativeBytes) &&
+                packet.Remaining == 0;
+        }
+
+        private static bool TryReadHandleOnlyNativeKqPacket(
+            InterPacket packet, ushort expectedOpcode, out uint handle)
+        {
+            handle = 0;
+            byte[] nativeBytes;
+            if (!TryReadNativeKqPacket(packet, out nativeBytes))
+                return false;
+
+            using (var native = new Packet(nativeBytes))
+                return native.OpCode == expectedOpcode &&
+                    native.TryReadUInt(out handle) &&
+                    native.Remaining == 0;
+        }
+
         [InterPacketHandler(InterHeader.KingdomQuestTransfer)]
         public static void HandleKingdomQuestTransfer(WorldConnector connector, InterPacket packet)
         {

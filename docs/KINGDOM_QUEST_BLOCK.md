@@ -403,3 +403,27 @@ Level/Class/Name5/Team roster. No name lookup, Character.ID assumption, party
 lookup or automatic team assignment exists in this registry.
 
 Session removal clears this server-side roster as well.
+
+
+## Native World→Zone lifecycle carried by emulator transport
+
+The custom inter-server connection can now transport the already-modeled native
+KQ lifecycle without defining a second KQ schema:
+
+- World builds the exact original `NC_KQ_W2Z_MAKE_REQ (0x580D)` or
+  `NC_KQ_W2Z_START_CMD (0x580F)` bytes;
+- the internal message adds only the already-explicit emulator MapID and
+  `Map.InstanceID` needed for MAKE;
+- Zone reconstructs a normal Fiesta `Packet`, validates its original opcode,
+  and parses the 377-byte `PROTO_KQ_INFO` / 5-byte joiner records with the
+  shared native parsers;
+- END and DESTROY likewise carry their exact original handle-only packet body.
+
+`KingdomQuestZoneRuntimeRegistry` creates the exact requested map instance via
+`MapManager.GetMap(mapInfo, mapInstance)` and tracks Made/Started/Ended state.
+
+This transport still does **not** decide when MAKE succeeds, invent
+`Z2W_MAKE_ACK.Error`, allocate a Handle/MapInstance, choose teams or admit
+players. No scheduler currently invokes these send methods automatically; they
+are the validated World→Zone execution boundary for the later authoritative
+session owner.
