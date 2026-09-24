@@ -642,8 +642,8 @@ enters the same Status-3/10-second countdown.
 For KQTeamDivideType 2, KQTeam_CanKQStart requires both native team counters
 to be nonzero and rejects a team-size difference greater than MaxMemberGap,
 using SetDoneSkip reasons 2/3 respectively. Other divide types bypass those
-team-count gates. The later sections below document the now-live MAKE and
-DoSetStart boundaries; post-countdown start remains UNRESOLVED.
+team-count gates. The later sections below document the now-live MAKE, DoSetStart and
+post-countdown START boundaries.
 
 
 ## Live source scheduler publication

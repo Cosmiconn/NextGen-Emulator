@@ -593,7 +593,7 @@ def main():
         'currentTime32 < countdownEndsAt',
         'KingdomQuestNativeConstants.StatusRunning',
         'KingdomQuestRandomTeamDivider.Apply(',
-        'KingdomQuestSessionCoordinator.TrySetMembership',
+        'TrySetMembership(handle, updated)',
     ):
         if token not in world_session:
             print('FAIL: synchronized Status-3 -> Status-4 transition missing', token)
