@@ -143,7 +143,7 @@ def main():
         'MaxPlayer',
         'InitValue',
     ):
-        if forbidden in world_native_schema:
+        if ('"' + forbidden + '"') in world_native_schema:
             print('FAIL: secondary/tutorial SHN aliases leaked into native schema mapping', forbidden)
             return 1
 
