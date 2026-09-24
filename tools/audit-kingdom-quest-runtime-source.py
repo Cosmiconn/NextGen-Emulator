@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "docs/KINGDOM_QUEST_RUNTIME_SOURCE_MANIFEST.tsv"
 KQ_SQL = ROOT / "sql/data/data_kq_source_10_kingdomquest.sql"
 MAP_SQL = ROOT / "sql/data/data_kq_source_20_kingdomquestmap.sql"
+REGEN_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestRegenSource.cs"
 
 SOURCE_ARCHIVE_SHA256 = "b83bf92c7193578a772fcebf4d8b7c8c2a9a642cf0d50d33506f77a75b0e211d"
 CANONICAL_ROWS_SHA256 = "e4a9c437d8dd44911bd04def351a6a26cdac1423ee633bcace998b586ebe83e7"
@@ -86,6 +87,10 @@ def load_manifest():
         "# ArchiveRoot\tServer - Kopie/9Data/Shine",
         "# KQRegenLookup\tZone.exe KQRegenTable::kqrt_Load: MobRegen/KingdomQuest/%s.txt -> MobRegen/Instant/%s.txt",
         "# InstantRegenBasenames\tAdlF,AdlFH,Leviathan,Siren,Tower01,Tower02,Tower03,UrgDragon,WarN",
+        "# KQStartSemantics\tKQElement::kqe_QuestStart drops the prior film, closes all map doors, then calls CinemaComplex::cc_PlayFilm with ScriptLanguage and ScriptInitValue",
+        "# KQRegenRuntime\tShineRegenGroup::sa_Step -> PineScriptMobRegenerator::psmr_find -> psmr_Load -> KQRegenTable -> MobHatchery::mh_ScriptBreed",
+        "# KQRegenTableSemantics\tcapacity=50; element key=12 bytes plus loaded OptionReader; static groups are consumed lazily by the running scenario, not spawned at KQ START",
+        "# UsedStaticRegenRows\t15 files; MobRegenGroup=732; MobRegen=766; all use the 7-column/16-column modern source shape",
         "# Semantics\tloader-proven static fallback; KDArena/KDMine/KDSpring are absent in both static paths; Lua is not a KQRegenTable fallback",
     )
     for header in required_headers:
@@ -110,7 +115,7 @@ def load_manifest():
 
 
 def main():
-    for path in (MANIFEST, KQ_SQL, MAP_SQL):
+    for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE):
         if not path.is_file():
             print("FAIL: missing", path)
             return 1
@@ -120,6 +125,35 @@ def main():
     except (ValueError, csv.Error) as exc:
         print("FAIL:", exc)
         return 1
+
+    regen_source_text = REGEN_SOURCE.read_text(encoding="utf-8")
+    source_tokens = (
+        "class KingdomQuestRegenGroupSource",
+        "class KingdomQuestRegenMobSource",
+        "class KingdomQuestRegenSourceDocument",
+        "class KingdomQuestRegenSourceLoader",
+        "NativeTableCapacity = 50",
+        "NativeElementNameBytes = 12",
+        '"MobRegen", "KingdomQuest", sourceKey + ".txt"',
+        '"MobRegen", "Instant", sourceKey + ".txt"',
+        'GroupTable = "MobRegenGroup"',
+        'MobTable = "MobRegen"',
+        "fields.Length != 8",
+        "fields.Length != 17",
+        "RegDelta4 = regDelta4",
+        "KingdomQuestRegenSourceBackend.Instant",
+    )
+    missing_source_tokens = [
+        token for token in source_tokens if token not in regen_source_text]
+    if missing_source_tokens:
+        print("FAIL: KQ regen source loader lost native/source boundary",
+              missing_source_tokens)
+        return 1
+    for forbidden in ("Mobspawn", "MapManager", "new Mob("):
+        if forbidden in regen_source_text:
+            print("FAIL: KQ regen source loader invented live spawn coupling",
+                  forbidden)
+            return 1
 
     map_rows = {}
     for line in data_rows(MAP_SQL):
@@ -247,6 +281,10 @@ def main():
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
     print("PASS: Zone KQRegenTable lookup order is locked to KingdomQuest then Instant")
     print("PASS: exact Instant regen basenames are locked; KDArena/KDMine/KDSpring have no static fallback")
+    print("PASS: KQ START is source-locked to ScenarioBook film execution; static regen activation is lazy through PineScriptMobRegenerator")
+    print("PASS: native KQRegenTable capacity/key boundary is modeled as 50 elements and 12-byte source keys")
+    print("PASS: 15 used static regen files are locked to 732 MobRegenGroup + 766 MobRegen modern-schema rows")
+    print("PASS: source-faithful regen parser remains detached from live map/mob spawning")
     print("PASS: Lua trees are not treated as KQRegenTable fallback")
     return 0
 

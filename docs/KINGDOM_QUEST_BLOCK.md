@@ -1190,6 +1190,53 @@ Therefore those three used KQ base maps have no static `KQRegenTable`
 source in either original lookup directory. Their Lua trees are a separate
 runtime source family and are **not** an implicit fallback in this loader.
 
+### Native START -> ScenarioBook -> regen execution boundary
+
+The original Zone runtime does **not** turn a KQ START into an unconditional
+static mob load. `KingdomQuest::KQElement::kqe_QuestStart` walks the four
+native KQ map slots. For every populated map it obtains the KQ element's
+`ScriptLanguage` token, drops any current film with
+`CinemaComplex::cc_DropFilm`, closes all doors through
+`MapDoorArray::mda_CloseAllDoor`, and then calls
+`CinemaComplex::cc_PlayFilm` with the stored `ScriptLanguage` and
+`ScriptInitValue` tokens. MAKE created those two `PineScriptToken` values
+from the corresponding fields of `PROTO_KQ_INFO`.
+
+Static regen is reached later and lazily by the running scenario. The recovered
+PineScript `regengroup` node follows this exact path:
+
+```text
+ShineRegenGroup::sa_Step
+  -> PineScriptMobRegenerator::psmr_find(map/source key, group index)
+     -> cache miss: PineScriptMobRegenerator::psmr_Load(source key)
+        -> KQRegenTable lookup
+        -> OptionReader tables MobRegenGroup + MobRegen
+     -> MobHatchery::mh_ScriptBreed
+```
+
+`KQRegenTable::kqrt_Load` has a native **50-element** source-file capacity.
+Each element stores a **12-byte source key** plus the loaded `OptionReader`.
+The KingdomQuest path is tried first and Instant second, as documented above.
+This separates three different limits that must not be conflated: the 300-slot
+live KQ element container, the unrelated 64-entry KQScriptManager, and this
+50-entry static KQRegenTable.
+
+All fifteen static regen files actually used by this KQ snapshot use the same
+modern source shape: seven fields in `MobRegenGroup` and sixteen fields in
+`MobRegen`. Together they contain exactly **732 MobRegenGroup rows** and
+**766 MobRegen rows**. The rows retain group geometry/family state,
+`MobNum`/`KillNum`, and the full regeneration timing curve; flattening them
+into the emulator's simple persistent spawn-point table would discard native
+semantics.
+
+`KingdomQuestRegenSourceLoader` now models this source boundary only. It
+preserves the exact 7/16-field rows, the 12-byte key constraint, the 50-entry
+native table boundary, and KingdomQuest -> Instant path order. It deliberately
+does **not** create maps, mobs, groups, timers, or scenario outcomes. Live
+`cc_PlayFilm`/PineScript/Lua execution and `mh_ScriptBreed` behavior remain
+the next runtime layer to correlate and implement.
+
+
 CI now derives the 27 ScriptLanguage keys and 18 used BaseMap keys directly
 from the provenance-locked SHN SQL, checks them against the runtime-source
 manifest, locks the exact 18-Lua/9-Pine script backend split and the 15/3

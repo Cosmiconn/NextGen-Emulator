@@ -544,6 +544,27 @@ directories in that order. In the supplied Server.zip, none of
 so their missing KingdomQuest regen file cannot be repaired by the native
 static fallback. Lua files are not consulted by `KQRegenTable`.
 
+The native START path is now also separated from static regen loading.
+`KQElement::kqe_QuestStart` walks the four KQ map slots, drops a previous
+film, closes all doors, and invokes `CinemaComplex::cc_PlayFilm` with the
+`ScriptLanguage` and `ScriptInitValue` tokens prepared during MAKE. It does
+not blindly spawn the map's static regen table.
+
+A PineScript `regengroup` action later resolves
+`PineScriptMobRegenerator::psmr_find(sourceKey, groupIndex)`. Cache misses call
+`psmr_Load(sourceKey)`, which looks up the 12-byte key in the already loaded
+`KQRegenTable`, reads `MobRegenGroup`/`MobRegen` through its
+`OptionReader`, and only then reaches `MobHatchery::mh_ScriptBreed`.
+`KQRegenTable::kqrt_Load` itself permits exactly **50** source elements.
+
+For the fifteen present static files used by this source snapshot, all rows use
+the modern 7-field group / 16-field mob schema, totaling **732 group rows** and
+**766 mob rows**. `KingdomQuestRegenSourceLoader` preserves those fields and
+the native KingdomQuest->Instant lookup order as a source layer. It does not
+activate groups or convert them to the emulator's simpler persistent spawn
+representation; doing so before ScenarioBook/Lua execution is correlated would
+change native semantics.
+
 
 ## SetDoneSkip and old-schedule deletion
 
