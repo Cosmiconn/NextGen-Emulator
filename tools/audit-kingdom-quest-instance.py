@@ -159,22 +159,26 @@ def main():
         "Dictionary<uint, ushort>",
         "ErrorByHandle[handle] = error;",
         "ErrorByHandle.TryGetValue(handle, out error)",
-    ], "raw native KQ MAKE_ACK error registry"):
+        "KingdomQuestNativeConstants.MakeAckSuccess",
+        "IsSuccess(ushort error)",
+    ], "native KQ MAKE_ACK registry"):
         return 1
     if "error == 0" in c["kq_make_ack"] or "0x0991" in c["kq_make_ack"]:
-        print("FAIL: MAKE_ACK raw Error gained invented success semantics")
+        print("FAIL: MAKE_ACK reused an unrelated/invented success value")
         return 1
     if not need(c["world_inter"], [
         "[InterPacketHandler(InterHeader.KingdomQuestMakeAck)]",
         "native.OpCode != 0x580E",
         "KingdomQuestMakeAckRegistry.Set(handle, error)",
-    ], "Zone -> World native KQ MAKE_ACK transport"):
+        "KingdomQuestSessionCoordinator.TryApplyMakeAck(",
+    ], "Zone -> World native KQ MAKE_ACK transport/transition"):
         return 1
     if not need(c["zone_inter"], [
         "public static void SendKingdomQuestMakeAck(uint handle, ushort error)",
         "new Packet((ushort)0x580E)",
         "new InterPacket(InterHeader.KingdomQuestMakeAck)",
-    ], "explicit raw KQ MAKE_ACK sender"):
+        "KingdomQuestNativeConstants.MakeAckSuccess",
+    ], "proven KQ MAKE_ACK success sender"):
         return 1
 
     if not need(c["zone_inter"], [
@@ -276,7 +280,7 @@ def main():
     print("PASS: World -> Zone KQ roster stores only explicit CharacterNumber/TeamType pairs")
     print("PASS: internal MAKE/START/END/DESTROY transport carries and validates native NC_KQ bodies")
     print("PASS: Zone KQ lifecycle uses explicit Handle/MapID/Map.InstanceID without allocation inference")
-    print("PASS: Z2W_MAKE_ACK raw Error can return to World without invented success semantics")
+    print("PASS: Z2W_MAKE_ACK preserves raw Error and applies the executable-proven 0x0981 success transition")
     print("PASS: explicit status/participant mutations keep list, STATUS_ACK and JOIN_LIST state synchronized")
     print("PASS: Mobspawn rows are isolated by internal Map.InstanceID")
     return 0

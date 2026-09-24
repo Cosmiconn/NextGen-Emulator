@@ -644,3 +644,35 @@ to be nonzero and rejects a team-size difference greater than MaxMemberGap,
 using SetDoneSkip reasons 2/3 respectively. Other divide types bypass those
 team-count gates. The live scheduler still does not advance start states until
 map allocation/session ownership is fully connected.
+
+
+## Live source scheduler publication
+
+The recovered `CKQServer::AddNewScheduleList` ownership is now live without
+crossing into unresolved map allocation. `KingdomQuestScheduleRuntime`
+starts after `DataProvider` in the World `Worker` initialization stage and
+enables itself only when the exact four-table KQ corpus **and**
+`UseClassTypeInfo` provenance gates are complete.
+
+It reproduces the original scheduler-array rules already established from
+WorldManager.exe:
+
+- the process-local next Handle starts at `0`;
+- scheduling is executed at most once per local minute;
+- every source row contributes the two-entry
+  `GetNextScheduleTime` window;
+- an existing exact `(KQ ID, ScheduleTime)` pair is not added again;
+- the hard scheduler-array capacity is `300`;
+- the Handle counter increments only after a new entry is successfully
+  published.
+
+A new Status-0 entry is atomically registered in the full 377-byte definition,
+the client 141-byte projection, STATUS state, and an empty participant roster.
+No `KingdomQuestSessionTarget`, MapID, `Map.InstanceID`, MAKE request or
+status advancement is created here. That boundary matches the original split:
+`AddNewScheduleList` owns schedules/Handles; `DoSetMakeRoom/AllocMapLink`
+owns map allocation later.
+
+As a result, LIST/SCHEDULE/STATUS now have a real source-backed scheduler owner
+instead of waiting for an external registry feeder, while the next map-routing
+step remains gated on the still-to-be-correlated `AllocMapLink` behavior.

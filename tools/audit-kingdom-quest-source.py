@@ -325,6 +325,19 @@ def main():
         'result.IsTeamPvp = team.IsTeamPvp',
         'team.RegenXRed',
         'team.RegenYBlue',
+        'NativeScheduleCapacity = 300',
+        'nextHandle = 0',
+        'lastScheduleMinute',
+        'Tuple.Create(existing[i].ID, existing[i].ScheduleTime)',
+        'KingdomQuestScheduledDefinitionCoordinator.TryPublish(',
+        'nextHandle = unchecked(nextHandle + 1)',
+        '[ServerModule(InitializationStage.Worker)]',
+        'provider.HasCompleteKingdomQuestMainSource',
+        'provider.HasKingdomQuestUseClassSource',
+        'KingdomQuestProtocolDefinitionRegistry.Upsert(definition)',
+        'KingdomQuestDefinitionRegistry.Upsert(definition)',
+        'KingdomQuestInstanceRegistry.Upsert(',
+        'new KingdomQuestJoinCharacterInfo[0]',
     ):
         if token not in world_source_scheduler:
             print('FAIL: PDB/EXE-bounded KQ scheduler projection missing', token)
@@ -390,7 +403,9 @@ def main():
     print('PASS: World loads exact UseClassTypeInfo and reproduces ccdb_UseClassTypeToBit folding for DemandClass')
     print('PASS: static KQ source projection maps PDB/EXE-correlated fields including packed DemandGender')
     print('PASS: KQ scheduler primitive reproduces current-month/day-hour-minute + minute-step two-entry window from WorldManager.exe')
-    print('PASS: scheduled definition projection reproduces initial handle/status/time/team fields while handle ownership remains external')
+    print('PASS: scheduled definition projection reproduces initial status/time/team fields')
+    print('PASS: live scheduler owns native Handle sequence from zero, exact ID/ScheduleTime dedupe and 300-entry capacity')
+    print('PASS: scheduler publishes Status-0 definitions atomically to protocol/client/status/empty-participant views only when exact source gates pass')
     print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
     print('PASS: KingdomQuest.shn coverage compares only exact PDB field names; no SHN aliases are inferred')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')
