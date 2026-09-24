@@ -17,6 +17,7 @@ WORLD_MANIFEST = ROOT / "NextGen.World/Data/KingdomQuestSourceManifestInfo.cs"
 WORLD_NATIVE_SCHEMA = ROOT / "NextGen.World/Data/KingdomQuestNativeSchema.cs"
 ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 WORLD_SNAPSHOT = ROOT / "NextGen.World/Data/KingdomQuestSourceSnapshot.cs"
+WORLD_SOURCE_ROWS = ROOT / "NextGen.World/Data/KingdomQuestSourceRows.cs"
 RAW_SOURCES = {
     "KingdomQuest": (
         ROOT / "sql/data/data_kq_source_10_kingdomquest.sql",
@@ -71,7 +72,7 @@ def row_field_count(line):
 def main():
     required_files = [
         MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
-        WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT,
+        WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -153,6 +154,7 @@ def main():
     world_manifest = WORLD_MANIFEST.read_text(encoding='utf-8')
     world_native_schema = WORLD_NATIVE_SCHEMA.read_text(encoding='utf-8')
     world_snapshot = WORLD_SNAPSHOT.read_text(encoding='utf-8')
+    world_source_rows = WORLD_SOURCE_ROWS.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
@@ -262,6 +264,31 @@ def main():
             print('FAIL: World KQ raw-source runtime gate missing', token)
             return 1
 
+    for token in (
+        'class KingdomQuestSourceDefinition',
+        'SourceRow = GetDataTypes.GetUint(row["__SourceRow"])',
+        'NextStartDeleyMin = GetDataTypes.GetUshort(row["NextStartDeleyMin"])',
+        'MapLinkColumns = Array.AsReadOnly',
+        'class KingdomQuestMapSourceRow',
+        'class KingdomQuestRewardSourceRow',
+        'class KingdomQuestItemSourceRow',
+    ):
+        if token not in world_source_rows:
+            print('FAIL: World exact KQ source model missing', token)
+            return 1
+
+    for token in (
+        'LoadKingdomQuestMainSourceRows()',
+        'ORDER BY `__SourceRow`',
+        'KingdomQuestSourceDefinition.Load(row)',
+        'KingdomQuestMapSourceRow.Load(row)',
+        'KingdomQuestRewardSourceRow.Load(row)',
+        'KingdomQuestItemSourceRow.Load(row)',
+    ):
+        if token not in world_provider:
+            print('FAIL: World exact KQ source loader missing', token)
+            return 1
+
     zone_character = ZONE_CHARACTER.read_text(encoding='utf-8')
     if 'if (id > 120)' in zone_character:
         print('FAIL: legacy map-ID cutoff blocks source-backed KQ maps above 120')
@@ -278,6 +305,7 @@ def main():
     print('PASS: exact NA2016 main KQ raw corpus locked (57/38/64/2 rows; 35/22/33/4 source columns)')
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
+    print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
     print('PASS: World accepts main KQ source presence only from structurally complete four-table provenance')
     print('PASS: KingdomQuest.shn coverage compares only exact PDB field names; no SHN aliases are inferred')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')

@@ -29,6 +29,10 @@ namespace NextGen.World.Data
         public Dictionary<string, KingdomQuestSourceManifestInfo> KingdomQuestSourceManifest { get; private set; }
         public bool HasCompleteKingdomQuestMainSource { get; private set; }
         public KingdomQuestSourceSchemaCoverage KingdomQuestSchemaCoverage { get; private set; }
+        public IReadOnlyList<KingdomQuestSourceDefinition> KingdomQuestSourceDefinitions { get; private set; }
+        public IReadOnlyList<KingdomQuestMapSourceRow> KingdomQuestSourceMaps { get; private set; }
+        public IReadOnlyList<KingdomQuestRewardSourceRow> KingdomQuestSourceRewards { get; private set; }
+        public IReadOnlyList<KingdomQuestItemSourceRow> KingdomQuestSourceItems { get; private set; }
 
 		public DataProvider()
 		{
@@ -52,6 +56,10 @@ namespace NextGen.World.Data
             KingdomQuestDescriptions = new List<string>();
             KingdomQuestSourceManifest = new Dictionary<string, KingdomQuestSourceManifestInfo>(StringComparer.OrdinalIgnoreCase);
             HasCompleteKingdomQuestMainSource = false;
+            KingdomQuestSourceDefinitions = new List<KingdomQuestSourceDefinition>().AsReadOnly();
+            KingdomQuestSourceMaps = new List<KingdomQuestMapSourceRow>().AsReadOnly();
+            KingdomQuestSourceRewards = new List<KingdomQuestRewardSourceRow>().AsReadOnly();
+            KingdomQuestSourceItems = new List<KingdomQuestItemSourceRow>().AsReadOnly();
 
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
@@ -113,6 +121,8 @@ namespace NextGen.World.Data
             }
 
             LoadKingdomQuestSourceManifest();
+            if (HasCompleteKingdomQuestMainSource)
+                LoadKingdomQuestMainSourceRows();
 
             Log.WriteLine(LogLevel.Info,
                 "Loaded KQ metadata: {0} maps, {1} descriptions, {2} teams, {3} vote flags, {4} vote reasons, {5} vote thresholds; main source={6}.",
@@ -202,6 +212,51 @@ namespace NextGen.World.Data
                     KingdomQuestNativeSchema.Fields.Count,
                     KingdomQuestSchemaCoverage.SourceNamesWithoutExactNativeMatch.Count);
             }
+        }
+
+        private void LoadKingdomQuestMainSourceRows()
+        {
+            var definitions = new List<KingdomQuestSourceDefinition>();
+            var maps = new List<KingdomQuestMapSourceRow>();
+            var rewards = new List<KingdomQuestRewardSourceRow>();
+            var items = new List<KingdomQuestItemSourceRow>();
+
+            using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+            {
+                string zoneDb = Settings.Instance.zoneMysqlDatabase;
+                string worldDb = Settings.Instance.WorldMysqlDatabase;
+
+                DataTable definitionRows = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM `data_kingdomquest` ORDER BY `__SourceRow`; USE `{1}`",
+                    zoneDb, worldDb));
+                DataTable mapRows = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM `data_kingdomquestmap` ORDER BY `__SourceRow`; USE `{1}`",
+                    zoneDb, worldDb));
+                DataTable rewardRows = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM `data_kingdomquestrew` ORDER BY `__SourceRow`; USE `{1}`",
+                    zoneDb, worldDb));
+                DataTable itemRows = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM `data_kqitem` ORDER BY `__SourceRow`; USE `{1}`",
+                    zoneDb, worldDb));
+
+                foreach (DataRow row in definitionRows.Rows)
+                    definitions.Add(KingdomQuestSourceDefinition.Load(row));
+                foreach (DataRow row in mapRows.Rows)
+                    maps.Add(KingdomQuestMapSourceRow.Load(row));
+                foreach (DataRow row in rewardRows.Rows)
+                    rewards.Add(KingdomQuestRewardSourceRow.Load(row));
+                foreach (DataRow row in itemRows.Rows)
+                    items.Add(KingdomQuestItemSourceRow.Load(row));
+            }
+
+            KingdomQuestSourceDefinitions = definitions.AsReadOnly();
+            KingdomQuestSourceMaps = maps.AsReadOnly();
+            KingdomQuestSourceRewards = rewards.AsReadOnly();
+            KingdomQuestSourceItems = items.AsReadOnly();
+
+            Log.WriteLine(LogLevel.Info,
+                "Loaded exact KQ main source rows: definitions={0}, maps={1}, rewards={2}, items={3}.",
+                definitions.Count, maps.Count, rewards.Count, items.Count);
         }
 
         private bool ValidateKingdomQuestSourceTables(IEnumerable<string> sourceNames)
