@@ -4,6 +4,7 @@ using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using NextGen.FiestaLib.Shn;
 
@@ -11,6 +12,14 @@ namespace NextGen.KingdomQuestTool
 {
     internal static class Program
     {
+        private static readonly string[] RequiredMainFiles =
+        {
+            "KingdomQuest.shn",
+            "KingdomQuestMap.shn",
+            "KingdomQuestRew.shn",
+            "KQItem.shn",
+        };
+
         private static readonly string[] PreferredFiles =
         {
             "KingdomQuest.shn",
@@ -28,19 +37,53 @@ namespace NextGen.KingdomQuestTool
         {
             if (args.Length < 3 || !args[0].Equals("--sql", StringComparison.OrdinalIgnoreCase))
             {
-                Console.Error.WriteLine("Usage: NextGen.KingdomQuestTool --sql <output.sql> <source-directory-or-shn> [...]");
+                Console.Error.WriteLine("Usage: NextGen.KingdomQuestTool --sql <output.sql> [--require-main] <source-directory-or-shn> [...]");
                 return 2;
             }
 
             string output = args[1];
+            bool requireMain = false;
             var inputs = new List<string>();
             for (int i = 2; i < args.Length; i++)
-                AddInput(args[i], inputs);
+            {
+                if (args[i].Equals("--require-main", StringComparison.OrdinalIgnoreCase))
+                    requireMain = true;
+                else
+                    AddInput(args[i], inputs);
+            }
 
             if (inputs.Count == 0)
             {
                 Console.Error.WriteLine("No Kingdom Quest SHN sources found.");
                 return 3;
+            }
+
+            var duplicateNames = inputs
+                .GroupBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() > 1)
+                .ToList();
+            if (duplicateNames.Count != 0)
+            {
+                foreach (var group in duplicateNames)
+                {
+                    Console.Error.WriteLine("Ambiguous KQ SHN source {0}:", group.Key);
+                    foreach (string path in group.OrderBy(v => v, StringComparer.OrdinalIgnoreCase))
+                        Console.Error.WriteLine("  {0}", path);
+                }
+                return 4;
+            }
+
+            if (requireMain)
+            {
+                var foundNames = new HashSet<string>(
+                    inputs.Select(Path.GetFileName), StringComparer.OrdinalIgnoreCase);
+                string[] missing = RequiredMainFiles.Where(name => !foundNames.Contains(name)).ToArray();
+                if (missing.Length != 0)
+                {
+                    Console.Error.WriteLine("Missing required main KQ SHNs: {0}",
+                        string.Join(", ", missing));
+                    return 5;
+                }
             }
 
             using (var writer = new StreamWriter(output, false, new UTF8Encoding(false)))
@@ -51,9 +94,13 @@ namespace NextGen.KingdomQuestTool
 
                 foreach (string path in inputs.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
                 {
-                    Console.WriteLine("Reading {0}", path);
+                    string sha256 = ComputeSha256(path);
+                    Console.WriteLine("Reading {0} [sha256={1}]", path, sha256);
                     using (var table = new SHNFile(path))
-                        WriteTable(writer, table, Path.GetFileNameWithoutExtension(path));
+                    {
+                        Console.WriteLine("  records={0} columns={1}", table.Rows.Count, table.Columns.Count);
+                        WriteTable(writer, table, Path.GetFileNameWithoutExtension(path), sha256);
+                    }
                 }
             }
 
@@ -83,10 +130,18 @@ namespace NextGen.KingdomQuestTool
             }
         }
 
-        private static void WriteTable(TextWriter writer, SHNFile table, string sourceName)
+        private static void WriteTable(TextWriter writer, SHNFile table, string sourceName, string sha256)
         {
             string sqlName = "data_" + SanitizeIdentifier(sourceName).ToLowerInvariant();
-            writer.WriteLine("-- Source: {0}; records={1}; columns={2}", sourceName, table.Rows.Count, table.Columns.Count);
+            writer.WriteLine("-- Source: {0}; sha256={1}; records={2}; columns={3}",
+                sourceName, sha256, table.Rows.Count, table.Columns.Count);
+            writer.Write("-- Columns:");
+            for (int i = 0; i < table.Columns.Count; i++)
+            {
+                var column = (ShnColumn)table.Columns[i];
+                writer.Write(" {0}:{1}:{2}", column.ColumnName, column.TypeByte, column.Length);
+            }
+            writer.WriteLine();
             writer.WriteLine("DROP TABLE IF EXISTS `{0}`;", sqlName);
             writer.WriteLine("CREATE TABLE `{0}` (", sqlName);
 
@@ -186,6 +241,19 @@ namespace NextGen.KingdomQuestTool
             }
 
             writer.Write(Convert.ToString(value, CultureInfo.InvariantCulture));
+        }
+
+        private static string ComputeSha256(string path)
+        {
+            using (var stream = File.OpenRead(path))
+            using (var sha = SHA256.Create())
+            {
+                byte[] hash = sha.ComputeHash(stream);
+                var builder = new StringBuilder(hash.Length * 2);
+                for (int i = 0; i < hash.Length; i++)
+                    builder.Append(hash[i].ToString("x2", CultureInfo.InvariantCulture));
+                return builder.ToString();
+            }
         }
 
         private static string SanitizeIdentifier(string name)

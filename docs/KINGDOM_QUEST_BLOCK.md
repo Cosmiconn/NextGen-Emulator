@@ -319,3 +319,22 @@ scheduler/admission layer:
 Neither method decides *which* status is valid or *who* may join. They only
 prevent the three native client views from diverging once an authoritative
 caller supplies the decision.
+
+
+## KQ source-dump provenance tightened
+
+`NextGen.KingdomQuestTool` now supports:
+
+```text
+--require-main
+```
+
+When used, a source dump fails unless all four authoritative main tables are
+present: `KingdomQuest.shn`, `KingdomQuestMap.shn`,
+`KingdomQuestRew.shn` and `KQItem.shn`.
+
+The tool also rejects ambiguous duplicate basenames discovered under multiple
+input directories instead of silently emitting the same SQL table twice. Each
+exported table now records the source file SHA-256 plus a raw
+`column-name:type-byte:length` manifest before the SQL DDL. This keeps later
+field mapping tied to the exact NA2016 source bytes rather than only a filename.

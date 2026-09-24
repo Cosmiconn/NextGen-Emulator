@@ -66,6 +66,19 @@ def main():
             print('FAIL: KQ source dumper missing target', source)
             return 1
 
+    for token in (
+        'private static readonly string[] RequiredMainFiles',
+        '"--require-main"',
+        'Ambiguous KQ SHN source',
+        'Missing required main KQ SHNs',
+        'ComputeSha256(path)',
+        'sha256={1}; records={2}; columns={3}',
+        'writer.Write("-- Columns:")',
+    ):
+        if token not in tool:
+            print('FAIL: KQ source dumper provenance/ambiguity guard missing', token)
+            return 1
+
     zone_character = ZONE_CHARACTER.read_text(encoding='utf-8')
     if 'if (id > 120)' in zone_character:
         print('FAIL: legacy map-ID cutoff blocks source-backed KQ maps above 120')
@@ -77,6 +90,7 @@ def main():
     print('PASS: 25 KingdomMap=1 source maps locked')
     print('PASS: KQ description/team/vote metadata corpus locked (39/8/30/4/2)')
     print('PASS: source dumper targets main KQ definition/map/reward/item SHNs')
+    print('PASS: source dumper can require all main SHNs, rejects duplicate basenames and records SHA-256/column manifests')
     print('PASS: ChangeMap accepts source-backed KQ map IDs above the legacy 120 cutoff')
     return 0
 
