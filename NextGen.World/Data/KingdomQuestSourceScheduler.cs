@@ -188,9 +188,9 @@ namespace NextGen.World.Data
     /// Live owner for the exact WorldManager DoSchedule/AddNewScheduleList
     /// behavior that is already recovered from the supplied NA2016 binary.
     ///
-    /// It owns only the scheduler array and its monotonically increasing
-    /// process-local Handle counter. Map allocation and later status changes
-    /// remain separate native lifecycle work.
+    /// It owns the recovered scheduler loop: source publication, due-time
+    /// MAKE preparation and the proven Status-2 DoSetStart gate. Later
+    /// post-countdown start/run semantics remain separate unresolved work.
     /// </summary>
     [ServerModule(InitializationStage.Worker)]
     public sealed class KingdomQuestScheduleRuntime
@@ -292,6 +292,48 @@ namespace NextGen.World.Data
                 }
 
                 RunMakeRoom(local);
+                RunStartGate(local);
+            }
+        }
+
+        private void RunStartGate(DateTime localNow)
+        {
+            int currentTime = KingdomQuestSourceScheduler.ToNativeTime32(localNow);
+            IReadOnlyList<KingdomQuestProtocolInfo> definitions =
+                KingdomQuestProtocolDefinitionRegistry.Snapshot();
+
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                KingdomQuestProtocolInfo definition = definitions[i];
+                if (definition.Status != KingdomQuestNativeConstants.StatusJoining)
+                    continue;
+
+                IReadOnlyList<KingdomQuestJoinCharacterInfo> participants;
+                if (!KingdomQuestParticipantRegistry.TryGet(
+                        definition.Handle, out participants))
+                    continue;
+
+                KingdomQuestTeamInfo team = null;
+                DataProvider provider = DataProvider.Instance;
+                if (provider != null && provider.KingdomQuestTeams != null)
+                    provider.KingdomQuestTeams.TryGetValue(
+                        definition.ID, out team);
+
+                KingdomQuestStartDecision decision =
+                    KingdomQuestStartGate.Evaluate(
+                        definition, currentTime, participants, team);
+
+                if (decision.Kind ==
+                    KingdomQuestStartDecisionKind.StartCountdown)
+                {
+                    KingdomQuestSessionCoordinator.TryEnterStartCountdown(
+                        definition.Handle, currentTime);
+                    continue;
+                }
+
+                if (decision.Kind == KingdomQuestStartDecisionKind.DoneSkip)
+                    KingdomQuestSessionCoordinator.TrySetDoneSkip(
+                        definition.Handle, decision.DoneSkipReason);
             }
         }
 

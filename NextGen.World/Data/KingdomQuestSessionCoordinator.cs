@@ -286,6 +286,80 @@ namespace NextGen.World.Data
         }
 
         /// <summary>
+        /// Applies the proven CKQServer::DoSetStart transition from Status 2
+        /// into the native ten-second Status-3 countdown.
+        /// </summary>
+        public static bool TryEnterStartCountdown(uint handle, int currentTime32)
+        {
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo definition;
+                KingdomQuestInstanceWireState state;
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(
+                        handle, out definition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state) ||
+                    protocolDefinition.Status !=
+                        KingdomQuestNativeConstants.StatusJoining ||
+                    definition.Status != KingdomQuestNativeConstants.StatusJoining ||
+                    state.Status != KingdomQuestNativeConstants.StatusJoining)
+                    return false;
+
+                if (!TrySetStatus(
+                        handle,
+                        KingdomQuestNativeConstants.StatusStartCountdown))
+                    return false;
+
+                KingdomQuestDoneSkipRegistry.Remove(handle);
+                KingdomQuestStartCountdownRegistry.Set(
+                    handle,
+                    unchecked(
+                        currentTime32 +
+                        KingdomQuestNativeConstants.StartCountdownSeconds));
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Applies only the source-proven SetDoneSkip status/reason emitted by
+        /// DoSetStart/KQTeam_CanKQStart. Later delete/repeat behavior remains
+        /// outside this method until recovered from original evidence.
+        /// </summary>
+        public static bool TrySetDoneSkip(uint handle, byte reason)
+        {
+            if (reason != KingdomQuestNativeConstants.DoneSkipReasonNotReady &&
+                reason != KingdomQuestNativeConstants.DoneSkipReasonTeamGap)
+                return false;
+
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo definition;
+                KingdomQuestInstanceWireState state;
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(
+                        handle, out definition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state) ||
+                    protocolDefinition.Status !=
+                        KingdomQuestNativeConstants.StatusJoining ||
+                    definition.Status != KingdomQuestNativeConstants.StatusJoining ||
+                    state.Status != KingdomQuestNativeConstants.StatusJoining)
+                    return false;
+
+                if (!TrySetStatus(
+                        handle, KingdomQuestNativeConstants.StatusDoneSkip))
+                    return false;
+
+                KingdomQuestStartCountdownRegistry.Remove(handle);
+                KingdomQuestDoneSkipRegistry.Set(handle, reason);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Applies the original World-side NC_KQ_Z2W_MAKE_ACK branch.
         /// Non-0x0981 ACKs execute SetNoMapBF => Status 8. A successful ACK
         /// may enter SetJoining only from Status 1/2; SetJoining clears the
@@ -346,6 +420,8 @@ namespace NextGen.World.Data
                 bool mapContext = KingdomQuestMapContextRegistry.Remove(handle);
                 bool zoneJoiners = KingdomQuestZoneJoinerRegistry.Remove(handle);
                 bool target = KingdomQuestSessionTargetRegistry.Remove(handle);
+                KingdomQuestStartCountdownRegistry.Remove(handle);
+                KingdomQuestDoneSkipRegistry.Remove(handle);
                 KingdomQuestMapAllocationRegistry.Free(handle);
                 return protocolDefinition || definition || state || participants ||
                     joinListReply || mapContext || zoneJoiners || target;

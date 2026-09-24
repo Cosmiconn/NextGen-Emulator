@@ -22,6 +22,9 @@ WORLD_SOURCE_PROJECTION = ROOT / "NextGen.World/Data/KingdomQuestSourceProjectio
 WORLD_SOURCE_SCHEDULER = ROOT / "NextGen.World/Data/KingdomQuestSourceScheduler.cs"
 WORLD_MAP_ALLOCATOR = ROOT / "NextGen.World/Data/KingdomQuestMapAllocationRegistry.cs"
 WORLD_MAP_ROUTE = ROOT / "NextGen.World/Data/KingdomQuestMapRouteResolver.cs"
+WORLD_START_GATE = ROOT / "NextGen.World/Data/KingdomQuestStartGate.cs"
+WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
+NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 RAW_SOURCES = {
     "KingdomQuest": (
         ROOT / "sql/data/data_kq_source_10_kingdomquest.sql",
@@ -116,7 +119,7 @@ def main():
         MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
         WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER, WORLD_MAP_ALLOCATOR,
-        WORLD_MAP_ROUTE,
+        WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_SESSION, NATIVE_INFO,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -219,6 +222,9 @@ def main():
     world_source_scheduler = WORLD_SOURCE_SCHEDULER.read_text(encoding='utf-8')
     world_map_allocator = WORLD_MAP_ALLOCATOR.read_text(encoding='utf-8')
     world_map_route = WORLD_MAP_ROUTE.read_text(encoding='utf-8')
+    world_start_gate = WORLD_START_GATE.read_text(encoding='utf-8')
+    world_session = WORLD_SESSION.read_text(encoding='utf-8')
+    native_info = NATIVE_INFO.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
@@ -457,6 +463,65 @@ def main():
             print('FAIL: native DoSetMakeRoom runtime bridge missing', token)
             return 1
 
+    for token in (
+        'KingdomQuestStartDecisionKind',
+        'definition.NumOfJoiner == definition.MaxPlayers',
+        '(long)definition.StartTime',
+        'definition.StartWaitTime * 60L',
+        'definition.NumOfJoiner < definition.MinPlayers',
+        'team.TeamDivideType !=',
+        'AutomaticSplitTeamDivideType',
+        'team0 == 0 || team1 == 0',
+        'Math.Abs(team0 - team1) > team.MaxMemberGap',
+        'DoneSkipReasonNotReady',
+        'DoneSkipReasonTeamGap',
+    ):
+        if token not in world_start_gate:
+            print('FAIL: native KQ DoSetStart/KQTeam_CanKQStart gate missing', token)
+            return 1
+
+    for token in (
+        'StatusStartCountdown = 3',
+        'StatusDoneSkip = 6',
+        'StartCountdownSeconds = 10',
+        'DoneSkipReasonNotReady = 2',
+        'DoneSkipReasonTeamGap = 3',
+    ):
+        if token not in native_info:
+            print('FAIL: recovered KQ start-gate constant missing', token)
+            return 1
+
+    for token in (
+        'TryEnterStartCountdown',
+        'KingdomQuestNativeConstants.StatusStartCountdown',
+        'KingdomQuestStartCountdownRegistry.Set(',
+        'TrySetDoneSkip',
+        'KingdomQuestNativeConstants.StatusDoneSkip',
+        'KingdomQuestDoneSkipRegistry.Set(handle, reason)',
+    ):
+        if token not in world_session:
+            print('FAIL: synchronized KQ start-gate transition missing', token)
+            return 1
+
+    for token in (
+        'RunStartGate(local)',
+        'KingdomQuestStartGate.Evaluate(',
+        'KingdomQuestSessionCoordinator.TryEnterStartCountdown(',
+        'KingdomQuestSessionCoordinator.TrySetDoneSkip(',
+    ):
+        if token not in world_source_scheduler:
+            print('FAIL: live native KQ start gate missing', token)
+            return 1
+
+    for forbidden in (
+        'StatusRunning = 4',
+        'StatusStart = 4',
+        'SendKingdomQuestStart(',
+    ):
+        if forbidden in world_start_gate or forbidden in world_session or forbidden in world_source_scheduler:
+            print('FAIL: unresolved post-countdown KQ start semantics were guessed', forbidden)
+            return 1
+
     for forbidden in (
         'KingdomQuestSessionTargetRegistry',
         'Map.InstanceID',
@@ -518,6 +583,8 @@ def main():
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: supplied NA2016 definitions are locked to one active MapLink and 23 source-backed MapBase identities')
     print('PASS: native MapBase resolves exactly to source-backed MapInfo.ShortName without MapIndex/instance inference')
+    print('PASS: DoSetStart/KQTeam_CanKQStart drives Status-2 into proven Status-3 countdown or Status-6 SetDoneSkip reasons 2/3')
+    print('PASS: post-countdown Status/START transition remains explicitly unresolved and is not guessed')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
     print('PASS: World loads exact UseClassTypeInfo and reproduces ccdb_UseClassTypeToBit folding for DemandClass')

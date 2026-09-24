@@ -505,10 +505,15 @@ namespace NextGen.FiestaLib.Data
         public const byte StatusScheduled = 0;
         public const byte StatusMakeRequested = 1;
         public const byte StatusJoining = 2;
+        public const byte StatusStartCountdown = 3;
         public const byte StatusDone = 5;
         public const byte StatusDoneSkip = 6;
         public const byte StatusNoMap = 8;
         public const byte StatusDelete = 11;
+
+        public const int StartCountdownSeconds = 10;
+        public const byte DoneSkipReasonNotReady = 2;
+        public const byte DoneSkipReasonTeamGap = 3;
 
         public const ushort AutomaticSplitTeamDivideType = 2;
         public const byte NeutralTeamType = 2;

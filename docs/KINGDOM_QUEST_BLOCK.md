@@ -642,8 +642,8 @@ enters the same Status-3/10-second countdown.
 For KQTeamDivideType 2, KQTeam_CanKQStart requires both native team counters
 to be nonzero and rejects a team-size difference greater than MaxMemberGap,
 using SetDoneSkip reasons 2/3 respectively. Other divide types bypass those
-team-count gates. The live scheduler still does not advance start states until
-map allocation/session ownership is fully connected.
+team-count gates. The later sections below document the now-live MAKE and
+DoSetStart boundaries; post-countdown start remains UNRESOLVED.
 
 
 ## Live source scheduler publication
@@ -781,3 +781,52 @@ Zone now independently validates that the internal MAKE routing MapID resolves
 to the same exact `MapBase` carried by the native request before creating the
 requested internal map instance. This prevents internal transport metadata from
 silently redirecting a native KQ definition to a different base map.
+
+
+## Live DoSetStart gate without guessing post-countdown start
+
+The original WorldManager `CKQServer::DoSetStart` /
+`KQTeam_CanKQStart` branch is now connected to the live scheduler after a
+successful MAKE_ACK has placed an entry in Status 2.
+
+The implemented decision is limited to the already-recovered executable
+behavior:
+
+```text
+Status 2
+  NumOfJoiner == MaxPlayers
+    -> Status 3, exact 10-second countdown
+
+  otherwise, before StartTime + StartWaitTime*60
+    -> remain Status 2
+
+  at/after the deadline:
+    NumOfJoiner < MinPlayers
+      -> SetDoneSkip(reason 2), Status 6
+
+    KQTeamDivideType != 2 or no KQTeam row
+      -> Status 3, exact 10-second countdown
+
+    KQTeamDivideType == 2:
+      either team empty
+        -> SetDoneSkip(reason 2), Status 6
+      abs(team0-team1) > MaxMemberGap
+        -> SetDoneSkip(reason 3), Status 6
+      otherwise
+        -> Status 3, exact 10-second countdown
+```
+
+The participant count and team values are read from the already synchronized
+native participant registry; no party/group balancing rule is introduced.
+For the supplied NA2016 KQTeam corpus every row still has divide type 1, so
+the type-2 branch remains source-correct but inactive for those rows.
+
+`KingdomQuestStartCountdownRegistry` retains the exact ten-second deadline
+for Status 3 and `KingdomQuestDoneSkipRegistry` retains the raw reason byte
+for Status 6. Both are lifecycle evidence/state only.
+
+What happens **after** that ten-second Status-3 deadline is still
+`UNRESOLVED`. The emulator does not invent Status 4, does not send
+`NC_KQ_W2Z_START_CMD`, and does not infer the later delete/repeat behavior
+of `SetDoneSkip` until the original EXE/PDB path for those transitions is
+correlated.
