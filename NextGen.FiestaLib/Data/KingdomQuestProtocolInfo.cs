@@ -500,6 +500,9 @@ namespace NextGen.FiestaLib.Data
         public const ushort JoinPrisonRestricted = 0x0999;
         public const ushort JoinAlreadyInRequestedKq = 0x099A;
 
+        public const ushort JoinCancelSuccess = 0x09A1;
+        public const ushort JoinCancelNotJoined = 0x09A2;
+
         public const int JoinHardCapacity = 100;
 
         public const byte StatusScheduled = 0;

@@ -170,6 +170,9 @@ namespace NextGen.Database.DataStore
                     ch.UsablePoints = (byte)row["UsablePoints"];
                     ch.MasterJoin = DateTime.Parse(row["MasterJoin"].ToString());
                     ch.Fame = 0;
+                    ch.PrisonMinutes = row.IsNull("PrisonMin")
+                        ? (short?)null
+                        : GetDataTypes.Getshort(row["PrisonMin"]);
                     ch.KillPoints = GetDataTypes.GetInt(row["KillPoints"]);
                     ch.TotalMobKills = GetDataTypes.GetUint(row["TotalMobKills"]);
                     ch.MobKillTitleTier = (byte)GetDataTypes.GetInt(row["MobKillTitleTier"]);

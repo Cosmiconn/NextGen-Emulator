@@ -18,6 +18,11 @@ namespace NextGen.Database.Storage
        public short SPStones { get; set; }
        public long Exp { get; set; }
        public int Fame { get; set; }
+       // Original World00_Character.tCharacter.nPrisonMin is a SMALLINT
+       // loaded into PROTO_NC_CHAR_BASE_CMD::prisonmin. Nullable is an
+       // emulator-only provenance sentinel: null means the original value was
+       // not supplied, and KQ JOIN must not silently treat it as zero.
+       public short? PrisonMinutes { get; set; }
        // Kill Points aus PvP-Kills - anders als Fame (nie aus der DB
        // geladen/gespeichert) wird das hier wirklich persistiert, siehe
        // ReadMethods.cs und DatabaseHelper.cs. DOCUMENTATION.md Abschnitt 26.

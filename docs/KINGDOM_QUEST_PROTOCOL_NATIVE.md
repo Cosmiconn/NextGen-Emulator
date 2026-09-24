@@ -374,3 +374,50 @@ selects numeric team `1`.
 Every supplied NA2016 `KQTeam.shn` row has `KQTeamDivideType = 1`.
 Consequently the original automatic JOIN path assigns TeamType `2` for this
 entire supplied KQTeam corpus.
+
+
+## Original prison state and JOIN_CANCEL result recovered
+
+The supplied original `World00_Character.bak` closes the provenance of the
+JOIN pre-check's `prisonmin` field. `tCharacter` contains
+`nPrisonMin`; `p_Char_GetAllData` selects it, and
+`p_Char_SetAllData` receives it as `smallint`. The prison procedures also
+write that same column directly:
+
+- `p_Prison_Add(... @nMinute smallint ...)` stores `nPrisonMin=@nMinute`;
+- `p_Prison_UpdateCharPrisonMin` stores the minute value and routes zero back
+  to `Rou` while nonzero remains `EldPri`;
+- `p_Prison_End` explicitly writes `nPrisonMin=0`.
+
+The original WorldManager PDB/EXE matches that database path:
+`CParserCharDB::fc_NC_CHAR_BASE_CMD` stores the received character-base
+packet and `CWMClientSession::GetPrisonMin` returns its 16-bit
+`prisonmin` field. The KQ JOIN handler tests only whether that value is
+nonzero before producing `0x0999`.
+
+The original table has a default constraint for `nPrisonMin`, and
+`p_Char_Create` omits the column, but the constraint expression itself has
+not yet been decoded independently from the backup catalog. The emulator
+therefore stores `characters.PrisonMin` as nullable: `NULL` is an
+emulator-only provenance sentinel meaning "the original value is unknown".
+It is deliberately not treated as zero.
+
+The same executable now closes `NC_KQ_JOIN_CANCEL_REQ`. The request copies
+its `u32 Handle` into the ACK, calls `CKQServer::PlayerDisjoin(session)`,
+then returns exactly:
+
+```text
+0x09A1  PlayerDisjoin returned nonzero
+0x09A2  PlayerDisjoin returned zero / no current KQ membership
+```
+
+`PlayerDisjoin` operates on the session's current KQ membership rather than
+using the request Handle as the removal selector. On a real removal it deletes
+the matching native joiner, decrements `PROTO_KQ_INFO.NumOfJoiner`, adjusts a
+team counter when TeamType is 0/1, sends
+`NC_KQ_PLAYER_DISJOIN_CMD(Handle, CharacterNumber)`, rebroadcasts the join
+list, clears the session KQ handle to `0xFFFFFFFF`, and returns 1.
+
+JOIN and JOIN_CANCEL handlers remain network-disabled until that authoritative
+session membership/CharacterNumber mutation is represented atomically; the
+new Error constants are evidence, not a guessed activation.

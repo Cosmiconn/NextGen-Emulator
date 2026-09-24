@@ -39,6 +39,12 @@ CREATE TABLE `characters` (
   `YPos` INT NOT NULL DEFAULT 0,
   `Money` BIGINT NOT NULL DEFAULT 0,
   `Exp` BIGINT NOT NULL DEFAULT 0,
+  -- Original NA2016 World00_Character.tCharacter stores nPrisonMin as
+  -- SMALLINT and p_Char_GetAllData returns it to the character-base packet.
+  -- The original table's default expression is not yet independently decoded
+  -- from the backup catalog. NULL is therefore an emulator provenance
+  -- sentinel meaning "original value unknown"; never collapse it to zero.
+  `PrisonMin` SMALLINT NULL DEFAULT NULL,
   `CurHP` INT NOT NULL DEFAULT 0,
   `CurSP` INT NOT NULL DEFAULT 0,
   `StatPoints` TINYINT UNSIGNED NOT NULL DEFAULT 0,

@@ -19,6 +19,9 @@ SESSION_COORDINATOR = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.
 MAKE_ACK_REGISTRY = ROOT / "NextGen.World/Data/KingdomQuestMakeAckRegistry.cs"
 WORLD_INTER = ROOT / "NextGen.World/InterServer/InterHandler.cs"
 ZONE_INTER = ROOT / "NextGen.Zone/InterServer/InterHandler.cs"
+CHARACTER = ROOT / "NextGen.Database/Storage/Character.cs"
+READ_METHODS = ROOT / "NextGen.Database/DataStore/ReadMethods.cs"
+WORLD_SCHEMA = ROOT / "sql/world/schema.sql"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -28,7 +31,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -49,6 +52,9 @@ def main():
     make_ack_registry = MAKE_ACK_REGISTRY.read_text(encoding="utf-8")
     world_inter = WORLD_INTER.read_text(encoding="utf-8")
     zone_inter = ZONE_INTER.read_text(encoding="utf-8")
+    character = CHARACTER.read_text(encoding="utf-8")
+    read_methods = READ_METHODS.read_text(encoding="utf-8")
+    world_schema = WORLD_SCHEMA.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -344,12 +350,47 @@ def main():
         "JoinUnexpectedResult = 0x0998",
         "JoinPrisonRestricted = 0x0999",
         "JoinAlreadyInRequestedKq = 0x099A",
+        "JoinCancelSuccess = 0x09A1",
+        "JoinCancelNotJoined = 0x09A2",
         "StatusMakeRequested = 1",
         "StatusJoining = 2",
         "StatusNoMap = 8",
         "AutomaticSplitTeamDivideType = 2",
         "NeutralTeamType = 2",
     ], "native KQ admission/lifecycle constants"):
+        return 1
+
+    if not require(character, [
+        "public short? PrisonMinutes",
+        "KQ JOIN must not silently treat it as zero",
+    ], "source-backed nullable prison state"):
+        return 1
+
+    if not require(read_methods, [
+        'row.IsNull("PrisonMin")',
+        '? (short?)null',
+        'GetDataTypes.Getshort(row["PrisonMin"])',
+    ], "database prison-state load"):
+        return 1
+
+    if not require(world_client, [
+        'row.IsNull("PrisonMin")',
+        '? (short?)null',
+        'GetDataTypes.Getshort(row["PrisonMin"])',
+    ], "World character-list prison-state load"):
+        return 1
+
+    if not require(world_schema, [
+        '`PrisonMin` SMALLINT NULL DEFAULT NULL',
+        'original value unknown',
+    ], "fail-closed prison-state schema"):
+        return 1
+    if '`PrisonMin` SMALLINT NOT NULL DEFAULT 0' in world_schema:
+        print("FAIL: unresolved original nPrisonMin default was guessed as zero")
+        return 1
+
+    if "[PacketHandler(CH22Type.KingdomQuestJoinCancelReq)]" in handler:
+        print("FAIL: KQ join-cancel enabled before current membership/CharacterNumber mutation is represented")
         return 1
 
     if not require(session_coordinator, [
@@ -474,6 +515,8 @@ def main():
         return 1
 
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
+    print("PASS: original prison minutes are loaded fail-closed; unresolved creation default is not guessed")
+    print("PASS: JOIN_CANCEL 0x09A1/0x09A2 is locked while mutation handler remains disabled")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")
     print("PASS: native W2Z_MAKE/START/END/DESTROY and Z2W_MAKE_ACK layouts are isolated from client traffic")

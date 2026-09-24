@@ -830,3 +830,28 @@ What happens **after** that ten-second Status-3 deadline is still
 `NC_KQ_W2Z_START_CMD`, and does not infer the later delete/repeat behavior
 of `SetDoneSkip` until the original EXE/PDB path for those transitions is
 correlated.
+
+
+## Character DB prison state and native JOIN_CANCEL
+
+The original NA2016 Character DB backup now supplies the missing provenance for
+the JOIN prison pre-check. `tCharacter.nPrisonMin` is returned by
+`p_Char_GetAllData` and written by the original prison procedures using a
+`smallint` minute value. WorldManager's stored
+`PROTO_NC_CHAR_BASE_CMD::prisonmin` is the same value tested by
+`fc_NC_KQ_JOIN_REQ`.
+
+The emulator now carries that field as nullable `Character.PrisonMinutes`
+and loads `characters.PrisonMin` in both character load paths. The original
+table default expression is not yet independently decoded; therefore
+`NULL` is deliberately an emulator-only "unknown source value" sentinel and
+is not converted to zero. This removes the previous structural absence of
+`prisonmin` without inventing new-character admission semantics.
+
+Original `fc_NC_KQ_JOIN_CANCEL_REQ` also proves the ACK values:
+`0x09A1` when `PlayerDisjoin` removes the session's current membership and
+`0x09A2` when there is no current membership to remove. The request's Handle
+is echoed in the ACK, but native `PlayerDisjoin` itself uses the
+session-owned current KQ Handle. The live handler stays disabled until the
+emulator has that session membership plus native CharacterNumber under one
+atomic owner.

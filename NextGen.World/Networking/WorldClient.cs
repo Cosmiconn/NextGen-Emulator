@@ -100,6 +100,9 @@ namespace NextGen.World.Networking
                         ch.StatPoints = (byte)row["StatPoints"];
                         ch.UsablePoints = (byte)row["UsablePoints"];
                         ch.Fame = 0;	// TODO
+                        ch.PrisonMinutes = row.IsNull("PrisonMin")
+                            ? (short?)null
+                            : GetDataTypes.Getshort(row["PrisonMin"]);
                         ch.GameSettings = Database.DataStore.ReadMethods.GetGameSettings(ch.ID, Program.DatabaseManager);
                         ch.ClientSettings = Database.DataStore.ReadMethods.GetClientSettings(ch.ID, Program.DatabaseManager);
                         ch.Shortcuts = Database.DataStore.ReadMethods.GetShortcuts(ch.ID, Program.DatabaseManager);
