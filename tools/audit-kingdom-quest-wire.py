@@ -25,6 +25,9 @@ READ_METHODS = ROOT / "NextGen.Database/DataStore/ReadMethods.cs"
 WORLD_SCHEMA = ROOT / "sql/world/schema.sql"
 IDENTITY = ROOT / "NextGen.World/Data/KingdomQuestCharacterIdentity.cs"
 PACKET_HELPER = ROOT / "NextGen.World/Handlers/PacketHelper.cs"
+ADMISSION = ROOT / "NextGen.World/Data/KingdomQuestAdmissionCoordinator.cs"
+INTER_HEADER = ROOT / "NextGen.InterLib/Networking/InterHeader.cs"
+ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -34,7 +37,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -61,6 +64,9 @@ def main():
     membership = MEMBERSHIP.read_text(encoding="utf-8")
     identity = IDENTITY.read_text(encoding="utf-8")
     packet_helper = PACKET_HELPER.read_text(encoding="utf-8")
+    admission = ADMISSION.read_text(encoding="utf-8")
+    inter_header = INTER_HEADER.read_text(encoding="utf-8")
+    zone_runtime = ZONE_RUNTIME.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -347,8 +353,27 @@ def main():
         print("FAIL: LIST_REFRESH reverted to a hard-coded empty KQ list")
         return 1
 
-    if "[PacketHandler(CH22Type.KingdomQuestJoinReq)]" in handler:
-        print("FAIL: KQ join enabled before prison/current-KQ mutation state is represented")
+    if not require(handler, [
+        "[PacketHandler(CH22Type.KingdomQuestJoinReq)]",
+        "KingdomQuestAdmissionCoordinator.TryGetPreJoinError(",
+        "original PrisonMin is unknown",
+        "PlayerDisjoin(client);",
+        "KingdomQuestAdmissionCoordinator.TryAddMembership(",
+        "KingdomQuestProtocol.CreateJoinAck(handle, error)",
+        "BroadcastJoinList(handle)",
+        "[PacketHandler(CH22Type.KingdomQuestJoinCancelReq)]",
+        "KingdomQuestNativeConstants.JoinCancelSuccess",
+        "KingdomQuestNativeConstants.JoinCancelNotJoined",
+        "KingdomQuestProtocol.CreateJoinCancelAck(",
+        "requestedHandle, error",
+    ], "live source-backed JOIN/JOIN_CANCEL handlers"):
+        return 1
+
+    precheck_pos = handler.find("KingdomQuestAdmissionCoordinator.TryGetPreJoinError(")
+    disjoin_pos = handler.find("PlayerDisjoin(client);", precheck_pos)
+    add_pos = handler.find("KingdomQuestAdmissionCoordinator.TryAddMembership(", disjoin_pos)
+    if precheck_pos < 0 or disjoin_pos < precheck_pos or add_pos < disjoin_pos:
+        print("FAIL: JOIN request no longer preserves prison/same-handle -> PlayerDisjoin -> PlayerJoin order")
         return 1
 
     if not require(info, [
@@ -407,8 +432,53 @@ def main():
         print("FAIL: unresolved original nPrisonMin default was guessed as zero")
         return 1
 
-    if "[PacketHandler(CH22Type.KingdomQuestJoinCancelReq)]" in handler:
-        print("FAIL: KQ join-cancel enabled before current membership/CharacterNumber mutation is represented")
+    if not require(admission, [
+        "class KingdomQuestAdmissionCoordinator",
+        "!client.Character.Character.PrisonMinutes.HasValue",
+        "alreadyInRequestedKq",
+        "TryRemoveCurrentMembership",
+        "client.KingdomQuestHandle.Value",
+        "v => v.CharacterNumber == characterNumber",
+        "KingdomQuestSessionCoordinator.TrySetMembership(",
+        "CompleteDisjoin",
+        "client.KingdomQuestHandle = null",
+        "TryAddMembership",
+        "KingdomQuestAdmissionRules.EvaluatePlayerJoin(",
+        "KingdomQuestCharacterIdentity.TryGetCharacterNumber(",
+        "KingdomQuestAdmissionRules.AssignInitialTeam(",
+        "client.KingdomQuestHandle = handle",
+    ], "atomic native KQ admission membership mutations"):
+        return 1
+
+    if not require(handler, [
+        "BroadcastPlayerDisjoinToZones",
+        "InterHeader.KingdomQuestPlayerDisjoin",
+        "BroadcastJoinList(oldHandle)",
+        "KingdomQuestAdmissionCoordinator.CompleteDisjoin(",
+        "memberClient.KingdomQuestJoinListLastRequestTime = now",
+    ], "native PlayerDisjoin broadcast ordering"):
+        return 1
+
+    if not require(inter_header, [
+        "KingdomQuestPlayerDisjoin = 0x400A",
+    ], "emulator transport for native PLAYER_DISJOIN"):
+        return 1
+
+    if not require(zone_inter, [
+        "[InterPacketHandler(InterHeader.KingdomQuestPlayerDisjoin)]",
+        "native.OpCode != 0x583B",
+        "native.TryReadUInt(out handle)",
+        "native.TryReadUInt(out characterNumber)",
+        "KingdomQuestZoneRuntimeRegistry.TryDisjoin(",
+    ], "Zone native PLAYER_DISJOIN receiver"):
+        return 1
+
+    if not require(zone_runtime, [
+        "public static bool TryDisjoin(uint handle, uint characterNumber)",
+        "v => v.CharacterNumber == characterNumber",
+        "roster.RemoveAt(index)",
+        "current.State, current.Definition, roster",
+    ], "Zone KQ player-info deletion"):
         return 1
 
     if not require(membership, [
@@ -577,7 +647,7 @@ def main():
 
     print("PASS: native NC_KQ opcode names replace capture-era guesses")
     print("PASS: original prison minutes are loaded fail-closed; unresolved creation default is not guessed")
-    print("PASS: JOIN_CANCEL 0x09A1/0x09A2 is locked while mutation handler remains disabled")
+    print("PASS: JOIN_CANCEL 0x09A1/0x09A2 is live and removes session-owned current membership before echoing the request Handle")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")
     print("PASS: native W2Z_MAKE/START/END/DESTROY and Z2W_MAKE_ACK layouts are isolated from client traffic")
@@ -589,13 +659,14 @@ def main():
     print("PASS: emulator Character.ID is source-correlated to native chrregnum/CharacterNumber through existing avatar serialization")
     print("PASS: join-cancel/team-select/team-type/disjoin wire layouts are source-level named")
     print("PASS: vote/start/result/ban wire layouts are source-level modeled without vote policy")
-    print("PASS: JOIN_LIST_REQ is live only when its native ushort Error is explicitly supplied")
+    print("PASS: JOIN_LIST_REQ uses recovered native errors/cooldown directly; no external Error placeholder is consulted")
     print("PASS: LIST_REQ ignores request bounds and exposes only Status 0..4; SCHEDULE_REQ exposes the full scheduler array")
     print("PASS: LIST_REFRESH keeps a per-session visible snapshot and emits native delete/update/add deltas in original order")
     print("PASS: LIST_ADD refresh batches use the original/capture-correlated 53-entry threshold")
     print("PASS: complete KQ client definitions can be stored without scheduler inference")
     print("PASS: LIST_REFRESH serializes only entries supplied by the source-owned definition registry")
-    print("PASS: JOIN_ACK 0x0991..0x099A admission results are source-level recovered; network JOIN remains gated on missing prison/current-KQ mutation state")
+    print("PASS: JOIN_ACK 0x0991..0x099A is live for characters with known original PrisonMin; unknown provenance remains fail-closed")
+    print("PASS: successful JOIN/CANCEL preserves native PlayerDisjoin/PlayerJoin list-broadcast ordering and propagates PLAYER_DISJOIN to Zone")
     print("PASS: Z2W_MAKE_ACK 0x0981 success now drives the proven World Status 1/2 -> 2 transition; non-success drives Status 8")
     print("PASS: Zone emits MAKE_ACK only for the proven successful MAKE path; no failure Error is guessed")
     print("PASS: PDB names lock TeamDivideType 1=RANDOM and 2=USERSELECT; PlayerJoin type-2 initial assignment remains source-modeled")

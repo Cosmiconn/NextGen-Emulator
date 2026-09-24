@@ -525,7 +525,8 @@ namespace NextGen.World.Data
     /// <summary>
     /// Pure admission/team rules recovered from
     /// CParserClient::fc_NC_KQ_JOIN_REQ, CKQServer::PlayerJoin and
-    /// CKQ::IsJoinable. No packet handler calls these rules yet.
+    /// CKQ::IsJoinable. Live handlers consume them only through
+    /// KingdomQuestAdmissionCoordinator so membership projections stay atomic.
     /// </summary>
     public static class KingdomQuestAdmissionRules
     {

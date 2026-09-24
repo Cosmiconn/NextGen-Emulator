@@ -167,6 +167,38 @@ namespace NextGen.Zone.Data
             }
         }
 
+        /// <summary>
+        /// Mirrors Zone.exe WorldManagerSession::wms_NC_KQ_PLAYER_DISJOIN_CMD:
+        /// find the KQ by Handle and delete CharacterNumber from its
+        /// KQPlayerInfoList. The original handler ignores the delete result.
+        /// </summary>
+        public static bool TryDisjoin(uint handle, uint characterNumber)
+        {
+            lock (Sync)
+            {
+                KingdomQuestZoneRuntimeState current;
+                if (!ByHandle.TryGetValue(handle, out current))
+                    return false;
+
+                List<KingdomQuestZoneJoinerInfo> roster =
+                    current.Joiners.Select(v => new KingdomQuestZoneJoinerInfo
+                    {
+                        CharacterNumber = v.CharacterNumber,
+                        TeamType = v.TeamType,
+                    }).ToList();
+
+                int index = roster.FindIndex(
+                    v => v.CharacterNumber == characterNumber);
+                if (index >= 0)
+                    roster.RemoveAt(index);
+
+                ByHandle[handle] = new KingdomQuestZoneRuntimeState(
+                    current.Handle, current.MapID, current.MapInstance,
+                    current.State, current.Definition, roster);
+                return true;
+            }
+        }
+
         public static bool TryEnd(uint handle)
         {
             lock (Sync)

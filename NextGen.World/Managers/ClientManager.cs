@@ -175,6 +175,16 @@ namespace NextGen.World
                     {
                         Log.WriteLine(LogLevel.Warn, "There was a duplicate client in clientsByName: {0}", client.Character.Character.Name);
                     }
+
+                    WorldClient deletedById;
+                    clientsByCharID.TryRemove(
+                        client.Character.Character.ID, out deletedById);
+                    if (deletedById != null && deletedById != client)
+                    {
+                        Log.WriteLine(LogLevel.Warn,
+                            "There was a duplicate client in clientsByCharID: {0}",
+                            client.Character.Character.ID);
+                    }
                 }
             }
             finally

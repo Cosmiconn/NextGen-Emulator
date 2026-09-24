@@ -371,9 +371,13 @@ same native source values: `Job << 2` and `Male << 7`.
 The original JOIN request first rejects prison/already-in-target, then calls
 `PlayerDisjoin(session)` **before** attempting `PlayerJoin` for the new
 Handle. The emulator now carries the original DB-backed prison minute value
-fail-closed as nullable state. JOIN remains disabled because session-owned
-current KQ membership and authoritative native CharacterNumber mutation are
-not yet connected; an unknown prison value is never treated as zero.
+fail-closed as nullable state and has a source-correlated CharacterNumber plus
+an atomic combined membership owner.
+
+The live JOIN handler therefore executes the native sequence for characters
+whose original PrisonMin is known: prison/same-handle precheck, session-owned
+PlayerDisjoin, then PlayerJoin and JOIN_ACK. A nullable/unknown PrisonMin
+produces no guessed native Error and no mutation.
 
 ## Team divide modes and initial assignment recovered
 
@@ -445,9 +449,18 @@ team counter when TeamType is 0/1, sends
 `NC_KQ_PLAYER_DISJOIN_CMD(Handle, CharacterNumber)`, rebroadcasts the join
 list, clears the session KQ handle to `0xFFFFFFFF`, and returns 1.
 
-JOIN and JOIN_CANCEL handlers remain network-disabled until that authoritative
-session membership/CharacterNumber mutation is represented atomically; the
-new Error constants are evidence, not a guessed activation.
+JOIN_CANCEL is now live on the same session-owned membership. Its ACK still
+echoes the request Handle, while removal uses the current session KQ Handle.
+On removal World preserves the original order: broadcast
+`NC_KQ_PLAYER_DISJOIN_CMD(currentHandle, CharacterNumber)` to every Zone,
+broadcast the refreshed `0x3118` JOIN_LIST to remaining KQ sessions, then
+clear the session KQ Handle.
+
+Original Zone behavior is also correlated: its
+`wms_NC_KQ_PLAYER_DISJOIN_CMD` searches the KQ by Handle and calls
+`KQPlayerInfoList::kqpil_DeletePlayerInfo(CharacterNumber)`. The emulator's
+inter-server transport now carries those exact native 0x583B bytes and applies
+that deletion to represented Zone KQ state.
 
 
 ## Combined native membership owner

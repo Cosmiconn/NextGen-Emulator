@@ -5,6 +5,7 @@ using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
 using NextGen.World.Networking;
 using NextGen.World.Data;
+using NextGen.InterLib.Networking;
 using NextGen.Util;
 
 namespace NextGen.World.Handlers
@@ -144,6 +145,142 @@ namespace NextGen.World.Handlers
             }
 
             using (Packet response = KingdomQuestProtocol.CreateStatusAck(state))
+                client.SendPacket(response);
+        }
+
+        private static void BroadcastJoinList(uint handle)
+        {
+            IReadOnlyList<KingdomQuestMembershipEntry> members;
+            IReadOnlyList<KingdomQuestJoinCharacterInfo> participants;
+            if (!KingdomQuestMembershipRegistry.TryGet(handle, out members) ||
+                !KingdomQuestParticipantRegistry.TryGet(handle, out participants))
+                return;
+
+            int now = KingdomQuestSourceScheduler.ToNativeTime32(DateTime.Now);
+            using (Packet response = KingdomQuestProtocol.CreateJoinListAck(
+                KingdomQuestNativeConstants.JoinListSuccess, participants))
+            {
+                for (int i = 0; i < members.Count; i++)
+                {
+                    if (members[i].CharacterNumber > int.MaxValue)
+                        continue;
+
+                    WorldClient memberClient = ClientManager.Instance.GetClientByCharID(
+                        (int)members[i].CharacterNumber);
+                    if (memberClient == null)
+                        continue;
+
+                    memberClient.KingdomQuestJoinListLastRequestTime = now;
+                    memberClient.SendPacket(response);
+                }
+            }
+        }
+
+        private static void BroadcastPlayerDisjoinToZones(
+            uint handle, uint characterNumber)
+        {
+            if (Managers.ZoneManager.Instance == null)
+                return;
+
+            using (Packet native = KingdomQuestProtocol.CreatePlayerDisjoin(
+                handle, characterNumber))
+            using (var packet =
+                new InterPacket(InterHeader.KingdomQuestPlayerDisjoin))
+            {
+                byte[] body = native.ToNormalArray();
+                packet.WriteInt(body.Length);
+                packet.WriteBytes(body);
+                Managers.ZoneManager.Instance.Broadcast(packet);
+            }
+        }
+
+        private static bool PlayerDisjoin(WorldClient client)
+        {
+            uint oldHandle;
+            uint characterNumber;
+            if (!KingdomQuestAdmissionCoordinator.TryRemoveCurrentMembership(
+                    client, out oldHandle, out characterNumber))
+                return false;
+
+            // Native PlayerDisjoin order: Zone broadcast, JOIN_LIST broadcast,
+            // then session nKQHandle = 0xFFFFFFFF.
+            BroadcastPlayerDisjoinToZones(oldHandle, characterNumber);
+            BroadcastJoinList(oldHandle);
+            KingdomQuestAdmissionCoordinator.CompleteDisjoin(
+                client, oldHandle);
+            return true;
+        }
+
+        [PacketHandler(CH22Type.KingdomQuestJoinReq)]
+        public static void KingdomQuestJoin(WorldClient client, Packet packet)
+        {
+            uint handle;
+            if (!packet.TryReadUInt(out handle))
+                return;
+
+            ushort preJoinError;
+            if (!KingdomQuestAdmissionCoordinator.TryGetPreJoinError(
+                    client, handle, out preJoinError))
+            {
+                // The original server always has PROTO_NC_CHAR_BASE_CMD.
+                // A nullable PrisonMin is our provenance sentinel only; do not
+                // turn unknown original state into a native success/error.
+                Log.WriteLine(LogLevel.Warn,
+                    "KQ JOIN blocked for {0}: original PrisonMin is unknown.",
+                    client.Character == null ? "<no-character>" :
+                        client.Character.Character.Name);
+                return;
+            }
+
+            if (preJoinError != 0)
+            {
+                using (Packet rejected =
+                    KingdomQuestProtocol.CreateJoinAck(handle, preJoinError))
+                    client.SendPacket(rejected);
+                return;
+            }
+
+            // fc_NC_KQ_JOIN_REQ always executes PlayerDisjoin before
+            // PlayerJoin when the prison/same-handle prechecks pass.
+            PlayerDisjoin(client);
+
+            ushort error;
+            if (!KingdomQuestAdmissionCoordinator.TryAddMembership(
+                    client, handle, out error))
+            {
+                Log.WriteLine(LogLevel.Error,
+                    "KQ JOIN fail-closed for handle {0}: authoritative membership state is incomplete.",
+                    handle);
+                return;
+            }
+
+            // Native PlayerJoin broadcasts the new join list before returning
+            // to fc_NC_KQ_JOIN_REQ, which sends JOIN_ACK afterwards.
+            if (error == KingdomQuestNativeConstants.JoinSuccess)
+                BroadcastJoinList(handle);
+
+            using (Packet response =
+                KingdomQuestProtocol.CreateJoinAck(handle, error))
+                client.SendPacket(response);
+        }
+
+        [PacketHandler(CH22Type.KingdomQuestJoinCancelReq)]
+        public static void KingdomQuestJoinCancel(WorldClient client, Packet packet)
+        {
+            uint requestedHandle;
+            if (!packet.TryReadUInt(out requestedHandle))
+                return;
+
+            bool removed = PlayerDisjoin(client);
+            ushort error = removed
+                ? KingdomQuestNativeConstants.JoinCancelSuccess
+                : KingdomQuestNativeConstants.JoinCancelNotJoined;
+
+            // Original ACK echoes the request Handle even though
+            // PlayerDisjoin selects the session-owned current Handle.
+            using (Packet response =
+                KingdomQuestProtocol.CreateJoinCancelAck(
+                    requestedHandle, error))
                 client.SendPacket(response);
         }
 

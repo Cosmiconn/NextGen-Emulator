@@ -52,6 +52,10 @@
         KingdomQuestDestroy = 0x4008,
         KingdomQuestMakeAck = 0x4009,
 
+        // Exact native NC_KQ_PLAYER_DISJOIN_CMD bytes broadcast by World to
+        // every Zone, matching CWMZoneSessionManager::BroadCast.
+        KingdomQuestPlayerDisjoin = 0x400A,
+
         //Guild Shit
         ZONE_AcademyMemberJoined = 0x4101,
         ZONE_AcademyMemberLeft = 0x4102,

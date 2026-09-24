@@ -77,6 +77,31 @@ namespace NextGen.Zone.InterServer
             }
         }
 
+        [InterPacketHandler(InterHeader.KingdomQuestPlayerDisjoin)]
+        public static void HandleKingdomQuestPlayerDisjoin(
+            WorldConnector connector, InterPacket packet)
+        {
+            byte[] nativeBytes;
+            if (!TryReadNativeKqPacket(packet, out nativeBytes))
+                return;
+
+            using (var native = new Packet(nativeBytes))
+            {
+                uint handle;
+                uint characterNumber;
+                if (native.OpCode != 0x583B ||
+                    !native.TryReadUInt(out handle) ||
+                    !native.TryReadUInt(out characterNumber) ||
+                    native.Remaining != 0)
+                    return;
+
+                // Original Zone handler searches Handle then calls
+                // KQPlayerInfoList::kqpil_DeletePlayerInfo(CharacterNumber).
+                KingdomQuestZoneRuntimeRegistry.TryDisjoin(
+                    handle, characterNumber);
+            }
+        }
+
         [InterPacketHandler(InterHeader.KingdomQuestEnd)]
         public static void HandleKingdomQuestEnd(WorldConnector connector, InterPacket packet)
         {

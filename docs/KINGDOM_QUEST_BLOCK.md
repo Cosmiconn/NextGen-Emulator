@@ -882,9 +882,13 @@ Original `fc_NC_KQ_JOIN_CANCEL_REQ` also proves the ACK values:
 `0x09A1` when `PlayerDisjoin` removes the session's current membership and
 `0x09A2` when there is no current membership to remove. The request's Handle
 is echoed in the ACK, but native `PlayerDisjoin` itself uses the
-session-owned current KQ Handle. The live handler stays disabled until the
-emulator has that session membership plus native CharacterNumber under one
-atomic owner.
+session-owned current KQ Handle.
+
+That path is now live. A successful disjoin updates the combined membership,
+broadcasts exact `NC_KQ_PLAYER_DISJOIN_CMD(Handle, CharacterNumber)` bytes
+to every Zone, broadcasts the refreshed JOIN_LIST to remaining joiners, then
+clears the session KQ Handle. Zone mirrors the original handler by finding the
+KQ Handle and deleting CharacterNumber from its represented player list.
 
 
 ## Native membership identity boundary
@@ -935,3 +939,33 @@ updates the per-session timestamp; error replies carry an empty roster.
 This removes the old `KingdomQuestJoinListReplyRegistry` dependency from
 the client handler. The participant payload remains the native
 `KQ_JOIN_CHAR_INFO` projection of the source-owned membership state.
+
+
+## Live JOIN admission for known prison state
+
+With CharacterNumber/chrregnum and the combined membership owner correlated,
+the original JOIN mutation sequence can now run without an ID guess.
+
+For a character whose DB-backed `PrisonMin` is known, the client handler
+reproduces `fc_NC_KQ_JOIN_REQ` ordering:
+
+```text
+read requested Handle
+  -> prisonmin != 0                 => 0x0999
+  -> already in requested Handle    => 0x099A
+  -> PlayerDisjoin(current session KQ), return value ignored
+  -> PlayerJoin(requested Handle)
+  -> JOIN_ACK = 0x0991 + PlayerJoin result
+```
+
+`PlayerJoin` uses the source-proven Status/capacity/level/class/gender
+checks, creates one `KingdomQuestMembershipEntry` from the live character's
+existing native chrregnum/Character.ID, level, class, Name5 and initial
+TeamType, then atomically projects that row into client JOIN_LIST, STATUS names
+and World-to-Zone START joiners. On success the native JOIN_LIST broadcast is
+sent before JOIN_ACK, matching the original call order.
+
+The one remaining prison caveat is provenance, not gameplay inference:
+`PrisonMin == NULL` means the original value/default was not supplied. Such a
+JOIN is fail-closed with no mutation and no fabricated Fiesta Error. Explicit
+zero/nonzero source values follow the recovered native admission branches.
