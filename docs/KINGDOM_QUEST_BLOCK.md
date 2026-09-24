@@ -1061,8 +1061,24 @@ packed `SHINE_DATETIME`, adds exactly ten minutes to `tm_min`, lets
 `current_time < saved_time + 10 minutes`. There is no native lower-bound
 or additional freshness policy.
 
-`KingdomQuestReconnectRules` now models that exact packed-date/map/expiry
-predicate. The emulator additionally requires the existing
+Character.exe closes the inverse conversion. Its `p_Char_GetKQMap` reader
+binds SQL `dKQDate` as a timestamp and packs the outgoing 32-bit field as:
+
+```text
+(year & 0x0F)
+| ((month  << 4)  & 0x000000F0)
+| ((day    << 8)  & 0x00001F00)
+| ((hour   << 13) & 0x0003E000)
+| ((minute << 18) & 0x00FC0000)
+| ((second << 24) & 0x3F000000)
+```
+
+The year really is only four bits. WorldManager reconstructs it as
+`2000 + nibble`, so the original format wraps after 2015. This native
+limitation remains explicit instead of receiving an emulator-only epoch fix.
+
+`KingdomQuestReconnectRules` now models both this exact Character-side
+packing and the World-side packed-date/map/expiry predicate. The emulator additionally requires the existing
 `KingdomQuestSessionTarget` to carry the same native MapName; this is an
 internal routing-authority gate, not new gameplay semantics.
 

@@ -691,9 +691,19 @@ def main():
         'saved.AddMinutes(ReconnectWindowMinutes)',
         'return localNow <',
         'Do not add a lower-bound/future-date policy',
+        'public static uint EncodeNativeDate(DateTime databaseDateTime)',
+        '((uint)databaseDateTime.Year & 0x0Fu)',
+        '((uint)databaseDateTime.Month << 4) & 0xF0u',
+        '((uint)databaseDateTime.Day << 8) & 0x1F00u',
+        '((uint)databaseDateTime.Hour << 13) & 0x3E000u',
+        '((uint)databaseDateTime.Minute << 18) & 0xFC0000u',
+        '((uint)databaseDateTime.Second << 24) & 0x3F000000u',
+        'public static bool TryIsExistingFromDatabase(',
+        'EncodeNativeDate(savedDatabaseDate)',
+        'original year field is only four',
     ):
         if token not in world_reconnect:
-            print('FAIL: native KQ IsExisted/reconnect rule missing', token)
+            print('FAIL: native KQ IsExisted/reconnect/date-packing rule missing', token)
             return 1
 
     if 'year epoch/base is not yet source-proven' in world_map_context:
@@ -774,6 +784,7 @@ def main():
     print('PASS: native KQTD_RANDOM assignment and RandomBox/WELL512 path are source-correlated')
     print('PASS: combined membership owns CharacterNumber and client identity together without inference')
     print('PASS: CKQServer::IsExisted packed SHINE_DATETIME decode, exact MapName match and native ten-minute reconnect expiry are source-modeled')
+    print('PASS: Character.exe dKQDate -> SHINE_DATETIME packing is source-modeled exactly, including the native four-bit year wrap')
     print('PASS: Status-3 expiry now runs live as Status 4 -> KQTD_RANDOM divide -> represented normal-party leave -> W2Z START')
     print('PASS: START preflights every native CharacterNumber/session and target Zone before mutating status/team/party state')
     print('PASS: SetDoneSkip preserves Status6 -> DESTROY -> FreeMapLink -> source-backed notify -> FreeJoiner -> JOINING_ALARM_END order')

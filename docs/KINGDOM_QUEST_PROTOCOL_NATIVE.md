@@ -615,7 +615,14 @@ decodes `SHINE_DATETIME` as year=(low4+2000), month/day/hour/minute/second
 from 4/5/5/6/6 bits. It adds exactly ten minutes and accepts only
 `now < saved+10min`.
 
-The emulator now models that predicate without adding a lower-bound check.
+Character.exe's `p_Char_GetKQMap` path proves the inverse SQL timestamp
+packing: `year&0xF`, month at bit 4, day at bit 8, hour at bit 13, minute at
+bit 18 and second at bit 24, using the corresponding field masks. The original
+four-bit year therefore wraps after 2015; no wider emulator epoch is
+substituted.
+
+The emulator now models that packing and predicate without adding a lower-bound
+check.
 Actual DB persistence/load and the later Name5-based
 `JoinerInfoUpdateByLogin` session rebind remain separate so no handle-only
 reconnect is invented.

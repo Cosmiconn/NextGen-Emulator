@@ -16,6 +16,23 @@ namespace NextGen.World.Data
     {
         public const int ReconnectWindowMinutes = 10;
 
+        /// <summary>
+        /// Mirrors Character.exe's p_Char_GetKQMap response conversion.
+        /// SQL dKQDate is read as a timestamp and packed directly into the
+        /// SHINE_DATETIME bit fields. The original year field is only four
+        /// bits; do not silently extend or rebase it.
+        /// </summary>
+        public static uint EncodeNativeDate(DateTime databaseDateTime)
+        {
+            return
+                ((uint)databaseDateTime.Year & 0x0Fu) |
+                (((uint)databaseDateTime.Month << 4) & 0xF0u) |
+                (((uint)databaseDateTime.Day << 8) & 0x1F00u) |
+                (((uint)databaseDateTime.Hour << 13) & 0x3E000u) |
+                (((uint)databaseDateTime.Minute << 18) & 0xFC0000u) |
+                (((uint)databaseDateTime.Second << 24) & 0x3F000000u);
+        }
+
         public static bool TryDecodeNativeDate(
             uint packed, out DateTime localDateTime)
         {
@@ -38,6 +55,19 @@ namespace NextGen.World.Data
                 localDateTime = default(DateTime);
                 return false;
             }
+        }
+
+        public static bool TryIsExistingFromDatabase(
+            uint handle,
+            string savedMapName,
+            DateTime savedDatabaseDate,
+            DateTime now)
+        {
+            return TryIsExisting(
+                handle,
+                savedMapName,
+                EncodeNativeDate(savedDatabaseDate),
+                now);
         }
 
         public static bool TryIsExisting(
