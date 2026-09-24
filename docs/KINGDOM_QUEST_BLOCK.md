@@ -1289,6 +1289,50 @@ This establishes **what original runtime source is present** without pretending
 that source presence is the same thing as successful runtime script loading.
 
 
+## Native KQ reward source and dice boundary
+
+Zone PDB/EXE correlation now closes the data shape used by
+`ShinePlayer::sp_KQReward`. Native `KINGDOM_QUEST_REW` is exactly
+**128 bytes**: `ID`, 32-byte `IndexString`, 32-byte `KQBoxItemIDX`,
+then **15 u16 Reward handles** followed by **15 u16 RewardRate values**.
+The SHN stores those 30 values as signed 16-bit columns, so the raw source
+model remains signed while `KingdomQuestNativeRewardInfo` performs the
+explicit bit-preserving `unchecked(ushort)` projection used by the runtime.
+
+For every one of the 15 slots, `sp_KQReward` calls
+`well512_GetRandom(1000)` first and selects the slot only when the returned
+value is less than its native RewardRate. A selected handle is then resolved
+through `RewardData::rd_FindHandle`; a missing handle is skipped. The new
+pure reward-dice model preserves one 0..999 sample per slot and deliberately
+does not resolve handles or grant anything yet.
+
+The referenced handle source is the original `ShineReward.shn`, independently
+decoded as SHA-256
+`09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f`,
+**435 rows / 16 columns**. Its shape matches the PDB `ShineReward` struct:
+`RewardHandle u16`, `RewardType u8`, `Argument[33]`, `Quantity u32`,
+`Upgrade i16`, nine additional i16 fields, `OptionDegree u16`, and
+`TitleDegree u32`. The source dumper now includes this SHN as an optional
+reward dependency; it is intentionally not added to the four-file
+`--require-main` scheduler requirement.
+
+PDB enum values are now source-modeled exactly:
+`NONE=0, ITEM=1, EXP=2, MONEY=3, HONOR=4, HP_SOUL_STONE=5,
+SP_SOUL_STONE=6, GURAD_SOUL_STONE=7, ATTACK_SOUL_STONE=8,
+CLASS_CHANGE=9, PET=10, MAX=11`. The recovered `sp_KQReward` switch has
+positive accumulation/build branches only for 0..4: ITEM enters
+`TreasureChestMaker`, EXP accumulates the later `sp_GainExp` amount,
+MONEY accumulates `cen`, and HONOR accumulates `fame`.
+
+The same function constructs native `NC_KQ_REWARD_REQ` opcode `0x5815`.
+Its fixed payload base is 35 bytes: `u32 fame + u64 cen` plus the 23-byte
+base of `PROTO_NC_ITEMDB_CREATEITEMLIST_REQ`, followed by its variable item
+list. PDB sizes also close `REWARDSUC_ACK` at 8 bytes and
+`REWARDFAIL_ACK` at 10 bytes. These sizes/constants are modeled, but no
+GameDB-equivalent send/ACK path is activated before item generation,
+persistence, and the scenario completion trigger are source-equivalent.
+
+
 ## Zone MAKE result branches recovered
 
 The original Zone `WorldManagerSession::wms_NC_KQ_W2Z_MAKED_CMD`

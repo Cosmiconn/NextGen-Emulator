@@ -26,6 +26,7 @@ namespace NextGen.KingdomQuestTool
             "KingdomQuestMap.shn",
             "KingdomQuestRew.shn",
             "KQItem.shn",
+            "ShineReward.shn",
             "KQTeam.shn",
             "KQIsVote.shn",
             "KQVoteDesc.shn",

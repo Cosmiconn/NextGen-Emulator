@@ -51,6 +51,10 @@ namespace NextGen.World.Data
                     "UseClassTypeInfo", "data_useclasstypeinfo",
                     "0ef94a55e26fb992e0497f825984742df681f94f9bf32167e4defebcbead632d",
                     39, 28) },
+                { "ShineReward", new ExpectedSource(
+                    "ShineReward", "data_shinereward",
+                    "09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f",
+                    435, 16) },
             };
 
         public static IReadOnlyDictionary<string, ExpectedSource> Sources

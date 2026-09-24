@@ -224,6 +224,36 @@ kills are counted, or how scores are awarded. The variable `SCORE_CMD` /
 `SCORE_SIMPLE_CMD` and reward packets remain outside the runtime until their
 nested/variable structures and gameplay triggers are fully proven.
 
+## Native reward data and GameDB boundary
+
+Original Zone PDB fixes `KINGDOM_QUEST_REW` at 128 bytes with two
+`u16[15]` arrays: Reward handles and RewardRate. The source SHN exposes those
+same bit patterns as signed 16-bit columns; runtime projection is therefore
+explicit and bit-preserving rather than changing the raw imported source type.
+
+`ShinePlayer::sp_KQReward` consumes all 15 slots in order. Each slot takes
+one `well512_GetRandom(1000)` sample and passes when
+`sample < RewardRate[i]`; only then does it call
+`RewardData::rd_FindHandle(Reward[i])`. The emulator now models this pure
+dice boundary from caller-supplied 0..999 samples and does not manufacture a
+second RNG stream.
+
+The handle target is the original 435-row `ShineReward.shn`
+(SHA-256 `09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f`).
+PDB fixes `ShineReward` at 66 bytes and the reward-type enum at
+NONE/ITEM/EXP/MONEY/HONOR/HP_SOUL_STONE/SP_SOUL_STONE/GURAD_SOUL_STONE/
+ATTACK_SOUL_STONE/CLASS_CHANGE/PET = 0..10, with MAX=11.
+The recovered KQ reward function actively handles NONE through HONOR (0..4);
+later types are not promoted to KQ behavior without another native path.
+
+Zone builds `NC_KQ_REWARD_REQ` with opcode `0x5815`. Its fixed payload
+base is 35 bytes (`u32 fame + u64 cen + 23-byte item-create request base`)
+before the variable item list. Native reward-success and reward-fail ACK
+structures are 8 and 10 bytes respectively. No live grant/GameDB path is
+enabled yet because the exact ShineReward source must be imported into the
+runtime and the existing item-generation/persistence boundary must be
+correlated before mutation.
+
 
 ## Original World ↔ Zone KQ lifecycle wire
 

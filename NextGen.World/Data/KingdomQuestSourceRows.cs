@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using NextGen.Database.DataStore;
+using NextGen.FiestaLib.Data;
 
 namespace NextGen.World.Data
 {
@@ -154,6 +155,12 @@ namespace NextGen.World.Data
         public string KQBoxItemIDX { get; private set; }
         public IReadOnlyList<short> RewardColumns { get; private set; }
         public IReadOnlyList<short> RewardRateColumns { get; private set; }
+
+        public bool TryProjectNative(out KingdomQuestNativeRewardInfo value)
+        {
+            return KingdomQuestNativeRewardInfo.TryCreate(
+                KQBoxItemIDX, RewardColumns, RewardRateColumns, out value);
+        }
 
         public static KingdomQuestRewardSourceRow Load(DataRow row)
         {

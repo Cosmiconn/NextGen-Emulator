@@ -31,6 +31,7 @@ WORLD_RECONNECT = ROOT / "NextGen.World/Data/KingdomQuestReconnectRules.cs"
 WORLD_MAP_CONTEXT = ROOT / "NextGen.World/Data/KingdomQuestMapContext.cs"
 WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
+NATIVE_REWARD = ROOT / "NextGen.FiestaLib/Data/KingdomQuestRewardInfo.cs"
 RAW_SOURCES = {
     "KingdomQuest": (
         ROOT / "sql/data/data_kq_source_10_kingdomquest.sql",
@@ -127,7 +128,7 @@ def main():
         WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER, WORLD_MAP_ALLOCATOR,
         WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
-        WORLD_MAP_CONTEXT, WORLD_SESSION, NATIVE_INFO,
+        WORLD_MAP_CONTEXT, WORLD_SESSION, NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -239,13 +240,14 @@ def main():
     world_map_context = WORLD_MAP_CONTEXT.read_text(encoding='utf-8')
     world_session = WORLD_SESSION.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
+    native_reward = NATIVE_REWARD.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
         if token not in provider:
             print('FAIL: DataProvider KQ source catalog missing', token)
             return 1
 
     tool = TOOL.read_text(encoding='utf-8')
-    for source in ('\"KingdomQuest.shn\"', '\"KingdomQuestMap.shn\"', '\"KingdomQuestRew.shn\"', '\"KQItem.shn\"', '\"UseClassTypeInfo.shn\"'):
+    for source in ('\"KingdomQuest.shn\"', '\"KingdomQuestMap.shn\"', '\"KingdomQuestRew.shn\"', '\"KQItem.shn\"', '\"UseClassTypeInfo.shn\"', '\"ShineReward.shn\"'):
         if source not in tool:
             print('FAIL: KQ source dumper missing target', source)
             return 1
@@ -333,6 +335,16 @@ def main():
             print('FAIL: secondary/tutorial SHN aliases leaked into native schema mapping', forbidden)
             return 1
 
+    for token in (
+        '"ShineReward"',
+        '"data_shinereward"',
+        '"09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f"',
+        '435, 16',
+    ):
+        if token not in world_snapshot:
+            print('FAIL: original ShineReward source snapshot missing', token)
+            return 1
+
     for source_name, (_path, sha256, record_count, column_count) in RAW_SOURCES.items():
         for token in (
             '"' + source_name + '"',
@@ -351,6 +363,53 @@ def main():
     ):
         if token not in world_provider:
             print('FAIL: World KQ raw-source runtime gate missing', token)
+            return 1
+
+    for token in (
+        'public bool TryProjectNative(out KingdomQuestNativeRewardInfo value)',
+        'KingdomQuestNativeRewardInfo.TryCreate(',
+        'KQBoxItemIDX, RewardColumns, RewardRateColumns',
+    ):
+        if token not in world_source_rows:
+            print('FAIL: KQ reward raw-source/native projection missing', token)
+            return 1
+
+    for token in (
+        'enum ShineRewardType : byte',
+        'None = 0',
+        'Item = 1',
+        'Experience = 2',
+        'Money = 3',
+        'Honor = 4',
+        'HpSoulStone = 5',
+        'SpSoulStone = 6',
+        'GuardSoulStone = 7',
+        'AttackSoulStone = 8',
+        'ClassChange = 9',
+        'Pet = 10',
+        'Max = 11',
+        'EntryCount = 15',
+        'NativeStructSize = 128',
+        'ShineRewardNativeStructSize = 66',
+        'RewardRequestOpCode = 0x5815',
+        'RewardRequestPayloadBaseSize = 35',
+        'ItemCreateRequestBaseSize = 23',
+        'RewardSuccessAckSize = 8',
+        'RewardFailAckSize = 10',
+        'unchecked((ushort)rewardColumns[i])',
+        'unchecked((ushort)rewardRateColumns[i])',
+        'randomSamples.Count != EntryCount',
+        'randomSamples[i] >= 1000',
+        'randomSamples[i] < RewardRates[i]',
+        'does not resolve ShineReward handles or grant rewards',
+    ):
+        if token not in native_reward:
+            print('FAIL: native KQ reward boundary missing', token)
+            return 1
+
+    for forbidden in ('Inventory', 'ExecuteQuery', 'GiveExp', 'Money +=', 'Fame +='):
+        if forbidden in native_reward:
+            print('FAIL: native KQ reward boundary activated gameplay/persistence', forbidden)
             return 1
 
     for token in (
