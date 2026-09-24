@@ -69,7 +69,17 @@ namespace NextGen.Zone.Handlers
             {
                ClientManager.Instance.RemoveTransfer(characterName);
  
-                 ZoneCharacter zonecharacter = new ZoneCharacter(transfer.CharID, true, transfer.MapInstance);
+                 ZoneCharacter zonecharacter = new ZoneCharacter(
+                     transfer.CharID, true, transfer.MapInstance,
+                     transfer.HasPositionOverride
+                         ? (ushort?)transfer.MapOverrideID
+                         : null,
+                     transfer.HasPositionOverride
+                         ? (int?)transfer.MapOverrideX
+                         : null,
+                     transfer.HasPositionOverride
+                         ? (int?)transfer.MapOverrideY
+                         : null);
                 if (zonecharacter.Character.AccountID != transfer.AccountID)
                 {
                     Log.WriteLine(LogLevel.Warn, "Character is logging in with wrong account ID.");

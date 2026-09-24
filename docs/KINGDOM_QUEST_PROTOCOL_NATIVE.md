@@ -623,9 +623,18 @@ substituted.
 
 The emulator now models that packing and predicate without adding a lower-bound
 check.
-Actual DB persistence/load and the later Name5-based
-`JoinerInfoUpdateByLogin` session rebind remain separate so no handle-only
-reconnect is invented.
+The DB-backed reconnect is now wired through the same boundary.
+After the packed-date/map predicate succeeds, the emulator requires an
+already-retained membership whose Name5 is byte-equal across all 20 bytes,
+rebinds only the new World session Handle, and routes the saved KQ X/Y plus
+the existing internal Map.InstanceID to Zone. It never creates a membership
+from persisted Handle data.
+
+The following native `CheckCharBannedInLogin` tests the joiner DWORD at
+offset +0x20 for value 1; PlayerJoin initializes it to zero. No emulator KQ
+vote/ban mutation exists yet, so zero is the only currently representable
+state. That ban mutation/disjoin edge remains part of the later vote runtime,
+not an invented login policy.
 
 
 ## Character save-location KQ persistence wire

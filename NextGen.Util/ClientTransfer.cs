@@ -15,6 +15,10 @@ namespace NextGen.Util
 		public DateTime Time { get; private set; }
 		public TransferType Type { get; private set; }
 		public short MapInstance { get; private set; }
+        public bool HasPositionOverride { get; private set; }
+        public ushort MapOverrideID { get; private set; }
+        public int MapOverrideX { get; private set; }
+        public int MapOverrideY { get; private set; }
 
 		public ClientTransfer(int accountID, string userName,int CharID, byte admin, string hostIP, string hash)
 		{
@@ -28,7 +32,8 @@ namespace NextGen.Util
 			this.Time = DateTime.Now;
 		}
 
-		public ClientTransfer(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP, short mapInstance = 0)
+		public ClientTransfer(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP, short mapInstance = 0,
+            ushort? mapOverrideId = null, int mapOverrideX = 0, int mapOverrideY = 0)
 		{
 			this.Type = TransferType.Game;
 			this.AccountID = accountID;
@@ -39,6 +44,10 @@ namespace NextGen.Util
             this.CharID = CharID;
 			this.RandID = randid;
 			this.MapInstance = mapInstance < 0 ? (short)0 : mapInstance;
+            this.HasPositionOverride = mapOverrideId.HasValue;
+            this.MapOverrideID = mapOverrideId.GetValueOrDefault();
+            this.MapOverrideX = mapOverrideX;
+            this.MapOverrideY = mapOverrideY;
 			this.Time = DateTime.Now;
 		}
 	}

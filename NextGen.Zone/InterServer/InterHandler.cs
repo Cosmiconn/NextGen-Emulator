@@ -590,12 +590,30 @@ namespace NextGen.Zone.InterServer
 				string username, charname, hostip;
 				ushort randid;
 				short mapInstance;
+                bool hasPositionOverride;
+                ushort mapOverrideId = 0;
+                int mapOverrideX = 0;
+                int mapOverrideY = 0;
                 if (!packet.TryReadInt(out accountid) || !packet.TryReadString(out username) || !packet.TryReadString(out charname) || !packet.TryReadInt(out CharID) ||
-					!packet.TryReadShort(out mapInstance) || !packet.TryReadUShort(out randid) || !packet.TryReadByte(out admin) || !packet.TryReadString(out hostip))
+					!packet.TryReadShort(out mapInstance) || !packet.TryReadBool(out hasPositionOverride))
 				{
 					return;
 				}
-				ClientTransfer ct = new ClientTransfer(accountid, username, charname,CharID, randid, admin, hostip, mapInstance);
+                if (hasPositionOverride &&
+                    (!packet.TryReadUShort(out mapOverrideId) ||
+                     !packet.TryReadInt(out mapOverrideX) ||
+                     !packet.TryReadInt(out mapOverrideY)))
+                {
+                    return;
+                }
+                if (!packet.TryReadUShort(out randid) || !packet.TryReadByte(out admin) || !packet.TryReadString(out hostip))
+                    return;
+
+				ClientTransfer ct = new ClientTransfer(
+                    accountid, username, charname, CharID, randid, admin, hostip,
+                    mapInstance,
+                    hasPositionOverride ? (ushort?)mapOverrideId : null,
+                    mapOverrideX, mapOverrideY);
 				ClientManager.Instance.AddTransfer(ct);
 			}
 		}

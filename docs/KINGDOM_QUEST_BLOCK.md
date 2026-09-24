@@ -1082,12 +1082,26 @@ packing and the World-side packed-date/map/expiry predicate. The emulator additi
 `KingdomQuestSessionTarget` to carry the same native MapName; this is an
 internal routing-authority gate, not new gameplay semantics.
 
-The subsequent `JoinerInfoUpdateByLogin` does not recreate membership. It
-finds the already-retained joiner row for the persisted Handle by Name5,
-rebinds the new World session to that Handle and updates the live player/session
-registration field. Persisting/loading the original Character-DB KQ fields and
-invoking that rebind are still intentionally separate work; no handle-only
-reconnect is activated.
+The subsequent `JoinerInfoUpdateByLogin` does not recreate membership.
+`GetJoinerIndex` compares the entire Name5 buffer as five DWORDs (20 bytes),
+then the rebind writes the retained Handle into the new World session and
+updates only the live session-registration field in that existing joiner row.
+
+The emulator now activates the representable part of that path:
+persisted Handle/Map/date must pass `IsExisted`, an already-retained
+membership row must match the character's exact 20-byte ASCII Name5, and the
+existing session target must still own the same dynamic MapName. Only then is
+the World session rebound. The saved KQ X/Y and explicit internal
+MapID/Map.InstanceID are carried over the emulator's World->Zone transfer so
+Zone can enter the dynamic instance without overwriting the separately stored
+normal return location. A persisted Handle alone can never recreate a joiner.
+
+Native `CheckCharBannedInLogin` runs immediately after the rebind and tests a
+DWORD in the native joiner row that PlayerJoin initializes to zero. The
+emulator still has no live KQ vote/ban mutator, so all currently representable
+joiners remain in that zero state. When vote-ban runtime is implemented, that
+field must be added to the membership state and this login edge must invoke the
+native disjoin branch for value 1.
 
 
 

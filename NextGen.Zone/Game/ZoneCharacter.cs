@@ -26,7 +26,9 @@ namespace NextGen.Zone.Game
 	public class ZoneCharacter : MapObject
 	{
 		#region .ctor
-		public ZoneCharacter(int CharID, bool loadequips = true, short mapInstance = 0)
+		public ZoneCharacter(int CharID, bool loadequips = true, short mapInstance = 0,
+            ushort? mapOverrideId = null, int? mapOverrideX = null,
+            int? mapOverrideY = null)
 		{
 			try
 			{
@@ -51,6 +53,21 @@ namespace NextGen.Zone.Game
 				State = PlayerState.Normal;
 				Inventory.LoadFull(this);
 				LoadSkills();
+
+                // WorldManager's valid KQ reconnect replaces the live login
+                // map/X/Y with the persisted KQ map before Zone-side login
+                // processing. This override is emulator transport plumbing;
+                // it does not overwrite the separately persisted normal
+                // return-location columns.
+                if (mapOverrideId.HasValue &&
+                    mapOverrideX.HasValue &&
+                    mapOverrideY.HasValue)
+                {
+                    Character.PositionInfo.Map = mapOverrideId.Value;
+                    Character.PositionInfo.XPos = mapOverrideX.Value;
+                    Character.PositionInfo.YPos = mapOverrideY.Value;
+                }
+
 				if (IsDead)
 				{
 					HP = MaxHP / 4;         // uhm no? TODO: fix

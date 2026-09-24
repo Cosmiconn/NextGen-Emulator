@@ -1,3 +1,4 @@
+using System;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
 using NextGen.Util;
@@ -22,21 +23,55 @@ namespace NextGen.World.Handlers
             WorldCharacter character;
             if (client.Characters.TryGetValue(slot, out character))
             {
-                //generate transfer
-                
-                ZoneConnection zone = Program.GetZoneByMap(character.Character.PositionInfo.Map);
+                KingdomQuestSessionTarget reconnectTarget;
+                int reconnectX;
+                int reconnectY;
+                bool kingdomQuestReconnect =
+                    KingdomQuestReconnectService.TryRestore(
+                        client, character, DateTime.Now,
+                        out reconnectTarget, out reconnectX, out reconnectY);
+
+                ushort targetMap = kingdomQuestReconnect
+                    ? reconnectTarget.MapID
+                    : character.Character.PositionInfo.Map;
+                short targetInstance = kingdomQuestReconnect
+                    ? reconnectTarget.MapInstance
+                    : (short)0;
+
+                ZoneConnection zone = Program.GetZoneByMap(targetMap);
                 if (zone != null)
                 {
                     client.Characters.Clear(); //we clear the other ones from memory
                     client.Character = character; //only keep the one selecte
+
+                    if (kingdomQuestReconnect)
+                    {
+                        // Original fc_NC_CHAR_CHARDATA_ACK overwrites the live
+                        // login map/X/Y with p_Char_GetKQMap values after
+                        // IsExisted + JoinerInfoUpdateByLogin succeed.
+                        character.Character.PositionInfo.Map = targetMap;
+                        character.Character.PositionInfo.XPos = reconnectX;
+                        character.Character.PositionInfo.YPos = reconnectY;
+                    }
+
                     //Database.Storage.Characters.AddChars(character.Character);
-                    zone.SendTransferClientFromZone(client.AccountID, client.Username, client.Character.Character.Name,client.Character.ID, client.RandomID, client.Admin, client.Host);
+                    zone.SendTransferClientFromZone(
+                        client.AccountID, client.Username,
+                        client.Character.Character.Name, client.Character.ID,
+                        client.RandomID, client.Admin, client.Host,
+                        targetInstance,
+                        kingdomQuestReconnect ? (ushort?)targetMap : null,
+                        reconnectX, reconnectY);
                     ClientManager.Instance.AddClientByName(client); //so we can look them up fast using charname later.
                     SendZoneServerIP(client, zone);
                 }
                 else
                 {
-                    Log.WriteLine(LogLevel.Warn, "Character tried to join unloaded map: {0}", character.Character.PositionInfo.Map);
+                    if (kingdomQuestReconnect)
+                        client.KingdomQuestHandle = null;
+
+                    Log.WriteLine(LogLevel.Warn,
+                        "Character tried to join unloaded map: {0}", targetMap);
                     SendConnectError(client, ConnectErrors.MapUnderMaintenance);
                 }
             }

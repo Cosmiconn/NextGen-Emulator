@@ -31,6 +31,10 @@ ADMISSION = ROOT / "NextGen.World/Data/KingdomQuestAdmissionCoordinator.cs"
 INTER_HEADER = ROOT / "NextGen.InterLib/Networking/InterHeader.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
+RECONNECT_SERVICE = ROOT / "NextGen.World/Data/KingdomQuestReconnectService.cs"
+WORLD_HANDLER4 = ROOT / "NextGen.World/Handlers/Handler4.cs"
+CLIENT_TRANSFER = ROOT / "NextGen.Util/ClientTransfer.cs"
+ZONE_HANDLER6 = ROOT / "NextGen.Zone/Handlers/Handler6.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -40,7 +44,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, ZONE_CHARACTER]
+    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -73,6 +77,10 @@ def main():
     inter_header = INTER_HEADER.read_text(encoding="utf-8")
     zone_runtime = ZONE_RUNTIME.read_text(encoding="utf-8")
     zone_character = ZONE_CHARACTER.read_text(encoding="utf-8")
+    reconnect_service = RECONNECT_SERVICE.read_text(encoding="utf-8")
+    world_handler4 = WORLD_HANDLER4.read_text(encoding="utf-8")
+    client_transfer = CLIENT_TRANSFER.read_text(encoding="utf-8")
+    zone_handler6 = ZONE_HANDLER6.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -513,6 +521,76 @@ def main():
     ], "live native KQ save-location suffix persistence"):
         return 1
 
+    if not require(reconnect_service, [
+        "class KingdomQuestReconnectService",
+        "KingdomQuestReconnectRules.TryIsExistingFromDatabase(",
+        "KingdomQuestMembershipRegistry.TryGet(handle, out members)",
+        "Name5Equals(member.Name, source.Name)",
+        "KingdomQuestSessionTargetRegistry.TryGet(handle, out target)",
+        "client.KingdomQuestHandle = handle",
+        "for (int i = 0; i < 20; i++)",
+        "Encoding.ASCII.GetBytes",
+        "never creates membership",
+    ], "native IsExisted -> Name5 JoinerInfoUpdateByLogin rebind"):
+        return 1
+
+    if "KingdomQuestMembershipRegistry.Set(" in reconnect_service:
+        print("FAIL: reconnect service recreates KQ membership from persisted state")
+        return 1
+
+    if not require(world_handler4, [
+        "KingdomQuestReconnectService.TryRestore(",
+        "reconnectTarget.MapID",
+        "reconnectTarget.MapInstance",
+        "character.Character.PositionInfo.XPos = reconnectX",
+        "character.Character.PositionInfo.YPos = reconnectY",
+        "kingdomQuestReconnect ? (ushort?)targetMap : null",
+    ], "World KQ reconnect routing"):
+        return 1
+
+    if not require(client_transfer, [
+        "HasPositionOverride",
+        "MapOverrideID",
+        "MapOverrideX",
+        "MapOverrideY",
+    ], "KQ reconnect transfer metadata"):
+        return 1
+
+    if not require(world_zone_connection, [
+        "packet.WriteBool(mapOverrideId.HasValue)",
+        "packet.WriteUShort(mapOverrideId.Value)",
+        "packet.WriteInt(mapOverrideX)",
+        "packet.WriteInt(mapOverrideY)",
+    ], "World -> Zone KQ reconnect position override"):
+        return 1
+
+    if not require(zone_inter, [
+        "packet.TryReadBool(out hasPositionOverride)",
+        "packet.TryReadUShort(out mapOverrideId)",
+        "packet.TryReadInt(out mapOverrideX)",
+        "packet.TryReadInt(out mapOverrideY)",
+        "hasPositionOverride ? (ushort?)mapOverrideId : null",
+    ], "Zone KQ reconnect transfer receiver"):
+        return 1
+
+    if not require(zone_handler6, [
+        "transfer.HasPositionOverride",
+        "(ushort?)transfer.MapOverrideID",
+        "(int?)transfer.MapOverrideX",
+        "(int?)transfer.MapOverrideY",
+    ], "Zone login KQ position override handoff"):
+        return 1
+
+    if not require(zone_character, [
+        "ushort? mapOverrideId = null",
+        "mapOverrideX.HasValue",
+        "mapOverrideY.HasValue",
+        "Character.PositionInfo.Map = mapOverrideId.Value",
+        "Character.PositionInfo.XPos = mapOverrideX.Value",
+        "Character.PositionInfo.YPos = mapOverrideY.Value",
+    ], "ZoneCharacter KQ reconnect map/instance position application"):
+        return 1
+
     if not require(admission, [
         "class KingdomQuestAdmissionCoordinator",
         "!client.Character.Character.PrisonMinutes.HasValue",
@@ -813,6 +891,7 @@ def main():
     print("PASS: original prison minutes are loaded fail-closed; unresolved creation default is not guessed")
     print("PASS: PROTO_NC_CHARSAVE_LOCATION_CMD is modeled as exact 48-byte normal+KQ location persistence wire")
     print("PASS: Zone save persists the source-backed KQ handle/dynamic-map/XY suffix and DB-side timestamp without inventing native return-location policy")
+    print("PASS: reconnect reuses an exact 20-byte Name5 joiner and routes saved KQ map-instance/XY without recreating membership")
     print("PASS: JOIN_CANCEL 0x09A1/0x09A2 is live and removes session-owned current membership before echoing the request Handle")
     print("PASS: KQ status/list update/alarm layouts match original 2016 structures")
     print("PASS: KQ dead-count, entry-response, mob-kill and team-score layouts are explicit")

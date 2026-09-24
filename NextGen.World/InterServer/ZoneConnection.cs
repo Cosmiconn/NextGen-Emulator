@@ -226,7 +226,8 @@ namespace NextGen.World.InterServer
             }
         }
 
-        public void SendTransferClientFromZone(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP, short mapInstance = 0)
+        public void SendTransferClientFromZone(int accountID, string userName, string charName,int CharID, ushort randid, byte admin, string hostIP, short mapInstance = 0,
+            ushort? mapOverrideId = null, int mapOverrideX = 0, int mapOverrideY = 0)
         {
             using (var packet = new InterPacket(InterHeader.Clienttransfer))
             {
@@ -236,6 +237,13 @@ namespace NextGen.World.InterServer
                 packet.WriteStringLen(charName);
                 packet.WriteInt(CharID);
                 packet.WriteShort(mapInstance);
+                packet.WriteBool(mapOverrideId.HasValue);
+                if (mapOverrideId.HasValue)
+                {
+                    packet.WriteUShort(mapOverrideId.Value);
+                    packet.WriteInt(mapOverrideX);
+                    packet.WriteInt(mapOverrideY);
+                }
                 packet.WriteUShort(randid);
                 packet.WriteByte(admin);
                 packet.WriteStringLen(hostIP);
