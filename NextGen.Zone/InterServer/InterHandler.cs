@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Data;
+using NextGen.FiestaLib.Networking;
 using NextGen.InterLib.Networking;
 using NextGen.Util;
 using NextGen.Zone.Data;
@@ -23,7 +24,7 @@ namespace NextGen.Zone.InterServer
 
             using (var native = new Packet(nativeBytes))
             {
-                KingdomQuestProtocolInfo definition;
+                KingdomQuestProtocolInfo definition = null;
                 if (native.OpCode != 0x580D ||
                     !KingdomQuestProtocolInfo.TryRead(native, out definition) ||
                     native.Remaining != 0 ||
@@ -45,8 +46,8 @@ namespace NextGen.Zone.InterServer
 
             using (var native = new Packet(nativeBytes))
             {
-                KingdomQuestProtocolInfo definition;
-                ushort count;
+                KingdomQuestProtocolInfo definition = null;
+                ushort count = 0;
                 if (native.OpCode != 0x580F ||
                     !KingdomQuestProtocolInfo.TryRead(native, out definition) ||
                     !native.TryReadUShort(out count))

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Reflection;
 using NextGen.FiestaLib.Data;
+using NextGen.FiestaLib.Networking;
 using NextGen.InterLib.Networking;
 using NextGen.Util;
 using NextGen.World.Data;
