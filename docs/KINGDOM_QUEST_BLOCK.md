@@ -592,3 +592,55 @@ stack-memory disclosure.
 This closes list-selection/refresh semantics, but it does **not** activate
 JOIN admission or synthesize scheduler entries. Live scheduler ownership,
 status transitions and map lifecycle remain separate work.
+
+
+## Native JOIN admission and MAKE result closed
+
+Original WorldManager code now closes the previously blocking JOIN_ACK value.
+`CParserClient::fc_NC_KQ_JOIN_REQ` at `.text+0x12CC0` emits
+`0x0991 + CKQServer::PlayerJoin(...)`; PlayerJoin returns zero on success.
+The resulting exact ACK range is 0x0991 success, then 0x0992 handle/BF,
+0x0993 capacity, 0x0994 status, 0x0995 level, 0x0996 class, 0x0997 gender,
+0x0998 unexpected fallback, 0x0999 nonzero `prisonmin`, and 0x099A
+already joined to that Handle.
+
+The emulator already serializes Character.Job and LookInfo.Male into the same
+original shape bits used by PlayerJoin. It does **not** currently persist/model
+`PROTO_NC_CHAR_BASE_CMD::prisonmin`, and the original request also performs
+PlayerDisjoin before joining a different Handle. JOIN_REQ therefore remains
+network-disabled until those state mutations can be represented without
+defaulting an absent original field to zero.
+
+The MAKE handshake is independently closed:
+`CParserZone::fc_NC_KQ_Z2W_MAKE_ACK` treats exactly `0x0981` as success.
+Success enters `CKQServer::SetJoining`; any other Error executes
+`SetNoMapBF` and writes Status 8. SetJoining accepts Status 1/2, resets
+joiner/team counters and writes Status 2. Zone now emits 0x0981 only after a
+successful represented MAKE; World applies the corresponding represented
+status/roster transition. No failure Error is guessed.
+
+`PlayerJoin` also proves the supplied KQTeam divide behavior: only
+`KQTeamDivideType == 2` uses the two-team balancing branch. Otherwise
+TeamType is 2. Since all supplied KQTeam rows use divide type 1, the native
+automatic join result for those rows is TeamType 2.
+
+## Native scheduler Handle ownership and start gate
+
+`CKQServer::AddNewScheduleList` proves the World scheduler's Handle owner:
+the CKQServer constructor initializes its next-Handle counter to zero; a newly
+added unique (KQ ID, ScheduleTime) entry receives the current counter and then
+increments it. Existing ID/time pairs are not allocated a new Handle. The
+scheduler array has a hard 300-entry capacity.
+
+`CKQServer::DoSetStart` resolves the Status-2 start gate. A KQ enters the
+10-second Status-3 countdown immediately when NumOfJoiner reaches MaxPlayers.
+Otherwise it waits until StartTime + StartWaitTime minutes; after that
+deadline, fewer than MinPlayers calls SetDoneSkip(index, 2). With enough
+players it additionally calls KQTeam_CanKQStart; only a successful result
+enters the same Status-3/10-second countdown.
+
+For KQTeamDivideType 2, KQTeam_CanKQStart requires both native team counters
+to be nonzero and rejects a team-size difference greater than MaxMemberGap,
+using SetDoneSkip reasons 2/3 respectively. Other divide types bypass those
+team-count gates. The live scheduler still does not advance start states until
+map allocation/session ownership is fully connected.

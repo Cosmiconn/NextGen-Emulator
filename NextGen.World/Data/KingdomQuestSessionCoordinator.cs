@@ -158,6 +158,55 @@ namespace NextGen.World.Data
             }
         }
 
+        /// <summary>
+        /// Applies the original World-side NC_KQ_Z2W_MAKE_ACK branch.
+        /// Non-0x0981 ACKs execute SetNoMapBF => Status 8. A successful ACK
+        /// may enter SetJoining only from Status 1/2; SetJoining clears the
+        /// join roster and leaves the KQ in Status 2.
+        ///
+        /// The original invalid-status SetJoining branch also destroys/frees
+        /// map state. That destructive edge is intentionally not approximated:
+        /// an invalid success transition is rejected here.
+        /// </summary>
+        public static bool TryApplyMakeAck(uint handle, ushort error)
+        {
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo definition;
+                KingdomQuestInstanceWireState state;
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(handle, out definition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state))
+                    return false;
+
+                if (error != KingdomQuestNativeConstants.MakeAckSuccess)
+                    return TrySetStatus(handle, KingdomQuestNativeConstants.StatusNoMap);
+
+                if (state.Status != KingdomQuestNativeConstants.StatusMakeRequested &&
+                    state.Status != KingdomQuestNativeConstants.StatusJoining)
+                    return false;
+
+                IReadOnlyList<KingdomQuestJoinCharacterInfo> oldRoster;
+                if (!KingdomQuestParticipantRegistry.TryGet(handle, out oldRoster))
+                    return false;
+
+                if (!TrySetParticipants(
+                        handle, new KingdomQuestJoinCharacterInfo[0]))
+                    return false;
+
+                if (TrySetStatus(handle, KingdomQuestNativeConstants.StatusJoining))
+                {
+                    KingdomQuestZoneJoinerRegistry.Remove(handle);
+                    return true;
+                }
+
+                TrySetParticipants(handle, oldRoster);
+                return false;
+            }
+        }
+
         public static bool Remove(uint handle)
         {
             lock (Sync)
@@ -175,4 +224,87 @@ namespace NextGen.World.Data
             }
         }
     }
+
+    /// <summary>
+    /// Pure admission/team rules recovered from
+    /// CParserClient::fc_NC_KQ_JOIN_REQ, CKQServer::PlayerJoin and
+    /// CKQ::IsJoinable. No packet handler calls these rules yet.
+    /// </summary>
+    public static class KingdomQuestAdmissionRules
+    {
+        public static bool TryGetPreJoinError(
+            ushort prisonMinutes, bool alreadyInRequestedKq, out ushort error)
+        {
+            if (prisonMinutes != 0)
+            {
+                error = KingdomQuestNativeConstants.JoinPrisonRestricted;
+                return true;
+            }
+
+            if (alreadyInRequestedKq)
+            {
+                error = KingdomQuestNativeConstants.JoinAlreadyInRequestedKq;
+                return true;
+            }
+
+            error = 0;
+            return false;
+        }
+
+        public static ushort EvaluatePlayerJoin(
+            KingdomQuestProtocolInfo definition,
+            int currentJoiners,
+            byte level,
+            byte characterClass,
+            byte gender)
+        {
+            if (definition == null)
+                return KingdomQuestNativeConstants.JoinInvalidHandle;
+            if (currentJoiners < 0)
+                throw new ArgumentOutOfRangeException("currentJoiners");
+            if (characterClass > 31)
+                throw new ArgumentOutOfRangeException("characterClass");
+            if (gender > 1)
+                throw new ArgumentOutOfRangeException("gender");
+
+            if (currentJoiners >= KingdomQuestNativeConstants.JoinHardCapacity ||
+                currentJoiners >= definition.MaxPlayers)
+                return KingdomQuestNativeConstants.JoinCapacityReached;
+
+            if (definition.Status != KingdomQuestNativeConstants.StatusJoining)
+                return KingdomQuestNativeConstants.JoinWrongStatus;
+
+            if (level < definition.MinLevel || level > definition.MaxLevel)
+                return KingdomQuestNativeConstants.JoinLevelRejected;
+
+            ulong demandClass = unchecked((ulong)definition.DemandClass);
+            ulong classBit = 1UL << characterClass;
+            if ((demandClass & classBit) == 0)
+                return KingdomQuestNativeConstants.JoinClassRejected;
+
+            byte genderBit = (byte)(1 << gender);
+            if ((definition.DemandGender & genderBit) == 0)
+                return KingdomQuestNativeConstants.JoinGenderRejected;
+
+            return KingdomQuestNativeConstants.JoinSuccess;
+        }
+
+        public static byte AssignInitialTeam(
+            KingdomQuestTeamInfo team, ref byte team0Count, ref byte team1Count)
+        {
+            if (team == null ||
+                team.TeamDivideType != KingdomQuestNativeConstants.AutomaticSplitTeamDivideType)
+                return KingdomQuestNativeConstants.NeutralTeamType;
+
+            if (team1Count <= team0Count)
+            {
+                team1Count++;
+                return 1;
+            }
+
+            team0Count++;
+            return 0;
+        }
+    }
+
 }

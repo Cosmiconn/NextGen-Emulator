@@ -15,6 +15,10 @@ DEFINITIONS = ROOT / "NextGen.World/Data/KingdomQuestDefinitionRegistry.cs"
 JOIN_LIST_REPLY = ROOT / "NextGen.World/Data/KingdomQuestJoinListReplyRegistry.cs"
 PARTICIPANTS = ROOT / "NextGen.World/Data/KingdomQuestParticipantRegistry.cs"
 WORLD_CLIENT = ROOT / "NextGen.World/Networking/WorldClient.cs"
+SESSION_COORDINATOR = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
+MAKE_ACK_REGISTRY = ROOT / "NextGen.World/Data/KingdomQuestMakeAckRegistry.cs"
+WORLD_INTER = ROOT / "NextGen.World/InterServer/InterHandler.cs"
+ZONE_INTER = ROOT / "NextGen.Zone/InterServer/InterHandler.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -24,7 +28,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT]
+    files = [CENUM, SENUM, PROTO, INFO, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, ZONE_INTER]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -41,6 +45,10 @@ def main():
     join_list_reply = JOIN_LIST_REPLY.read_text(encoding="utf-8")
     participants = PARTICIPANTS.read_text(encoding="utf-8")
     world_client = WORLD_CLIENT.read_text(encoding="utf-8")
+    session_coordinator = SESSION_COORDINATOR.read_text(encoding="utf-8")
+    make_ack_registry = MAKE_ACK_REGISTRY.read_text(encoding="utf-8")
+    world_inter = WORLD_INTER.read_text(encoding="utf-8")
+    zone_inter = ZONE_INTER.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -321,7 +329,65 @@ def main():
         return 1
 
     if "[PacketHandler(CH22Type.KingdomQuestJoinReq)]" in handler:
-        print("FAIL: KQ join enabled before source-backed admission/session rules")
+        print("FAIL: KQ join enabled before prison/current-KQ mutation state is represented")
+        return 1
+
+    if not require(info, [
+        "MakeAckSuccess = 0x0981",
+        "JoinSuccess = 0x0991",
+        "JoinInvalidHandle = 0x0992",
+        "JoinCapacityReached = 0x0993",
+        "JoinWrongStatus = 0x0994",
+        "JoinLevelRejected = 0x0995",
+        "JoinClassRejected = 0x0996",
+        "JoinGenderRejected = 0x0997",
+        "JoinUnexpectedResult = 0x0998",
+        "JoinPrisonRestricted = 0x0999",
+        "JoinAlreadyInRequestedKq = 0x099A",
+        "StatusMakeRequested = 1",
+        "StatusJoining = 2",
+        "StatusNoMap = 8",
+        "AutomaticSplitTeamDivideType = 2",
+        "NeutralTeamType = 2",
+    ], "native KQ admission/lifecycle constants"):
+        return 1
+
+    if not require(session_coordinator, [
+        "TryApplyMakeAck",
+        "error != KingdomQuestNativeConstants.MakeAckSuccess",
+        "StatusNoMap",
+        "StatusMakeRequested",
+        "StatusJoining",
+        "new KingdomQuestJoinCharacterInfo[0]",
+        "class KingdomQuestAdmissionRules",
+        "TryGetPreJoinError",
+        "EvaluatePlayerJoin",
+        "JoinHardCapacity",
+        "1UL << characterClass",
+        "definition.DemandGender & genderBit",
+        "AssignInitialTeam",
+        "team.TeamDivideType != KingdomQuestNativeConstants.AutomaticSplitTeamDivideType",
+        "team1Count <= team0Count",
+    ], "native KQ admission/MAKE transition rules"):
+        return 1
+
+    if not require(make_ack_registry, [
+        "KingdomQuestNativeConstants.MakeAckSuccess",
+        "IsSuccess(ushort error)",
+    ], "proven MAKE_ACK success registry"):
+        return 1
+
+    if not require(world_inter, [
+        "KingdomQuestMakeAckRegistry.Set(handle, error)",
+        "KingdomQuestSessionCoordinator.TryApplyMakeAck(",
+    ], "World MAKE_ACK transition"):
+        return 1
+
+    if not require(zone_inter, [
+        "KingdomQuestZoneRuntimeRegistry.TryMake(",
+        "SendKingdomQuestMakeAck(",
+        "KingdomQuestNativeConstants.MakeAckSuccess",
+    ], "Zone MAKE success ACK"):
         return 1
 
     if not require(state, [
@@ -423,7 +489,10 @@ def main():
     print("PASS: LIST_ADD refresh batches use the original/capture-correlated 53-entry threshold")
     print("PASS: complete KQ client definitions can be stored without scheduler inference")
     print("PASS: LIST_REFRESH serializes only entries supplied by the source-owned definition registry")
-    print("PASS: KQ join remains disabled until admission/session rules are source-backed")
+    print("PASS: JOIN_ACK 0x0991..0x099A admission results are source-level recovered; network JOIN remains gated on missing prison/current-KQ mutation state")
+    print("PASS: Z2W_MAKE_ACK 0x0981 success now drives the proven World Status 1/2 -> 2 transition; non-success drives Status 8")
+    print("PASS: Zone emits MAKE_ACK only for the proven successful MAKE path; no failure Error is guessed")
+    print("PASS: TeamDivideType 2 automatic split behavior is modeled; supplied divide-type-1 rows resolve to native TeamType 2")
     return 0
 
 if __name__ == "__main__":

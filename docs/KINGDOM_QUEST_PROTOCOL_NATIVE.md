@@ -55,9 +55,11 @@ visible (Status 0..4) snapshot is compared with the session's prior snapshot
 and only LIST_DELETE/LIST_UPDATE/LIST_ADD deltas are emitted. Repeated KQ
 refreshes still do not replay unrelated one-time World-login callbacks.
 
-JOIN_REQ remains disabled even though its packet structures are known:
-admission still requires source-backed KQ definitions, schedule/status and
-membership rules.
+JOIN_REQ remains disabled at the network-handler boundary. Its admission
+Error/status/class/gender/team rules are now recovered, but the emulator still
+does not carry the original per-character `prisonmin` state or the complete
+cross-KQ disjoin/registration-number mutation needed to reproduce the handler
+without silently treating missing state as zero.
 
 ## JOIN_LIST_ACK structure closed
 
@@ -244,11 +246,11 @@ NC_KQ_W2Z_DESTROY_CMD  0x5811:
     u32 Handle
 ```
 
-These are **wire builders only**. The emulator's current custom World/Zone
-connection does not send them yet, because the original Zone allocation
-decision and `Z2W_MAKE_ACK.Error` semantics have not been proven. CI guards
-against accidentally routing these server-only packets through the client KQ
-handler.
+These native packets are carried over the emulator's custom World/Zone bridge.
+The bridge adds only emulator routing metadata (MapID/Map.InstanceID) around
+the original bytes. The original MAKE success Error is now proven and the Zone
+returns it only after a successful local instance creation; no failure Error is
+invented.
 
 
 ## Registry-backed native MAKE/START builders
@@ -296,10 +298,15 @@ u16 Error
 ```
 
 World stores that ushort unchanged in `KingdomQuestMakeAckRegistry`.
-No value is treated as success, no START is triggered, and the captured
-`0x0991` from the separate client JOIN_ACK path is not reused. A future
-source-backed lifecycle owner may interpret the raw MAKE result once the
-original error semantics are proven.
+The original `CParserZone::fc_NC_KQ_Z2W_MAKE_ACK` compares it with
+`0x0981`: that value calls `CKQServer::SetJoining`; every other value calls
+`SetNoMapBF`.
+
+The runtime now reproduces the proven transition for represented sessions:
+non-`0x0981` moves the definition to Status 8. Success is accepted only from
+Status 1 or 2, clears the participant view as `SetJoining` does and leaves
+Status 2. The original invalid-status branch additionally destroys/frees map
+state; that destructive edge remains guarded instead of being approximated.
 
 
 ## Vote wire family closed without policy inference
@@ -324,3 +331,46 @@ These serializers do not decide who may start a vote, which `VoteType` values
 are valid, how the two source majority thresholds are selected, when a vote
 passes, or what any raw Error means. Request handlers remain disabled until
 those rules are tied to original behavior.
+
+
+## JOIN admission Error values recovered
+
+The original executable resolves the capture's formerly-ambiguous
+`JOIN_ACK.Error = 0x0991`. `CParserClient::fc_NC_KQ_JOIN_REQ`
+(`.text+0x12CC0`) adds `0x0991` to the return from
+`CKQServer::PlayerJoin`; the successful return is zero. Therefore
+`0x0991` is the native successful JOIN_ACK value.
+
+| Error | Original branch |
+| --- | --- |
+| `0x0991` | PlayerJoin success |
+| `0x0992` | KQ Handle/BF lookup failed |
+| `0x0993` | joiner count reached 100 or MaxPlayers |
+| `0x0994` | KQ Status is not 2 |
+| `0x0995` | Level outside MinLevel..MaxLevel |
+| `0x0996` | class bit absent from DemandClass |
+| `0x0997` | gender bit absent from DemandGender |
+| `0x0998` | PlayerJoin fallback for an unexpected IsJoinable result |
+| `0x0999` | `PROTO_NC_CHAR_BASE_CMD::prisonmin != 0` |
+| `0x099A` | the same character is already joined to the requested Handle |
+
+`CKQ::IsJoinable` forms the class test as a 64-bit `1 << CharClass`
+against DemandClass and the gender test as byte `1 << Gender` against
+DemandGender. The project character-shape serializer independently uses those
+same native source values: `Job << 2` and `Male << 7`.
+
+The original JOIN request first rejects prison/already-in-target, then calls
+`PlayerDisjoin(session)` **before** attempting `PlayerJoin` for the new
+Handle. The emulator currently has no native `prisonmin` character state,
+so JOIN remains disabled rather than treating the absent state as zero.
+
+## Initial team assignment recovered
+
+`CKQServer::PlayerJoin` calls `GetKQTeamData(KQ ID)`. If no row exists, or
+if `KQTeamDivideType != 2`, it writes TeamType `2`. If the divide type is
+exactly `2`, it assigns the currently smaller native team counter; a tie
+selects numeric team `1`.
+
+Every supplied NA2016 `KQTeam.shn` row has `KQTeamDivideType = 1`.
+Consequently the original automatic JOIN path assigns TeamType `2` for this
+entire supplied KQTeam corpus.

@@ -479,4 +479,39 @@ namespace NextGen.FiestaLib.Data
             return true;
         }
     }
+
+    /// <summary>
+    /// Numeric KQ runtime values recovered from the original NA2016
+    /// WorldManager executable. These are protocol/runtime constants, not
+    /// emulator policy.
+    /// </summary>
+    public static class KingdomQuestNativeConstants
+    {
+        public const ushort MakeAckSuccess = 0x0981;
+
+        public const ushort JoinSuccess = 0x0991;
+        public const ushort JoinInvalidHandle = 0x0992;
+        public const ushort JoinCapacityReached = 0x0993;
+        public const ushort JoinWrongStatus = 0x0994;
+        public const ushort JoinLevelRejected = 0x0995;
+        public const ushort JoinClassRejected = 0x0996;
+        public const ushort JoinGenderRejected = 0x0997;
+        public const ushort JoinUnexpectedResult = 0x0998;
+        public const ushort JoinPrisonRestricted = 0x0999;
+        public const ushort JoinAlreadyInRequestedKq = 0x099A;
+
+        public const int JoinHardCapacity = 100;
+
+        public const byte StatusScheduled = 0;
+        public const byte StatusMakeRequested = 1;
+        public const byte StatusJoining = 2;
+        public const byte StatusDone = 5;
+        public const byte StatusDoneSkip = 6;
+        public const byte StatusNoMap = 8;
+        public const byte StatusDelete = 11;
+
+        public const ushort AutomaticSplitTeamDivideType = 2;
+        public const byte NeutralTeamType = 2;
+    }
+
 }

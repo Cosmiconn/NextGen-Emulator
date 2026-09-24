@@ -27,13 +27,21 @@ namespace NextGen.Zone.InterServer
                 KingdomQuestProtocolInfo definition = null;
                 if (native.OpCode != 0x580D ||
                     !KingdomQuestProtocolInfo.TryRead(native, out definition) ||
-                    native.Remaining != 0 ||
-                    !KingdomQuestZoneRuntimeRegistry.TryMake(
+                    native.Remaining != 0)
+                    return;
+
+                if (!KingdomQuestZoneRuntimeRegistry.TryMake(
                         definition, mapId, mapInstance))
                 {
                     Log.WriteLine(LogLevel.Warn,
                         "Rejected KQ MAKE for map {0} instance {1}.", mapId, mapInstance);
+                    return;
                 }
+
+                // Original CParserZone::fc_NC_KQ_Z2W_MAKE_ACK treats exactly
+                // 0x0981 as success. No failure Error is guessed here.
+                SendKingdomQuestMakeAck(
+                    definition.Handle, KingdomQuestNativeConstants.MakeAckSuccess);
             }
         }
 

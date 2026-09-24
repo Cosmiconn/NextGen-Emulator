@@ -33,8 +33,11 @@ namespace NextGen.World.InterServer
                     return;
 
                 KingdomQuestMakeAckRegistry.Set(handle, error);
+                bool applied = KingdomQuestSessionCoordinator.TryApplyMakeAck(
+                    handle, error);
                 Log.WriteLine(LogLevel.Debug,
-                    "KQ MAKE_ACK handle {0} raw error 0x{1:X4}.", handle, error);
+                    "KQ MAKE_ACK handle {0} error 0x{1:X4}; transition={2}.",
+                    handle, error, applied ? "applied" : "not-applied");
             }
         }
 
