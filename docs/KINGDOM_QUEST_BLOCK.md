@@ -1306,6 +1306,32 @@ through `RewardData::rd_FindHandle`; a missing handle is skipped. The new
 pure reward-dice model preserves one 0..999 sample per slot and deliberately
 does not resolve handles or grant anything yet.
 
+The reward-table lookup itself is now executable-proven as well.
+`KQRewardDataBox::operator[](ushort)` scans loaded
+`KINGDOM_QUEST_REW` rows and compares the zero-extended request directly
+with the row's DWORD `ID`; it never indexes by source-row position.
+`operator[](char*)` separately compares `IndexString[32]` byte-by-byte and
+returns only after a matching NUL is encountered before byte 32.
+`so_ply_KQRewardStruct(KQElement*)` reads the exact
+`PROTO_KQ_INFO.RewardIndex` word at KQElement offset `0x97` and calls the
+ID overload. `so_ply_KQRewardIndex(char*)` calls the string overload.
+
+That distinction explains a formerly suspicious source edge without any
+fallback inference. The 57 supplied KQ definitions use 22 distinct
+`RewardIndex` values. Fifteen resolve to a `KingdomQuestRew.ID`; exactly
+seven do not: `45, 51, 57, 63, 71, 79, 83`. Native ID lookup returns null
+for those values. The original scenarios independently show why several of
+these sessions do not depend on a default numeric reward: the five Warrior's
+Code PineScripts use `invidualreward ... "HERO_<stage>_<rank>"`, KDSpring
+calls `cKQRewardIndex` with `REW_KQ_SPRING_WIN/DRAW/LOSE`, and KDArena
+uses named `REW_KQ_ARENA_*` reward strings. No missing numeric ID is
+silently redirected to a neighboring row.
+
+`KingdomQuestRewardSourceResolver` now mirrors both native lookup overloads
+and rejects row-index fallback. All supplied `IndexString` values are safely
+NUL-terminated within the native 32-byte field; the longest is 20 bytes.
+
+
 The referenced handle source is the original `ShineReward.shn`, independently
 decoded as SHA-256
 `09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f`,

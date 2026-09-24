@@ -238,6 +238,22 @@ one `well512_GetRandom(1000)` sample and passes when
 dice boundary from caller-supplied 0..999 samples and does not manufacture a
 second RNG stream.
 
+Native reward-table selection has two distinct overloads.
+`KQRewardDataBox::operator[](ushort)` linearly compares against
+`KINGDOM_QUEST_REW.ID`; `operator[](char*)` linearly compares the fixed
+32-byte `IndexString`. `so_ply_KQRewardStruct` passes the
+`PROTO_KQ_INFO.RewardIndex` word to the ID overload, whereas
+`so_ply_KQRewardIndex` uses the string overload. Neither path interprets a
+numeric value as a physical SHN row number.
+
+In this exact source snapshot, 22 distinct KQ RewardIndex values are used and
+the native ID lookup has no row for exactly `45,51,57,63,71,79,83`.
+Those are preserved as real lookup misses. Source scenarios corroborate
+separate named reward paths for Warrior's Code (`HERO_*`), KDSpring
+(`REW_KQ_SPRING_*`) and KDArena (`REW_KQ_ARENA_*`), so the emulator
+must not synthesize numeric aliases for the missing IDs.
+
+
 The handle target is the original 435-row `ShineReward.shn`
 (SHA-256 `09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f`).
 PDB fixes `ShineReward` at 66 bytes and the reward-type enum at
