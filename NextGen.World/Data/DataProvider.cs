@@ -26,6 +26,8 @@ namespace NextGen.World.Data
         public List<byte> KingdomQuestVoteMajorityRates { get; private set; }
         public Dictionary<ushort, MapInfo> KingdomQuestMaps { get; private set; }
         public List<string> KingdomQuestDescriptions { get; private set; }
+        public Dictionary<string, KingdomQuestSourceManifestInfo> KingdomQuestSourceManifest { get; private set; }
+        public bool HasCompleteKingdomQuestMainSource { get; private set; }
 
 		public DataProvider()
 		{
@@ -47,6 +49,8 @@ namespace NextGen.World.Data
                 .Where(map => map.Kingdom == 1)
                 .ToDictionary(map => map.ID, map => map);
             KingdomQuestDescriptions = new List<string>();
+            KingdomQuestSourceManifest = new Dictionary<string, KingdomQuestSourceManifestInfo>(StringComparer.OrdinalIgnoreCase);
+            HasCompleteKingdomQuestMainSource = false;
 
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
@@ -107,10 +111,77 @@ namespace NextGen.World.Data
                 }
             }
 
+            LoadKingdomQuestSourceManifest();
+
             Log.WriteLine(LogLevel.Info,
-                "Loaded KQ metadata: {0} maps, {1} descriptions, {2} teams, {3} vote flags, {4} vote reasons, {5} vote thresholds.",
+                "Loaded KQ metadata: {0} maps, {1} descriptions, {2} teams, {3} vote flags, {4} vote reasons, {5} vote thresholds; main source={6}.",
                 KingdomQuestMaps.Count, KingdomQuestDescriptions.Count, KingdomQuestTeams.Count,
-                KingdomQuestVoteEnabled.Count, KingdomQuestVoteReasons.Count, KingdomQuestVoteMajorityRates.Count);
+                KingdomQuestVoteEnabled.Count, KingdomQuestVoteReasons.Count,
+                KingdomQuestVoteMajorityRates.Count,
+                HasCompleteKingdomQuestMainSource ? "complete" : "absent/incomplete");
+        }
+
+        private void LoadKingdomQuestSourceManifest()
+        {
+            using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+            {
+                string zoneDb = Settings.Instance.zoneMysqlDatabase;
+                DataTable exists = dbClient.ReadDataTable(string.Format(
+                    "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='{0}' " +
+                    "AND TABLE_NAME IN ('data_kq_source_manifest','data_kq_source_columns')",
+                    zoneDb.Replace("'", "''")));
+                if (exists == null || exists.Rows.Count != 2)
+                    return;
+
+                DataTable manifest = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM data_kq_source_manifest; USE `{1}`",
+                    zoneDb, Settings.Instance.WorldMysqlDatabase));
+                DataTable columns = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM data_kq_source_columns ORDER BY SourceName, Ordinal; USE `{1}`",
+                    zoneDb, Settings.Instance.WorldMysqlDatabase));
+                if (manifest == null || columns == null)
+                    return;
+
+                var columnLists = new Dictionary<string, List<KingdomQuestSourceColumnInfo>>(
+                    StringComparer.OrdinalIgnoreCase);
+                foreach (DataRow row in columns.Rows)
+                {
+                    string sourceName = Convert.ToString(row["SourceName"]);
+                    List<KingdomQuestSourceColumnInfo> list;
+                    if (!columnLists.TryGetValue(sourceName, out list))
+                    {
+                        list = new List<KingdomQuestSourceColumnInfo>();
+                        columnLists[sourceName] = list;
+                    }
+                    list.Add(new KingdomQuestSourceColumnInfo(row));
+                }
+
+                foreach (DataRow row in manifest.Rows)
+                {
+                    string sourceName = Convert.ToString(row["SourceName"]);
+                    List<KingdomQuestSourceColumnInfo> list;
+                    if (!columnLists.TryGetValue(sourceName, out list))
+                        list = new List<KingdomQuestSourceColumnInfo>();
+
+                    var info = new KingdomQuestSourceManifestInfo(row, list);
+                    if (info.IsStructurallyValid())
+                        KingdomQuestSourceManifest[sourceName] = info;
+                    else
+                        Log.WriteLine(LogLevel.Warn,
+                            "Ignoring structurally invalid KQ source manifest for {0}.",
+                            sourceName);
+                }
+            }
+
+            string[] required =
+            {
+                "KingdomQuest",
+                "KingdomQuestMap",
+                "KingdomQuestRew",
+                "KQItem",
+            };
+            HasCompleteKingdomQuestMainSource =
+                required.All(name => KingdomQuestSourceManifest.ContainsKey(name));
         }
 
         private void LoadMasterReward()
