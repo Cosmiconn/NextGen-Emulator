@@ -6,8 +6,10 @@ namespace NextGen.World.Data
 {
     /// <summary>
     /// Native KQ map context carried by PROTO_NC_CHAR_KQMAP_CMD.
-    /// SHINE_DATETIME is intentionally preserved as its raw packed u32 because
-    /// the year epoch/base is not yet source-proven.
+    /// SHINE_DATETIME remains stored as its raw packed u32. Its World login
+    /// decode is now source-proven in KingdomQuestReconnectRules: low 4-bit
+    /// year + 2000, 1-based month, day/hour/minute/second, with a native
+    /// ten-minute reconnect expiry.
     /// </summary>
     public sealed class KingdomQuestMapContext
     {

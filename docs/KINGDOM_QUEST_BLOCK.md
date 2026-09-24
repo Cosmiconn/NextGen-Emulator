@@ -359,8 +359,10 @@ decodes as real coordinates.
 
 `KingdomQuestMapContextRegistry` now stores this context per live KQ Handle.
 MapName is derived from the already source-backed `MapInfo.ShortName`, never
-accepted as an independent caller string. The packed date remains a raw
-`uint`; its 4-bit year field's epoch is still UNRESOLVED.
+accepted as an independent caller string. The packed date remains stored as a raw `uint`, but its World reconnect
+decode is now source-proven by `CKQServer::IsExisted`. The low four bits
+become `tm_year = value + 100` (effective year 2000+nibble), followed by
+1-based month (4 bits), day (5), hour (5), minute (6) and second (6).
 
 `KingdomQuestTransferService.TryRequest(character, handle)` no longer accepts
 free X/Y arguments. It requires an explicit native KQ map context and reuses
@@ -1045,10 +1047,31 @@ exactly 4. Logout calls `PlayerDisjoin(session)` only when the result is
 false. The emulator now applies the same rule on both socket disconnect and
 Zone-reported disconnect: pre-start/non-running memberships are removed using
 the already-live native PlayerDisjoin sequence, while Status-4 membership is
-deliberately retained for reconnect. Login restoration remains a separate
-persistence step because original `JoinerInfoUpdateByLogin` consumes the
-Character-DB-backed `nKQHandle`; the emulator does not yet persist that
-field.
+deliberately retained for reconnect. Login restoration remains a separate persistence/write step, but its
+validation is now fully bounded. Original `p_Char_GetKQMap` supplies
+`nKQHandle`, `sKQMap`, KQ X/Y and the saved KQ date. Before
+`JoinerInfoUpdateByLogin`, World calls
+`CKQServer::IsExisted(nKQHandle, sKQMap, dKQDate)`.
+
+`IsExisted` rejects `0xFFFFFFFF`, finds the live Handle, requires
+`sKQMap` to match one of that definition's four native `MapName[12]`
+slots and resolves the same map in the live map data. It then decodes the
+packed `SHINE_DATETIME`, adds exactly ten minutes to `tm_min`, lets
+`mktime` normalize it, and succeeds only while
+`current_time < saved_time + 10 minutes`. There is no native lower-bound
+or additional freshness policy.
+
+`KingdomQuestReconnectRules` now models that exact packed-date/map/expiry
+predicate. The emulator additionally requires the existing
+`KingdomQuestSessionTarget` to carry the same native MapName; this is an
+internal routing-authority gate, not new gameplay semantics.
+
+The subsequent `JoinerInfoUpdateByLogin` does not recreate membership. It
+finds the already-retained joiner row for the persisted Handle by Name5,
+rebinds the new World session to that Handle and updates the live player/session
+registration field. Persisting/loading the original Character-DB KQ fields and
+invoking that rebind are still intentionally separate work; no handle-only
+reconnect is activated.
 
 
 ## Original KQ script and regen corpus boundary

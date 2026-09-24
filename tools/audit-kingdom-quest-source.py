@@ -27,6 +27,8 @@ WORLD_MEMBERSHIP = ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs"
 WORLD_RANDOM = ROOT / "NextGen.World/Data/KingdomQuestNativeRandom.cs"
 WORLD_START_SESSIONS = ROOT / "NextGen.World/Data/KingdomQuestStartSessionResolver.cs"
 WORLD_DONE_SKIP_MESSAGES = ROOT / "NextGen.World/Data/KingdomQuestDoneSkipMessages.cs"
+WORLD_RECONNECT = ROOT / "NextGen.World/Data/KingdomQuestReconnectRules.cs"
+WORLD_MAP_CONTEXT = ROOT / "NextGen.World/Data/KingdomQuestMapContext.cs"
 WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 RAW_SOURCES = {
@@ -124,7 +126,8 @@ def main():
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
         WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER, WORLD_MAP_ALLOCATOR,
         WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
-        WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_SESSION, NATIVE_INFO,
+        WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
+        WORLD_MAP_CONTEXT, WORLD_SESSION, NATIVE_INFO,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -232,6 +235,8 @@ def main():
     world_random = WORLD_RANDOM.read_text(encoding='utf-8')
     world_start_sessions = WORLD_START_SESSIONS.read_text(encoding='utf-8')
     world_done_skip_messages = WORLD_DONE_SKIP_MESSAGES.read_text(encoding='utf-8')
+    world_reconnect = WORLD_RECONNECT.read_text(encoding='utf-8')
+    world_map_context = WORLD_MAP_CONTEXT.read_text(encoding='utf-8')
     world_session = WORLD_SESSION.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -670,6 +675,39 @@ def main():
         print('FAIL: SetDoneSkip side-effect order diverged from WorldManager.exe')
         return 1
 
+    for token in (
+        'class KingdomQuestReconnectRules',
+        'ReconnectWindowMinutes = 10',
+        '2000 + (int)(packed & 0x0Fu)',
+        '(packed >> 4) & 0x0Fu',
+        '(packed >> 8) & 0x1Fu',
+        '(packed >> 13) & 0x1Fu',
+        '(packed >> 18) & 0x3Fu',
+        '(packed >> 24) & 0x3Fu',
+        'handle == uint.MaxValue',
+        'definition.MapLink.Length != 4',
+        'link.MapName, savedMapName',
+        'target.NativeMapName, savedMapName',
+        'saved.AddMinutes(ReconnectWindowMinutes)',
+        'return localNow <',
+        'Do not add a lower-bound/future-date policy',
+    ):
+        if token not in world_reconnect:
+            print('FAIL: native KQ IsExisted/reconnect rule missing', token)
+            return 1
+
+    if 'year epoch/base is not yet source-proven' in world_map_context:
+        print('FAIL: stale unresolved SHINE_DATETIME year note remains')
+        return 1
+    for token in (
+        'low 4-bit',
+        'year + 2000',
+        'ten-minute reconnect expiry',
+    ):
+        if token not in world_map_context:
+            print('FAIL: KQ map context lost source-proven native date semantics', token)
+            return 1
+
     for forbidden in (
         'KingdomQuestSessionTargetRegistry',
         'Map.InstanceID',
@@ -735,6 +773,7 @@ def main():
     print('PASS: PDB enum names lock KQTD_RANDOM=1 and KQTD_USERSELECT=2; supplied team rows are RANDOM')
     print('PASS: native KQTD_RANDOM assignment and RandomBox/WELL512 path are source-correlated')
     print('PASS: combined membership owns CharacterNumber and client identity together without inference')
+    print('PASS: CKQServer::IsExisted packed SHINE_DATETIME decode, exact MapName match and native ten-minute reconnect expiry are source-modeled')
     print('PASS: Status-3 expiry now runs live as Status 4 -> KQTD_RANDOM divide -> represented normal-party leave -> W2Z START')
     print('PASS: START preflights every native CharacterNumber/session and target Zone before mutating status/team/party state')
     print('PASS: SetDoneSkip preserves Status6 -> DESTROY -> FreeMapLink -> source-backed notify -> FreeJoiner -> JOINING_ALARM_END order')

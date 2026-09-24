@@ -581,7 +581,16 @@ Original `CWMClientSession::Logout` also defines disconnect behavior:
 `InKQStatusRunning(nKQHandle)` is true only for an existing Status-4 KQ.
 Logout calls `PlayerDisjoin` only when that check is false. Thus running
 KQ membership survives disconnect by design, while non-running membership is
-removed through the normal PlayerDisjoin path. Reconnect restoration depends
-on the original Character DB `nKQHandle` plus
-`JoinerInfoUpdateByLogin` and remains separate until that persistence is
-represented.
+removed through the normal PlayerDisjoin path. Reconnect restoration is now bounded by the original pre-rebind predicate.
+The Character DB supplies `nKQHandle/sKQMap/nKQX/nKQY/dKQDate`; World
+calls `CKQServer::IsExisted` before `JoinerInfoUpdateByLogin`.
+`IsExisted` requires a non-`0xFFFFFFFF` Handle, an exact match against one
+of that KQ's four native MapName slots plus live map-data resolution, then
+decodes `SHINE_DATETIME` as year=(low4+2000), month/day/hour/minute/second
+from 4/5/5/6/6 bits. It adds exactly ten minutes and accepts only
+`now < saved+10min`.
+
+The emulator now models that predicate without adding a lower-bound check.
+Actual DB persistence/load and the later Name5-based
+`JoinerInfoUpdateByLogin` session rebind remain separate so no handle-only
+reconnect is invented.
