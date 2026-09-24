@@ -308,6 +308,7 @@ namespace NextGen.World.Data
                 RunMakeRoom(local);
                 RunStartGate(local);
                 RunStartCountdownExpiry(local);
+                RunDeleteOldSchedules();
             }
         }
 
@@ -347,8 +348,185 @@ namespace NextGen.World.Data
                 }
 
                 if (decision.Kind == KingdomQuestStartDecisionKind.DoneSkip)
-                    KingdomQuestSessionCoordinator.TrySetDoneSkip(
-                        definition.Handle, decision.DoneSkipReason);
+                    ApplyDoneSkip(definition, decision.DoneSkipReason);
+            }
+        }
+
+        private static void ApplyDoneSkip(
+            KingdomQuestProtocolInfo definition, byte reason)
+        {
+            if (definition == null)
+                return;
+
+            IReadOnlyList<KingdomQuestMembershipEntry> members;
+            if (!KingdomQuestMembershipRegistry.TryGet(
+                    definition.Handle, out members))
+                return;
+
+            if (!KingdomQuestSessionCoordinator.TrySetDoneSkip(
+                    definition.Handle, reason))
+                return;
+
+            // CKQServer::SetDoneSkip order after writing Status 6:
+            // W2Z DESTROY -> FreeMapLink -> reason notification(s) ->
+            // FreeJoiner -> JOINING_ALARM_END.
+            if (Program.Zones != null)
+            {
+                foreach (NextGen.World.InterServer.ZoneConnection zone
+                    in Program.Zones.Values)
+                    zone.SendKingdomQuestDestroy(definition.Handle);
+            }
+
+            KingdomQuestMapAllocationRegistry.Free(definition.Handle);
+
+            IReadOnlyList<string> messages =
+                KingdomQuestDoneSkipMessages.Create(reason, definition);
+            if (ClientManager.Instance != null)
+            {
+                for (int messageIndex = 0;
+                    messageIndex < messages.Count;
+                    messageIndex++)
+                {
+                    using (NextGen.FiestaLib.Networking.Packet notify =
+                        NextGen.World.Handlers.KingdomQuestProtocol.CreateNotify(
+                            messages[messageIndex]))
+                    {
+                        for (int memberIndex = 0;
+                            memberIndex < members.Count;
+                            memberIndex++)
+                        {
+                            KingdomQuestMembershipEntry member =
+                                members[memberIndex];
+                            if (member == null ||
+                                member.CharacterNumber > int.MaxValue)
+                                continue;
+
+                            NextGen.World.Networking.WorldClient client =
+                                ClientManager.Instance.GetClientByCharID(
+                                    (int)member.CharacterNumber);
+                            if (client == null ||
+                                client.Character == null ||
+                                client.Character.Character == null ||
+                                unchecked((uint)client.Character.Character.ID) !=
+                                    member.CharacterNumber)
+                                continue;
+
+                            client.SendPacket(notify);
+                        }
+                    }
+                }
+
+                // FreeJoiner resolves every native joiner back to its current
+                // World session and writes nKQHandle=0xFFFFFFFF. It does not
+                // erase the stored KQ roster; DelOldShceduleList does that
+                // later when the old scheduler entry is actually deleted.
+                for (int memberIndex = 0;
+                    memberIndex < members.Count;
+                    memberIndex++)
+                {
+                    KingdomQuestMembershipEntry member = members[memberIndex];
+                    if (member == null ||
+                        member.CharacterNumber > int.MaxValue)
+                        continue;
+
+                    NextGen.World.Networking.WorldClient client =
+                        ClientManager.Instance.GetClientByCharID(
+                            (int)member.CharacterNumber);
+                    if (client != null &&
+                        client.Character != null &&
+                        client.Character.Character != null &&
+                        unchecked((uint)client.Character.Character.ID) ==
+                            member.CharacterNumber)
+                        client.KingdomQuestHandle = null;
+                }
+
+                using (NextGen.FiestaLib.Networking.Packet alarmEnd =
+                    NextGen.World.Handlers.KingdomQuestProtocol.CreateJoiningAlarmEnd(
+                        definition.Handle, definition.ID))
+                    ClientManager.Instance.SendPacketToAll(alarmEnd);
+            }
+        }
+
+        private static bool IsDeleteCandidateStatus(byte status)
+        {
+            // DelOldShceduleList performs unsigned (Status - 5) <= 5.
+            return status >= 5 && status <= 10;
+        }
+
+        private static void RunDeleteOldSchedules()
+        {
+            IReadOnlyList<KingdomQuestProtocolInfo> definitions =
+                KingdomQuestProtocolDefinitionRegistry.Snapshot();
+            var deleteHandles = new List<uint>();
+
+            // First pass exactly mirrors DelOldShceduleList: for every
+            // Status 5..10 entry, mark it Status 11 only when another entry
+            // with the same KQ ID is also Status 5..10 and has a later
+            // ScheduleTime.
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                KingdomQuestProtocolInfo current = definitions[i];
+                if (!IsDeleteCandidateStatus(current.Status))
+                    continue;
+
+                bool hasNewerFinishedSchedule = false;
+                for (int j = 0; j < definitions.Count; j++)
+                {
+                    KingdomQuestProtocolInfo other = definitions[j];
+                    if (other.ID == current.ID &&
+                        IsDeleteCandidateStatus(other.Status) &&
+                        current.ScheduleTime < other.ScheduleTime)
+                    {
+                        hasNewerFinishedSchedule = true;
+                        break;
+                    }
+                }
+
+                if (!hasNewerFinishedSchedule)
+                    continue;
+
+                if (KingdomQuestSessionCoordinator.TrySetStatus(
+                        current.Handle,
+                        KingdomQuestNativeConstants.StatusDelete))
+                    deleteHandles.Add(current.Handle);
+            }
+
+            // Native second pass: FreeMapLink, FreeJoiner, Del(Handle).
+            // Remove() owns the equivalent registry compaction after the
+            // session nKQHandle values are cleared below.
+            for (int i = 0; i < deleteHandles.Count; i++)
+            {
+                uint handle = deleteHandles[i];
+
+                IReadOnlyList<KingdomQuestMembershipEntry> members;
+                if (KingdomQuestMembershipRegistry.TryGet(
+                        handle, out members) &&
+                    ClientManager.Instance != null)
+                {
+                    for (int memberIndex = 0;
+                        memberIndex < members.Count;
+                        memberIndex++)
+                    {
+                        KingdomQuestMembershipEntry member =
+                            members[memberIndex];
+                        if (member == null ||
+                            member.CharacterNumber > int.MaxValue)
+                            continue;
+
+                        NextGen.World.Networking.WorldClient client =
+                            ClientManager.Instance.GetClientByCharID(
+                                (int)member.CharacterNumber);
+                        if (client != null &&
+                            client.Character != null &&
+                            client.Character.Character != null &&
+                            unchecked((uint)client.Character.Character.ID) ==
+                                member.CharacterNumber)
+                            client.KingdomQuestHandle = null;
+                    }
+                }
+
+                KingdomQuestMapAllocationRegistry.Free(handle);
+                KingdomQuestSessionCoordinator.Remove(handle);
             }
         }
 

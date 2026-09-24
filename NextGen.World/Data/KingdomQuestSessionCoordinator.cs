@@ -493,9 +493,10 @@ namespace NextGen.World.Data
         }
 
         /// <summary>
-        /// Applies only the source-proven SetDoneSkip status/reason emitted by
-        /// DoSetStart/KQTeam_CanKQStart. Later delete/repeat behavior remains
-        /// outside this method until recovered from original evidence.
+        /// Applies the source-proven SetDoneSkip Status-6/reason mutation.
+        /// The scheduler runtime preserves the recovered side-effect order:
+        /// DESTROY, FreeMapLink, notify, FreeJoiner, JOINING_ALARM_END.
+        /// DelOldShceduleList owns later Status-11 removal.
         /// </summary>
         public static bool TrySetDoneSkip(uint handle, byte reason)
         {

@@ -877,8 +877,44 @@ value; a new RNG is not created per KQ. Zone already consumes the exact W2Z
 START body and changes the represented KQ state from Made to Started.
 
 `KingdomQuestStartCountdownRegistry` retains the ten-second deadline and
-`KingdomQuestDoneSkipRegistry` retains raw Status-6 reason bytes. Later
-SetDoneSkip cleanup/repeat behavior remains `UNRESOLVED`.
+`KingdomQuestDoneSkipRegistry` retains raw Status-6 reason bytes.
+
+SetDoneSkip cleanup and old-schedule deletion are now recovered and live. The
+original `CKQServer::SetDoneSkip(index, reason)` at `0x004548C0`
+performs, in order:
+
+```text
+Status = 6
+Send_NC_KQ_W2Z_DESTROY_CMD(Handle)
+FreeMapLink(Handle)
+Send_NC_KQ_NOTIFY_CMD_ToJoiner(...)  // reason-specific
+FreeJoiner(index)                    // session nKQHandle = 0xFFFFFFFF
+Send_NC_KQ_JOINING_ALARM_END_CMD(index)
+```
+
+The notification source is the supplied original
+`MsgWorldManager.shn` (SHA-256
+`36b573c6f604a693cf0d0c7533fc90615233ae4a8be62f3ced9bd4119f25884e`),
+which has exactly three `Desc` rows. Reason 2 uses row index 2:
+
+```text
+Kingdom Quest - %s has been canceled due to lack of participants(%d/%d).
+```
+
+with Title, NumOfJoiner and MinPlayers. Reason 3 asks `GetMsg(3)` and
+`GetMsg(4)`; both are beyond the three-row source table, and the original
+`WorldManagerServer::GetMsg` returns its empty fallback string for each.
+The emulator therefore sends the same two empty NOTIFY bodies instead of
+inventing missing localization text.
+
+`DelOldShceduleList` at `0x00454080` runs after `DoSetStart`.
+For every entry whose raw Status is in the original unsigned range 5..10, it
+looks for another entry with the same KQ ID, also Status 5..10, but a later
+`ScheduleTime`. Only then is the older entry marked Status 11. A second
+pass frees map ownership, clears any remaining joiner-session KQ handles and
+deletes that Handle from the scheduler arrays. The runtime now mirrors that
+two-pass boundary; Status 7/9/10 are deliberately left as raw numeric states
+rather than being assigned guessed names.
 
 
 ## Character DB prison state and native JOIN_CANCEL

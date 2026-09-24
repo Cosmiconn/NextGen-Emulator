@@ -26,6 +26,7 @@ WORLD_START_GATE = ROOT / "NextGen.World/Data/KingdomQuestStartGate.cs"
 WORLD_MEMBERSHIP = ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs"
 WORLD_RANDOM = ROOT / "NextGen.World/Data/KingdomQuestNativeRandom.cs"
 WORLD_START_SESSIONS = ROOT / "NextGen.World/Data/KingdomQuestStartSessionResolver.cs"
+WORLD_DONE_SKIP_MESSAGES = ROOT / "NextGen.World/Data/KingdomQuestDoneSkipMessages.cs"
 WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 RAW_SOURCES = {
@@ -123,7 +124,7 @@ def main():
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
         WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER, WORLD_MAP_ALLOCATOR,
         WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
-        WORLD_START_SESSIONS, WORLD_SESSION, NATIVE_INFO,
+        WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_SESSION, NATIVE_INFO,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -230,6 +231,7 @@ def main():
     world_membership = WORLD_MEMBERSHIP.read_text(encoding='utf-8')
     world_random = WORLD_RANDOM.read_text(encoding='utf-8')
     world_start_sessions = WORLD_START_SESSIONS.read_text(encoding='utf-8')
+    world_done_skip_messages = WORLD_DONE_SKIP_MESSAGES.read_text(encoding='utf-8')
     world_session = WORLD_SESSION.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -619,6 +621,55 @@ def main():
             print('FAIL: KQ START bridge invented unsupported runtime state/policy', forbidden)
             return 1
 
+    for token in (
+        '36b573c6f604a693cf0d0c7533fc90615233ae4a8be62f3ced9bd4119f25884e',
+        'records=3, columns=1',
+        "Recruitment for Kingdom Quest - '%s' has begun.",
+        'Kingdom Quest - %s will begin in  %d seconds.',
+        'Kingdom Quest - %s has been canceled due to lack of participants(%d/%d).',
+        'GetSourceMessage(3)',
+        'GetSourceMessage(4)',
+        ': string.Empty',
+    ):
+        if token not in world_done_skip_messages:
+            print('FAIL: exact MsgWorldManager/SetDoneSkip source mapping missing', token)
+            return 1
+
+    for token in (
+        'ApplyDoneSkip(definition, decision.DoneSkipReason)',
+        'zone.SendKingdomQuestDestroy(definition.Handle)',
+        'KingdomQuestMapAllocationRegistry.Free(definition.Handle)',
+        'KingdomQuestDoneSkipMessages.Create(reason, definition)',
+        'client.KingdomQuestHandle = null',
+        'KingdomQuestProtocol.CreateJoiningAlarmEnd(',
+        'RunDeleteOldSchedules()',
+        'status >= 5 && status <= 10',
+        'other.ID == current.ID',
+        'current.ScheduleTime < other.ScheduleTime',
+        'KingdomQuestNativeConstants.StatusDelete',
+        'KingdomQuestSessionCoordinator.Remove(handle)',
+    ):
+        if token not in world_source_scheduler:
+            print('FAIL: recovered SetDoneSkip/DelOldShceduleList lifecycle missing', token)
+            return 1
+
+    done_skip_pos = world_source_scheduler.find(
+        'KingdomQuestSessionCoordinator.TrySetDoneSkip(')
+    destroy_pos = world_source_scheduler.find(
+        'zone.SendKingdomQuestDestroy(definition.Handle)', done_skip_pos)
+    free_map_pos = world_source_scheduler.find(
+        'KingdomQuestMapAllocationRegistry.Free(definition.Handle)', destroy_pos)
+    notify_pos = world_source_scheduler.find(
+        'KingdomQuestDoneSkipMessages.Create(reason, definition)', free_map_pos)
+    free_joiner_pos = world_source_scheduler.find(
+        'client.KingdomQuestHandle = null', notify_pos)
+    alarm_end_pos = world_source_scheduler.find(
+        'KingdomQuestProtocol.CreateJoiningAlarmEnd(', free_joiner_pos)
+    if not (0 <= done_skip_pos < destroy_pos < free_map_pos < notify_pos <
+            free_joiner_pos < alarm_end_pos):
+        print('FAIL: SetDoneSkip side-effect order diverged from WorldManager.exe')
+        return 1
+
     for forbidden in (
         'KingdomQuestSessionTargetRegistry',
         'Map.InstanceID',
@@ -686,6 +737,8 @@ def main():
     print('PASS: combined membership owns CharacterNumber and client identity together without inference')
     print('PASS: Status-3 expiry now runs live as Status 4 -> KQTD_RANDOM divide -> represented normal-party leave -> W2Z START')
     print('PASS: START preflights every native CharacterNumber/session and target Zone before mutating status/team/party state')
+    print('PASS: SetDoneSkip preserves Status6 -> DESTROY -> FreeMapLink -> source-backed notify -> FreeJoiner -> JOINING_ALARM_END order')
+    print('PASS: DelOldShceduleList removes an old Status5..10 entry only after a later same-ID Status5..10 schedule exists')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
     print('PASS: World loads exact UseClassTypeInfo and reproduces ccdb_UseClassTypeToBit folding for DemandClass')

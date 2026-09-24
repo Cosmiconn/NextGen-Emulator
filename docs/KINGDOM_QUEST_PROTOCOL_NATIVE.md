@@ -521,3 +521,27 @@ directories in that order. In the supplied Server.zip, none of
 `KDArena`, `KDMine`, or `KDSpring` exists in the Instant directory,
 so their missing KingdomQuest regen file cannot be repaired by the native
 static fallback. Lua files are not consulted by `KQRegenTable`.
+
+
+## SetDoneSkip and old-schedule deletion
+
+Original WorldManager closes the skip-cleanup sequence without assigning new
+meanings to the intermediate status values. `SetDoneSkip` writes Status 6,
+broadcasts native `NC_KQ_W2Z_DESTROY_CMD`, frees the native map-slot
+reservation, sends the reason notification(s) to the current joiners, clears
+their session-owned KQ Handle, and broadcasts
+`NC_KQ_JOINING_ALARM_END_CMD(Handle, ID)`.
+
+The reason-message source is the exact supplied `MsgWorldManager.shn`
+(SHA-256
+`36b573c6f604a693cf0d0c7533fc90615233ae4a8be62f3ced9bd4119f25884e`,
+3 rows). Reason 2 formats row 2 with Title/NumOfJoiner/MinPlayers. Reason 3
+requests source indices 3 and 4; because they are out of range,
+`WorldManagerServer::GetMsg` returns the executable's empty fallback, so
+two zero-length KQ NOTIFY messages are source-correct for this snapshot.
+
+`DelOldShceduleList` considers raw Status values 5 through 10 inclusive.
+An entry becomes Status 11 only if a later-`ScheduleTime` entry with the same
+KQ ID is also in that 5..10 range. The subsequent pass performs
+`FreeMapLink`, `FreeJoiner`, then `Del(Handle)`. No semantic names are
+invented for raw Status 7, 9 or 10.
