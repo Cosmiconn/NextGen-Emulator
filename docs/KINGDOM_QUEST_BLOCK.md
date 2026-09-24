@@ -849,13 +849,32 @@ normalizes the WELL output by 2^-32, multiplies by 1e11, truncates and reduces
 modulo 1000. `KingdomQuestNativeRandom` models that integer path from an
 explicit original-style time32 seed; no .NET Random policy is substituted.
 
-`KQTeam_LeaveParty` remains the live-runtime gate. Original World first
-refreshes each joiner's party/raid state; raid members execute `RaidLeave`,
-otherwise a non-0xFFFF party executes `LeaveParty`. CharacterNumber is now
-correlated to the emulator's existing `Character.ID`/chrregnum identity, so
-the remaining blocker is specifically authoritative party/raid mutation:
-the current emulator has a normal Group model but no native-equivalent Raid
-owner. Status 4 and W2Z START must not bypass that original leave step.
+`KQTeam_LeaveParty` is now live for every group state this emulator can
+actually represent. Original World refreshes each joiner's party/raid state,
+uses `RaidLeave` for raid membership and otherwise uses normal `LeaveParty`
+when a party exists. This codebase contains no Raid model or Raid creation
+path; every represented grouped World session is therefore the existing normal
+`Group`/Party model rather than an unknown raid surrogate.
+
+Before Status 4 is written, the runtime resolves every native
+CharacterNumber back to its already-correlated World session, verifies the
+session still owns the same KQ Handle, validates any represented Party, and
+resolves the source-backed KQ target to a currently connected owning Zone.
+Only after that complete preflight does the recovered native order run live:
+
+```text
+Status 3 countdown expires
+  -> Status 4
+  -> KQTeam_DivideRandom (only KQTD_RANDOM=1)
+  -> refresh each represented joiner's current Party state
+  -> normal GroupManager.LeaveParty when grouped
+  -> NC_KQ_W2Z_START_CMD with updated CharacterNumber/TeamType roster
+```
+
+The random source is one persistent RandomBox-compatible WELL512 stream for
+the World KQ runtime, seeded once from the original-style `_time32` startup
+value; a new RNG is not created per KQ. Zone already consumes the exact W2Z
+START body and changes the represented KQ state from Made to Started.
 
 `KingdomQuestStartCountdownRegistry` retains the ten-second deadline and
 `KingdomQuestDoneSkipRegistry` retains raw Status-6 reason bytes. Later
@@ -969,3 +988,17 @@ The one remaining prison caveat is provenance, not gameplay inference:
 `PrisonMin == NULL` means the original value/default was not supplied. Such a
 JOIN is fail-closed with no mutation and no fabricated Fiesta Error. Explicit
 zero/nonzero source values follow the recovered native admission branches.
+
+
+### START transport and disconnect boundary
+
+The emulator performs a routing preflight that is internal plumbing rather
+than new gameplay policy: a Status-3 KQ is not advanced unless its existing
+session target resolves to a connected Zone that owns the same source-backed
+MapID. This prevents World from entering Status 4 when the emulator has no
+authoritative destination for the native START body.
+
+If a joiner session disappears before the countdown expires, START remains at
+Status 3 rather than fabricating a replacement session, party state or
+CharacterNumber. Native disconnect cleanup is therefore the next separate
+lifecycle edge to correlate.

@@ -487,8 +487,11 @@ cross-correlated through three independent original/runtime paths:
 emulator's existing native CharacterNumber/chrregnum representation; this is
 not a KQ-specific ID guess.
 
-The source-proven Status-3 expiry itself is no longer unresolved. What still
-blocks fully faithful W2Z START is the preceding native
-`KQTeam_LeaveParty` session behavior: original World distinguishes
-`RaidLeave` from normal `LeaveParty` using raid/party state that the
-current emulator does not yet model authoritatively.
+The source-proven Status-3 expiry is now live. Original World distinguishes
+`RaidLeave` from normal `LeaveParty`; this emulator has no Raid model or Raid
+creation path, so every grouped World session it can represent is a normal
+Party. START therefore preflights every CharacterNumber back to the correlated
+World session and validates its KQ Handle/Party state before mutation, then
+runs the recovered order Status 4 -> KQTD_RANDOM division -> represented
+normal LeaveParty -> W2Z START. Any session state the emulator cannot
+represent authoritatively is fail-closed before Status 4.

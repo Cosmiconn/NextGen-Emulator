@@ -10,8 +10,8 @@ namespace NextGen.World.Handlers
     /// Original NC_KQ World <-> Zone packet layouts.
     ///
     /// These builders are deliberately separate from Handler22/client traffic.
-    /// They model native server-side transport only; no emulator inter-server
-    /// route invokes them yet.
+    /// They model native server-side transport only; the emulator InterServer
+    /// bridge carries their exact native bodies between World and Zone.
     /// </summary>
     internal static class KingdomQuestServerProtocol
     {

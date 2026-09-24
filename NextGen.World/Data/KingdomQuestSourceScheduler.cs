@@ -209,6 +209,7 @@ namespace NextGen.World.Data
         private static KingdomQuestScheduleRuntime Instance;
         private readonly object sync = new object();
         private readonly System.Timers.Timer timer;
+        private readonly KingdomQuestNativeRandom nativeRandom;
         private uint nextHandle;
         private DateTime? lastScheduleMinute;
         private bool enabled;
@@ -219,6 +220,11 @@ namespace NextGen.World.Data
             // to zero. It is incremented only after AddNewScheduleList
             // successfully appends a new (ID, ScheduleTime) entry.
             nextHandle = 0;
+            // Original RandomBox is seeded once from _time32 during process
+            // initialization. The KQ runtime is this emulator's equivalent
+            // World startup owner, so keep one persistent stream per process.
+            nativeRandom = new KingdomQuestNativeRandom(
+                KingdomQuestSourceScheduler.ToNativeTime32(DateTime.Now));
             timer = new System.Timers.Timer(TickMilliseconds);
             timer.AutoReset = true;
             timer.Elapsed += OnElapsed;
@@ -301,6 +307,7 @@ namespace NextGen.World.Data
 
                 RunMakeRoom(local);
                 RunStartGate(local);
+                RunStartCountdownExpiry(local);
             }
         }
 
@@ -342,6 +349,88 @@ namespace NextGen.World.Data
                 if (decision.Kind == KingdomQuestStartDecisionKind.DoneSkip)
                     KingdomQuestSessionCoordinator.TrySetDoneSkip(
                         definition.Handle, decision.DoneSkipReason);
+            }
+        }
+
+        private void RunStartCountdownExpiry(DateTime localNow)
+        {
+            int currentTime = KingdomQuestSourceScheduler.ToNativeTime32(localNow);
+            IReadOnlyList<KingdomQuestProtocolInfo> definitions =
+                KingdomQuestProtocolDefinitionRegistry.Snapshot();
+
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                KingdomQuestProtocolInfo definition = definitions[i];
+                if (definition.Status !=
+                    KingdomQuestNativeConstants.StatusStartCountdown)
+                    continue;
+
+                int countdownEndsAt;
+                if (!KingdomQuestStartCountdownRegistry.TryGet(
+                        definition.Handle, out countdownEndsAt) ||
+                    currentTime < countdownEndsAt)
+                    continue;
+
+                IReadOnlyList<KingdomQuestMembershipEntry> currentMembers;
+                if (!KingdomQuestMembershipRegistry.TryGet(
+                        definition.Handle, out currentMembers))
+                    continue;
+
+                IReadOnlyList<NextGen.World.Networking.WorldClient> sessions;
+                if (!KingdomQuestStartSessionResolver.TryResolve(
+                        definition.Handle, currentMembers, out sessions))
+                {
+                    Log.WriteLine(LogLevel.Error,
+                        "KQ {0} Handle {1} start blocked: native joiner sessions/party state are incomplete.",
+                        definition.ID, definition.Handle);
+                    continue;
+                }
+
+                KingdomQuestSessionTarget target;
+                if (!KingdomQuestSessionTargetRegistry.TryGet(
+                        definition.Handle, out target))
+                    continue;
+
+                NextGen.World.InterServer.ZoneConnection zone = null;
+                if (Program.Zones != null)
+                {
+                    foreach (NextGen.World.InterServer.ZoneConnection candidate
+                        in Program.Zones.Values)
+                    {
+                        if (candidate.Maps != null &&
+                            candidate.Maps.Exists(v => v.ID == target.MapID))
+                        {
+                            zone = candidate;
+                            break;
+                        }
+                    }
+                }
+                if (zone == null)
+                    continue;
+
+                IReadOnlyList<KingdomQuestMembershipEntry> startedMembers;
+                if (!KingdomQuestSessionCoordinator.TryEnterRunning(
+                        definition.Handle,
+                        currentTime,
+                        nativeRandom,
+                        out startedMembers))
+                    continue;
+
+                KingdomQuestStartSessionResolver.LeaveRepresentedParties(
+                    sessions);
+
+                if (!zone.SendKingdomQuestStart(definition.Handle))
+                {
+                    Log.WriteLine(LogLevel.Error,
+                        "KQ START transport failed after native Status-4 transition for Handle {0}.",
+                        definition.Handle);
+                    continue;
+                }
+
+                Log.WriteLine(LogLevel.Info,
+                    "KQ START sent: Handle {0}, KQ {1}, joiners {2}, MapID {3}, instance {4}.",
+                    definition.Handle, definition.ID, startedMembers.Count,
+                    target.MapID, target.MapInstance);
             }
         }
 

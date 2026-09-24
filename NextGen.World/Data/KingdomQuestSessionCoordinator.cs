@@ -418,6 +418,81 @@ namespace NextGen.World.Data
         }
 
         /// <summary>
+        /// Applies the recovered Status-3 expiry boundary from DoSetStart:
+        /// Status 4 first, then KQTD_RANDOM division, with the combined
+        /// membership/Zone roster updated atomically before W2Z START.
+        /// Party leave and transport are intentionally performed by the caller
+        /// after a complete session/Zone preflight.
+        /// </summary>
+        public static bool TryEnterRunning(
+            uint handle,
+            int currentTime32,
+            KingdomQuestNativeRandom random,
+            out IReadOnlyList<KingdomQuestMembershipEntry> members)
+        {
+            members = null;
+            if (random == null)
+                return false;
+
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo definition;
+                KingdomQuestInstanceWireState state;
+                int countdownEndsAt;
+                IReadOnlyList<KingdomQuestMembershipEntry> oldMembership;
+
+                if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition) ||
+                    !KingdomQuestDefinitionRegistry.TryGet(
+                        handle, out definition) ||
+                    !KingdomQuestInstanceRegistry.TryGet(handle, out state) ||
+                    !KingdomQuestStartCountdownRegistry.TryGet(
+                        handle, out countdownEndsAt) ||
+                    !KingdomQuestMembershipRegistry.TryGet(
+                        handle, out oldMembership) ||
+                    protocolDefinition.Status !=
+                        KingdomQuestNativeConstants.StatusStartCountdown ||
+                    definition.Status !=
+                        KingdomQuestNativeConstants.StatusStartCountdown ||
+                    state.Status !=
+                        KingdomQuestNativeConstants.StatusStartCountdown ||
+                    currentTime32 < countdownEndsAt)
+                    return false;
+
+                // DoSetStart writes Status 4 before KQTeam_DivideRandom.
+                if (!TrySetStatus(
+                        handle, KingdomQuestNativeConstants.StatusRunning))
+                    return false;
+
+                var updated = oldMembership
+                    .Select(v => v.Clone())
+                    .ToList();
+
+                KingdomQuestTeamInfo team = null;
+                DataProvider provider = DataProvider.Instance;
+                if (provider != null && provider.KingdomQuestTeams != null)
+                    provider.KingdomQuestTeams.TryGetValue(
+                        protocolDefinition.ID, out team);
+
+                KingdomQuestRandomTeamDivider.Apply(
+                    updated, team, random);
+
+                if (!TrySetMembership(handle, updated))
+                {
+                    TrySetStatus(
+                        handle,
+                        KingdomQuestNativeConstants.StatusStartCountdown);
+                    return false;
+                }
+
+                KingdomQuestStartCountdownRegistry.Remove(handle);
+                members = updated.Select(v => v.Clone()).ToList().AsReadOnly();
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Applies only the source-proven SetDoneSkip status/reason emitted by
         /// DoSetStart/KQTeam_CanKQStart. Later delete/repeat behavior remains
         /// outside this method until recovered from original evidence.

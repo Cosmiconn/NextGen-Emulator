@@ -25,6 +25,7 @@ WORLD_MAP_ROUTE = ROOT / "NextGen.World/Data/KingdomQuestMapRouteResolver.cs"
 WORLD_START_GATE = ROOT / "NextGen.World/Data/KingdomQuestStartGate.cs"
 WORLD_MEMBERSHIP = ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs"
 WORLD_RANDOM = ROOT / "NextGen.World/Data/KingdomQuestNativeRandom.cs"
+WORLD_START_SESSIONS = ROOT / "NextGen.World/Data/KingdomQuestStartSessionResolver.cs"
 WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 RAW_SOURCES = {
@@ -121,7 +122,8 @@ def main():
         MAP, TEAM, VOTE, REASONS, RATES, DESC, DP, TOOL,
         WORLD_MANIFEST, WORLD_NATIVE_SCHEMA, WORLD_SNAPSHOT, WORLD_SOURCE_ROWS,
         WORLD_SOURCE_PROJECTION, WORLD_SOURCE_SCHEDULER, WORLD_MAP_ALLOCATOR,
-        WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM, WORLD_SESSION, NATIVE_INFO,
+        WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
+        WORLD_START_SESSIONS, WORLD_SESSION, NATIVE_INFO,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -227,6 +229,7 @@ def main():
     world_start_gate = WORLD_START_GATE.read_text(encoding='utf-8')
     world_membership = WORLD_MEMBERSHIP.read_text(encoding='utf-8')
     world_random = WORLD_RANDOM.read_text(encoding='utf-8')
+    world_start_sessions = WORLD_START_SESSIONS.read_text(encoding='utf-8')
     world_session = WORLD_SESSION.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -571,9 +574,50 @@ def main():
             print('FAIL: scheduler is not using authoritative combined KQ membership', token)
             return 1
 
-    if 'SendKingdomQuestStart(' in world_source_scheduler:
-        print('FAIL: W2Z START enabled before native party/raid leave and CharacterNumber session routing are represented')
-        return 1
+    for token in (
+        'private readonly KingdomQuestNativeRandom nativeRandom',
+        'new KingdomQuestNativeRandom(',
+        'RunStartCountdownExpiry(local)',
+        'KingdomQuestStartSessionResolver.TryResolve(',
+        'KingdomQuestSessionCoordinator.TryEnterRunning(',
+        'KingdomQuestStartSessionResolver.LeaveRepresentedParties(',
+        'zone.SendKingdomQuestStart(definition.Handle)',
+    ):
+        if token not in world_source_scheduler:
+            print('FAIL: live Status-3 expiry/START bridge missing', token)
+            return 1
+
+    for token in (
+        'public static bool TryEnterRunning',
+        'KingdomQuestStartCountdownRegistry.TryGet(',
+        'currentTime32 < countdownEndsAt',
+        'KingdomQuestNativeConstants.StatusRunning',
+        'KingdomQuestRandomTeamDivider.Apply(',
+        'KingdomQuestSessionCoordinator.TrySetMembership',
+    ):
+        if token not in world_session:
+            print('FAIL: synchronized Status-3 -> Status-4 transition missing', token)
+            return 1
+
+    for token in (
+        'class KingdomQuestStartSessionResolver',
+        'ClientManager.Instance.GetClientByCharID(',
+        'client.KingdomQuestHandle.Value != handle',
+        'client.Character.Group.Members.Count < 2',
+        'NextGen.World.GroupManager.Instance.LeaveParty(client)',
+        're-read Group on every iteration',
+    ):
+        if token not in world_start_sessions:
+            print('FAIL: represented KQTeam_LeaveParty bridge missing', token)
+            return 1
+
+    for forbidden in (
+        'RaidLeave(',
+        'Random(',
+    ):
+        if forbidden in world_start_sessions:
+            print('FAIL: KQ START bridge invented unsupported runtime state/policy', forbidden)
+            return 1
 
     for forbidden in (
         'KingdomQuestSessionTargetRegistry',
@@ -640,7 +684,8 @@ def main():
     print('PASS: PDB enum names lock KQTD_RANDOM=1 and KQTD_USERSELECT=2; supplied team rows are RANDOM')
     print('PASS: native KQTD_RANDOM assignment and RandomBox/WELL512 path are source-correlated')
     print('PASS: combined membership owns CharacterNumber and client identity together without inference')
-    print('PASS: Status-3 expiry to Status 4/DivideRandom/LeaveParty/START is source-proven; live START remains gated on unmodeled party/raid/session routing')
+    print('PASS: Status-3 expiry now runs live as Status 4 -> KQTD_RANDOM divide -> represented normal-party leave -> W2Z START')
+    print('PASS: START preflights every native CharacterNumber/session and target Zone before mutating status/team/party state')
     print('PASS: World main-source gate requires exact SHAs and matching runtime SQL row counts')
     print('PASS: World loads all four KQ main tables in explicit __SourceRow order without scheduler synthesis')
     print('PASS: World loads exact UseClassTypeInfo and reproduces ccdb_UseClassTypeToBit folding for DemandClass')
