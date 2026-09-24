@@ -115,3 +115,25 @@ does World emit `NC_KQ_JOIN_LIST_ACK`.
 
 This makes the request path operational without collapsing two distinct Error
 fields into one guessed constant.
+
+
+## LIST_REQ and SCHEDULE_REQ live through explicit response windows
+
+The PDB proves both request bodies but not the WorldManager's range-selection
+algorithm:
+
+```text
+NC_KQ_LIST_REQ      (0x5801): u32 StartHandle + u32 EndHandle
+NC_KQ_SCHEDULE_REQ  (0x5809): u32 StartHandle + u32 EndHandle
+```
+
+World now handles both without assuming inclusive/exclusive bounds or paging
+rules. `KingdomQuestRangeReplyRegistry` keys an **exact requested pair** to
+an explicitly supplied `NewStartHandle`, `NewEndHandle` and ordered list
+of KQ Handles. The handler resolves those Handles through the source-owned
+definition registry and emits the already-native LIST_ACK/SCHEDULE_ACK
+serializers.
+
+No comparison, sorting or automatic range filter is performed in the reply
+registry. Until the real scheduler supplies a window, the request is logged and
+left unanswered rather than receiving fabricated list contents.

@@ -9,6 +9,80 @@ namespace NextGen.World.Handlers
 {
     public class Handler22
     {
+        private static bool TryResolveRangeEntries(KingdomQuestRangeReply reply,
+            out System.Collections.Generic.IReadOnlyList<
+                NextGen.FiestaLib.Data.KingdomQuestClientInfo> entries)
+        {
+            var resolved = new System.Collections.Generic.List<
+                NextGen.FiestaLib.Data.KingdomQuestClientInfo>();
+
+            for (int i = 0; i < reply.Handles.Count; i++)
+            {
+                NextGen.FiestaLib.Data.KingdomQuestClientInfo info;
+                if (!KingdomQuestDefinitionRegistry.TryGet(reply.Handles[i], out info))
+                {
+                    entries = null;
+                    return false;
+                }
+                resolved.Add(info);
+            }
+
+            entries = resolved.AsReadOnly();
+            return true;
+        }
+
+        [PacketHandler(CH22Type.KingdomQuestListReq)]
+        public static void KingdomQuestList(WorldClient client, Packet packet)
+        {
+            uint startHandle;
+            uint endHandle;
+            if (!packet.TryReadUInt(out startHandle) ||
+                !packet.TryReadUInt(out endHandle))
+                return;
+
+            KingdomQuestRangeReply reply;
+            System.Collections.Generic.IReadOnlyList<
+                NextGen.FiestaLib.Data.KingdomQuestClientInfo> entries;
+            if (!KingdomQuestRangeReplyRegistry.TryGetList(
+                    startHandle, endHandle, out reply) ||
+                !TryResolveRangeEntries(reply, out entries))
+            {
+                Log.WriteLine(LogLevel.Debug,
+                    "KQ list range unresolved: {0}..{1}.", startHandle, endHandle);
+                return;
+            }
+
+            using (Packet response = KingdomQuestProtocol.CreateListAck(
+                DateTimeOffset.Now, reply.NewStartHandle, reply.NewEndHandle, entries))
+                client.SendPacket(response);
+        }
+
+        [PacketHandler(CH22Type.KingdomQuestScheduleReq)]
+        public static void KingdomQuestSchedule(WorldClient client, Packet packet)
+        {
+            uint startHandle;
+            uint endHandle;
+            if (!packet.TryReadUInt(out startHandle) ||
+                !packet.TryReadUInt(out endHandle))
+                return;
+
+            KingdomQuestRangeReply reply;
+            System.Collections.Generic.IReadOnlyList<
+                NextGen.FiestaLib.Data.KingdomQuestClientInfo> entries;
+            if (!KingdomQuestRangeReplyRegistry.TryGetSchedule(
+                    startHandle, endHandle, out reply) ||
+                !TryResolveRangeEntries(reply, out entries))
+            {
+                Log.WriteLine(LogLevel.Debug,
+                    "KQ schedule range unresolved: {0}..{1}.", startHandle, endHandle);
+                return;
+            }
+
+            using (Packet response = KingdomQuestProtocol.CreateScheduleAck(
+                reply.NewStartHandle, reply.NewEndHandle, entries))
+                client.SendPacket(response);
+        }
+
         [PacketHandler(CH22Type.KingdomQuestStatusReq)]
         public static void KingdomQuestStatus(WorldClient client, Packet packet)
         {
