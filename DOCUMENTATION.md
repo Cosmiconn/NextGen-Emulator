@@ -2936,36 +2936,64 @@ detaillierter Beschreibung erhalten - decken Kingdom Quests (Liste,
 Anmeldung, echte Session inkl. Fail-Zustand), Gluecksspielhaus,
 Gildendialog, Lager, Titel, Freundesliste u.v.m. ab.
 
-### 53.1 `SH22Type.KingdomQuestList` (Typ 29) - Struktur weitgehend entschluesselt
+### 53.1 KQ Type 29 native aufgeloest: `NC_KQ_LIST_ADD_ACK`
 
-**Laeuft ueber den WORLD-Server** (Port 9013 in diesem Mitschnitt), NICHT
-Zone - wichtige Korrektur/Praezisierung gegenueber der bisherigen
-Vermutung. 5 einzelne Pakete pro Listen-Oeffnung (7477/7477/1132/850/145
-Byte) statt eines Blocks - vermutlich unterschiedliche Unterlisten
-("alle"/"meine Liste"/Team-Daten). Enthaelt Klartext-KQ-Namen, u.a.
-**exakt** "Mara Pirates' Rage" und "Lost Mini Dragon[A]/[B]/(Hardcore)[A]/[B]"
-- beide vom Nutzer tatsaechlich angeklickt/angemeldet, in beiden
-Mitschnitten uebereinstimmend.
+**Laeuft ueber den WORLD-Server** (Port 9013 im Mitschnitt), nicht Zone.
+Die spaeter extrahierte Original-2016-PDB-Struktur widerlegt die fruehere
+Interpretation eines variablen Instanz-/Namensblocks:
 
-Durch Vergleich zweier fast identischer Eintraege (Lost Mini Dragon[A]
-vs. [B]) praezise isoliert:
-- Ca. 50 Byte gemeinsamer Header vor dem Namen, bei beiden Varianten
-  **byte-identisch**.
-- Ein 2-Byte-Feld direkt vor dem eigentlichen "Namenszaehler+Name"
-  unterscheidet sich (0x03ec=1004 vs. 0x03ef=1007) - vermutlich eine
-  Instanz-/Eintrags-ID.
-- Name selbst: NUL-terminiert, davor ein 2-Byte-Feld (`05 00` bei Lost
-  Mini Dragon, `01 00` bei Mara Pirates - vermutlich KQ-Typ/Kategorie,
-  nicht Namenslaenge).
-- Nach dem Namen: mehrere Byte identisch zwischen A/B (`38 4a 00 0c e0
-  fb 05 00 00 00 00 23 88 dc 76`), dann 4 individuelle Byte pro Instanz
-  (vermutlich Zeitstempel oder Instanz-Hash).
+```text
+NC_KQ_LIST_ADD_ACK:
+    u16 NumOfNewQuest
+    PROTO_KQ_INFO_CLIENT NewQuestArray[NumOfNewQuest]
 
-**Weiterhin nicht vollstaendig geklaert**: die exakte Bedeutung mehrerer
-Header-Felder vor dem Instanz-Block, sowie die genaue Aufteilung der 5
-Pakete auf "alle"/"meine Liste". Deutlich mehr verstanden als vorher
-("Existenz bestaetigt, Struktur unbekannt" -> "Kernstruktur groesstenteils
-entschluesselt").
+sizeof(PROTO_KQ_INFO_CLIENT) = 141
+```
+
+Die fuenf beobachteten Gesamtpaketgroessen korrelieren bytegenau mit diesem
+Layout (2 Byte Opcode + 2 Byte Count + 141 Byte je Eintrag):
+
+| Gesamtgroesse | Rechnung | Eintraege |
+|---:|---:|---:|
+| 7477 | (7477 - 4) / 141 | 53 |
+| 7477 | (7477 - 4) / 141 | 53 |
+| 1132 | (1132 - 4) / 141 | 8 |
+| 850 | (850 - 4) / 141 | 6 |
+| 145 | (145 - 4) / 141 | 1 |
+
+Damit sind dies fuenf native LIST_ADD-Batches. Aus dem Mitschnitt allein folgt
+nicht, dass sie unterschiedliche UI-Unterlisten ("alle"/"meine Liste") sind.
+
+Der 141-Byte-Eintrag ist ebenfalls fest strukturiert:
+
+```text
++0   u32 Handle
++4   u8  Status
++5   u16 NumOfJoiner
++7   u16 ID
++9   char Title[64]
++73  u16 LimitTime
++75  i32 StartTime
++79  struct tm[36]
++115 u16 StartWaitTime
++117 u8  MinLevel
++118 u8  MaxLevel
++119 u16 MinPlayers
++121 u16 MaxPlayers
++123 u8  PlayerRepeatMode
++124 u16 PlayerRepeatCount
++126 u8  PlayerRevivalMode
++127 u8  PlayerRevivalCount
++128 u16 DemandQuest
++130 u16 DemandItem
++132 i64 DemandClass
++140 u8 DemandGender
+```
+
+Die frueher zwischen Lost Mini Dragon [A]/[B] isolierten Werte
+`0x03ec = 1004` und `0x03ef = 1007` direkt vor dem Titel sind damit
+source-level als `ID` identifiziert. Der Titel ist kein variabel
+laengenpraefigierter String, sondern ein fixes 64-Byte-Feld.
 
 ### 53.2 Gambling-Opcodes (Header 47) entdeckt - eigene Zone-Verbindung fuer das Gluecksspielhaus
 
@@ -3157,12 +3185,12 @@ Port-zu-Feature.
 
 | t (s)   | Richtung | Paket                                  | Bedeutung |
 |---------|----------|-----------------------------------------|-----------|
-| 636.56  | c2s      | CH22Type Typ3, `[u32 969]`             | Instanz-Detailanfrage |
-| 636.57  | s2c      | SH22Type Typ4, `[u32 969][u16 2]`      | Antwort (Status/Anzahl) |
-| 638.12  | c2s      | CH22Type Typ5, `[u32 969]`             | **Anmeldung fuer die KQ** |
-| 638.12  | s2c      | SH22Type Typ50 (26 Byte, mit Platz-halter-String "text") | Anmeldebestaetigung (unlokalisiert!) |
-| 638.12  | s2c      | SH22Type Typ6, `[u32 969][u16 0x0991]`| weitere Bestaetigung |
-| 638.80/650.82/661.83 | s2c | SH22Type Typ31, `[u16 1][u32 969][u16 wachsend: 2,3,4]` | periodisches Rekrutierungs-Update |
+| 636.56  | c2s      | `NC_KQ_STATUS_REQ`, `[u32 Handle=969]` | native Statusanfrage |
+| 636.57  | s2c      | `NC_KQ_STATUS_ACK`, Handle 969 + Status + Joinerzahl/Name5-Liste | PDB-Struktur; alte 6-Byte-Kurzdeutung war unvollstaendig |
+| 638.12  | c2s      | `NC_KQ_JOIN_REQ`, `[u32 Handle=969]` | **Anmeldung fuer die KQ** |
+| 638.12  | s2c      | `NC_KQ_JOIN_LIST_ACK` (Typ 50) | `u16 Error + u8 count + KQ_JOIN_CHAR_INFO[]`; frueherer "text"-Platzhalter ist Teil eines festen Name5[20]-Feldes |
+| 638.12  | s2c      | `NC_KQ_JOIN_ACK`, `[u32 969][u16 0x0991]` | Registrierung war im Mitschnitt erfolgreich; symbolische Bedeutung von `0x0991` weiter UNRESOLVED |
+| 638.80/650.82/661.83 | s2c | `NC_KQ_LIST_UPDATE_ACK`: count=1, Handle 969, Status + `NumOfJoiner` wachsend 2/3/4 | natives Rekrutierungs-Update |
 | 651.83  | s2c      | **SH22Type Typ11** (Klartext): "Kingdom Quest - Lost Mini Dragon (Hardcore)[B] will begin in  10 seconds." | Countdown-Ankuendigung |
 | 651.83-660.83 | s2c | SH22Type Typ37 fuer Instanz 969, exakt 10x im 1-Sekunden-Takt | Countdown-Tick (Wert selbst blieb konstant) |
 | 661.98  | s2c      | SH6Type.ChangeZone -> Port 9025        | Teleport in die Instanzkarte |
@@ -3329,9 +3357,9 @@ Abschnitt verwendet wurde.
 - Reale Revive-Heilrate (54.2) nur an einem Datenpunkt (18,9 %) belegt -
   zweiter Todesfall mit anderem MaxHP noetig, bevor die Formel im Code
   geaendert wird.
-- `SH22Type` Typ 4/6/50 (KQ-Anmeldebestaetigung) nur grob erfasst, nicht
-  bytegenau vollstaendig; der Platzhaltertext "text" in Typ 50 verdient
-  eine gezielte Nachpruefung (fehlende Lokalisierung im Original-Client?).
+- KQ-Paketlayouts 4/6/50 sind inzwischen PDB-seitig aufgeloest. Offen bleibt
+  die symbolische Semantik der jeweiligen `ushort Error`-Werte, insbesondere
+  des im erfolgreichen Join beobachteten `0x0991`.
 - Neuer Header 36 weiterhin komplett unbekannt (nur 2 Datenpunkte).
 - Gluecksspielhaus-Opcodes 100/101/200-203 nur grob strukturell erfasst.
 - Guild-Manager-Dialog, Inventar (6 Taschen), Lager-NPC, Titel-Fenster,

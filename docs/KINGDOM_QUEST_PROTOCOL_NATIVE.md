@@ -137,3 +137,22 @@ serializers.
 No comparison, sorting or automatic range filter is performed in the reply
 registry. Until the real scheduler supplies a window, the request is logged and
 left unanswered rather than receiving fabricated list contents.
+
+
+## Capture correlation for LIST_ADD_ACK
+
+The old project capture sizes independently validate the native 141-byte client
+entry layout. Total packet size is:
+
+```text
+2-byte opcode + 2-byte count + 141 * N
+```
+
+The observed 7477 / 7477 / 1132 / 850 / 145 byte packets therefore contain
+exactly 53 / 53 / 8 / 6 / 1 entries. This also resolves the previously isolated
+`0x03ec` and `0x03ef` words immediately before the Lost Mini Dragon titles
+as the native `PROTO_KQ_INFO_CLIENT.ID` field at entry offset +7; `Title`
+starts at +9 and is a fixed 64-byte array.
+
+The capture remains evidence for batching/order, but it no longer supports the
+old variable-title or guessed sub-list framing.
