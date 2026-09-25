@@ -20,15 +20,23 @@ namespace NextGen.World.Data
         public string Name { get; set; } = string.Empty;
         public byte TeamType { get; set; }
 
-        // Raw DWORD at native KQ_JOINER_BF +0x20. PlayerJoin initializes it
-        // to 0 and CheckCharBannedInLogin compares it with 1. The original PDB
-        // does not give this field a trustworthy semantic name, so preserve the
-        // raw value instead of collapsing it to a bool or inventing vote state.
-        public uint LoginBanStateRaw { get; set; }
+        // WorldManager.pdb names the native KQ_JOINER_BF vote fields.
+        // They are stored after CharInfo at exact struct offsets:
+        // +0x20 bInVote (DWORD), +0x24 bBan (DWORD), +0x28 nVotingCount (BYTE).
+        // Preserve the DWORDs raw because native code uses both ==1 and
+        // nonzero tests on different paths.
+        public uint InVoteRaw { get; set; }
+        public uint BanRaw { get; set; }
+        public byte VotingCount { get; set; }
+
+        public bool IsNativeInVote
+        {
+            get { return InVoteRaw != 0; }
+        }
 
         public bool HasNativeLoginBanMarker
         {
-            get { return LoginBanStateRaw == 1; }
+            get { return BanRaw == 1; }
         }
 
         public KingdomQuestJoinCharacterInfo ToClientInfo()
@@ -60,7 +68,9 @@ namespace NextGen.World.Data
                 Class = Class,
                 Name = Name,
                 TeamType = TeamType,
-                LoginBanStateRaw = LoginBanStateRaw,
+                InVoteRaw = InVoteRaw,
+                BanRaw = BanRaw,
+                VotingCount = VotingCount,
             };
         }
     }
@@ -102,8 +112,9 @@ namespace NextGen.World.Data
             }
         }
 
-        public static bool TrySetLoginBanStateRaw(
-            uint handle, uint characterNumber, uint rawValue)
+        public static bool TrySetNativeVoteFields(
+            uint handle, uint characterNumber,
+            uint inVoteRaw, uint banRaw, byte votingCount)
         {
             lock (Sync)
             {
@@ -116,9 +127,9 @@ namespace NextGen.World.Data
                 if (index < 0)
                     return false;
 
-                // Preserve the original raw DWORD. Only the separately proven
-                // login check currently interprets value 1 specially.
-                current[index].LoginBanStateRaw = rawValue;
+                current[index].InVoteRaw = inVoteRaw;
+                current[index].BanRaw = banRaw;
+                current[index].VotingCount = votingCount;
                 return true;
             }
         }

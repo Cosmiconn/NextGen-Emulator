@@ -625,7 +625,7 @@ def main():
         "KingdomQuestAdmissionRules.EvaluatePlayerJoin(",
         "KingdomQuestCharacterIdentity.TryGetCharacterNumber(",
         "KingdomQuestAdmissionRules.AssignInitialTeam(",
-        "LoginBanStateRaw = 0",
+        "InVoteRaw = 0",\n        "BanRaw = 0",\n        "VotingCount = 0",
         "CheckCharBannedInLogin",
         "client.KingdomQuestHandle = handle",
     ], "atomic native KQ admission membership mutations"):
@@ -669,15 +669,22 @@ def main():
         "public byte Class",
         "public string Name",
         "public byte TeamType",
-        "public uint LoginBanStateRaw",
-        "LoginBanStateRaw == 1",
-        "LoginBanStateRaw = LoginBanStateRaw",
-        "TrySetLoginBanStateRaw(",
-        "current[index].LoginBanStateRaw = rawValue",
+        "public uint InVoteRaw",
+        "public uint BanRaw",
+        "public byte VotingCount",
+        "InVoteRaw != 0",
+        "BanRaw == 1",
+        "InVoteRaw = InVoteRaw",
+        "BanRaw = BanRaw",
+        "VotingCount = VotingCount",
+        "TrySetNativeVoteFields(",
+        "current[index].InVoteRaw = inVoteRaw",
+        "current[index].BanRaw = banRaw",
+        "current[index].VotingCount = votingCount",
         "ToClientInfo()",
         "ToZoneInfo()",
         "never infers one identity from the other",
-    ], "combined KQ native membership identity and raw login-ban state"):
+    ], "combined KQ native membership identity and exact vote fields"):
         return 1
 
     for forbidden in (
@@ -1005,7 +1012,7 @@ def main():
     print("PASS: native Zone KingdomQuestContainer capacity is locked to 300 fixed KQElement slots and 0x0983 is live after script lookup")
     print("PASS: PDB names lock TeamDivideType 1=RANDOM and 2=USERSELECT; PlayerJoin type-2 initial assignment remains source-modeled")
     print("PASS: one combined membership owner carries CharacterNumber plus client identity fields into both native roster projections")
-    print("PASS: native KQ joiner +0x20 login-ban DWORD is preserved raw; PlayerJoin initializes it to zero and no vote policy is invented")
+    print("PASS: native KQ_JOINER_BF +0x20 bInVote / +0x24 bBan / +0x28 nVotingCount are preserved at exact widths")
     return 0
 
 if __name__ == "__main__":

@@ -820,17 +820,15 @@ rebinds only the new World session Handle, and routes the saved KQ X/Y plus
 the existing internal Map.InstanceID to Zone. It never creates a membership
 from persisted Handle data.
 
-The following native `CheckCharBannedInLogin` tests the joiner DWORD at
-offset +0x20 for value 1; PlayerJoin initializes it to zero. The emulator now
-preserves that DWORD verbatim as `LoginBanStateRaw` in the combined
-membership row and carries it through clones/team transitions. New joins write
-zero exactly, and a raw per-character setter exists for the future vote engine.
-No semantic meaning is assigned to values other than the proven login check
-for 1.
+WorldManager.pdb names the tail of `KQ_JOINER_BF` exactly:
+`bInVote` is a DWORD at struct offset +0x20, `bBan` is a DWORD at +0x24,
+and `nVotingCount` is a byte at +0x28. PlayerJoin writes zero to all three
+fields independently.
 
-The value-1 login side effect itself remains disabled until the native
-vote-success mutation plus disjoin/notification ordering is fully correlated;
-the raw state model is not used as a substitute for that missing policy.
+`CheckCharBannedInLogin` compares **bBan (+0x24)** with value 1. The
+emulator therefore preserves the three fields separately as `InVoteRaw`,
+`BanRaw` and `VotingCount`; the DWORD values are not collapsed because
+native vote code later uses both nonzero and exact-one predicates.
 
 
 ## Character save-location KQ persistence wire

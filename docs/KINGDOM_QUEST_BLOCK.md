@@ -1118,19 +1118,22 @@ MapID/Map.InstanceID are carried over the emulator's World->Zone transfer so
 Zone can enter the dynamic instance without overwriting the separately stored
 normal return location. A persisted Handle alone can never recreate a joiner.
 
-Native `CheckCharBannedInLogin` runs immediately after the rebind and tests a
-DWORD in the native joiner row at offset `+0x20`; `PlayerJoin` initializes
-that DWORD to zero and the login check compares it exactly with value `1`.
-The combined membership owner now preserves this field as
-`LoginBanStateRaw`, clones it through team/start mutations, initializes new
-joins to zero, and exposes a raw per-CharacterNumber setter for the later
-vote engine. It is deliberately **not** reduced to a generic boolean: values
-other than 0/1 have no proven meaning.
+WorldManager.pdb and the PlayerJoin write sequence correct the earlier
+single-DWORD interpretation of the native joiner tail. `KQ_JOINER_BF`
+contains three distinct vote fields after `CharInfo`:
+`bInVote` is a DWORD at struct offset `+0x20`, `bBan` is a DWORD at
+`+0x24`, and `nVotingCount` is a byte at `+0x28`. PlayerJoin
+initializes all three independently to zero.
 
-The actual value-1 login side effect is still not activated, because the exact
-vote-success mutation and ban/disjoin notification order are not yet fully
-correlated. Modeling the raw native state closes the structural gap without
-inventing that policy.
+Native `CheckCharBannedInLogin` tests **bBan at +0x24** exactly against
+value `1`; it does not test the +0x20 in-vote field. The combined membership
+owner therefore preserves `InVoteRaw`, `BanRaw` and `VotingCount`
+separately and clones all three through team/start mutations. The raw DWORDs
+stay raw because later original vote paths use both exact-value and nonzero
+tests rather than one generic managed boolean.
+
+The vote-success/result/disjoin ordering is recovered separately below before
+those fields are used to drive live policy.
 
 
 
