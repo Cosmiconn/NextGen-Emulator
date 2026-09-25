@@ -9,8 +9,9 @@ namespace NextGen.World.Data
     ///
     /// Zone.exe ItemGroupClassifier::igc_Load calls igc_Store only for
     /// ItemInfoServer DropGroupA (record offset 0x39) and DropGroupB
-    /// (record offset 0x61). This is intentionally only the KQ-used group-only
-    /// key subset; candidate CardDeck rows are not modeled here.
+    /// (record offset 0x61). This class owns only the KQ-used key namespace;
+    /// exact CardDeck insert rows live in
+    /// KingdomQuestRewardItemGroupCandidateSource.
     /// </summary>
     public static class KingdomQuestRewardItemGroupSource
     {

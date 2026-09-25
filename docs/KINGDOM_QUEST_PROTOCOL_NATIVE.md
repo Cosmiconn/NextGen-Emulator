@@ -307,11 +307,28 @@ exist in both the direct and group namespaces, and direct lookup wins exactly
 as native code does. The 33 used group-only keys cover 791 source candidate
 rows / 790 unique ItemIDs.
 
-The shared classifier and `KingdomQuestRewardItemPlan` therefore preserve
+The shared classifier and `KingdomQuestRewardItemPlan` preserve
 exact-item, group, native-miss and defensive duplicate-ItemInfo outcomes
-without generating an item. Group candidate selection remains a separate
-boundary: native code calls `CardDeck::CardStack::cs_Suffle(1)` and applies
-the `UseClass` class-group filter before returning a candidate.
+without generating an item. The group candidate stage is now recovered too.
+Native `igc_Store` performs InsertTop + `cs_Suffle(1)` for each valid
+DropGroupA/B assignment: 5,758 stores / 789 groups globally in the supplied
+ItemInfoServer source. The 33 KQ group-only keys contribute 791 exact
+assignments / 790 item IDs and retain their original ItemInfo `UseClass`.
+
+One `cs_Suffle(1)` consumes two linked MSVC CRT `rand()` outputs,
+indexes both modulo current deck size and swaps those card values. CRT state is
+`state = state*0x343FD + 0x269EC3` modulo 2^32 with output
+`(state>>16)&0x7FFF`. At lookup, native performs one shuffle, rotates each
+examined top card to the bottom, and returns the first candidate whose
+`ccdb_UseClassTypeToBit(UseClass)` mask intersects the caller class group;
+a full incompatible pass returns `0xFFFF`.
+
+`KingdomQuestNativeItemGroupClassifierState` and
+`KingdomQuestRewardItemCandidatePlan` model that boundary from explicit
+native CRT/class-group state. They do not seed from wall-clock time or use a
+framework RNG. The original CRT stream is shared with other Zone work, so
+exact live state ownership remains separate from the now-closed shuffle/filter
+algorithm.
 
 The independent `KQBoxItemIDX` field is also source-correlated.
 Exactly 58 of 64 `KingdomQuestRew` rows have a nonempty value, all 58 are
@@ -320,8 +337,9 @@ uniformly carry source fields `type=1, class=15, maxlot=1, equip=0,
 ItemUseSkill=UsePresentBox, ItemFunc=0`. Six reward rows carry no box index.
 
 The runtime projection records only this exact box-item identity. It does not
-equate the box with a selected ShineReward handle and does not infer the
-CardDeck candidate chosen for a classifier-group ITEM Argument.
+equate the box with a selected ShineReward handle. Classifier-group candidates
+are resolved only by the separate explicit native CardDeck state model; the box
+identity itself never chooses reward contents.
 
 The selected scalar branches now also have an exact mutation-free
 projection. Zone.exe `ShinePlayer::sp_KQReward` uses three DWORD locals;
@@ -344,9 +362,11 @@ match ItemInfo directly, because that is the native `sp_KQReward` branch.
 Source ambiguity and unproven later reward types remain explicit blockers
 rather than fallback behavior.
 
-No live grant/GameDB path is enabled yet because TreasureChest item generation,
-transaction persistence and exact mutation/ACK timing, plus the scenario
-completion trigger, must be source-correlated before mutation.
+No live grant/GameDB path is enabled yet. Candidate selection is now
+source-modeled, but authoritative ownership of the shared native CRT state,
+TreasureChest item construction/options, transaction persistence and exact
+mutation/ACK timing, plus the scenario completion trigger, remain required
+before mutation.
 
 
 ## Original World ↔ Zone KQ lifecycle wire

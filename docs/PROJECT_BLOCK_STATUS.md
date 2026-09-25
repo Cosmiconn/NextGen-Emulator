@@ -46,8 +46,9 @@ Implemented and CI-locked on the KQ branch:
 - original script/static-regen source boundaries without treating file presence
   as successful scenario loading;
 - deterministic reward preparation through KQ reward lookup/dice,
-  ShineReward lookup, ITEM classifier source resolution, box identity and
-  exact scalar accumulation;
+  ShineReward lookup, ITEM classifier source resolution, exact native
+  CardDeck candidate shuffle/rotation/UseClass filtering from explicit CRT
+  state, box identity and exact scalar accumulation;
 - native reward ACK packet/identity validation boundary without inventing the
   unresolved item-store transaction semantics.
 
@@ -55,8 +56,10 @@ Still required for block completion:
 
 - a source-equivalent ScenarioBookShelf/PineScript/Lua runtime and the live
   scenario-driven mob/objective/success/failure flow;
-- TreasureChest/CardDeck group-candidate selection, item creation and the
-  GameDB/item-store transaction plus exact reward mutation/completion timing;
+- authoritative ownership of the shared Zone CRT rand state used by the
+  source-modeled CardDeck stage, followed by TreasureChest item
+  construction/options and the GameDB/item-store transaction plus exact reward
+  mutation/completion timing;
 - remaining vote-kick and USERSELECT/TEAM_SELECT policy/mutation ordering where
   original semantics are not yet fully correlated.
 

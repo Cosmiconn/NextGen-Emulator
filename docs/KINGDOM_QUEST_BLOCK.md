@@ -1458,12 +1458,44 @@ group/miss key boundary and its source provenance. The shared classifier and
 native classifier miss, and defensive duplicate-ItemInfo ambiguity. A native
 miss is a proved `0xFFFF` outcome, not an unresolved alias.
 
-Group **candidate choice** remains intentionally separate. Native group lookup
-calls `CardDeck::CardStack::cs_Suffle(1)` and filters candidates through
-`ccdb_UseClassTypeToBit(item.UseClass)` against the caller class-group mask.
-That CardDeck ordering/RNG path is not replaced with framework randomness, and
-the current plan performs no candidate choice, item creation, inventory
-mutation or persistence.
+The native group-candidate algorithm is now closed from the supplied
+`Zone.exe`/`Zone.pdb`. `igc_Store` inserts every valid
+ItemInfoServer DropGroupA/DropGroupB item at the CardStack top and immediately
+calls `cs_Suffle(1)`. Across the complete original ItemInfoServer source that
+is **5,758 valid stores / 789 distinct groups**. The 33 KQ group-only keys
+retain their exact **791 assignment rows / 790 unique ItemIDs**, including
+source row, A/B column, native global store ordinal and the matching original
+ItemInfo `UseClass`. The compact canonical candidate corpus is locked by
+SHA-256 `2944aecbb00d305929075f54b9571fca78252b64c2e0316d3d4e1fa7264fee35`.
+
+`CardDeck::CardStack::cs_Suffle(1)` consumes exactly two MSVC CRT
+`rand()` values, takes each modulo the current card count and swaps those two
+card values. The linked CRT implementation is exact:
+`state = state * 0x343FD + 0x269EC3` modulo 2^32 and
+`rand = (state >> 16) & 0x7FFF`.
+`igc_Getitem` performs one such shuffle, then examines at most the original
+deck count. Every examined top card is moved to the bottom *before* filtering;
+the first candidate whose
+`ccdb_UseClassTypeToBit(ItemInfo.UseClass) & classGroup` is nonzero wins.
+A complete pass without a compatible card returns native `0xFFFF`.
+
+`KingdomQuestNativeItemGroupClassifierState` now reproduces this deck/RNG
+state machine, and `KingdomQuestRewardItemCandidatePlan` composes it after
+the existing direct-first classifier result. No framework randomness is used.
+The model deliberately requires explicit CRT state at both native
+`igc_Load` start and reward lookup. Zone seeds CRT `rand` from
+`_time32` and also consumes that shared stream elsewhere (including the
+16 values used to seed WELL512), so wall-clock startup time is **not** promoted
+to an authoritative later CardDeck state.
+
+`sp_KQReward` passes the result of
+`sp_GetItemWhoEquip_ClassGroup()` into
+`TreasureChestMaker::tcm_ItemMake(7, ShineReward*, classGroup)`; the managed
+candidate plan therefore keeps `classGroup` explicit rather than deriving it
+from an emulator Job guess. Candidate selection is source-modeled, but it is
+not wired live until the shared Zone CRT-state owner and exact class-group
+caller state are represented. Item construction, upgrades/options, inventory
+mutation and persistence remain separate.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
@@ -1476,8 +1508,9 @@ ItemFunc=0`. The remaining six reward rows have an empty box index.
 `KingdomQuestRewardBoxPlan` preserves only that mapping. It deliberately
 does not treat `KQBoxItemIDX` as one of the fifteen reward contents, does
 not open the box and does not choose TreasureChest results. This separates the
-source-backed reward container item from the still-unresolved
-`TreasureChestMaker` content-selection layer.
+source-backed reward container item from the later TreasureChest item-
+construction/transaction layer. The classifier candidate algorithm itself is
+now represented separately as described above.
 
 The scalar side is now closed exactly without activating mutation.
 Direct Zone.exe disassembly of `ShinePlayer::sp_KQReward` proves three
@@ -1513,9 +1546,11 @@ never converted into a grant.
 
 The preparation plan performs no item creation, character mutation, database
 write, network send or ACK processing. For the supplied source snapshot this
-means the entire deterministic pre-mutation reward path is represented; the
-remaining live-reward blockers are TreasureChest expansion, the GameDB/item
-transaction boundary and exact mutation/ACK/scenario-completion timing.
+means the source-backed reward path through classifier candidate choice is
+represented when authoritative native CRT/class-group state is supplied. The
+remaining live-reward blockers are ownership of that shared Zone CRT state,
+TreasureChest item construction/options, the GameDB/item transaction boundary,
+and exact mutation/ACK/scenario-completion timing.
 
 These packet structures are modeled byte-for-byte, but no GameDB-equivalent
 send/ACK path is activated before those remaining mutation boundaries are

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Lock source-backed Kingdom Quest map/team/vote metadata."""
 from pathlib import Path
+import base64
+import gzip
 import hashlib
 import re
 import sys
@@ -35,6 +37,9 @@ WORLD_REWARD_RESOLVER = ROOT / "NextGen.World/Data/KingdomQuestRewardSourceResol
 WORLD_REWARD_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardSelectionPlan.cs"
 WORLD_REWARD_ITEM_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemPlan.cs"
 WORLD_REWARD_ITEM_GROUP_SOURCE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemGroupSource.cs"
+WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemGroupCandidateSource.cs"
+WORLD_NATIVE_ITEM_GROUP_CLASSIFIER = ROOT / "NextGen.World/Data/KingdomQuestNativeItemGroupClassifierState.cs"
+WORLD_REWARD_ITEM_CANDIDATE_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemCandidatePlan.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
@@ -158,7 +163,9 @@ def main():
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
         WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN,
-        WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_BOX_PLAN,
+        WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE,
+        WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_ITEM_CANDIDATE_PLAN,
+        WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
         ZONE_REWARD_ACK_IDENTITY, NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
@@ -337,6 +344,14 @@ def main():
         name = unquote_sql(row[1])
         item_info_name_counts[name] = item_info_name_counts.get(name, 0) + 1
     item_info_names = set(item_info_name_counts)
+    item_info_use_class_by_id = {
+        int(row[0]): int(row[31]) for row in item_info_rows
+        if len(row) > 31
+    }
+    if len(item_info_use_class_by_id) != 14999:
+        print('FAIL: ItemInfo id/UseClass corpus changed',
+              len(item_info_use_class_by_id))
+        return 1
     if len(item_info_names) != 14982:
         print('FAIL: ItemInfo distinct inxname corpus changed',
               len(item_info_names))
@@ -506,6 +521,67 @@ def main():
               sorted(direct_arguments & duplicate_item_info_names))
         return 1
 
+    candidate_source_text = (
+        WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE.read_text(encoding='utf-8'))
+    candidate_payload_match = re.search(
+        r'CompressedCanonicalRows\s*=\s*"([A-Za-z0-9+/=]+)"\s*;',
+        candidate_source_text)
+    if candidate_payload_match is None:
+        print('FAIL: KQ ItemGroup candidate payload missing')
+        return 1
+    try:
+        candidate_canonical = gzip.decompress(
+            base64.b64decode(candidate_payload_match.group(1), validate=True))
+    except (ValueError, gzip.BadGzipFile) as exc:
+        print('FAIL: KQ ItemGroup candidate payload decode failed', exc)
+        return 1
+    candidate_hash = hashlib.sha256(candidate_canonical).hexdigest()
+    if candidate_hash != '2944aecbb00d305929075f54b9571fca78252b64c2e0316d3d4e1fa7264fee35':
+        print('FAIL: KQ ItemGroup canonical candidate source changed',
+              candidate_hash)
+        return 1
+    candidate_lines = candidate_canonical.decode('utf-8').splitlines()
+    if (not candidate_lines or
+            candidate_lines[0] !=
+            'native_shuffle_ordinal\tsource_row\tcolumn\tgroup\titem_id\tuse_class'):
+        print('FAIL: KQ ItemGroup candidate header changed')
+        return 1
+    candidate_rows = [line.split('\t') for line in candidate_lines[1:]]
+    if len(candidate_rows) != 791 or any(len(row) != 6 for row in candidate_rows):
+        print('FAIL: KQ ItemGroup candidate row corpus changed',
+              len(candidate_rows))
+        return 1
+    candidate_ordinals = [int(row[0]) for row in candidate_rows]
+    candidate_groups = {row[3] for row in candidate_rows}
+    candidate_ids = {int(row[4]) for row in candidate_rows}
+    if (candidate_ordinals != sorted(candidate_ordinals) or
+            len(set(candidate_ordinals)) != 791 or
+            candidate_ordinals[0] != 55 or
+            candidate_ordinals[-1] != 5457 or
+            candidate_groups != KQ_ITEM_GROUP_ONLY_ARGUMENTS or
+            len(candidate_ids) != 790):
+        print('FAIL: KQ ItemGroup candidate ordering/group/id boundary changed')
+        return 1
+    for row in candidate_rows:
+        item_id = int(row[4])
+        use_class = int(row[5])
+        if item_info_use_class_by_id.get(item_id) != use_class:
+            print('FAIL: KQ ItemGroup candidate UseClass mismatch',
+                  item_id, use_class,
+                  item_info_use_class_by_id.get(item_id))
+            return 1
+    for token in (
+        'NativeValidStoreCalls = 5758',
+        'NativeDistinctGroups = 789',
+        'KqCandidateRows = 791',
+        'KqCandidateUniqueItemIds = 790',
+        'CanonicalRowsSha256',
+        '2944aecbb00d305929075f54b9571fca78252b64c2e0316d3d4e1fa7264fee35',
+    ):
+        if token not in candidate_source_text:
+            print('FAIL: KQ ItemGroup candidate source guard missing', token)
+            return 1
+
     # KQBoxItemIDX is a distinct source field from the fifteen ShineReward
     # handles. In this snapshot every populated box name resolves exactly once
     # to an ItemInfo row, and all of those rows share the source PresentBox
@@ -601,6 +677,9 @@ def main():
     world_reward_plan = WORLD_REWARD_PLAN.read_text(encoding='utf-8')
     world_reward_item_plan = WORLD_REWARD_ITEM_PLAN.read_text(encoding='utf-8')
     world_reward_item_group_source = WORLD_REWARD_ITEM_GROUP_SOURCE.read_text(encoding='utf-8')
+    world_reward_item_group_candidate_source = WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE.read_text(encoding='utf-8')
+    world_native_item_group_classifier = WORLD_NATIVE_ITEM_GROUP_CLASSIFIER.read_text(encoding='utf-8')
+    world_reward_item_candidate_plan = WORLD_REWARD_ITEM_CANDIDATE_PLAN.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
@@ -837,6 +916,59 @@ def main():
     ):
         if forbidden in world_reward_item_plan:
             print('FAIL: KQ reward ITEM plan activated generation/persistence',
+                  forbidden)
+            return 1
+
+    for token in (
+        'class KingdomQuestMsvcCrtRand',
+        'State = State * 0x343fdu + 0x269ec3u',
+        '(State >> 16) & 0x7fffu',
+        'class KingdomQuestNativeItemGroupClassifierState',
+        'random.Next() % cards.Count',
+        'cards.Insert(0, itemId)',
+        'deck.InsertTop(row.ItemId)',
+        'deck.ShuffleOnce(random)',
+        'random.ConsumeShuffle()',
+        'NativeValidStoreCalls',
+        'RotateTopToBottom()',
+        'useClassMasks.TryGetValue(useClass, out mask)',
+        'unchecked((ulong)mask) & (ulong)classGroup',
+        'NativeNoCompatibleCandidate',
+    ):
+        if token not in world_native_item_group_classifier:
+            print('FAIL: native KQ CardDeck/class filter model missing', token)
+            return 1
+    for forbidden in (
+        'System.Random', 'new Random(', 'Inventory.', 'ExecuteQuery',
+        'Program.DatabaseManager', 'SendPacket(',
+    ):
+        if forbidden in world_native_item_group_classifier:
+            print('FAIL: native KQ CardDeck model activated guessed RNG/mutation',
+                  forbidden)
+            return 1
+
+    for token in (
+        'enum KingdomQuestRewardItemCandidateKind : byte',
+        'class KingdomQuestRewardItemCandidatePlan',
+        'KingdomQuestNativeItemGroupClassifierState classifierState',
+        'KingdomQuestMsvcCrtRand random',
+        'classifierState.Select(',
+        'KingdomQuestRewardItemCandidateKind.ExactItemInfo',
+        'KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate',
+        'KingdomQuestRewardItemCandidateKind.NativeClassifierKeyMiss',
+        'KingdomQuestRewardItemCandidateKind.NativeNoCompatibleGroupCandidate',
+        'KingdomQuestItemGroupLookupKind.SourceIncomplete',
+        'itemById.TryGetValue(',
+    ):
+        if token not in world_reward_item_candidate_plan:
+            print('FAIL: KQ reward item candidate plan missing', token)
+            return 1
+    for forbidden in (
+        'System.Random', 'new Random(', 'new Item(', 'Inventory.',
+        'ExecuteQuery', 'Program.DatabaseManager', 'SendPacket(',
+    ):
+        if forbidden in world_reward_item_candidate_plan:
+            print('FAIL: KQ candidate plan activated guessed RNG/mutation',
                   forbidden)
             return 1
 
@@ -1455,6 +1587,8 @@ def main():
     print('PASS: source dumper can require all main SHNs, rejects duplicate basenames and records SHA-256/column manifests')
     print('PASS: source SQL includes machine-readable file/column provenance without gameplay mapping')
     print('PASS: exact NA2016 KQ/source dependency corpus locked (57/38/64/2/39 rows; includes UseClassTypeInfo)')
+    print('PASS: native KQ ItemGroup candidate corpus locked (5758 stores; 789 groups; 791 KQ assignments / 790 item IDs)')
+    print('PASS: native MSVC CRT rand/CardStack shuffle, rotation and UseClass mask-filter boundary are source-modeled without live RNG invention')
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: supplied NA2016 definitions are locked to one active MapLink and 23 source-backed MapBase identities')
     print('PASS: native MapBase resolves exactly to source-backed MapInfo.ShortName without MapIndex/instance inference')
