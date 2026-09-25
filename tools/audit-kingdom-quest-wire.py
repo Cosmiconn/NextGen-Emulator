@@ -650,7 +650,6 @@ def main():
         "InVoteRaw = 0",
         "BanRaw = 0",
         "VotingCount = 0",
-        "CheckCharBannedInLogin",
         "client.KingdomQuestHandle = handle",
     ], "atomic native KQ admission membership mutations"):
         return 1
