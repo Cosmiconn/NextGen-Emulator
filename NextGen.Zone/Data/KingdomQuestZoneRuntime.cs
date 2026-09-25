@@ -137,8 +137,7 @@ namespace NextGen.Zone.Data
                     return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
                 MapInfo mapInfo;
-                if (!DataProvider.Instance.MapsByID.TryGetValue(
-                        mapId, out mapInfo))
+                if (!DataProvider.Instance.MapsByID.TryGetValue(mapId, out mapInfo))
                     return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
                 KingdomQuestMapProtocolInfo activeMap = null;
@@ -169,8 +168,7 @@ namespace NextGen.Zone.Data
                 // indexes the original mapdatabox by MapBase.
                 if (activeMap == null ||
                     !string.Equals(
-                        activeMap.MapBase, mapInfo.ShortName,
-                        StringComparison.Ordinal))
+                        activeMap.MapBase, mapInfo.ShortName, StringComparison.Ordinal))
                     return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
                 Map map = MapManager.Instance.GetMap(mapInfo, mapInstance);
