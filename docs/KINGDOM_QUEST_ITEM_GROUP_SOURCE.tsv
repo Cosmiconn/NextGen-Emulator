@@ -1,0 +1,54 @@
+# Source	ItemInfoServer.shn
+# SourceSha256	d8cf2b411783822908e6ecbfc833b4ae104d2f3ece1b3cc2250aafa5aa714c10
+# ItemInfoSourceSha256	7ef63c5463ac8a5d51c3cb5ca8c80ff9311bb8ecac05fd04e5107f2fce02d494
+# NativeLoader	ItemGroupClassifier::igc_Load stores only DropGroupA@0x39 and DropGroupB@0x61 through igc_Store
+# NativeLookup	igc_Getitem checks direct ItemDataBox first, then group tree, then returns 0xFFFF
+# GroupSelection	group path calls CardDeck::CardStack::cs_Suffle(1) then filters candidates through ccdb_UseClassTypeToBit and caller class-group mask
+# ItemDropGroupFallback	none; ItemDropGroup.txt does not feed this ItemGroupClassifier instance
+# KQUsedItemRewardHandles	247
+# DirectItemHandles	161
+# GroupResolvedHandles	82
+# NativeMissHandles	4
+# DirectArguments	95
+# GroupOnlyArguments	33
+# NativeMissArguments	3
+# DirectAndGroupNameOverlap	59
+# UsedGroupCandidateRows	791
+# UsedGroupCandidateUniqueItemIDs	790
+argument	resolution
+BestHighProduct	miss
+BestProduct	group
+GiantHoneyingNewReward	miss
+GordonMasterNewReward	group
+HenneathNewReward	group
+HighBeast	group
+HighCarcass	group
+HighDust	group
+HighKylin	group
+HighProduct	group
+LostMiniNewReward	group
+MaraNewReward	group
+NamedArmor7	group
+NamedOP3Armor6	miss
+NamedWeapon13	group
+NamedWeapon14	group
+NamedWeapon15	group
+NamedWeapon4	group
+NamedWeapon8	group
+NamedWeapon9	group
+NorProduct	group
+P_KQHBAT1	group
+P_KQHBAT2	group
+P_KQHBAT3	group
+P_KQHBAT4	group
+P_KQHBAT5	group
+RareWeapon03	group
+SlimeJelly	group
+SpUpsource13	group
+SpUpsource14	group
+SpUpsource15	group
+Upsource13	group
+Upsource14	group
+Upsource15	group
+Weapon3	group
+Weapon6	group

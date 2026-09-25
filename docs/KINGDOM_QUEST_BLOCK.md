@@ -1412,30 +1412,45 @@ overflow rules, generate inventory items, award stats/currency, or persist
 anything. Types 5..10 remain preserved as unresolved later-type entries rather
 than being promoted to KQ effects.
 
-The ITEM branch has an additional source boundary that is now locked explicitly.
-All 247 KQ-used ITEM reward handles enter native `TreasureChestMaker`, but
-their `ShineReward.Argument` is **not** uniformly an `ItemInfo.inxname`.
-Against the supplied 14,999-row ItemInfo source, 161 handles (95 distinct
-arguments) are exact ordinal ItemInfo-name matches, while 86 handles (36
-distinct arguments) are not. The opaque set includes selectors such as
-`Weapon3`, `NamedWeapon4`, `HighDust`, `NorProduct`,
-`P_KQHBAT1` and `Upsource15`.
+The ITEM branch is now correlated through the actual native classifier rather
+than an ItemInfo-only approximation. `sp_KQReward` calls
+`TreasureChestMaker::tcm_ItemMake(7, ShineReward*, classGroup)`, which passes
+`ShineReward.Argument` to `ItemGroupClassifier::igc_Getitem`.
+`igc_Getitem` first searches the ItemDataBox directly. Only a direct miss
+consults the classifier's group tree; a second miss returns `0xFFFF`.
+Direct lookup therefore wins even when the same string is also a group name.
 
-`ShineRewardNativeInfo.ClassifyItemArgument` now exposes only that
-cross-correlation: exact ItemInfo name versus opaque TreasureChest argument.
-The full ItemInfo snapshot contains 17 duplicate `inxname` values; none is
-used by the 95 direct KQ arguments. The classifier nevertheless has an explicit
-`AmbiguousItemInfoName` result so a future source snapshot cannot silently
-pick the first duplicate.
+The group's original source is also closed. Zone.exe
+`ItemGroupClassifier::igc_Load` has exactly two `igc_Store` call sites per
+ItemInfoServer row: `DropGroupA` at record offset `0x39` and
+`DropGroupB` at `0x61`. Original `ItemInfoServer.shn` is SHA-256
+`d8cf2b411783822908e6ecbfc833b4ae104d2f3ece1b3cc2250aafa5aa714c10`;
+`ItemInfo.shn` is
+`7ef63c5463ac8a5d51c3cb5ca8c80ff9311bb8ecac05fd04e5107f2fce02d494`.
+`ItemDropGroup.txt` is a separate source and is **not** a fallback for this
+classifier.
 
-`KingdomQuestRewardItemPlan` composes this classification over the selected
-ITEM rewards in native slot order and separates exact, opaque and ambiguous
-entries while preserving the original `ShineReward` Quantity/Upgrade/options
-on each selected row. It never aliases an opaque token to an item and performs
-no TreasureChest selection, random generation, inventory mutation or
-persistence. This prevents the 86 native TreasureChest inputs from being
-incorrectly granted as missing/direct items while the deeper
-TreasureChestMaker source tables and selection algorithm are still unresolved.
+For the 247 KQ-used ITEM handles the exact result is now **161 direct item
+lookups, 82 group lookups and 4 native misses**. That is 95 direct arguments,
+33 group-only arguments and three miss arguments. The four misses are handle
+89 / `NamedOP3Armor6`, handle 280 / `GiantHoneyingNewReward`, and
+handles 906 + 924 / `BestHighProduct`. There are 59 names present in both
+direct ItemInfo and classifier-group namespaces; the native direct-first order
+resolves those as items. The 33 KQ-used group-only keys cover 791 source
+candidate rows / 790 unique ItemIDs.
+
+`docs/KINGDOM_QUEST_ITEM_GROUP_SOURCE.tsv` locks that KQ-relevant
+group/miss key boundary and its source provenance. The shared classifier and
+`KingdomQuestRewardItemPlan` now distinguish exact item, classifier group,
+native classifier miss, and defensive duplicate-ItemInfo ambiguity. A native
+miss is a proved `0xFFFF` outcome, not an unresolved alias.
+
+Group **candidate choice** remains intentionally separate. Native group lookup
+calls `CardDeck::CardStack::cs_Suffle(1)` and filters candidates through
+`ccdb_UseClassTypeToBit(item.UseClass)` against the caller class-group mask.
+That CardDeck ordering/RNG path is not replaced with framework randomness, and
+the current plan performs no candidate choice, item creation, inventory
+mutation or persistence.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
@@ -1477,11 +1492,11 @@ The recovered reward stages now have a single mutation-free composition point:
 15-slot dice/handle resolution, ITEM argument plan, KQ box-item identity and
 scalar sums. It exposes the remaining boundary explicitly:
 `RequiresTreasureChestRuntime` is true for every selected ITEM branch because
-native `sp_KQReward` routes ITEM through `TreasureChestMaker`; opaque
-arguments are therefore valid source inputs, not lookup failures. Future
-source ambiguity (duplicate ItemInfo name, missing/ambiguous box, or a
-currently-unproven later reward type) is surfaced separately and never
-converted into a grant.
+native `sp_KQReward` routes ITEM through `TreasureChestMaker`. Direct
+items, classifier groups and proven `0xFFFF` misses are now distinct source
+outcomes; future source ambiguity (duplicate ItemInfo name, missing/ambiguous
+box, or a currently-unproven later reward type) is surfaced separately and
+never converted into a grant.
 
 The preparation plan performs no item creation, character mutation, database
 write, network send or ACK processing. For the supplied source snapshot this

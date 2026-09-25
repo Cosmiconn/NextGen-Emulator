@@ -291,21 +291,27 @@ the proven positive KQ switch branches (ITEM/EXP/MONEY/HONOR); NONE is ignored,
 lookup misses are retained as misses, and types 5..10 are retained without an
 invented effect.
 
-The ITEM argument is also now guarded against a tempting but incorrect direct
-ItemInfo assumption. Across the 247 KQ-used ITEM handles, 161 handles / 95
-distinct arguments exactly match `ItemInfo.inxname`; 86 handles / 36
-arguments do not. Native `sp_KQReward` nevertheless sends every ITEM branch
-through `TreasureChestMaker`. The shared classifier therefore records only an
-ordinal exact ItemInfo match, an opaque TreasureChest argument, or an explicit
-ambiguous ItemInfo name and never synthesizes an alias. The supplied ItemInfo
-snapshot contains 17 duplicate names, but none intersects the 95 direct KQ
-arguments. The opaque corpus includes `Weapon3`, `NamedWeapon4`,
-`HighDust`, `NorProduct`, `P_KQHBAT1` and `Upsource15`.
+The ITEM argument is now correlated through native
+`TreasureChestMaker -> ItemGroupClassifier::igc_Getitem`. The lookup order
+is exact: direct ItemDataBox name first, ItemGroupClassifier group second,
+otherwise `0xFFFF`. Zone.exe builds that group tree only from
+`ItemInfoServer.DropGroupA` (offset `0x39`) and `DropGroupB`
+(offset `0x61`); `ItemDropGroup.txt` is not a fallback.
 
-`KingdomQuestRewardItemPlan` applies that classifier to the selected ITEM
-slots without changing order or generating an item. Exact/opaque/ambiguous
-entries remain separate until the original TreasureChestMaker source and
-selection semantics are recovered.
+Across the 247 KQ-used ITEM handles this yields 161 direct item lookups,
+82 group lookups and four native misses. The four misses are handle 89 /
+`NamedOP3Armor6`, handle 280 / `GiantHoneyingNewReward`, and handles
+906 + 924 / `BestHighProduct`. The KQ-used namespace contains 95 direct
+arguments, 33 group-only arguments and three miss arguments. Fifty-nine names
+exist in both the direct and group namespaces, and direct lookup wins exactly
+as native code does. The 33 used group-only keys cover 791 source candidate
+rows / 790 unique ItemIDs.
+
+The shared classifier and `KingdomQuestRewardItemPlan` therefore preserve
+exact-item, group, native-miss and defensive duplicate-ItemInfo outcomes
+without generating an item. Group candidate selection remains a separate
+boundary: native code calls `CardDeck::CardStack::cs_Suffle(1)` and applies
+the `UseClass` class-group filter before returning a candidate.
 
 The independent `KQBoxItemIDX` field is also source-correlated.
 Exactly 58 of 64 `KingdomQuestRew` rows have a nonempty value, all 58 are
@@ -314,8 +320,8 @@ uniformly carry source fields `type=1, class=15, maxlot=1, equip=0,
 ItemUseSkill=UsePresentBox, ItemFunc=0`. Six reward rows carry no box index.
 
 The runtime projection records only this exact box-item identity. It does not
-equate the box with a selected ShineReward handle and does not infer how
-`TreasureChestMaker` expands any opaque ITEM Argument.
+equate the box with a selected ShineReward handle and does not infer the
+CardDeck candidate chosen for a classifier-group ITEM Argument.
 
 The selected scalar branches now also have an exact mutation-free
 projection. Zone.exe `ShinePlayer::sp_KQReward` uses three DWORD locals;

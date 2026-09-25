@@ -36,6 +36,14 @@ namespace NextGen.World.Data
             get { return ItemPlan.AmbiguousItemInfoEntries.Count != 0; }
         }
 
+        public bool HasNativeItemClassifierMisses
+        {
+            get
+            {
+                return ItemPlan.MissingItemGroupClassifierEntries.Count != 0;
+            }
+        }
+
         public bool HasUnresolvedBoxSource
         {
             get
@@ -49,9 +57,9 @@ namespace NextGen.World.Data
 
         /// <summary>
         /// True only when every source-only classification represented by this
-        /// plan is authoritative. Opaque TreasureChest arguments do not make
-        /// this false: they are valid native inputs whose expansion belongs to
-        /// the still-separate TreasureChest runtime.
+        /// plan is authoritative. A proven native ItemGroupClassifier miss does
+        /// not make this false: 0xFFFF is the recovered lookup result, not an
+        /// unresolved source fallback.
         /// </summary>
         public bool IsSourceProjectionComplete
         {

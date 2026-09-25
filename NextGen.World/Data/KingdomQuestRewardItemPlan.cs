@@ -6,9 +6,9 @@ using NextGen.FiestaLib.Data;
 namespace NextGen.World.Data
 {
     /// <summary>
-    /// One selected ITEM reward after source-only Argument classification.
+    /// One selected ITEM reward after source-backed native classifier lookup.
     /// This carries the already-resolved ShineReward row forward without
-    /// creating an Item or choosing TreasureChest contents.
+    /// choosing a CardDeck candidate or creating an Item.
     /// </summary>
     public sealed class KingdomQuestRewardItemPlanEntry
     {
@@ -41,30 +41,32 @@ namespace NextGen.World.Data
     }
 
     /// <summary>
-    /// Mutation-free bridge between KQ reward selection and the still
-    /// unresolved TreasureChestMaker item-generation layer.
+    /// Mutation-free projection of the recovered TreasureChestMaker ->
+    /// ItemGroupClassifier lookup boundary.
     ///
-    /// Native sp_KQReward routes every ITEM through TreasureChestMaker.
-    /// Therefore even an exact ItemInfo name is classification evidence only;
-    /// this plan never constructs inventory items or treats opaque arguments
-    /// as aliases.
+    /// Native igc_Getitem checks the ItemDataBox first, then its group tree,
+    /// then returns 0xFFFF. Group expansion remains separate because the
+    /// original CardStack shuffle/class filter has its own RNG/state boundary.
     /// </summary>
     public sealed class KingdomQuestRewardItemPlan
     {
         public IReadOnlyList<KingdomQuestRewardItemPlanEntry> Entries { get; private set; }
         public IReadOnlyList<KingdomQuestRewardItemPlanEntry> ExactItemInfoEntries { get; private set; }
-        public IReadOnlyList<KingdomQuestRewardItemPlanEntry> OpaqueTreasureChestEntries { get; private set; }
+        public IReadOnlyList<KingdomQuestRewardItemPlanEntry> ItemGroupEntries { get; private set; }
+        public IReadOnlyList<KingdomQuestRewardItemPlanEntry> MissingItemGroupClassifierEntries { get; private set; }
         public IReadOnlyList<KingdomQuestRewardItemPlanEntry> AmbiguousItemInfoEntries { get; private set; }
 
         private KingdomQuestRewardItemPlan(
             List<KingdomQuestRewardItemPlanEntry> entries,
             List<KingdomQuestRewardItemPlanEntry> exact,
-            List<KingdomQuestRewardItemPlanEntry> opaque,
+            List<KingdomQuestRewardItemPlanEntry> groups,
+            List<KingdomQuestRewardItemPlanEntry> missing,
             List<KingdomQuestRewardItemPlanEntry> ambiguous)
         {
             Entries = entries.AsReadOnly();
             ExactItemInfoEntries = exact.AsReadOnly();
-            OpaqueTreasureChestEntries = opaque.AsReadOnly();
+            ItemGroupEntries = groups.AsReadOnly();
+            MissingItemGroupClassifierEntries = missing.AsReadOnly();
             AmbiguousItemInfoEntries = ambiguous.AsReadOnly();
         }
 
@@ -80,10 +82,13 @@ namespace NextGen.World.Data
             List<ItemInfo> catalog = itemInfos
                 .Where(v => v != null)
                 .ToList();
+            ISet<string> nativeGroupKeys =
+                KingdomQuestRewardItemGroupSource.CreateGroupOnlyKeySet();
 
             var entries = new List<KingdomQuestRewardItemPlanEntry>();
             var exact = new List<KingdomQuestRewardItemPlanEntry>();
-            var opaque = new List<KingdomQuestRewardItemPlanEntry>();
+            var groups = new List<KingdomQuestRewardItemPlanEntry>();
+            var missing = new List<KingdomQuestRewardItemPlanEntry>();
             var ambiguous = new List<KingdomQuestRewardItemPlanEntry>();
 
             for (int i = 0; i < selection.Items.Count; i++)
@@ -98,7 +103,7 @@ namespace NextGen.World.Data
                 ItemInfo exactItem;
                 ShineRewardItemArgumentKind kind =
                     selected.Reward.ClassifyItemArgument(
-                        catalog, out exactItem);
+                        catalog, nativeGroupKeys, out exactItem);
 
                 var entry = new KingdomQuestRewardItemPlanEntry(
                     selected, kind, exactItem);
@@ -109,8 +114,11 @@ namespace NextGen.World.Data
                     case ShineRewardItemArgumentKind.ExactItemInfoName:
                         exact.Add(entry);
                         break;
-                    case ShineRewardItemArgumentKind.OpaqueTreasureChestArgument:
-                        opaque.Add(entry);
+                    case ShineRewardItemArgumentKind.ItemGroupClassifierGroup:
+                        groups.Add(entry);
+                        break;
+                    case ShineRewardItemArgumentKind.MissingItemGroupClassifierKey:
+                        missing.Add(entry);
                         break;
                     case ShineRewardItemArgumentKind.AmbiguousItemInfoName:
                         ambiguous.Add(entry);
@@ -121,7 +129,7 @@ namespace NextGen.World.Data
             }
 
             plan = new KingdomQuestRewardItemPlan(
-                entries, exact, opaque, ambiguous);
+                entries, exact, groups, missing, ambiguous);
             return true;
         }
     }

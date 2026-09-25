@@ -25,18 +25,16 @@ namespace NextGen.FiestaLib.Data
     }
 
     /// <summary>
-    /// Source-correlation result for a ShineReward ITEM Argument.
-    /// Every native ITEM branch still enters TreasureChestMaker. This enum
-    /// only records whether the raw Argument also happens to be an exact
-    /// ItemInfo.inxname in the supplied source snapshot; it never turns an
-    /// opaque TreasureChest token into an item alias.
+    /// Source-correlation result for the native ItemGroupClassifier lookup
+    /// used by TreasureChestMaker for ShineReward ITEM rows.
     /// </summary>
     public enum ShineRewardItemArgumentKind : byte
     {
         NotItemReward = 0,
         ExactItemInfoName = 1,
-        OpaqueTreasureChestArgument = 2,
-        AmbiguousItemInfoName = 3,
+        ItemGroupClassifierGroup = 2,
+        MissingItemGroupClassifierKey = 3,
+        AmbiguousItemInfoName = 4,
     }
 
     /// <summary>
@@ -165,26 +163,29 @@ namespace NextGen.FiestaLib.Data
         public uint TitleDegree { get; set; }
 
         /// <summary>
-        /// Cross-correlates an ITEM Argument against source-backed ItemInfo
-        /// names with an ordinal comparison. A miss is deliberately returned
-        /// as an opaque TreasureChest argument: original sp_KQReward passes
-        /// every ITEM reward through TreasureChestMaker, and many valid KQ
-        /// source arguments are not ItemInfo.inxname values.
+        /// Mirrors the recovered lookup order inside
+        /// ItemGroupClassifier::igc_Getitem:
         ///
-        /// This helper performs no item generation, random selection,
-        /// inventory mutation or persistence.
+        /// 1. exact ItemDataBox / ItemInfo name;
+        /// 2. ItemGroupClassifier group key;
+        /// 3. native 0xFFFF miss.
+        ///
+        /// Direct item lookup has precedence even when the same string is also
+        /// a group name. The supplied group set is source-owned by the caller;
+        /// this helper does not choose a card from a group.
         /// </summary>
         public ShineRewardItemArgumentKind ClassifyItemArgument(
             IEnumerable<ItemInfo> itemInfos,
+            ISet<string> itemGroupNames,
             out ItemInfo exactItem)
         {
             exactItem = null;
             if (RewardType != ShineRewardType.Item)
                 return ShineRewardItemArgumentKind.NotItemReward;
 
+            string argument = Argument ?? string.Empty;
             if (itemInfos != null)
             {
-                string argument = Argument ?? string.Empty;
                 ItemInfo match = null;
                 foreach (ItemInfo candidate in itemInfos)
                 {
@@ -210,7 +211,10 @@ namespace NextGen.FiestaLib.Data
                 }
             }
 
-            return ShineRewardItemArgumentKind.OpaqueTreasureChestArgument;
+            if (itemGroupNames != null && itemGroupNames.Contains(argument))
+                return ShineRewardItemArgumentKind.ItemGroupClassifierGroup;
+
+            return ShineRewardItemArgumentKind.MissingItemGroupClassifierKey;
         }
     }
 

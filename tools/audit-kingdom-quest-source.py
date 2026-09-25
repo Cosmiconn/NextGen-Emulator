@@ -34,6 +34,7 @@ WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 WORLD_REWARD_RESOLVER = ROOT / "NextGen.World/Data/KingdomQuestRewardSourceResolver.cs"
 WORLD_REWARD_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardSelectionPlan.cs"
 WORLD_REWARD_ITEM_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemPlan.cs"
+WORLD_REWARD_ITEM_GROUP_SOURCE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemGroupSource.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
@@ -60,18 +61,21 @@ SOURCE_MANIFEST_SQL = ROOT / "sql/data/data_kq_source_00_manifest.sql"
 SHINE_REWARD_SQL = ROOT / "sql/data/data_kq_source_60_shinereward.sql"
 SHINE_REWARD_SQL_SHA256 = "9fa4fc1ce2db998cc61f01dc0ef6ba46575a68162efa71c467b9904032c65a88"
 ITEM_INFO_SQL = ROOT / "sql/data/data_iteminfo.sql"
+ITEM_GROUP_SOURCE_TSV = ROOT / "docs/KINGDOM_QUEST_ITEM_GROUP_SOURCE.tsv"
 
-OPAQUE_KQ_ITEM_ARGUMENTS = {
-    "BestHighProduct", "BestProduct", "GiantHoneyingNewReward",
-    "GordonMasterNewReward", "HenneathNewReward", "HighBeast",
-    "HighCarcass", "HighDust", "HighKylin", "HighProduct",
+KQ_ITEM_GROUP_ONLY_ARGUMENTS = {
+    "BestProduct", "GordonMasterNewReward", "HenneathNewReward",
+    "HighBeast", "HighCarcass", "HighDust", "HighKylin", "HighProduct",
     "LostMiniNewReward", "MaraNewReward", "NamedArmor7",
-    "NamedOP3Armor6", "NamedWeapon13", "NamedWeapon14", "NamedWeapon15",
-    "NamedWeapon4", "NamedWeapon8", "NamedWeapon9", "NorProduct",
-    "P_KQHBAT1", "P_KQHBAT2", "P_KQHBAT3", "P_KQHBAT4",
-    "P_KQHBAT5", "RareWeapon03", "SlimeJelly", "SpUpsource13",
-    "SpUpsource14", "SpUpsource15", "Upsource13", "Upsource14",
-    "Upsource15", "Weapon3", "Weapon6",
+    "NamedWeapon13", "NamedWeapon14", "NamedWeapon15", "NamedWeapon4",
+    "NamedWeapon8", "NamedWeapon9", "NorProduct", "P_KQHBAT1",
+    "P_KQHBAT2", "P_KQHBAT3", "P_KQHBAT4", "P_KQHBAT5",
+    "RareWeapon03", "SlimeJelly", "SpUpsource13", "SpUpsource14",
+    "SpUpsource15", "Upsource13", "Upsource14", "Upsource15",
+    "Weapon3", "Weapon6",
+}
+KQ_ITEM_CLASSIFIER_MISS_ARGUMENTS = {
+    "BestHighProduct", "GiantHoneyingNewReward", "NamedOP3Armor6",
 }
 
 EXPECTED_MAPS = {
@@ -152,11 +156,12 @@ def main():
         WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
-        WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN, WORLD_REWARD_BOX_PLAN,
+        WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN,
+        WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
         NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
-        ITEM_INFO_SQL,
+        ITEM_INFO_SQL, ITEM_GROUP_SOURCE_TSV,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
         if not path.is_file():
@@ -411,30 +416,90 @@ def main():
         print('FAIL: supplied KQ scalar corpus now reaches UInt32 overflow')
         return 1
 
-    used_item_rewards = [
-        shine_reward_by_handle[handle]
+    used_item_reward_by_handle = {
+        handle: shine_reward_by_handle[handle]
         for handle in used_shine_reward_handles
         if shine_reward_by_handle[handle][0] == 1
-    ]
-    direct_item_rewards = [
-        row for row in used_item_rewards if row[1] in item_info_names]
-    opaque_item_rewards = [
-        row for row in used_item_rewards if row[1] not in item_info_names]
-    opaque_arguments = {row[1] for row in opaque_item_rewards}
+    }
+    direct_item_handles = {
+        handle for handle, row in used_item_reward_by_handle.items()
+        if row[1] in item_info_names
+    }
+    non_direct_item_handles = (
+        set(used_item_reward_by_handle) - direct_item_handles)
 
-    if (len(direct_item_rewards), len(opaque_item_rewards),
-            len({row[1] for row in direct_item_rewards}),
-            len(opaque_arguments)) != (161, 86, 95, 36):
-        print('FAIL: KQ ITEM direct/opaque argument split changed',
-              len(direct_item_rewards), len(opaque_item_rewards),
-              len({row[1] for row in direct_item_rewards}),
-              len(opaque_arguments))
+    item_group_source_text = ITEM_GROUP_SOURCE_TSV.read_text(encoding='utf-8')
+    required_group_headers = (
+        "# SourceSha256\td8cf2b411783822908e6ecbfc833b4ae104d2f3ece1b3cc2250aafa5aa714c10",
+        "# ItemInfoSourceSha256\t7ef63c5463ac8a5d51c3cb5ca8c80ff9311bb8ecac05fd04e5107f2fce02d494",
+        "# NativeLoader\tItemGroupClassifier::igc_Load stores only DropGroupA@0x39 and DropGroupB@0x61 through igc_Store",
+        "# NativeLookup\tigc_Getitem checks direct ItemDataBox first, then group tree, then returns 0xFFFF",
+        "# ItemDropGroupFallback\tnone; ItemDropGroup.txt does not feed this ItemGroupClassifier instance",
+        "# DirectAndGroupNameOverlap\t59",
+        "# UsedGroupCandidateRows\t791",
+        "# UsedGroupCandidateUniqueItemIDs\t790",
+    )
+    for header in required_group_headers:
+        if header not in item_group_source_text:
+            print('FAIL: KQ ItemGroupClassifier provenance changed', header)
+            return 1
+
+    source_rows = [
+        line.split('\t')
+        for line in item_group_source_text.splitlines()
+        if line and not line.startswith('#') and
+           not line.startswith('argument\t')
+    ]
+    if any(len(row) != 2 for row in source_rows):
+        print('FAIL: KQ ItemGroupClassifier source row width changed')
         return 1
-    if opaque_arguments != OPAQUE_KQ_ITEM_ARGUMENTS:
-        print('FAIL: opaque KQ TreasureChest argument corpus changed',
-              sorted(opaque_arguments))
+    group_arguments = {
+        row[0] for row in source_rows if row[1] == 'group'
+    }
+    miss_arguments = {
+        row[0] for row in source_rows if row[1] == 'miss'
+    }
+    if group_arguments != KQ_ITEM_GROUP_ONLY_ARGUMENTS:
+        print('FAIL: KQ ItemGroupClassifier group-key corpus changed',
+              sorted(group_arguments))
         return 1
-    direct_arguments = {row[1] for row in direct_item_rewards}
+    if miss_arguments != KQ_ITEM_CLASSIFIER_MISS_ARGUMENTS:
+        print('FAIL: KQ ItemGroupClassifier miss-key corpus changed',
+              sorted(miss_arguments))
+        return 1
+
+    group_item_handles = {
+        handle for handle in non_direct_item_handles
+        if used_item_reward_by_handle[handle][1] in group_arguments
+    }
+    native_miss_handles = {
+        handle for handle in non_direct_item_handles
+        if used_item_reward_by_handle[handle][1] in miss_arguments
+    }
+    unclassified_handles = (
+        non_direct_item_handles - group_item_handles - native_miss_handles)
+    if unclassified_handles:
+        print('FAIL: KQ ITEM non-direct argument lost native classification',
+              sorted(unclassified_handles))
+        return 1
+
+    direct_arguments = {
+        used_item_reward_by_handle[handle][1]
+        for handle in direct_item_handles
+    }
+    if (len(direct_item_handles), len(group_item_handles),
+            len(native_miss_handles), len(direct_arguments),
+            len(group_arguments), len(miss_arguments)) != (
+            161, 82, 4, 95, 33, 3):
+        print('FAIL: KQ ITEM direct/group/miss corpus changed',
+              len(direct_item_handles), len(group_item_handles),
+              len(native_miss_handles), len(direct_arguments),
+              len(group_arguments), len(miss_arguments))
+        return 1
+    if native_miss_handles != {89, 280, 906, 924}:
+        print('FAIL: native KQ ItemGroupClassifier miss handles changed',
+              sorted(native_miss_handles))
+        return 1
     if direct_arguments & duplicate_item_info_names:
         print('FAIL: a direct KQ ITEM argument became ambiguous in ItemInfo',
               sorted(direct_arguments & duplicate_item_info_names))
@@ -534,6 +599,7 @@ def main():
     world_reward_resolver = WORLD_REWARD_RESOLVER.read_text(encoding='utf-8')
     world_reward_plan = WORLD_REWARD_PLAN.read_text(encoding='utf-8')
     world_reward_item_plan = WORLD_REWARD_ITEM_PLAN.read_text(encoding='utf-8')
+    world_reward_item_group_source = WORLD_REWARD_ITEM_GROUP_SOURCE.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
@@ -726,18 +792,44 @@ def main():
         'class KingdomQuestRewardItemPlanEntry',
         'class KingdomQuestRewardItemPlan',
         'selection.Items.Count',
+        'KingdomQuestRewardItemGroupSource.CreateGroupOnlyKeySet()',
         'selected.Reward.ClassifyItemArgument(',
         'ShineRewardItemArgumentKind.ExactItemInfoName',
-        'ShineRewardItemArgumentKind.OpaqueTreasureChestArgument',
+        'ShineRewardItemArgumentKind.ItemGroupClassifierGroup',
+        'ShineRewardItemArgumentKind.MissingItemGroupClassifierKey',
         'ShineRewardItemArgumentKind.AmbiguousItemInfoName',
         'ExactItemInfoEntries',
-        'OpaqueTreasureChestEntries',
+        'ItemGroupEntries',
+        'MissingItemGroupClassifierEntries',
         'AmbiguousItemInfoEntries',
-        'never constructs inventory items',
+        'does not choose a CardDeck candidate',
     ):
         if token not in world_reward_item_plan:
             print('FAIL: KQ reward ITEM pre-generation plan missing', token)
             return 1
+    for token in (
+        'class KingdomQuestRewardItemGroupSource',
+        'ItemInfoServerSha256',
+        'd8cf2b411783822908e6ecbfc833b4ae104d2f3ece1b3cc2250aafa5aa714c10',
+        'DropGroupA (record offset 0x39)',
+        'DropGroupB',
+        'KqUsedItemRewardHandles = 247',
+        'DirectItemHandles = 161',
+        'GroupResolvedHandles = 82',
+        'NativeMissHandles = 4',
+        'GroupOnlyArguments = 33',
+        'NativeMissArguments = 3',
+        'DirectAndGroupNameOverlap = 59',
+        'UsedGroupCandidateRows = 791',
+        'UsedGroupCandidateUniqueItemIds = 790',
+        'CreateGroupOnlyKeySet()',
+        'CreateNativeMissKeySet()',
+        'StringComparer.Ordinal',
+    ):
+        if token not in world_reward_item_group_source:
+            print('FAIL: KQ ItemGroupClassifier source projection missing', token)
+            return 1
+
     for forbidden in (
         'new Item(', 'Inventory', 'ExecuteQuery', 'Save()', 'Random',
         'GetEmptySlot', 'Program.DatabaseManager',
@@ -819,9 +911,11 @@ def main():
         'RequiresTreasureChestRuntime',
         'HasUnresolvedLaterRewardTypes',
         'HasAmbiguousItemInfoSource',
+        'HasNativeItemClassifierMisses',
+        'MissingItemGroupClassifierEntries.Count != 0',
         'HasUnresolvedBoxSource',
         'IsSourceProjectionComplete',
-        'Opaque TreasureChest arguments do not make',
+        '0xFFFF is the recovered lookup result',
         'stops before TreasureChestMaker generation',
     ):
         if token not in world_reward_preparation_plan:
@@ -849,13 +943,16 @@ def main():
         'enum ShineRewardType : byte',
         'enum ShineRewardItemArgumentKind : byte',
         'ExactItemInfoName = 1',
-        'OpaqueTreasureChestArgument = 2',
-        'AmbiguousItemInfoName = 3',
+        'ItemGroupClassifierGroup = 2',
+        'MissingItemGroupClassifierKey = 3',
+        'AmbiguousItemInfoName = 4',
         'ClassifyItemArgument(',
         'IEnumerable<ItemInfo> itemInfos',
+        'ISet<string> itemGroupNames',
         'candidate.InxName, argument',
+        'itemGroupNames.Contains(argument)',
         'StringComparison.Ordinal',
-        'performs no item generation',
+        'Direct item lookup has precedence',
         'None = 0',
         'Item = 1',
         'Experience = 2',
