@@ -55,6 +55,20 @@ RAW_SOURCES = {
 SOURCE_MANIFEST_SQL = ROOT / "sql/data/data_kq_source_00_manifest.sql"
 SHINE_REWARD_SQL = ROOT / "sql/data/data_kq_source_60_shinereward.sql"
 SHINE_REWARD_SQL_SHA256 = "9fa4fc1ce2db998cc61f01dc0ef6ba46575a68162efa71c467b9904032c65a88"
+ITEM_INFO_SQL = ROOT / "sql/data/data_iteminfo.sql"
+
+OPAQUE_KQ_ITEM_ARGUMENTS = {
+    "BestHighProduct", "BestProduct", "GiantHoneyingNewReward",
+    "GordonMasterNewReward", "HenneathNewReward", "HighBeast",
+    "HighCarcass", "HighDust", "HighKylin", "HighProduct",
+    "LostMiniNewReward", "MaraNewReward", "NamedArmor7",
+    "NamedOP3Armor6", "NamedWeapon13", "NamedWeapon14", "NamedWeapon15",
+    "NamedWeapon4", "NamedWeapon8", "NamedWeapon9", "NorProduct",
+    "P_KQHBAT1", "P_KQHBAT2", "P_KQHBAT3", "P_KQHBAT4",
+    "P_KQHBAT5", "RareWeapon03", "SlimeJelly", "SpUpsource13",
+    "SpUpsource14", "SpUpsource15", "Upsource13", "Upsource14",
+    "Upsource15", "Weapon3", "Weapon6",
+}
 
 EXPECTED_MAPS = {
     (30, "KDPrtShip"), (31, "KDEddyHill"), (33, "KDTrDn"), (34, "KDUnHall"), (35, "KDEnMaze"),
@@ -136,6 +150,7 @@ def main():
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
         WORLD_REWARD_PLAN, NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
+        ITEM_INFO_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
         if not path.is_file():
@@ -294,6 +309,54 @@ def main():
     if used_reward_types != {1: 247, 2: 39, 3: 14}:
         print('FAIL: KQ-used ShineReward type split changed',
               used_reward_types)
+        return 1
+
+    # Native sp_KQReward routes every ITEM through TreasureChestMaker. Do not
+    # assume ShineReward.Argument is always a direct ItemInfo.inxname.
+    item_info_rows = [split_row_fields(row)
+                      for row in data_rows(ITEM_INFO_SQL)]
+    if len(item_info_rows) != 14999:
+        print('FAIL: ItemInfo source row count changed', len(item_info_rows))
+        return 1
+    item_info_names = {
+        unquote_sql(row[1])
+        for row in item_info_rows
+        if len(row) >= 2
+    }
+    if len(item_info_names) != 14982:
+        print('FAIL: ItemInfo distinct inxname corpus changed',
+              len(item_info_names))
+        return 1
+
+    shine_reward_by_handle = {}
+    for row in shine_reward_rows:
+        handle = int(row[1])
+        if handle not in shine_reward_by_handle:
+            shine_reward_by_handle[handle] = (
+                int(row[2]), unquote_sql(row[3]), int(row[4]))
+
+    used_item_rewards = [
+        shine_reward_by_handle[handle]
+        for handle in used_shine_reward_handles
+        if shine_reward_by_handle[handle][0] == 1
+    ]
+    direct_item_rewards = [
+        row for row in used_item_rewards if row[1] in item_info_names]
+    opaque_item_rewards = [
+        row for row in used_item_rewards if row[1] not in item_info_names]
+    opaque_arguments = {row[1] for row in opaque_item_rewards}
+
+    if (len(direct_item_rewards), len(opaque_item_rewards),
+            len({row[1] for row in direct_item_rewards}),
+            len(opaque_arguments)) != (161, 86, 95, 36):
+        print('FAIL: KQ ITEM direct/opaque argument split changed',
+              len(direct_item_rewards), len(opaque_item_rewards),
+              len({row[1] for row in direct_item_rewards}),
+              len(opaque_arguments))
+        return 1
+    if opaque_arguments != OPAQUE_KQ_ITEM_ARGUMENTS:
+        print('FAIL: opaque KQ TreasureChest argument corpus changed',
+              sorted(opaque_arguments))
         return 1
 
     reward_index_strings = [unquote_sql(row[2]) for row in reward_rows]
@@ -545,6 +608,14 @@ def main():
 
     for token in (
         'enum ShineRewardType : byte',
+        'enum ShineRewardItemArgumentKind : byte',
+        'ExactItemInfoName = 1',
+        'OpaqueTreasureChestArgument = 2',
+        'ClassifyItemArgument(',
+        'IEnumerable<ItemInfo> itemInfos',
+        'candidate.InxName, argument',
+        'StringComparison.Ordinal',
+        'performs no item generation',
         'None = 0',
         'Item = 1',
         'Experience = 2',

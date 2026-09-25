@@ -1397,6 +1397,23 @@ overflow rules, generate inventory items, award stats/currency, or persist
 anything. Types 5..10 remain preserved as unresolved later-type entries rather
 than being promoted to KQ effects.
 
+The ITEM branch has an additional source boundary that is now locked explicitly.
+All 247 KQ-used ITEM reward handles enter native `TreasureChestMaker`, but
+their `ShineReward.Argument` is **not** uniformly an `ItemInfo.inxname`.
+Against the supplied 14,999-row ItemInfo source, 161 handles (95 distinct
+arguments) are exact ordinal ItemInfo-name matches, while 86 handles (36
+distinct arguments) are not. The opaque set includes selectors such as
+`Weapon3`, `NamedWeapon4`, `HighDust`, `NorProduct`,
+`P_KQHBAT1` and `Upsource15`.
+
+`ShineRewardNativeInfo.ClassifyItemArgument` now exposes only that
+cross-correlation: exact ItemInfo name versus opaque TreasureChest argument.
+It never aliases an opaque token to an item and performs no random selection,
+item creation, inventory mutation or persistence. This prevents the 86 native
+TreasureChest inputs from being incorrectly granted as missing/direct items
+while the deeper TreasureChestMaker source tables and selection algorithm are
+still unresolved.
+
 These packet structures are modeled byte-for-byte, but no GameDB-equivalent
 send/ACK path is activated before item generation, transaction persistence,
 and the scenario completion trigger are source-equivalent.

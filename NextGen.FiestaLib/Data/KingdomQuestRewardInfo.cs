@@ -25,6 +25,20 @@ namespace NextGen.FiestaLib.Data
     }
 
     /// <summary>
+    /// Source-correlation result for a ShineReward ITEM Argument.
+    /// Every native ITEM branch still enters TreasureChestMaker. This enum
+    /// only records whether the raw Argument also happens to be an exact
+    /// ItemInfo.inxname in the supplied source snapshot; it never turns an
+    /// opaque TreasureChest token into an item alias.
+    /// </summary>
+    public enum ShineRewardItemArgumentKind : byte
+    {
+        NotItemReward = 0,
+        ExactItemInfoName = 1,
+        OpaqueTreasureChestArgument = 2,
+    }
+
+    /// <summary>
     /// Native 128-byte KINGDOM_QUEST_REW projection used by
     /// ShinePlayer::sp_KQReward. Raw KingdomQuestRew.shn columns are signed
     /// Int16; the executable consumes their exact 16-bit patterns as u16.
@@ -148,6 +162,43 @@ namespace NextGen.FiestaLib.Data
         public IReadOnlyList<short> UnknownShorts { get; set; }
         public ushort OptionDegree { get; set; }
         public uint TitleDegree { get; set; }
+
+        /// <summary>
+        /// Cross-correlates an ITEM Argument against source-backed ItemInfo
+        /// names with an ordinal comparison. A miss is deliberately returned
+        /// as an opaque TreasureChest argument: original sp_KQReward passes
+        /// every ITEM reward through TreasureChestMaker, and many valid KQ
+        /// source arguments are not ItemInfo.inxname values.
+        ///
+        /// This helper performs no item generation, random selection,
+        /// inventory mutation or persistence.
+        /// </summary>
+        public ShineRewardItemArgumentKind ClassifyItemArgument(
+            IEnumerable<ItemInfo> itemInfos,
+            out ItemInfo exactItem)
+        {
+            exactItem = null;
+            if (RewardType != ShineRewardType.Item)
+                return ShineRewardItemArgumentKind.NotItemReward;
+
+            if (itemInfos != null)
+            {
+                string argument = Argument ?? string.Empty;
+                foreach (ItemInfo candidate in itemInfos)
+                {
+                    if (candidate != null &&
+                        string.Equals(
+                            candidate.InxName, argument,
+                            StringComparison.Ordinal))
+                    {
+                        exactItem = candidate;
+                        return ShineRewardItemArgumentKind.ExactItemInfoName;
+                    }
+                }
+            }
+
+            return ShineRewardItemArgumentKind.OpaqueTreasureChestArgument;
+        }
     }
 
     /// <summary>

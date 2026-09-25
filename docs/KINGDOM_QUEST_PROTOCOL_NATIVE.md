@@ -290,6 +290,16 @@ the proven positive KQ switch branches (ITEM/EXP/MONEY/HONOR); NONE is ignored,
 lookup misses are retained as misses, and types 5..10 are retained without an
 invented effect.
 
+The ITEM argument is also now guarded against a tempting but incorrect direct
+ItemInfo assumption. Across the 247 KQ-used ITEM handles, 161 handles / 95
+distinct arguments exactly match `ItemInfo.inxname`; 86 handles / 36
+arguments do not. Native `sp_KQReward` nevertheless sends every ITEM branch
+through `TreasureChestMaker`. The shared classifier therefore records only an
+ordinal exact ItemInfo match or an opaque TreasureChest argument and never
+synthesizes an alias. The opaque corpus includes `Weapon3`,
+`NamedWeapon4`, `HighDust`, `NorProduct`, `P_KQHBAT1` and
+`Upsource15`.
+
 No live grant/GameDB path is enabled yet because item generation, exact numeric
 accumulation/overflow behavior, transaction persistence, and the scenario
 completion trigger must be source-correlated before mutation.
