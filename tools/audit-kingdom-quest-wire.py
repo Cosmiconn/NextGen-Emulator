@@ -625,7 +625,9 @@ def main():
         "KingdomQuestAdmissionRules.EvaluatePlayerJoin(",
         "KingdomQuestCharacterIdentity.TryGetCharacterNumber(",
         "KingdomQuestAdmissionRules.AssignInitialTeam(",
-        "InVoteRaw = 0",\n        "BanRaw = 0",\n        "VotingCount = 0",
+        "InVoteRaw = 0",
+        "BanRaw = 0",
+        "VotingCount = 0",
         "CheckCharBannedInLogin",
         "client.KingdomQuestHandle = handle",
     ], "atomic native KQ admission membership mutations"):
