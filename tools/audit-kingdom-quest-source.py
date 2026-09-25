@@ -344,13 +344,8 @@ def main():
         name = unquote_sql(row[1])
         item_info_name_counts[name] = item_info_name_counts.get(name, 0) + 1
     item_info_names = set(item_info_name_counts)
-    item_info_use_class_by_id = {
-        int(row[0]): int(row[31]) for row in item_info_rows
-        if len(row) > 31
-    }
-    if len(item_info_use_class_by_id) != 14999:
-        print('FAIL: ItemInfo id/UseClass corpus changed',
-              len(item_info_use_class_by_id))
+    if any(len(row) <= 31 for row in item_info_rows):
+        print('FAIL: ItemInfo source row lost original UseClass/WhoEquip column')
         return 1
     if len(item_info_names) != 14982:
         print('FAIL: ItemInfo distinct inxname corpus changed',
@@ -563,12 +558,19 @@ def main():
         print('FAIL: KQ ItemGroup candidate ordering/group/id boundary changed')
         return 1
     for row in candidate_rows:
+        source_row = int(row[1])
         item_id = int(row[4])
         use_class = int(row[5])
-        if item_info_use_class_by_id.get(item_id) != use_class:
-            print('FAIL: KQ ItemGroup candidate UseClass mismatch',
-                  item_id, use_class,
-                  item_info_use_class_by_id.get(item_id))
+        if source_row < 0 or source_row >= len(item_info_rows):
+            print('FAIL: KQ ItemGroup candidate source row out of range',
+                  source_row)
+            return 1
+        item_info_row = item_info_rows[source_row]
+        if (int(item_info_row[0]) != item_id or
+                int(item_info_row[31]) != use_class):
+            print('FAIL: KQ ItemGroup candidate ItemInfo source-row mismatch',
+                  source_row, item_id, use_class,
+                  int(item_info_row[0]), int(item_info_row[31]))
             return 1
     for token in (
         'NativeValidStoreCalls = 5758',
