@@ -344,9 +344,6 @@ def main():
         name = unquote_sql(row[1])
         item_info_name_counts[name] = item_info_name_counts.get(name, 0) + 1
     item_info_names = set(item_info_name_counts)
-    if any(len(row) <= 31 for row in item_info_rows):
-        print('FAIL: ItemInfo source row lost original UseClass/WhoEquip column')
-        return 1
     if len(item_info_names) != 14982:
         print('FAIL: ItemInfo distinct inxname corpus changed',
               len(item_info_names))
@@ -566,6 +563,10 @@ def main():
                   source_row)
             return 1
         item_info_row = item_info_rows[source_row]
+        if len(item_info_row) <= 31:
+            print('FAIL: referenced KQ ItemGroup ItemInfo row is malformed',
+                  source_row)
+            return 1
         if (int(item_info_row[0]) != item_id or
                 int(item_info_row[31]) != use_class):
             print('FAIL: KQ ItemGroup candidate ItemInfo source-row mismatch',
