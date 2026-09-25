@@ -164,6 +164,9 @@ namespace NextGen.World.Data
                     Class = characterClass,
                     Name = client.Character.Character.Name,
                     TeamType = teamType,
+                    // CKQServer::PlayerJoin initializes the native joiner
+                    // DWORD later tested by CheckCharBannedInLogin to zero.
+                    LoginBanStateRaw = 0,
                 });
 
                 if (!KingdomQuestSessionCoordinator.TrySetMembership(

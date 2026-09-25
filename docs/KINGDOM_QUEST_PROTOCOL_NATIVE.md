@@ -711,10 +711,16 @@ the existing internal Map.InstanceID to Zone. It never creates a membership
 from persisted Handle data.
 
 The following native `CheckCharBannedInLogin` tests the joiner DWORD at
-offset +0x20 for value 1; PlayerJoin initializes it to zero. No emulator KQ
-vote/ban mutation exists yet, so zero is the only currently representable
-state. That ban mutation/disjoin edge remains part of the later vote runtime,
-not an invented login policy.
+offset +0x20 for value 1; PlayerJoin initializes it to zero. The emulator now
+preserves that DWORD verbatim as `LoginBanStateRaw` in the combined
+membership row and carries it through clones/team transitions. New joins write
+zero exactly, and a raw per-character setter exists for the future vote engine.
+No semantic meaning is assigned to values other than the proven login check
+for 1.
+
+The value-1 login side effect itself remains disabled until the native
+vote-success mutation plus disjoin/notification ordering is fully correlated;
+the raw state model is not used as a substitute for that missing policy.
 
 
 ## Character save-location KQ persistence wire

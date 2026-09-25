@@ -1097,11 +1097,18 @@ Zone can enter the dynamic instance without overwriting the separately stored
 normal return location. A persisted Handle alone can never recreate a joiner.
 
 Native `CheckCharBannedInLogin` runs immediately after the rebind and tests a
-DWORD in the native joiner row that PlayerJoin initializes to zero. The
-emulator still has no live KQ vote/ban mutator, so all currently representable
-joiners remain in that zero state. When vote-ban runtime is implemented, that
-field must be added to the membership state and this login edge must invoke the
-native disjoin branch for value 1.
+DWORD in the native joiner row at offset `+0x20`; `PlayerJoin` initializes
+that DWORD to zero and the login check compares it exactly with value `1`.
+The combined membership owner now preserves this field as
+`LoginBanStateRaw`, clones it through team/start mutations, initializes new
+joins to zero, and exposes a raw per-CharacterNumber setter for the later
+vote engine. It is deliberately **not** reduced to a generic boolean: values
+other than 0/1 have no proven meaning.
+
+The actual value-1 login side effect is still not activated, because the exact
+vote-success mutation and ban/disjoin notification order are not yet fully
+correlated. Modeling the raw native state closes the structural gap without
+inventing that policy.
 
 
 

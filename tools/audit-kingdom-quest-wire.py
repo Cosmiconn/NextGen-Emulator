@@ -606,6 +606,8 @@ def main():
         "KingdomQuestAdmissionRules.EvaluatePlayerJoin(",
         "KingdomQuestCharacterIdentity.TryGetCharacterNumber(",
         "KingdomQuestAdmissionRules.AssignInitialTeam(",
+        "LoginBanStateRaw = 0",
+        "CheckCharBannedInLogin",
         "client.KingdomQuestHandle = handle",
     ], "atomic native KQ admission membership mutations"):
         return 1
@@ -648,10 +650,15 @@ def main():
         "public byte Class",
         "public string Name",
         "public byte TeamType",
+        "public uint LoginBanStateRaw",
+        "LoginBanStateRaw == 1",
+        "LoginBanStateRaw = LoginBanStateRaw",
+        "TrySetLoginBanStateRaw(",
+        "current[index].LoginBanStateRaw = rawValue",
         "ToClientInfo()",
         "ToZoneInfo()",
         "never infers one identity from the other",
-    ], "combined KQ native membership identity"):
+    ], "combined KQ native membership identity and raw login-ban state"):
         return 1
 
     for forbidden in (
@@ -919,6 +926,7 @@ def main():
     print("PASS: native Zone KingdomQuestContainer capacity is locked to 300 fixed KQElement slots")
     print("PASS: PDB names lock TeamDivideType 1=RANDOM and 2=USERSELECT; PlayerJoin type-2 initial assignment remains source-modeled")
     print("PASS: one combined membership owner carries CharacterNumber plus client identity fields into both native roster projections")
+    print("PASS: native KQ joiner +0x20 login-ban DWORD is preserved raw; PlayerJoin initializes it to zero and no vote policy is invented")
     return 0
 
 if __name__ == "__main__":

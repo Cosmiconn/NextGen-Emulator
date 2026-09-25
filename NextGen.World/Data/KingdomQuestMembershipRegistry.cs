@@ -20,6 +20,17 @@ namespace NextGen.World.Data
         public string Name { get; set; } = string.Empty;
         public byte TeamType { get; set; }
 
+        // Raw DWORD at native KQ_JOINER_BF +0x20. PlayerJoin initializes it
+        // to 0 and CheckCharBannedInLogin compares it with 1. The original PDB
+        // does not give this field a trustworthy semantic name, so preserve the
+        // raw value instead of collapsing it to a bool or inventing vote state.
+        public uint LoginBanStateRaw { get; set; }
+
+        public bool HasNativeLoginBanMarker
+        {
+            get { return LoginBanStateRaw == 1; }
+        }
+
         public KingdomQuestJoinCharacterInfo ToClientInfo()
         {
             return new KingdomQuestJoinCharacterInfo
@@ -49,6 +60,7 @@ namespace NextGen.World.Data
                 Class = Class,
                 Name = Name,
                 TeamType = TeamType,
+                LoginBanStateRaw = LoginBanStateRaw,
             };
         }
     }
@@ -86,6 +98,27 @@ namespace NextGen.World.Data
                 }
 
                 members = current.Select(v => v.Clone()).ToList().AsReadOnly();
+                return true;
+            }
+        }
+
+        public static bool TrySetLoginBanStateRaw(
+            uint handle, uint characterNumber, uint rawValue)
+        {
+            lock (Sync)
+            {
+                List<KingdomQuestMembershipEntry> current;
+                if (!ByHandle.TryGetValue(handle, out current))
+                    return false;
+
+                int index = current.FindIndex(
+                    v => v.CharacterNumber == characterNumber);
+                if (index < 0)
+                    return false;
+
+                // Preserve the original raw DWORD. Only the separately proven
+                // login check currently interprets value 1 specially.
+                current[index].LoginBanStateRaw = rawValue;
                 return true;
             }
         }
