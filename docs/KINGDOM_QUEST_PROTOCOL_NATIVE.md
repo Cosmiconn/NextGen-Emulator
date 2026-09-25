@@ -330,6 +330,13 @@ framework RNG. The original CRT stream is shared with other Zone work, so
 exact live state ownership remains separate from the now-closed shuffle/filter
 algorithm.
 
+The caller class-group calculation is also exact.
+`sp_GetItemWhoEquip_ClassGroup` recognizes native class-family roots
+1/6/11/16/21/26 and expands them to bit ranges
+1..5/6..10/11..15/16..20/21..25/26..27; every other input returns mask 1.
+`KingdomQuestRewardClassGroup` mirrors this without deriving a class from
+unrelated emulator state.
+
 The independent `KQBoxItemIDX` field is also source-correlated.
 Exactly 58 of 64 `KingdomQuestRew` rows have a nonempty value, all 58 are
 distinct, and every one resolves uniquely to an ItemInfo row. Those 58 rows

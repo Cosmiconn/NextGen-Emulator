@@ -47,8 +47,9 @@ Implemented and CI-locked on the KQ branch:
   as successful scenario loading;
 - deterministic reward preparation through KQ reward lookup/dice,
   ShineReward lookup, ITEM classifier source resolution, exact native
-  CardDeck candidate shuffle/rotation/UseClass filtering from explicit CRT
-  state, box identity and exact scalar accumulation;
+  CardDeck candidate shuffle/rotation/UseClass filtering plus native
+  class-family mask expansion from explicit CRT/class state, box identity and
+  exact scalar accumulation;
 - native reward ACK packet/identity validation boundary without inventing the
   unresolved item-store transaction semantics.
 

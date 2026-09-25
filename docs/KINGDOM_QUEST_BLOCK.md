@@ -1490,12 +1490,18 @@ to an authoritative later CardDeck state.
 
 `sp_KQReward` passes the result of
 `sp_GetItemWhoEquip_ClassGroup()` into
-`TreasureChestMaker::tcm_ItemMake(7, ShineReward*, classGroup)`; the managed
-candidate plan therefore keeps `classGroup` explicit rather than deriving it
-from an emulator Job guess. Candidate selection is source-modeled, but it is
-not wired live until the shared Zone CRT-state owner and exact class-group
-caller state are represented. Item construction, upgrades/options, inventory
-mutation and persistence remain separate.
+`TreasureChestMaker::tcm_ItemMake(7, ShineReward*, classGroup)`. That helper
+is now recovered too. Its native class getter feeds a switch that recognizes
+only family roots **1, 6, 11, 16, 21, 26** and expands them respectively to
+bits **1..5, 6..10, 11..15, 16..20, 21..25, 26..27**. Every other input
+returns the native fallback mask `1`. `KingdomQuestRewardClassGroup`
+models exactly that bit construction, and the candidate plan can consume an
+explicit native player-class byte through `TryBuildFromNativeClass`.
+
+Candidate selection is therefore source-modeled through class-family masking
+as well, but it is not wired live until the shared Zone CRT-state owner is
+represented. Item construction, upgrades/options, inventory mutation and
+persistence remain separate.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box

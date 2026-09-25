@@ -67,6 +67,26 @@ namespace NextGen.World.Data
             Entries = entries.AsReadOnly();
         }
 
+        public static bool TryBuildFromNativeClass(
+            KingdomQuestRewardItemPlan itemPlan,
+            IEnumerable<ItemInfo> itemInfos,
+            KingdomQuestNativeItemGroupClassifierState classifierState,
+            byte nativePlayerClass,
+            IDictionary<uint, long> useClassMasks,
+            KingdomQuestMsvcCrtRand random,
+            out KingdomQuestRewardItemCandidatePlan plan)
+        {
+            return TryBuild(
+                itemPlan,
+                itemInfos,
+                classifierState,
+                KingdomQuestRewardClassGroup.FromNativeClass(
+                    nativePlayerClass),
+                useClassMasks,
+                random,
+                out plan);
+        }
+
         public static bool TryBuild(
             KingdomQuestRewardItemPlan itemPlan,
             IEnumerable<ItemInfo> itemInfos,

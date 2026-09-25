@@ -39,6 +39,7 @@ WORLD_REWARD_ITEM_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemPlan.c
 WORLD_REWARD_ITEM_GROUP_SOURCE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemGroupSource.cs"
 WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemGroupCandidateSource.cs"
 WORLD_NATIVE_ITEM_GROUP_CLASSIFIER = ROOT / "NextGen.World/Data/KingdomQuestNativeItemGroupClassifierState.cs"
+WORLD_REWARD_CLASS_GROUP = ROOT / "NextGen.World/Data/KingdomQuestRewardClassGroup.cs"
 WORLD_REWARD_ITEM_CANDIDATE_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemCandidatePlan.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
@@ -164,7 +165,8 @@ def main():
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
         WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN,
         WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE,
-        WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_ITEM_CANDIDATE_PLAN,
+        WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_CLASS_GROUP,
+        WORLD_REWARD_ITEM_CANDIDATE_PLAN,
         WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
         ZONE_REWARD_ACK_IDENTITY, NATIVE_INFO, NATIVE_REWARD,
@@ -682,6 +684,7 @@ def main():
     world_reward_item_group_source = WORLD_REWARD_ITEM_GROUP_SOURCE.read_text(encoding='utf-8')
     world_reward_item_group_candidate_source = WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE.read_text(encoding='utf-8')
     world_native_item_group_classifier = WORLD_NATIVE_ITEM_GROUP_CLASSIFIER.read_text(encoding='utf-8')
+    world_reward_class_group = WORLD_REWARD_CLASS_GROUP.read_text(encoding='utf-8')
     world_reward_item_candidate_plan = WORLD_REWARD_ITEM_CANDIDATE_PLAN.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
@@ -951,10 +954,33 @@ def main():
             return 1
 
     for token in (
+        'class KingdomQuestRewardClassGroup',
+        'case 1:',
+        'lastClass = 5',
+        'case 6:',
+        'lastClass = 10',
+        'case 11:',
+        'lastClass = 15',
+        'case 16:',
+        'lastClass = 20',
+        'case 21:',
+        'lastClass = 25',
+        'case 26:',
+        'lastClass = 27',
+        'return 1',
+        'mask += 1u << current',
+    ):
+        if token not in world_reward_class_group:
+            print('FAIL: native KQ reward class-group projection missing', token)
+            return 1
+
+    for token in (
         'enum KingdomQuestRewardItemCandidateKind : byte',
         'class KingdomQuestRewardItemCandidatePlan',
         'KingdomQuestNativeItemGroupClassifierState classifierState',
         'KingdomQuestMsvcCrtRand random',
+        'TryBuildFromNativeClass(',
+        'KingdomQuestRewardClassGroup.FromNativeClass(',
         'classifierState.Select(',
         'KingdomQuestRewardItemCandidateKind.ExactItemInfo',
         'KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate',
@@ -1592,6 +1618,7 @@ def main():
     print('PASS: exact NA2016 KQ/source dependency corpus locked (57/38/64/2/39 rows; includes UseClassTypeInfo)')
     print('PASS: native KQ ItemGroup candidate corpus locked (5758 stores; 789 groups; 791 KQ assignments / 790 item IDs)')
     print('PASS: native MSVC CRT rand/CardStack shuffle, rotation and UseClass mask-filter boundary are source-modeled without live RNG invention')
+    print('PASS: sp_GetItemWhoEquip_ClassGroup family-root mask expansion is source-modeled (1/6/11/16/21/26)')
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: supplied NA2016 definitions are locked to one active MapLink and 23 source-backed MapBase identities')
     print('PASS: native MapBase resolves exactly to source-backed MapInfo.ShortName without MapIndex/instance inference')
