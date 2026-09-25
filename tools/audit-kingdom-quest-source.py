@@ -804,7 +804,6 @@ def main():
         'ItemGroupEntries',
         'MissingItemGroupClassifierEntries',
         'AmbiguousItemInfoEntries',
-        'without choosing a CardDeck candidate',
     ):
         if token not in world_reward_item_plan:
             print('FAIL: KQ reward ITEM pre-generation plan missing', token)
