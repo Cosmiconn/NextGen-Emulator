@@ -1467,9 +1467,25 @@ database write or ACK processing. This removes source arithmetic as a blocker
 for the supplied corpus while leaving the still-unproven mutation/transaction
 timing untouched.
 
+The recovered reward stages now have a single mutation-free composition point:
+`KingdomQuestRewardPreparationPlan` chains the exact RewardSource row,
+15-slot dice/handle resolution, ITEM argument plan, KQ box-item identity and
+scalar sums. It exposes the remaining boundary explicitly:
+`RequiresTreasureChestRuntime` is true for every selected ITEM branch because
+native `sp_KQReward` routes ITEM through `TreasureChestMaker`; opaque
+arguments are therefore valid source inputs, not lookup failures. Future
+source ambiguity (duplicate ItemInfo name, missing/ambiguous box, or a
+currently-unproven later reward type) is surfaced separately and never
+converted into a grant.
+
+The preparation plan performs no item creation, character mutation, database
+write, network send or ACK processing. For the supplied source snapshot this
+means the entire deterministic pre-mutation reward path is represented; the
+remaining live-reward blockers are TreasureChest expansion, the GameDB/item
+transaction boundary and exact mutation/ACK/scenario-completion timing.
+
 These packet structures are modeled byte-for-byte, but no GameDB-equivalent
-send/ACK path is activated before TreasureChest item generation, transaction
-persistence/mutation timing, and the scenario completion trigger are
+send/ACK path is activated before those remaining mutation boundaries are
 source-equivalent.
 
 

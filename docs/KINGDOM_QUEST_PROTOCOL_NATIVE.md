@@ -326,6 +326,14 @@ largest possible per-reward sums are 150,000,000 EXP and 5,000 MONEY.
 Only reward IDs 56 and 62 contain multiple EXP handles, and even those sums
 remain far below u32.
 
+A single `KingdomQuestRewardPreparationPlan` now composes these source-only
+stages without changing their semantics: dice/handle lookup, ITEM argument
+classification, box-item identity and scalar sums. It treats every selected
+ITEM as requiring TreasureChest runtime, including arguments that happen to
+match ItemInfo directly, because that is the native `sp_KQReward` branch.
+Source ambiguity and unproven later reward types remain explicit blockers
+rather than fallback behavior.
+
 No live grant/GameDB path is enabled yet because TreasureChest item generation,
 transaction persistence and exact mutation/ACK timing, plus the scenario
 completion trigger, must be source-correlated before mutation.

@@ -36,6 +36,7 @@ WORLD_REWARD_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardSelectionPlan.c
 WORLD_REWARD_ITEM_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemPlan.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
+WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 NATIVE_REWARD = ROOT / "NextGen.FiestaLib/Data/KingdomQuestRewardInfo.cs"
 RAW_SOURCES = {
@@ -152,7 +153,8 @@ def main():
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
         WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN, WORLD_REWARD_BOX_PLAN,
-        WORLD_REWARD_SCALAR_PLAN, NATIVE_INFO, NATIVE_REWARD,
+        WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
+        NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
         ITEM_INFO_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
@@ -534,6 +536,7 @@ def main():
     world_reward_item_plan = WORLD_REWARD_ITEM_PLAN.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
+    world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     native_reward = NATIVE_REWARD.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -793,6 +796,32 @@ def main():
     ):
         if forbidden in world_reward_scalar_plan:
             print('FAIL: KQ scalar projection activated character mutation',
+                  forbidden)
+            return 1
+
+    for token in (
+        'class KingdomQuestRewardPreparationPlan',
+        'KingdomQuestRewardSelectionPlan.TryBuild(',
+        'KingdomQuestRewardItemPlan.TryBuild(',
+        'KingdomQuestRewardBoxPlan.TryBuild(',
+        'KingdomQuestRewardScalarPlan.TryBuild(',
+        'RequiresTreasureChestRuntime',
+        'HasUnresolvedLaterRewardTypes',
+        'HasAmbiguousItemInfoSource',
+        'HasUnresolvedBoxSource',
+        'IsSourceProjectionComplete',
+        'Opaque TreasureChest arguments do not make',
+        'stops before TreasureChestMaker generation',
+    ):
+        if token not in world_reward_preparation_plan:
+            print('FAIL: KQ reward pre-mutation composition missing', token)
+            return 1
+    for forbidden in (
+        'new Item(', 'GiveExp(', 'ChangeMoney(', 'ExecuteQuery',
+        'Inventory.', 'Program.DatabaseManager', 'SendPacket(',
+    ):
+        if forbidden in world_reward_preparation_plan:
+            print('FAIL: KQ reward preparation activated mutation/transport',
                   forbidden)
             return 1
 
