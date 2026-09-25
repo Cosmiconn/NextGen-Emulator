@@ -509,7 +509,16 @@ namespace NextGen.FiestaLib.Data
         public const ushort JoinListSuccess = 0x3118;
         public const ushort JoinListInvalidHandle = 0x3119;
         public const ushort JoinListCooldown = 0x311A;
-        public const int JoinListCooldownSeconds = 5;
+        public const int JoinListCooldownSeconds =
+            KingdomQuestSingleDataInfo.KqPlayerListResetListCoolTimeSeconds;
+
+        // Original SingleData.shn values consumed by the native vote/list paths.
+        public const int VoteLimitSeconds =
+            KingdomQuestSingleDataInfo.KqVoteVoteLimitTimeSeconds;
+        public const int VoteSuggestCooldownSeconds =
+            KingdomQuestSingleDataInfo.KqVoteSuggestCoolTimeSeconds;
+        public const int VoteLoginCooldownSeconds =
+            KingdomQuestSingleDataInfo.KqVoteLoginCoolTimeSeconds;
 
         // WorldManager.exe CKQServer::Recv_NC_KQ_VOTE_START_REQ branches.
         public const ushort VoteStartSuccess = 0x3100;

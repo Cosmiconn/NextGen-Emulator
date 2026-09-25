@@ -517,12 +517,17 @@ The success packet carries the **required threshold rate**, not the calculated
 ratio.
 
 `KingdomQuestVoteCoordinator` now models those bookkeeping/result mutations
-without network or character gameplay side effects. The native external
-settings `KQVote_SuggestCoolTime` and `KQVote_VoteLimitTime` are named
-by the executable but their configured numeric values are absent from the
-supplied server archive. Therefore live VOTE_START handlers remain gated
-rather than inventing durations. Ban transfer, target-disjoin cancellation and
-login-ban notification ordering are kept as the next transport layer.
+without network or character gameplay side effects. The timing source is no
+longer unresolved: original `SingleData.shn`
+(SHA-256 `8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88`)
+contains `KQVote_VoteLimitTime=60`,
+`KQVote_SuggestCoolTime=300`, `KQVote_LoginCoolTime=300` and
+`KQPlayerList_ResetListCoolTime=5`. Direct WorldManager disassembly shows
+the vote-start path resolving the first two through
+`CSingleDataMap::GetValue`, using 60 seconds for the vote EndTime and
+300 seconds for the starter suggest-cooldown deadline. The full 41-row source
+snapshot is provenance-locked. Ban transfer, target-disjoin cancellation and
+login-ban notification ordering remain the next transport layer.
 
 
 ## JOIN admission Error values recovered

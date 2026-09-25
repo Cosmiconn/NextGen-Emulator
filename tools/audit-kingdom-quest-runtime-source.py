@@ -13,7 +13,10 @@ MAP_SQL = ROOT / "sql/data/data_kq_source_20_kingdomquestmap.sql"
 REGEN_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestRegenSource.cs"
 SCENARIOBOOK_SOURCE = ROOT / "docs/KINGDOM_QUEST_SCENARIOBOOK_SOURCE.tsv"
 SCENARIOBOOK_PROJECTION = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShelfSource.cs"
+SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
+SINGLE_DATA_PROJECTION = ROOT / "NextGen.FiestaLib/Data/KingdomQuestSingleDataInfo.cs"
 SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
+SINGLE_DATA_ROWS_SHA256 = "6e205eb3d9e179d387d2469634cc7a3e46352e0968902185bb61cdc009b8a228"
 
 SOURCE_ARCHIVE_SHA256 = "b83bf92c7193578a772fcebf4d8b7c8c2a9a642cf0d50d33506f77a75b0e211d"
 CANONICAL_ROWS_SHA256 = "e4a9c437d8dd44911bd04def351a6a26cdac1423ee633bcace998b586ebe83e7"
@@ -90,6 +93,10 @@ def load_manifest():
         "# ArchiveRoot\tServer - Kopie/9Data/Shine",
         "# KQRegenLookup\tZone.exe KQRegenTable::kqrt_Load: MobRegen/KingdomQuest/%s.txt -> MobRegen/Instant/%s.txt",
         "# InstantRegenBasenames\tAdlF,AdlFH,Leviathan,Siren,Tower01,Tower02,Tower03,UrgDragon,WarN",
+        "# SingleDataSource\tSingleData.shn",
+        "# SingleDataSha256\t8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88",
+        "# SingleDataShape\trecords=41; defaultRecordLength=36; columns=SingleDataIDX:string32,SingleDataValue:u16",
+        "# KQSingleData\tKQVote_VoteLimitTime=60; KQVote_SuggestCoolTime=300; KQVote_LoginCoolTime=300; KQPlayerList_ResetListCoolTime=5",
         "# KQStartSemantics\tKQElement::kqe_QuestStart drops the prior film, closes all map doors, then calls CinemaComplex::cc_PlayFilm with ScriptLanguage and ScriptInitValue",
         "# KQRegenRuntime\tShineRegenGroup::sa_Step -> PineScriptMobRegenerator::psmr_find -> psmr_Load -> KQRegenTable -> MobHatchery::mh_ScriptBreed",
         "# KQRegenTableSemantics\tcapacity=50; element key=12 bytes plus loaded OptionReader; static groups are consumed lazily by the running scenario, not spawned at KQ START",
@@ -157,9 +164,59 @@ def load_scenario_book_source():
     return rows
 
 
+def load_single_data_source():
+    text = SINGLE_DATA_SOURCE.read_text(encoding="utf-8")
+    required_headers = (
+        "# SourceArchive\tServer.zip",
+        "# ArchivePath\tServer - Kopie/9Data/Shine/SingleData.shn",
+        "# SourceSha256\t8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88",
+        "# Header\t0",
+        "# RecordCount\t41",
+        "# DefaultRecordLength\t36",
+        "# ColumnCount\t2",
+        "# Column0\tSingleDataIDX; type=9; length=32",
+        "# Column1\tSingleDataValue; type=2; length=2",
+        "# CanonicalRowsSha256\t" + SINGLE_DATA_ROWS_SHA256,
+    )
+    for header in required_headers:
+        if header not in text:
+            raise ValueError("SingleData provenance header changed: " + header)
+
+    data_lines = [line for line in text.splitlines()
+                  if line and not line.startswith("#")]
+    reader = csv.DictReader(data_lines, delimiter="\t")
+    expected_columns = ["source_row", "key", "value"]
+    if reader.fieldnames != expected_columns:
+        raise ValueError("SingleData source columns changed")
+
+    rows = list(reader)
+    canonical = "".join(
+        "\t".join(row[name] for name in expected_columns) + "\n"
+        for row in rows)
+    if hashlib.sha256(canonical.encode("utf-8")).hexdigest() != (
+            SINGLE_DATA_ROWS_SHA256):
+        raise ValueError("SingleData canonical source snapshot changed")
+    if len(rows) != 41:
+        raise ValueError("SingleData source row count changed")
+    if [int(row["source_row"]) for row in rows] != list(range(41)):
+        raise ValueError("SingleData source ordinals changed")
+
+    values = {row["key"]: int(row["value"]) for row in rows}
+    expected_kq = {
+        "KQVote_VoteLimitTime": 60,
+        "KQVote_SuggestCoolTime": 300,
+        "KQVote_LoginCoolTime": 300,
+        "KQPlayerList_ResetListCoolTime": 5,
+    }
+    if any(values.get(key) != value for key, value in expected_kq.items()):
+        raise ValueError("KQ SingleData values changed")
+    return rows
+
+
 def main():
     for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE,
-                 SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION):
+                 SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION,
+                 SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
             return 1
@@ -167,9 +224,27 @@ def main():
     try:
         rows = load_manifest()
         scenario_rows = load_scenario_book_source()
+        single_data_rows = load_single_data_source()
     except (ValueError, csv.Error) as exc:
         print("FAIL:", exc)
         return 1
+
+    single_data_projection = SINGLE_DATA_PROJECTION.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestSingleDataInfo",
+        "8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88",
+        "RecordCount = 41",
+        "DefaultRecordLength = 36",
+        "ColumnCount = 2",
+        "KqVoteVoteLimitTimeSeconds = 60",
+        "KqVoteSuggestCoolTimeSeconds = 300",
+        "KqVoteLoginCoolTimeSeconds = 300",
+        "KqPlayerListResetListCoolTimeSeconds = 5",
+    ):
+        if token not in single_data_projection:
+            print("FAIL: KQ SingleData runtime projection changed", token)
+            return 1
 
     regen_source_text = REGEN_SOURCE.read_text(encoding="utf-8")
     source_tokens = (
@@ -389,6 +464,7 @@ def main():
     # KQRegenTable loader never consults them as a replacement for static
     # MobRegen input.
     print("PASS: Server.zip provenance locked", SOURCE_ARCHIVE_SHA256)
+    print("PASS: exact SingleData.shn snapshot locked: 41 rows, KQ vote/list values 60/300/300/5")
     print("PASS: all 27 used KingdomQuest.shn ScriptLanguage keys have original source: 18 Lua + 9 PineScript")
     print("PASS: original World/PineScript.txt KQ shelf is locked to 32 exact keys (9 Pine + 23 Lua), all with source files")
     print("PASS: native sbs_Read file-presence insertion is locked: sb_Load return is ignored before shelf insertion")

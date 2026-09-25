@@ -1,0 +1,53 @@
+# Original SingleData source snapshot used by the Kingdom Quest runtime
+# SourceArchive	Server.zip
+# ArchivePath	Server - Kopie/9Data/Shine/SingleData.shn
+# SourceSha256	8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88
+# Header	0
+# RecordCount	41
+# DefaultRecordLength	36
+# ColumnCount	2
+# Column0	SingleDataIDX; type=9; length=32
+# Column1	SingleDataValue; type=2; length=2
+# CanonicalRowsSha256	6e205eb3d9e179d387d2469634cc7a3e46352e0968902185bb61cdc009b8a228
+source_row	key	value
+0	KQVote_VoteLimitTime	60
+1	KQVote_SuggestCoolTime	300
+2	KQVote_LoginCoolTime	300
+3	KQPlayerList_ResetListCoolTime	5
+4	Guild_CannotLeaveTime	1
+5	Academy_CannotJoinNotTime	30
+6	Gather_MaxTime_Gatherable	4
+7	SenSPRecover_Time	1
+8	SenSPRecover_Amount	22
+9	SenMaxLP	100
+10	ChrLevel_CanCreateSen	60
+11	PopUpDialogNPC_Raemi	111
+12	PopUpDialogNPC_Raemi_LimitLv	6
+13	SearchAcademy_ListCoolTime	5
+14	UserNewbie_DaysAfterSignUp	21
+15	UserComeback_DaysAfterSignUp	90
+16	UserComeback_DaysAfterLogOff	30
+17	UserComeback_DaysAfterComeback	15
+18	LimitRandomOption	10
+19	FriendBroadcastItemID	8046
+20	FriendUsePoint	10
+21	FriendLvDiff	10
+22	GE_Member_60Lv	20
+23	GE_Member_100Lv	5
+24	GE_Change_Month	1
+25	GE_Delete_Term_Date	30
+26	DMG_MinusArea	300
+27	Pup_MinMind	1
+28	Pup_MaxMind	100
+29	Pup_MinStress	1
+30	Pup_MaxStress	10
+31	PupCastingTime	1500
+32	PupCoolTime	5000
+33	AddMixItem	928
+34	MixMinUpgrade	7
+35	Grade6	1796
+36	BR_UPSORCE01	1876
+37	BR_UPSORCE02	1877
+38	BR_UPSORCE03	1878
+39	BR_UPSORCE04	1879
+40	ItemLinkTabLimit	5

@@ -8,6 +8,10 @@
 # ArchiveRoot	Server - Kopie/9Data/Shine
 # KQRegenLookup	Zone.exe KQRegenTable::kqrt_Load: MobRegen/KingdomQuest/%s.txt -> MobRegen/Instant/%s.txt
 # InstantRegenBasenames	AdlF,AdlFH,Leviathan,Siren,Tower01,Tower02,Tower03,UrgDragon,WarN
+# SingleDataSource	SingleData.shn
+# SingleDataSha256	8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88
+# SingleDataShape	records=41; defaultRecordLength=36; columns=SingleDataIDX:string32,SingleDataValue:u16
+# KQSingleData	KQVote_VoteLimitTime=60; KQVote_SuggestCoolTime=300; KQVote_LoginCoolTime=300; KQPlayerList_ResetListCoolTime=5
 # KQStartSemantics	KQElement::kqe_QuestStart drops the prior film, closes all map doors, then calls CinemaComplex::cc_PlayFilm with ScriptLanguage and ScriptInitValue
 # KQRegenRuntime	ShineRegenGroup::sa_Step -> PineScriptMobRegenerator::psmr_find -> psmr_Load -> KQRegenTable -> MobHatchery::mh_ScriptBreed
 # KQRegenTableSemantics	capacity=50; element key=12 bytes plus loaded OptionReader; static groups are consumed lazily by the running scenario, not spawned at KQ START

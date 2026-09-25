@@ -1143,10 +1143,18 @@ clamping by target `nVotingCount`, integer YES percentage, result audience,
 target vote-count increment and success `bBan=1`. This layer performs no
 network send or forced map transfer.
 
-Two original World configuration keys remain source-named but value-unresolved:
-`KQVote_SuggestCoolTime` and `KQVote_VoteLimitTime`. Their numeric values
-are not present in the supplied Server.zip configuration corpus, so live vote
-start is intentionally not enabled with guessed durations.
+The previously unresolved vote timings are now closed by the original
+`SingleData.shn` from the supplied Server.zip. The exact file is SHA-256
+`8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88`
+and decodes to **41 rows / 2 columns**, with 36-byte default records:
+`SingleDataIDX[32]` plus `u16 SingleDataValue`. The KQ-relevant rows are
+`KQVote_VoteLimitTime=60`, `KQVote_SuggestCoolTime=300`,
+`KQVote_LoginCoolTime=300` and
+`KQPlayerList_ResetListCoolTime=5`. WorldManager accesses these through
+`CSingleDataMap::GetValue`; VoteLimit is the active vote duration and
+SuggestCool is the starter cooldown. The full 41-row snapshot is locked in
+`docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv`, so these durations no longer
+block live vote transport.
 
 
 
