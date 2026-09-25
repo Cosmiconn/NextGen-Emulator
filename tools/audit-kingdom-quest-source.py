@@ -784,12 +784,26 @@ def main():
         'ShineRewardType.Money',
         'ShineRewardType.Honor',
         'KingdomQuestNativeRewardInfo.EntryCount',
-        'cannot overflow UInt64',
-        'does not invent the native local-variable overflow policy',
+        'public uint ExperienceQuantity',
+        'public uint MoneyQuantity',
+        'public uint HonorQuantity',
+        'public ulong MoneyPacketCen',
+        'return (ulong)MoneyQuantity',
+        'quantity = unchecked(quantity + entry.Reward.Quantity)',
+        'wrap modulo 2^32',
     ):
         if token not in world_reward_scalar_plan:
             print('FAIL: KQ reward scalar projection missing', token)
             return 1
+    for forbidden in (
+        'ulong ExperienceQuantity', 'ulong MoneyQuantity',
+        'ulong HonorQuantity', 'quantity += entry.Reward.Quantity',
+    ):
+        if forbidden in world_reward_scalar_plan:
+            print('FAIL: KQ scalar projection regressed from native u32 semantics',
+                  forbidden)
+            return 1
+
     for forbidden in (
         'GiveExp(', 'ChangeMoney(', 'ExecuteQuery', 'Inventory.',
         'Program.DatabaseManager', 'Character.Fame',

@@ -317,14 +317,18 @@ The runtime projection records only this exact box-item identity. It does not
 equate the box with a selected ShineReward handle and does not infer how
 `TreasureChestMaker` expands any opaque ITEM Argument.
 
-The selected scalar branches now also have a mutation-free projection.
-EXP/MONEY/HONOR `Quantity` values are summed in a deliberately wider u64
-model so no native local overflow policy is invented. For this supplied corpus
-that choice is observationally neutral: 39 EXP handles and 14 MONEY handles
-are used, no HONOR handle is used, every scalar Argument is empty, and the
-largest possible per-reward sums are 150,000,000 EXP and 5,000 MONEY.
-Only reward IDs 56 and 62 contain multiple EXP handles, and even those sums
-remain far below u32.
+The selected scalar branches now also have an exact mutation-free
+projection. Zone.exe `ShinePlayer::sp_KQReward` uses three DWORD locals;
+EXP/MONEY/HONOR therefore accumulate `Quantity u32` modulo 2^32. The
+MONEY local is only then zero-extended into the request's `u64 cen` field
+(the high DWORD is explicitly zero), while EXP is passed to `sp_GainExp`.
+The managed scalar plan mirrors this with unchecked u32 accumulation and an
+explicit zero-extended `MoneyPacketCen`.
+
+For this supplied corpus wraparound is not reached: 39 EXP handles and 14
+MONEY handles are used, no HONOR handle is used, every scalar Argument is
+empty, and the largest possible per-reward sums are 150,000,000 EXP and
+5,000 MONEY. Only reward IDs 56 and 62 contain multiple EXP handles.
 
 A single `KingdomQuestRewardPreparationPlan` now composes these source-only
 stages without changing their semantics: dice/handle lookup, ITEM argument
