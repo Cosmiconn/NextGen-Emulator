@@ -1440,9 +1440,26 @@ persistence. This prevents the 86 native TreasureChest inputs from being
 incorrectly granted as missing/direct items while the deeper
 TreasureChestMaker source tables and selection algorithm are still unresolved.
 
+The scalar side is now closed one step further without activating mutation.
+`KingdomQuestRewardScalarPlan` consumes only the already-selected
+EXP/MONEY/HONOR rows and sums their source `Quantity u32` values into a
+wide `u64` projection. That wider accumulator is intentional: it preserves
+the exact mathematical source sum without claiming an unproven native local
+overflow width. In this exact snapshot the distinction cannot affect behavior
+anyway: all 39 used EXP handles and all 14 used MONEY handles have empty
+Arguments, there are no used HONOR handles, the largest possible per-reward
+sum is **150,000,000 EXP** or **5,000 MONEY**, and only reward IDs **56**
+and **62** contain more than one EXP handle. Both maxima are below u32.
+
+The projection performs no `GiveExp`, currency/fame mutation, item creation,
+database write or ACK processing. This removes source arithmetic as a blocker
+for the supplied corpus while leaving the still-unproven mutation/transaction
+timing untouched.
+
 These packet structures are modeled byte-for-byte, but no GameDB-equivalent
-send/ACK path is activated before item generation, transaction persistence,
-and the scenario completion trigger are source-equivalent.
+send/ACK path is activated before TreasureChest item generation, transaction
+persistence/mutation timing, and the scenario completion trigger are
+source-equivalent.
 
 
 ## Zone MAKE result branches recovered

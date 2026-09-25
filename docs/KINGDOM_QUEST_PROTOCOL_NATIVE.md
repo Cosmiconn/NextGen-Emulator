@@ -307,9 +307,18 @@ slots without changing order or generating an item. Exact/opaque/ambiguous
 entries remain separate until the original TreasureChestMaker source and
 selection semantics are recovered.
 
-No live grant/GameDB path is enabled yet because item generation, exact numeric
-accumulation/overflow behavior, transaction persistence, and the scenario
-completion trigger must be source-correlated before mutation.
+The selected scalar branches now also have a mutation-free projection.
+EXP/MONEY/HONOR `Quantity` values are summed in a deliberately wider u64
+model so no native local overflow policy is invented. For this supplied corpus
+that choice is observationally neutral: 39 EXP handles and 14 MONEY handles
+are used, no HONOR handle is used, every scalar Argument is empty, and the
+largest possible per-reward sums are 150,000,000 EXP and 5,000 MONEY.
+Only reward IDs 56 and 62 contain multiple EXP handles, and even those sums
+remain far below u32.
+
+No live grant/GameDB path is enabled yet because TreasureChest item generation,
+transaction persistence and exact mutation/ACK timing, plus the scenario
+completion trigger, must be source-correlated before mutation.
 
 
 ## Original World ↔ Zone KQ lifecycle wire

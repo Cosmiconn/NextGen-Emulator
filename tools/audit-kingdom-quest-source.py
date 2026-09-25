@@ -34,6 +34,7 @@ WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 WORLD_REWARD_RESOLVER = ROOT / "NextGen.World/Data/KingdomQuestRewardSourceResolver.cs"
 WORLD_REWARD_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardSelectionPlan.cs"
 WORLD_REWARD_ITEM_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemPlan.cs"
+WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 NATIVE_REWARD = ROOT / "NextGen.FiestaLib/Data/KingdomQuestRewardInfo.cs"
 RAW_SOURCES = {
@@ -149,7 +150,8 @@ def main():
         WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
-        WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN, NATIVE_INFO, NATIVE_REWARD,
+        WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN, WORLD_REWARD_SCALAR_PLAN,
+        NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
         ITEM_INFO_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
@@ -345,6 +347,67 @@ def main():
             shine_reward_by_handle[handle] = (
                 int(row[2]), unquote_sql(row[3]), int(row[4]))
 
+    used_scalar_rewards = {
+        handle: shine_reward_by_handle[handle]
+        for handle in used_shine_reward_handles
+        if shine_reward_by_handle[handle][0] in (2, 3, 4)
+    }
+    scalar_type_counts = {}
+    for reward_type, _argument, _quantity in used_scalar_rewards.values():
+        scalar_type_counts[reward_type] = (
+            scalar_type_counts.get(reward_type, 0) + 1)
+    if scalar_type_counts != {2: 39, 3: 14}:
+        print('FAIL: KQ scalar ShineReward type corpus changed',
+              scalar_type_counts)
+        return 1
+    if any(argument != ''
+           for _reward_type, argument, _quantity
+           in used_scalar_rewards.values()):
+        print('FAIL: KQ scalar ShineReward gained non-empty Argument')
+        return 1
+
+    max_exp_quantity = 0
+    max_money_quantity = 0
+    max_honor_quantity = 0
+    multi_exp_reward_ids = set()
+    for reward_row in reward_rows:
+        exp_quantity = 0
+        money_quantity = 0
+        honor_quantity = 0
+        exp_count = 0
+        for raw_handle in reward_row[4:19]:
+            handle = int(raw_handle)
+            reward = shine_reward_by_handle.get(handle)
+            if reward is None:
+                continue
+            reward_type, _argument, quantity = reward
+            if reward_type == 2:
+                exp_quantity += quantity
+                exp_count += 1
+            elif reward_type == 3:
+                money_quantity += quantity
+            elif reward_type == 4:
+                honor_quantity += quantity
+
+        max_exp_quantity = max(max_exp_quantity, exp_quantity)
+        max_money_quantity = max(max_money_quantity, money_quantity)
+        max_honor_quantity = max(max_honor_quantity, honor_quantity)
+        if exp_count > 1:
+            multi_exp_reward_ids.add(int(reward_row[1]))
+
+    if (max_exp_quantity, max_money_quantity, max_honor_quantity) != (
+            150000000, 5000, 0):
+        print('FAIL: KQ scalar maximum source sums changed',
+              max_exp_quantity, max_money_quantity, max_honor_quantity)
+        return 1
+    if multi_exp_reward_ids != {56, 62}:
+        print('FAIL: KQ multi-EXP reward-row set changed',
+              sorted(multi_exp_reward_ids))
+        return 1
+    if max_exp_quantity > 0xffffffff or max_money_quantity > 0xffffffff:
+        print('FAIL: supplied KQ scalar corpus now reaches UInt32 overflow')
+        return 1
+
     used_item_rewards = [
         shine_reward_by_handle[handle]
         for handle in used_shine_reward_handles
@@ -428,6 +491,7 @@ def main():
     world_reward_resolver = WORLD_REWARD_RESOLVER.read_text(encoding='utf-8')
     world_reward_plan = WORLD_REWARD_PLAN.read_text(encoding='utf-8')
     world_reward_item_plan = WORLD_REWARD_ITEM_PLAN.read_text(encoding='utf-8')
+    world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     native_reward = NATIVE_REWARD.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -635,6 +699,34 @@ def main():
     ):
         if forbidden in world_reward_item_plan:
             print('FAIL: KQ reward ITEM plan activated generation/persistence',
+                  forbidden)
+            return 1
+
+    for token in (
+        'class KingdomQuestRewardScalarPlan',
+        'public ulong ExperienceQuantity',
+        'public ulong MoneyQuantity',
+        'public ulong HonorQuantity',
+        'selection.Experience',
+        'selection.Money',
+        'selection.Honor',
+        'TryAccumulate(',
+        'ShineRewardType.Experience',
+        'ShineRewardType.Money',
+        'ShineRewardType.Honor',
+        'KingdomQuestNativeRewardInfo.EntryCount',
+        'cannot overflow UInt64',
+        'does not invent the native local-variable overflow policy',
+    ):
+        if token not in world_reward_scalar_plan:
+            print('FAIL: KQ reward scalar projection missing', token)
+            return 1
+    for forbidden in (
+        'GiveExp(', 'ChangeMoney(', 'ExecuteQuery', 'Inventory.',
+        'Program.DatabaseManager', 'Character.Fame',
+    ):
+        if forbidden in world_reward_scalar_plan:
+            print('FAIL: KQ scalar projection activated character mutation',
                   forbidden)
             return 1
 
