@@ -1398,10 +1398,23 @@ boundary. Both resolve `clienthandle` back to a player and require the
 player's CharacterNumber to equal the ACK `charregistnumber` before touching
 the item store. Success passes the ACK LockIndex into one item-store virtual
 transaction method; Fail passes the same LockIndex into a different virtual
-method. Their exact method names/commit semantics are still unresolved from
-PDB types, so the emulator does not label or invoke them yet. Importantly,
-the FAIL handler never reads its trailing `error` field; the field remains
-modeled because it is still part of the native wire structure.
+method.
+
+That common post-resolution identity gate is now executable in
+`KingdomQuestRewardAckIdentity`. It accepts only an already-resolved native
+ClientHandle/CharacterNumber pair, rejects either mismatch and projects only
+the validated `LockIndex` plus ACK kind into
+`KingdomQuestRewardAckTransactionRef`. The failure ACK's trailing `error`
+is intentionally not copied into that transaction reference because the
+recovered native failure handler never reads it.
+
+This helper deliberately does **not** invent the missing emulator-side
+ClientHandle resolver and does not invoke the native item-store virtual
+methods. Their exact method names/commit/rollback semantics are still
+unresolved from PDB types, so live reward persistence remains gated on that
+boundary. The wire-level `error` field remains modeled in
+`KingdomQuestRewardFailAckInfo` because it is still part of the native
+packet structure.
 
 The new `KingdomQuestRewardSelectionPlan` now closes the pure selection
 layer between dice and mutation. It consumes all 15 dice results, performs the

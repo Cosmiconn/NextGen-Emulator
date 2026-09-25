@@ -38,6 +38,7 @@ WORLD_REWARD_ITEM_GROUP_SOURCE = ROOT / "NextGen.World/Data/KingdomQuestRewardIt
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
+ZONE_REWARD_ACK_IDENTITY = ROOT / "NextGen.Zone/Data/KingdomQuestRewardAckIdentity.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 NATIVE_REWARD = ROOT / "NextGen.FiestaLib/Data/KingdomQuestRewardInfo.cs"
 RAW_SOURCES = {
@@ -159,7 +160,7 @@ def main():
         WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN,
         WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
-        NATIVE_INFO, NATIVE_REWARD,
+        ZONE_REWARD_ACK_IDENTITY, NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
         ITEM_INFO_SQL, ITEM_GROUP_SOURCE_TSV,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
@@ -603,6 +604,7 @@ def main():
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
+    zone_reward_ack_identity = ZONE_REWARD_ACK_IDENTITY.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     native_reward = NATIVE_REWARD.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -937,6 +939,32 @@ def main():
     ):
         if token not in world_source_rows:
             print('FAIL: KQ reward raw-source/native projection missing', token)
+            return 1
+
+    for token in (
+        'enum KingdomQuestRewardAckKind : byte',
+        'class KingdomQuestRewardAckTransactionRef',
+        'class KingdomQuestRewardAckIdentity',
+        'TryValidateResolvedSuccess(',
+        'TryValidateResolvedFailure(',
+        'ack.ClientHandle != resolvedClientHandle',
+        'ack.CharacterNumber != resolvedCharacterNumber',
+        'KingdomQuestRewardAckKind.Success',
+        'KingdomQuestRewardAckKind.Failure',
+        'LockIndex = lockIndex',
+        'does not resolve ClientHandle',
+        'does not invoke the native item-store virtual methods',
+    ):
+        if token not in zone_reward_ack_identity:
+            print('FAIL: KQ reward ACK identity boundary missing', token)
+            return 1
+    for forbidden in (
+        'ack.Error', 'Inventory.', 'ExecuteQuery', 'Save()', 'SendPacket(',
+        'Program.DatabaseManager',
+    ):
+        if forbidden in zone_reward_ack_identity:
+            print('FAIL: KQ reward ACK identity boundary activated unresolved mutation',
+                  forbidden)
             return 1
 
     for token in (
