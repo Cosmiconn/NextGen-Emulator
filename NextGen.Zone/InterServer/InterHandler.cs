@@ -34,28 +34,36 @@ namespace NextGen.Zone.InterServer
                     KingdomQuestZoneRuntimeRegistry.TryMake(
                         definition, mapId, mapInstance);
 
-                if (makeResult == KingdomQuestZoneMakeResult.DuplicateHandle)
+                ushort makeAckError;
+                switch (makeResult)
                 {
-                    // Original Zone wms_NC_KQ_W2Z_MAKED_CMD returns exactly
-                    // ERR_KINGDOMQUEST_MAKE_DUPLICATEHANDLE (0x0982).
-                    SendKingdomQuestMakeAck(
-                        definition.Handle,
-                        KingdomQuestNativeConstants.MakeAckDuplicateHandle);
-                    return;
-                }
-
-                if (makeResult != KingdomQuestZoneMakeResult.Success)
-                {
-                    // Other local rejections do not yet have a proven mapping
-                    // to the original 0x0983/0x098C branches. Fail closed
-                    // rather than manufacture an Error value.
-                    Log.WriteLine(LogLevel.Warn,
-                        "Rejected KQ MAKE for map {0} instance {1}.", mapId, mapInstance);
-                    return;
+                    case KingdomQuestZoneMakeResult.DuplicateHandle:
+                        makeAckError =
+                            KingdomQuestNativeConstants.MakeAckDuplicateHandle;
+                        break;
+                    case KingdomQuestZoneMakeResult.ScriptNotFound:
+                        makeAckError =
+                            KingdomQuestNativeConstants.MakeAckScriptNotFound;
+                        break;
+                    case KingdomQuestZoneMakeResult.NativeContainerFull:
+                        makeAckError =
+                            KingdomQuestNativeConstants.MakeAckTooManyQuest;
+                        break;
+                    case KingdomQuestZoneMakeResult.Success:
+                        makeAckError =
+                            KingdomQuestNativeConstants.MakeAckSuccess;
+                        break;
+                    default:
+                        // Emulator-only map/routing validation has no proven
+                        // native Error mapping. Keep that path fail-closed.
+                        Log.WriteLine(LogLevel.Warn,
+                            "Rejected KQ MAKE for map {0} instance {1}.",
+                            mapId, mapInstance);
+                        return;
                 }
 
                 SendKingdomQuestMakeAck(
-                    definition.Handle, KingdomQuestNativeConstants.MakeAckSuccess);
+                    definition.Handle, makeAckError);
             }
         }
 

@@ -1,0 +1,45 @@
+# Kingdom Quest ScenarioBookShelf source projection
+# SourceArchive	Server.zip
+# SourceArchiveSha256	b83bf92c7193578a772fcebf4d8b7c8c2a9a642cf0d50d33506f77a75b0e211d
+# ZoneExeSha256	db1cb42912556a4ea5cde5c18f15f2495b81465c70ca9c18ad5bc7e36611aff5
+# ScriptCatalog	World/PineScript.txt
+# ScriptCatalogSha256	8ba15c6d7a5d14f1bd01f94a8403d8a9652868e15e0eee7a7730504c7754440c
+# NativeLoad	ScenarioBookShelf::sbs_LoadScripts reads PineScript/ScriptName and calls sbs_Read for every catalog row
+# NativeRead	sbs_Read tries ScenarioBookShelf/<key>.ps first, then LuaScript/<key>.lua; missing both returns false
+# NativeInsert	for a present file sbs_Read calls virtual ScenarioBook::sb_Load, ignores its bool return, then inserts key and object into the shelf
+# NativeMakeOrder	duplicate handle 0x0982 -> sbs_GetScenarioBook null 0x098C -> KQ container full 0x0983
+# Scope	32 KQ/* PineScript catalog rows; all 32 have an exact source file; 27 are used by supplied KingdomQuest.shn
+# CanonicalRowsSha256	eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195
+key	backend	archive_path	sha256	size	used_by_supplied_kq
+KQ/KingSlime/KingSlime	lua	LuaScript/KQ/KingSlime/KingSlime.lua	a31a590c78d68a33f8b47d66da194af23d3dfcb1c8d2d72821e510413eab39c5	1814	1
+KQ/MaraPirate/MaraPirate	lua	LuaScript/KQ/MaraPirate/MaraPirate.lua	a2a7c7092547037a9341d2e8a14ae34f1cbc154589c462c50169af311bb3a5e0	1730	1
+KQ/UnderHall	pine	ScenarioBookShelf/KQ/UnderHall.ps	09aca07eef7f98a452b8b1e51ab8f16f056dae903715b8b6dc39920cd3a4336d	13267	1
+KQ/GoldHill/GoldHill	lua	LuaScript/KQ/GoldHill/GoldHill.lua	c9b8a01fe34c369f5ecf2bc31b87390b6d701031f1a7baf52d38411690b00d8e	1661	1
+KQ/MiniDragon/MiniDragon	lua	LuaScript/KQ/MiniDragon/MiniDragon.lua	b6c9e8f32d9b3adf26bc28ed506d2cebef7e7159e3578ebd75e153ecb1ba8554	1721	1
+KQ/Kingkong/Kingkong	lua	LuaScript/KQ/Kingkong/Kingkong.lua	a6026eac4bc615ffdcb5af3c97b8614d811e3d439e76b13537d24443361ceea1	1481	1
+KQ/Honeying	pine	ScenarioBookShelf/KQ/Honeying.ps	292e707cf8eb24a25383d65e5f40b883917a6981c84361040e8419ff81c565b2	8078	1
+KQ/UnderHall2	pine	ScenarioBookShelf/KQ/UnderHall2.ps	2d3049c991e3a543fe4db9bcba6cfacb980f2716eb08c2ccd772328c8d00da8d	19225	1
+KQ/GordonMaster	pine	ScenarioBookShelf/KQ/GordonMaster.ps	02d47b695e1afe3b49000eb5d99af9bbdeb5b74c9e91163b27e0790a0d812d1b	17140	1
+KQ/HMiniDragon/HMiniDragon	lua	LuaScript/KQ/HMiniDragon/HMiniDragon.lua	fc739c0ae4de6bbcdfc9b3ee3c920b5d2648edc3de4304c04bc7577231e1c478	1727	1
+KQ/KQHBat1	pine	ScenarioBookShelf/KQ/KQHBat1.ps	093687705fa70ccc97dc0a5f8de6e8773cb277c3a928d46d6b472aeca4f1b844	4104	1
+KQ/KQHBat2	pine	ScenarioBookShelf/KQ/KQHBat2.ps	aae23a5fc1ab5f471494e1404df0ab94d9b3f8ee7221ed32fc605cad5c9a6f63	4104	1
+KQ/KQHBat3	pine	ScenarioBookShelf/KQ/KQHBat3.ps	3ca3361b0d1045df23443c9aa9ecdc250a4a961783ef217a1faba0af5492f424	4299	1
+KQ/KQHBat4	pine	ScenarioBookShelf/KQ/KQHBat4.ps	19d4897c8238a5232d838cb140b19adbf2223f7366ef41a917e8f69b32c4a24a	4196	1
+KQ/LegendOfBijou/LegendOfBijou	lua	LuaScript/KQ/LegendOfBijou/LegendOfBijou.lua	0c68dc9ef4752f2a9df182b651c7f4bd36500a44732e75a76c9fefd4473da0a7	1709	1
+KQ/AntiHenis/AntiHenis	lua	LuaScript/KQ/AntiHenis/AntiHenis.lua	4daac87c87db43ff9b497898882ea6b3e39c3874816a1528b763561366c3e96e	1814	1
+KQ/KQHBat5	pine	ScenarioBookShelf/KQ/KQHBat5.ps	da0606f87bf386e2e15e1a9ebf05ff78cf27e433a3a16d86f7721a38e6a376f0	4168	1
+KQ/KDMine/KDMine	lua	LuaScript/KQ/KDMine/KDMine.lua	fc02a774f3d7ab7455b9809fe0ca96e380760cab851e2febc4794aef122b56b0	5001	1
+KQ/KDEgg/KDEgg	lua	LuaScript/KQ/KDEgg/KDEgg.lua	db885139372894af1535ade1c3301efbdde14daad55ad6c448ba7e59633e1a97	5057	0
+KQ/KDSpring/KDSpring	lua	LuaScript/KQ/KDSpring/KDSpring.lua	8e3b691944022e04ec05f31d4ffca52b999b8b30f61ce5e4faa1798205849f24	13788	1
+KQ/KDArena/KDArena1	lua	LuaScript/KQ/KDArena/KDArena1.lua	e9b5f1874e345d31c5ff189fc9cf38b24ab9fad6e6f299956c85a86ca27efc19	982	1
+KQ/KDArena/KDArena2	lua	LuaScript/KQ/KDArena/KDArena2.lua	c12b165b062919a08e11eec95797d2400f6cda58c1293e8e021a31fd9a30b564	982	1
+KQ/KDArena/KDArena3	lua	LuaScript/KQ/KDArena/KDArena3.lua	d4531585d982b0e9bd7729ff7ce0a187ac19f89a775e8594e9a09a90354faaa9	982	1
+KQ/KDArena/KDArena4	lua	LuaScript/KQ/KDArena/KDArena4.lua	517903e74f6add4a6c36a862abc68fa912d817f7f57804c66d7f60ec459bbb59	982	1
+KQ/KDArena/KDArena5	lua	LuaScript/KQ/KDArena/KDArena5.lua	116260a4fb727a2852ac2edfcd0802214fbc37adad46e883027d2960ffa6945c	982	1
+KQ/KDArena/KDArena6	lua	LuaScript/KQ/KDArena/KDArena6.lua	4f9950a390eb2abd850398c1b99189d5b4739dd84283a8cc34ba094b1fbaedf1	982	1
+KQ/EmperorSlime/EmperorSlime	lua	LuaScript/KQ/EmperorSlime/EmperorSlime.lua	a681745ced8a528e1b0b7bbafe3501edaced726195e4f721087ef0833cb92975	1833	1
+KQ/KDSoccer/KDSoccer	lua	LuaScript/KQ/KDSoccer/KDSoccer.lua	6c144e520ced005901ca9faaa5a8a072890ffb710e20bebeb93aa4e9aaf23ce0	3643	0
+KQ/KDWater/KDWater	lua	LuaScript/KQ/KDWater/KDWater.lua	35921b0a63eb8a86d7cc7f5f912b07fb87fd0c2237f8306f1206ecd354f727a1	3257	0
+KQ/KDSoccer_W/KDSoccer_W	lua	LuaScript/KQ/KDSoccer_W/KDSoccer_W.lua	292eea9596d27abc50d77a8ab04b2e38acaeb226e077fb56f085a754d1bd68b6	4160	0
+KQ/KDFargels/KDFargels	lua	LuaScript/KQ/KDFargels/KDFargels.lua	79cd7549d49d4d7ed8eb61df4e45ae115c0ababffbaae166bfaf0f05d25f09ab	3931	1
+KQ/KDCake/KDCake	lua	LuaScript/KQ/KDCake/KDCake.lua	9181c60f2bfa85a689edb3c1020ba3e4bf36184800efe0afae50e0b58f404c49	3257	0

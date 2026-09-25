@@ -1188,8 +1188,12 @@ tries the exact paths in this order:
 ../9Data/Shine/LuaScript/<ScriptName>.lua
 ```
 
-Only after the selected ScenarioBook successfully loads is its name inserted
-into the ScenarioBookShelf lookup tree. The native MAKE branch tests
+Direct Zone.exe disassembly closes an important loader detail. Once either
+source file exists, `sbs_Read` allocates the corresponding ScenarioBook and
+calls its virtual `sb_Load(ScriptName)`, but it does **not** test that boolean
+return. It immediately inserts the key into the shelf index and the object into
+the shelf vector. Only absence of both the `.ps` and `.lua` file makes
+`sbs_Read` return false. The native MAKE branch then tests
 `ScenarioBookShelf::sbs_GetScenarioBook(PROTO_KQ_INFO.ScriptLanguage, ...)`;
 a null lookup is the proven `0x098C` condition.
 
@@ -1209,9 +1213,16 @@ that original script-source universe:
   `UnderHall2`.
 
 The nine PineScript-backed definitions were previously reported as "missing
-Lua scripts". That interpretation was too narrow and is now removed. They are
-source-present; what remains unimplemented is an emulator runtime equivalent
-of the original script container/ScenarioBookShelf loader.
+Lua scripts". That interpretation was too narrow and is now removed. The new
+`KINGDOM_QUEST_SCENARIOBOOK_SOURCE.tsv` additionally locks all **32** KQ/*
+rows from the original PineScript catalog: 9 PineScript + 23 Lua, with an exact
+source file for every row. The 27 ScriptLanguage values used by the supplied
+KQ definitions are all members of that proven shelf projection.
+
+The emulator can therefore reproduce the MAKE-time shelf membership test
+without pretending to execute a script. What remains unimplemented is the
+later ScenarioBook/PineScript/Lua **execution** path driven by
+`CinemaComplex::cc_PlayFilm`, not the source-backed MAKE lookup itself.
 
 The same 57 definitions use 18 distinct `KingdomQuestMap.BaseMap` values.
 Fifteen have an exact
@@ -1577,32 +1588,32 @@ now closes four native MAKE_ACK results:
 
 The ScriptLanguage branch copies the 32-byte
 `PROTO_KQ_INFO.ScriptLanguage` field and calls
-`ScenarioBookShelf::sbs_GetScenarioBook`. A null runtime lookup returns
-`0x098C`. The original shelf is mixed-backend: `sbs_Read` tries
-PineScript `.ps` first and Lua `.lua` second. Source-file/catalog presence
-therefore still does not prove that the runtime lookup succeeded; the emulator
-needs an equivalent loaded ScenarioBookShelf before it can emit `0x098C` or
-success from that condition.
+`ScenarioBookShelf::sbs_GetScenarioBook`. A null lookup returns `0x098C`.
+Direct disassembly now proves that `sbs_Read` inserts a catalog key whenever
+its preferred `.ps` or fallback `.lua` file exists; the virtual
+`sb_Load` result is ignored by this insertion path. This is a MAKE lookup
+rule only and says nothing about successful later script execution.
 
-Zone now classifies duplicate Handles atomically inside
-`KingdomQuestZoneRuntimeRegistry.TryMake` and returns the exact
-`0x0982` ACK.
-
-The native container-full boundary is now correlated as well. RTTI on the
-global Zone KQ owner identifies
+The same MAKE function also fixes the relevant native error precedence:
+duplicate Handle is tested first (`0x0982`), then ScenarioBook lookup
+(`0x098C`), then the fixed KQ container capacity (`0x0983`). RTTI on the
+global owner identifies
 `KingdomQuest::KingdomQuestContainer : List<KQElement>`; its fixed-array
 construction/destruction path walks exactly `0x12C` elements, i.e. **300
-native KQ slots**. The MAKE branch that logs
-`WorldManagerSession::wms_NC_KQ_W2Z_MAKED_CMD : Buffer full` returns
-`0x0983`. The Zone registry therefore models the same 300-entry capacity and
-can classify `NativeContainerFull`.
+native KQ slots**.
 
-That classification is deliberately not yet converted into a live
-`0x0983` ACK. In the original MAKE order, ScriptLanguage runtime lookup
-occurs before the container-full test. Until the mixed Lua/Pine script
-container lookup is represented, emitting `0x0983` from capacity alone
-could invert the original error precedence. `0x098C` likewise remains gated
-on that real runtime lookup rather than file-presence heuristics.
+`KingdomQuestScenarioBookShelfSource` now projects the exact KQ subset of the
+original startup shelf from the provenance-locked catalog/files. All 27
+ScriptLanguage values used by the supplied definitions resolve; the full KQ
+catalog subset is 32 keys (9 Pine + 23 Lua), all source-present. Zone therefore
+now emits the exact live MAKE_ACK family in native order: duplicate
+`0x0982`, source-backed script miss `0x098C`, container full `0x0983`,
+or success `0x0981`. Emulator-only MapID/instance routing rejection still
+has no invented native Error mapping and remains fail-closed.
+
+This closes MAKE-time script lookup and capacity precedence. It does **not**
+activate `ScenarioBook::sb_Load`, `CinemaComplex::cc_PlayFilm`, objective
+logic, mob breeding, or KQ completion policy.
 
 
 ## Native Zone END and World SetDone direction

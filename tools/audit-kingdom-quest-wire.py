@@ -30,6 +30,7 @@ PACKET_HELPER = ROOT / "NextGen.World/Handlers/PacketHelper.cs"
 ADMISSION = ROOT / "NextGen.World/Data/KingdomQuestAdmissionCoordinator.cs"
 INTER_HEADER = ROOT / "NextGen.InterLib/Networking/InterHeader.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
+SCENARIOBOOK_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShelfSource.cs"
 ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 RECONNECT_SERVICE = ROOT / "NextGen.World/Data/KingdomQuestReconnectService.cs"
 WORLD_HANDLER4 = ROOT / "NextGen.World/Handlers/Handler4.cs"
@@ -44,7 +45,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6]
+    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, SCENARIOBOOK_SOURCE, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -76,6 +77,7 @@ def main():
     admission = ADMISSION.read_text(encoding="utf-8")
     inter_header = INTER_HEADER.read_text(encoding="utf-8")
     zone_runtime = ZONE_RUNTIME.read_text(encoding="utf-8")
+    scenario_book_source = SCENARIOBOOK_SOURCE.read_text(encoding="utf-8")
     zone_character = ZONE_CHARACTER.read_text(encoding="utf-8")
     reconnect_service = RECONNECT_SERVICE.read_text(encoding="utf-8")
     world_handler4 = WORLD_HANDLER4.read_text(encoding="utf-8")
@@ -766,10 +768,25 @@ def main():
         "KingdomQuestZoneRuntimeRegistry.TryMake(",
         "KingdomQuestZoneMakeResult.DuplicateHandle",
         "KingdomQuestNativeConstants.MakeAckDuplicateHandle",
+        "KingdomQuestZoneMakeResult.ScriptNotFound",
+        "KingdomQuestNativeConstants.MakeAckScriptNotFound",
+        "KingdomQuestZoneMakeResult.NativeContainerFull",
+        "KingdomQuestNativeConstants.MakeAckTooManyQuest",
         "KingdomQuestZoneMakeResult.Success",
         "KingdomQuestNativeConstants.MakeAckSuccess",
-        "Other local rejections do not yet have a proven mapping",
+        "Emulator-only map/routing validation has no proven",
     ], "Zone MAKE ACK result routing"):
+        return 1
+
+    if not require(scenario_book_source, [
+        "class KingdomQuestScenarioBookShelfSource",
+        "KqCatalogKeyCount = 32",
+        "KqUsedBySuppliedDefinitions = 27",
+        "ContainsSourceBackedScenarioBook(",
+        "StringComparer.Ordinal",
+        "ignores that bool return",
+        "does not parse or execute",
+    ], "source-backed Zone ScenarioBookShelf MAKE projection"):
         return 1
 
     if not require(zone_runtime, [
@@ -778,22 +795,26 @@ def main():
         "Success = 1",
         "DuplicateHandle = 2",
         "NativeContainerFull = 3",
+        "ScriptNotFound = 4",
         "NativeContainerCapacity = 300",
         "ByHandle.ContainsKey(definition.Handle)",
         "return KingdomQuestZoneMakeResult.DuplicateHandle",
+        "ContainsSourceBackedScenarioBook(",
+        "return KingdomQuestZoneMakeResult.ScriptNotFound",
         "ByHandle.Count >= NativeContainerCapacity",
         "return KingdomQuestZoneMakeResult.NativeContainerFull",
-        "transport must not emit 0x0983 until",
-    ], "atomic Zone duplicate/capacity MAKE classification"):
+    ], "atomic Zone duplicate/script/capacity MAKE classification"):
         return 1
 
-    for forbidden in (
-        "KingdomQuestNativeConstants.MakeAckTooManyQuest);",
-        "KingdomQuestNativeConstants.MakeAckScriptNotFound);",
-    ):
-        if forbidden in zone_inter:
-            print("FAIL: unmapped Zone MAKE failure branch was activated:", forbidden)
-            return 1
+    duplicate_pos = zone_runtime.find(
+        "return KingdomQuestZoneMakeResult.DuplicateHandle")
+    script_pos = zone_runtime.find(
+        "return KingdomQuestZoneMakeResult.ScriptNotFound")
+    capacity_pos = zone_runtime.find(
+        "return KingdomQuestZoneMakeResult.NativeContainerFull")
+    if not (0 <= duplicate_pos < script_pos < capacity_pos):
+        print("FAIL: Zone MAKE native error precedence changed")
+        return 1
 
     if not require(state, [
         "public uint Handle",
@@ -922,8 +943,9 @@ def main():
     print("PASS: JOIN_ACK 0x0991..0x099A is live for characters with known original PrisonMin; unknown provenance remains fail-closed")
     print("PASS: successful JOIN/CANCEL preserves native PlayerDisjoin/PlayerJoin list-broadcast ordering and propagates PLAYER_DISJOIN to Zone")
     print("PASS: Z2W_MAKE_ACK 0x0981 success now drives the proven World Status 1/2 -> 2 transition; non-success drives Status 8")
-    print("PASS: Zone emits live MAKE_ACK only for success/duplicate; 0x0983 remains gated behind the not-yet-represented preceding script lookup")
-    print("PASS: native Zone KingdomQuestContainer capacity is locked to 300 fixed KQElement slots")
+    print("PASS: Zone MAKE_ACK now preserves native duplicate 0x0982 -> script 0x098C -> capacity 0x0983 precedence")
+    print("PASS: all 27 supplied KQ ScriptLanguage values resolve in the exact source-backed ScenarioBookShelf projection")
+    print("PASS: native Zone KingdomQuestContainer capacity is locked to 300 fixed KQElement slots and 0x0983 is live after script lookup")
     print("PASS: PDB names lock TeamDivideType 1=RANDOM and 2=USERSELECT; PlayerJoin type-2 initial assignment remains source-modeled")
     print("PASS: one combined membership owner carries CharacterNumber plus client identity fields into both native roster projections")
     print("PASS: native KQ joiner +0x20 login-ban DWORD is preserved raw; PlayerJoin initializes it to zero and no vote policy is invented")

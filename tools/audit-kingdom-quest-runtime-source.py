@@ -11,6 +11,9 @@ MANIFEST = ROOT / "docs/KINGDOM_QUEST_RUNTIME_SOURCE_MANIFEST.tsv"
 KQ_SQL = ROOT / "sql/data/data_kq_source_10_kingdomquest.sql"
 MAP_SQL = ROOT / "sql/data/data_kq_source_20_kingdomquestmap.sql"
 REGEN_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestRegenSource.cs"
+SCENARIOBOOK_SOURCE = ROOT / "docs/KINGDOM_QUEST_SCENARIOBOOK_SOURCE.tsv"
+SCENARIOBOOK_PROJECTION = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShelfSource.cs"
+SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
 
 SOURCE_ARCHIVE_SHA256 = "b83bf92c7193578a772fcebf4d8b7c8c2a9a642cf0d50d33506f77a75b0e211d"
 CANONICAL_ROWS_SHA256 = "e4a9c437d8dd44911bd04def351a6a26cdac1423ee633bcace998b586ebe83e7"
@@ -114,14 +117,56 @@ def load_manifest():
     return rows
 
 
+def load_scenario_book_source():
+    text = SCENARIOBOOK_SOURCE.read_text(encoding="utf-8")
+    required_headers = (
+        "# SourceArchive\tServer.zip",
+        "# SourceArchiveSha256\t" + SOURCE_ARCHIVE_SHA256,
+        "# ZoneExeSha256\tdb1cb42912556a4ea5cde5c18f15f2495b81465c70ca9c18ad5bc7e36611aff5",
+        "# ScriptCatalog\tWorld/PineScript.txt",
+        "# ScriptCatalogSha256\t8ba15c6d7a5d14f1bd01f94a8403d8a9652868e15e0eee7a7730504c7754440c",
+        "# NativeLoad\tScenarioBookShelf::sbs_LoadScripts reads PineScript/ScriptName and calls sbs_Read for every catalog row",
+        "# NativeRead\tsbs_Read tries ScenarioBookShelf/<key>.ps first, then LuaScript/<key>.lua; missing both returns false",
+        "# NativeInsert\tfor a present file sbs_Read calls virtual ScenarioBook::sb_Load, ignores its bool return, then inserts key and object into the shelf",
+        "# NativeMakeOrder\tduplicate handle 0x0982 -> sbs_GetScenarioBook null 0x098C -> KQ container full 0x0983",
+        "# Scope\t32 KQ/* PineScript catalog rows; all 32 have an exact source file; 27 are used by supplied KingdomQuest.shn",
+        "# CanonicalRowsSha256\t" + SCENARIOBOOK_ROWS_SHA256,
+    )
+    for header in required_headers:
+        if header not in text:
+            raise ValueError(
+                "ScenarioBookShelf provenance header changed: " + header)
+
+    data_lines = [line for line in text.splitlines()
+                  if line and not line.startswith("#")]
+    reader = csv.DictReader(data_lines, delimiter="\t")
+    expected_columns = [
+        "key", "backend", "archive_path", "sha256", "size",
+        "used_by_supplied_kq"]
+    if reader.fieldnames != expected_columns:
+        raise ValueError("ScenarioBookShelf source columns changed")
+
+    rows = list(reader)
+    canonical = "".join(
+        "\t".join(row[name] for name in expected_columns) + "\n"
+        for row in rows)
+    if hashlib.sha256(canonical.encode("utf-8")).hexdigest() != (
+            SCENARIOBOOK_ROWS_SHA256):
+        raise ValueError(
+            "ScenarioBookShelf canonical source snapshot changed")
+    return rows
+
+
 def main():
-    for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE):
+    for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE,
+                 SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
             return 1
 
     try:
         rows = load_manifest()
+        scenario_rows = load_scenario_book_source()
     except (ValueError, csv.Error) as exc:
         print("FAIL:", exc)
         return 1
@@ -177,6 +222,75 @@ def main():
                   source_map_row)
             return 1
         used_base_maps.add(map_rows[source_map_row])
+
+    scenario_by_key = {row["key"]: row for row in scenario_rows}
+    if len(scenario_by_key) != 32 or len(scenario_rows) != 32:
+        print("FAIL: ScenarioBookShelf KQ catalog key count changed")
+        return 1
+    if any(row["backend"] not in ("pine", "lua")
+           for row in scenario_rows):
+        print("FAIL: ScenarioBookShelf backend marker changed")
+        return 1
+    if sum(row["backend"] == "pine" for row in scenario_rows) != 9 or \
+            sum(row["backend"] == "lua" for row in scenario_rows) != 23:
+        print("FAIL: ScenarioBookShelf KQ backend split changed")
+        return 1
+    if any(row["used_by_supplied_kq"] not in ("0", "1")
+           for row in scenario_rows):
+        print("FAIL: ScenarioBookShelf used marker changed")
+        return 1
+
+    used_scenario_keys = {
+        row["key"] for row in scenario_rows
+        if row["used_by_supplied_kq"] == "1"
+    }
+    if used_scenario_keys != scripts or len(used_scenario_keys) != 27:
+        print("FAIL: supplied KQ ScriptLanguage set no longer matches "
+              "source-backed ScenarioBookShelf rows")
+        return 1
+
+    for row in scenario_rows:
+        key = row["key"]
+        expected_path = (
+            "ScenarioBookShelf/" + key + ".ps"
+            if row["backend"] == "pine"
+            else "LuaScript/" + key + ".lua")
+        if row["archive_path"] != expected_path:
+            print("FAIL: ScenarioBookShelf source path changed", key)
+            return 1
+        if not re.match(r"^[0-9a-f]{64}$", row["sha256"]):
+            print("FAIL: ScenarioBookShelf source hash malformed", key)
+            return 1
+        try:
+            if int(row["size"]) <= 0:
+                raise ValueError()
+        except ValueError:
+            print("FAIL: ScenarioBookShelf source size malformed", key)
+            return 1
+
+    scenario_projection_text = SCENARIOBOOK_PROJECTION.read_text(
+        encoding="utf-8")
+    projection_tokens = (
+        "class KingdomQuestScenarioBookShelfSource",
+        "KqCatalogKeyCount = 32",
+        "KqUsedBySuppliedDefinitions = 27",
+        "ContainsSourceBackedScenarioBook(",
+        "StringComparer.Ordinal",
+        "ignores that bool return",
+        "does not parse or execute",
+    )
+    for token in projection_tokens:
+        if token not in scenario_projection_text:
+            print("FAIL: ScenarioBookShelf runtime source projection changed",
+                  token)
+            return 1
+
+    projected_keys = set(re.findall(
+        r'^\s+"(KQ/[^"]+)",\s*$', scenario_projection_text, re.MULTILINE))
+    if projected_keys != set(scenario_by_key):
+        print("FAIL: ScenarioBookShelf runtime key set differs from "
+              "proven KQ catalog")
+        return 1
 
     script_list = [row for row in rows if row["kind"] == "script"]
     regen_list = [row for row in rows if row["kind"] == "regen"]
@@ -276,8 +390,11 @@ def main():
     # MobRegen input.
     print("PASS: Server.zip provenance locked", SOURCE_ARCHIVE_SHA256)
     print("PASS: all 27 used KingdomQuest.shn ScriptLanguage keys have original source: 18 Lua + 9 PineScript")
-    print("PASS: original World/PineScript.txt PineScript catalog provenance is locked; ScenarioBookShelf tries .ps then .lua")
-    print("PASS: MAKE ScriptLanguage lookup is ScenarioBookShelf::sbs_GetScenarioBook; separate KQScriptManager/DialogFile capacity is not conflated")
+    print("PASS: original World/PineScript.txt KQ shelf is locked to 32 exact keys (9 Pine + 23 Lua), all with source files")
+    print("PASS: native sbs_Read file-presence insertion is locked: sb_Load return is ignored before shelf insertion")
+    print("PASS: all 27 supplied KQ ScriptLanguage values are proven members of the source-backed ScenarioBookShelf")
+    print("PASS: MAKE error precedence is source-locked to duplicate -> script lookup -> 300-slot capacity")
+    print("PASS: separate KQScriptManager/DialogFile capacity is not conflated with ScenarioBookShelf")
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
     print("PASS: Zone KQRegenTable lookup order is locked to KingdomQuest then Instant")
     print("PASS: exact Instant regen basenames are locked; KDArena/KDMine/KDSpring have no static fallback")

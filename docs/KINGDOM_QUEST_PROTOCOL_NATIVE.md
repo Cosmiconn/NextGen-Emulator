@@ -668,24 +668,32 @@ construction/destruction loop has exactly `0x12C = 300` KQElement slots.
 The native "Buffer full" MAKE branch is therefore the exact 300-slot
 `0x0983` condition.
 
-The emulator models that capacity but does not send `0x0983` yet. Original
-MAKE performs ScriptLanguage runtime lookup before testing the KQ container
-for a free slot, so a live 0x0983 branch would be order-incorrect until the
-source-equivalent script container is represented. `0x098C` is likewise not
-used as a catch-all.
-
-The MAKE script lookup is owned by `ScenarioBookShelf`, not by
-`KQScriptManager`. `sbs_LoadScripts` reads the `PineScript/ScriptName`
-catalog from `World/PineScript.txt`; `sbs_Read` tries
-`ScenarioBookShelf/<key>.ps` first, then `LuaScript/<key>.lua`, and only
-successfully loaded books enter the lookup tree. MAKE calls
+Direct Zone.exe disassembly closes the preceding lookup. The MAKE script
+lookup is owned by `ScenarioBookShelf`, not by `KQScriptManager`.
+`sbs_LoadScripts` reads the `PineScript/ScriptName` catalog from
+`World/PineScript.txt`; `sbs_Read` tries
+`ScenarioBookShelf/<key>.ps` first, then `LuaScript/<key>.lua`. If either
+file exists it calls the selected ScenarioBook's virtual `sb_Load`, ignores
+that bool return, and then inserts the key/object into the shelf. Only absence
+of both files prevents insertion. MAKE calls
 `sbs_GetScenarioBook(ScriptLanguage,...)`; a null result is `0x098C`.
 
-All 27 KQ ScriptLanguage keys are source-present: 18 as exact Lua entrypoints
-and 9 as exact PineScript sources. Absence of a `.lua` file is therefore not
-evidence for `0x098C`. The separate `KQScriptManager::kqsm_Load` path
-reads `DialogFile` and has its own 64-entry manager; that capacity is not
-the ScenarioBookShelf/MAKE limit.
+The exact original KQ catalog subset contains 32 keys: 9 PineScript and 23 Lua,
+and all 32 have their preferred/fallback source file in Server.zip. All 27
+ScriptLanguage values used by the supplied KingdomQuest definitions are in that
+set. `KingdomQuestScenarioBookShelfSource` now represents that membership
+without executing scripts.
+
+The MAKE disassembly also fixes the error order as duplicate `0x0982` ->
+ScenarioBook miss `0x098C` -> 300-slot container full `0x0983`. All three
+branches plus `0x0981` success are now live in that order. Emulator-only
+map/instance validation remains fail-closed because no native Error mapping is
+invented for it.
+
+The separate `KQScriptManager::kqsm_Load` path reads `DialogFile` and has
+its own 64-entry manager; that capacity is not the ScenarioBookShelf/MAKE
+limit. Shelf membership likewise does not prove that the later
+ScenarioBook/PineScript/Lua film execution succeeds.
 
 The same Zone binary proves the static KQ regen lookup order:
 `MobRegen/KingdomQuest/<name>.txt` first, then

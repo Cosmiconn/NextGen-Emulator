@@ -20,6 +20,7 @@ namespace NextGen.Zone.Data
         Success = 1,
         DuplicateHandle = 2,
         NativeContainerFull = 3,
+        ScriptNotFound = 4,
     }
 
     public sealed class KingdomQuestZoneRuntimeState
@@ -107,63 +108,82 @@ namespace NextGen.Zone.Data
             KingdomQuestProtocolInfo definition,
             ushort mapId, short mapInstance)
         {
-            if (definition == null || mapInstance < 0 ||
-                DataProvider.Instance == null || DataProvider.Instance.MapsByID == null ||
-                MapManager.Instance == null)
-                return KingdomQuestZoneMakeResult.RejectedUnmapped;
-
-            MapInfo mapInfo;
-            if (!DataProvider.Instance.MapsByID.TryGetValue(mapId, out mapInfo))
-                return KingdomQuestZoneMakeResult.RejectedUnmapped;
-
-            KingdomQuestMapProtocolInfo activeMap = null;
-            if (definition.MapLink == null || definition.MapLink.Length != 4)
-                return KingdomQuestZoneMakeResult.RejectedUnmapped;
-            for (int i = 0; i < definition.MapLink.Length; i++)
-            {
-                KingdomQuestMapProtocolInfo candidate = definition.MapLink[i];
-                if (candidate == null)
-                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
-
-                bool populated =
-                    !string.IsNullOrEmpty(candidate.MapBase) ||
-                    !string.IsNullOrEmpty(candidate.MapName);
-                if (!populated)
-                    continue;
-
-                if (activeMap != null ||
-                    string.IsNullOrEmpty(candidate.MapBase) ||
-                    string.IsNullOrEmpty(candidate.MapName))
-                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
-                activeMap = candidate;
-            }
-
-            // Zone.exe wms_NC_KQ_W2Z_MAKE_REQ uses MapName as the dynamic
-            // FieldMap identity but indexes the original mapdatabox by MapBase.
-            if (activeMap == null ||
-                !string.Equals(
-                    activeMap.MapBase, mapInfo.ShortName, StringComparison.Ordinal))
+            if (definition == null)
                 return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
             lock (Sync)
             {
+                // Original wms_NC_KQ_W2Z_MAKED_CMD tests these three native
+                // MAKE outcomes in this exact order: duplicate Handle,
+                // ScenarioBookShelf lookup, then fixed KQ container capacity.
                 if (ByHandle.ContainsKey(definition.Handle))
                     return KingdomQuestZoneMakeResult.DuplicateHandle;
 
-                // The native MAKE handler checks script lookup before this
-                // pool-full branch. We classify the proven 300-slot boundary
-                // here, but the transport must not emit 0x0983 until the
-                // preceding script-container lookup is represented too.
+                if (!KingdomQuestScenarioBookShelfSource.
+                        ContainsSourceBackedScenarioBook(
+                            definition.ScriptLanguage))
+                    return KingdomQuestZoneMakeResult.ScriptNotFound;
+
                 if (ByHandle.Count >= NativeContainerCapacity)
                     return KingdomQuestZoneMakeResult.NativeContainerFull;
 
-                Map map = MapManager.Instance.GetMap(mapInfo, mapInstance);
-                if (map == null || map.MapID != mapId || map.InstanceID != mapInstance)
+                // Everything below is emulator routing validation, not a
+                // guessed native MAKE_ACK error. Keep it fail-closed after the
+                // three source-proven native error-precedence checks above.
+                if (mapInstance < 0 ||
+                    DataProvider.Instance == null ||
+                    DataProvider.Instance.MapsByID == null ||
+                    MapManager.Instance == null)
                     return KingdomQuestZoneMakeResult.RejectedUnmapped;
 
-                ByHandle.Add(definition.Handle, new KingdomQuestZoneRuntimeState(
-                    definition.Handle, mapId, mapInstance,
-                    KingdomQuestZoneLifecycleState.Made, definition, null));
+                MapInfo mapInfo;
+                if (!DataProvider.Instance.MapsByID.TryGetValue(
+                        mapId, out mapInfo))
+                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
+
+                KingdomQuestMapProtocolInfo activeMap = null;
+                if (definition.MapLink == null ||
+                    definition.MapLink.Length != 4)
+                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
+                for (int i = 0; i < definition.MapLink.Length; i++)
+                {
+                    KingdomQuestMapProtocolInfo candidate =
+                        definition.MapLink[i];
+                    if (candidate == null)
+                        return KingdomQuestZoneMakeResult.RejectedUnmapped;
+
+                    bool populated =
+                        !string.IsNullOrEmpty(candidate.MapBase) ||
+                        !string.IsNullOrEmpty(candidate.MapName);
+                    if (!populated)
+                        continue;
+
+                    if (activeMap != null ||
+                        string.IsNullOrEmpty(candidate.MapBase) ||
+                        string.IsNullOrEmpty(candidate.MapName))
+                        return KingdomQuestZoneMakeResult.RejectedUnmapped;
+                    activeMap = candidate;
+                }
+
+                // Zone.exe uses MapName as dynamic FieldMap identity but
+                // indexes the original mapdatabox by MapBase.
+                if (activeMap == null ||
+                    !string.Equals(
+                        activeMap.MapBase, mapInfo.ShortName,
+                        StringComparison.Ordinal))
+                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
+
+                Map map = MapManager.Instance.GetMap(mapInfo, mapInstance);
+                if (map == null ||
+                    map.MapID != mapId ||
+                    map.InstanceID != mapInstance)
+                    return KingdomQuestZoneMakeResult.RejectedUnmapped;
+
+                ByHandle.Add(definition.Handle,
+                    new KingdomQuestZoneRuntimeState(
+                        definition.Handle, mapId, mapInstance,
+                        KingdomQuestZoneLifecycleState.Made,
+                        definition, null));
                 return KingdomQuestZoneMakeResult.Success;
             }
         }

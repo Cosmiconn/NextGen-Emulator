@@ -43,8 +43,10 @@ Implemented and CI-locked on the KQ branch:
 - source-backed map-link allocation, dynamic Zone instance routing and transfer;
 - native start gate, random team division, W2Z MAKE/START and Z2W END/DESTROY;
 - save-location/reconnect state and native KQ date packing;
-- original script/static-regen source boundaries without treating file presence
-  as successful scenario loading;
+- exact ScenarioBookShelf KQ catalog/file projection plus native MAKE
+  duplicate/script/capacity ACK precedence, without equating shelf membership
+  with successful later script execution;
+- original static-regen source boundaries and lazy scenario-owned regen path;
 - deterministic reward preparation through KQ reward lookup/dice,
   ShineReward lookup, ITEM classifier source resolution, exact native
   CardDeck candidate shuffle/rotation/UseClass filtering plus native
@@ -55,8 +57,9 @@ Implemented and CI-locked on the KQ branch:
 
 Still required for block completion:
 
-- a source-equivalent ScenarioBookShelf/PineScript/Lua runtime and the live
-  scenario-driven mob/objective/success/failure flow;
+- a source-equivalent PineScript/Lua ScenarioBook execution runtime
+  (CinemaComplex film/actions) and the live scenario-driven
+  mob/objective/success/failure flow;
 - authoritative ownership of the shared Zone CRT rand state used by the
   source-modeled CardDeck stage, followed by TreasureChest item
   construction/options and the GameDB/item-store transaction plus exact reward
