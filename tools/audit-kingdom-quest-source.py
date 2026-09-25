@@ -773,9 +773,6 @@ def main():
 
     for token in (
         'class KingdomQuestRewardScalarPlan',
-        'public ulong ExperienceQuantity',
-        'public ulong MoneyQuantity',
-        'public ulong HonorQuantity',
         'selection.Experience',
         'selection.Money',
         'selection.Honor',
