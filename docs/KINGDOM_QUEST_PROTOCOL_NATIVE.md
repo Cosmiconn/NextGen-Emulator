@@ -255,7 +255,12 @@ must not synthesize numeric aliases for the missing IDs.
 
 
 The handle target is the original 435-row `ShineReward.shn`
-(SHA-256 `09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f`).
+(SHA-256 `09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f`). It is now an independently validated optional runtime
+source: manifest/hash, 435-row table count and exact source-row projection
+must all succeed before World exposes it to the KQ reward resolver.
+All 300 distinct nonzero handles referenced by the supplied
+`KingdomQuestRew` corpus resolve; those used rows are 247 ITEM, 39 EXP and
+14 MONEY.
 PDB fixes `ShineReward` at 66 bytes and the reward-type enum at
 NONE/ITEM/EXP/MONEY/HONOR/HP_SOUL_STONE/SP_SOUL_STONE/GURAD_SOUL_STONE/
 ATTACK_SOUL_STONE/CLASS_CHANGE/PET = 0..10, with MAX=11.

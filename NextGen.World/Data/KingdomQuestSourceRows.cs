@@ -210,6 +210,66 @@ namespace NextGen.World.Data
         }
     }
     /// <summary>
+    /// Exact row from original ShineReward.shn. The native reward handle is
+    /// not assumed to equal source-row position; RewardData::rd_FindHandle is
+    /// modeled separately as a handle lookup.
+    /// </summary>
+    public sealed class ShineRewardSourceRow
+    {
+        public uint SourceRow { get; private set; }
+        public ushort RewardHandle { get; private set; }
+        public ShineRewardType RewardType { get; private set; }
+        public string Argument { get; private set; }
+        public uint Quantity { get; private set; }
+        public short Upgrade { get; private set; }
+        public IReadOnlyList<short> UnknownShorts { get; private set; }
+        public ushort OptionDegree { get; private set; }
+        public uint TitleDegree { get; private set; }
+
+        public ShineRewardNativeInfo ToNativeInfo()
+        {
+            return new ShineRewardNativeInfo
+            {
+                RewardHandle = RewardHandle,
+                RewardType = RewardType,
+                Argument = Argument ?? string.Empty,
+                Quantity = Quantity,
+                Upgrade = Upgrade,
+                UnknownShorts = UnknownShorts,
+                OptionDegree = OptionDegree,
+                TitleDegree = TitleDegree,
+            };
+        }
+
+        public static ShineRewardSourceRow Load(DataRow row)
+        {
+            if (row == null) throw new ArgumentNullException("row");
+
+            var unknown = new short[ShineRewardNativeInfo.UnknownShortCount];
+            for (int i = 0; i < unknown.Length; i++)
+                unknown[i] = GetDataTypes.Getshort(row["Undefined " + i]);
+
+            byte rewardType = GetDataTypes.GetByte(row["RewardType"]);
+            if (rewardType >= (byte)ShineRewardType.Max)
+                throw new InvalidOperationException(
+                    "Unsupported source ShineReward type " + rewardType + ".");
+
+            return new ShineRewardSourceRow
+            {
+                SourceRow = GetDataTypes.GetUint(row["__SourceRow"]),
+                RewardHandle = GetDataTypes.GetUshort(row["RewardHandle"]),
+                RewardType = (ShineRewardType)rewardType,
+                Argument = Convert.ToString(row["Argument"]),
+                Quantity = GetDataTypes.GetUint(row["Quantity"]),
+                Upgrade = GetDataTypes.Getshort(row["Upgrade"]),
+                UnknownShorts = Array.AsReadOnly(unknown),
+                OptionDegree = GetDataTypes.GetUshort(row["OptionDegree"]),
+                TitleDegree = GetDataTypes.GetUint(row["TitleDegree"]),
+            };
+        }
+    }
+
+    /// <summary>
     /// Exact row from the original shared UseClassTypeInfo.shn table used by
     /// WorldManager's CharClassDataBox::ccdb_UseClassTypeToBit.
     /// </summary>

@@ -1335,7 +1335,17 @@ NUL-terminated within the native 32-byte field; the longest is 20 bytes.
 The referenced handle source is the original `ShineReward.shn`, independently
 decoded as SHA-256
 `09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f`,
-**435 rows / 16 columns**. Its shape matches the PDB `ShineReward` struct:
+**435 rows / 16 columns**. The World source layer now loads this table only when
+the manifest matches that exact snapshot and the runtime table has all 435
+rows. `ShineRewardSourceRow` preserves every source field and
+`TryFindShineRewardByHandle` models RewardData's handle lookup without
+using physical SHN row positions.
+
+Across all 64 supplied `KingdomQuestRew` rows there are exactly **300
+distinct nonzero reward handles**. Every one resolves in this exact
+`ShineReward` snapshot. Their used-type split is **247 ITEM, 39 EXP,
+14 MONEY**; none of the KQ reward handles in this snapshot resolves to HONOR
+or the later reward types. Its shape matches the PDB `ShineReward` struct:
 `RewardHandle u16`, `RewardType u8`, `Argument[33]`, `Quantity u32`,
 `Upgrade i16`, nine additional i16 fields, `OptionDegree u16`, and
 `TitleDegree u32`. The source dumper now includes this SHN as an optional

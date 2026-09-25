@@ -36,6 +36,8 @@ namespace NextGen.World.Data
         public IReadOnlyList<KingdomQuestUseClassSourceRow> KingdomQuestUseClassSourceRows { get; private set; }
         public Dictionary<uint, long> KingdomQuestDemandClassMasks { get; private set; }
         public bool HasKingdomQuestUseClassSource { get; private set; }
+        public IReadOnlyList<ShineRewardSourceRow> KingdomQuestShineRewards { get; private set; }
+        public bool HasKingdomQuestShineRewardSource { get; private set; }
 
 		public DataProvider()
 		{
@@ -66,6 +68,8 @@ namespace NextGen.World.Data
             KingdomQuestUseClassSourceRows = new List<KingdomQuestUseClassSourceRow>().AsReadOnly();
             KingdomQuestDemandClassMasks = new Dictionary<uint, long>();
             HasKingdomQuestUseClassSource = false;
+            KingdomQuestShineRewards = new List<ShineRewardSourceRow>().AsReadOnly();
+            HasKingdomQuestShineRewardSource = false;
 
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
@@ -139,6 +143,18 @@ namespace NextGen.World.Data
                 HasKingdomQuestUseClassSource = true;
             }
 
+            // ShineReward is a reward-runtime dependency, not part of the four
+            // SHNs required to build/schedule KQ definitions. Load it only
+            // when the exact supplied source manifest and table are present.
+            KingdomQuestSourceManifestInfo shineRewardSource;
+            if (KingdomQuestSourceManifest.TryGetValue("ShineReward", out shineRewardSource) &&
+                KingdomQuestSourceSnapshot.Matches(shineRewardSource) &&
+                ValidateKingdomQuestSourceTables(new[] { "ShineReward" }))
+            {
+                LoadKingdomQuestShineRewardSourceRows();
+                HasKingdomQuestShineRewardSource = true;
+            }
+
             Log.WriteLine(LogLevel.Info,
                 "Loaded KQ metadata: {0} maps, {1} descriptions, {2} teams, {3} vote flags, {4} vote reasons, {5} vote thresholds; main source={6}.",
                 KingdomQuestMaps.Count, KingdomQuestDescriptions.Count, KingdomQuestTeams.Count,
@@ -149,6 +165,10 @@ namespace NextGen.World.Data
                 "Loaded KQ UseClass conversion source: {0} rows; source={1}.",
                 KingdomQuestUseClassSourceRows.Count,
                 HasKingdomQuestUseClassSource ? "complete" : "absent/incomplete");
+            Log.WriteLine(LogLevel.Info,
+                "Loaded KQ ShineReward source: {0} rows; source={1}.",
+                KingdomQuestShineRewards.Count,
+                HasKingdomQuestShineRewardSource ? "complete" : "absent/incomplete");
         }
 
         private void LoadKingdomQuestSourceManifest()
@@ -301,6 +321,22 @@ namespace NextGen.World.Data
 
             KingdomQuestUseClassSourceRows = rows.AsReadOnly();
             KingdomQuestDemandClassMasks = masks;
+        }
+
+        private void LoadKingdomQuestShineRewardSourceRows()
+        {
+            var rows = new List<ShineRewardSourceRow>();
+            using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+            {
+                DataTable data = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM `data_shinereward` ORDER BY `__SourceRow`; USE `{1}`",
+                    Settings.Instance.zoneMysqlDatabase,
+                    Settings.Instance.WorldMysqlDatabase));
+                foreach (DataRow row in data.Rows)
+                    rows.Add(ShineRewardSourceRow.Load(row));
+            }
+
+            KingdomQuestShineRewards = rows.AsReadOnly();
         }
 
         private bool ValidateKingdomQuestSourceTables(IEnumerable<string> sourceNames)

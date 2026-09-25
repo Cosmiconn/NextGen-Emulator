@@ -67,6 +67,31 @@ namespace NextGen.World.Data
             return false;
         }
 
+        public static bool TryFindShineRewardByHandle(
+            IReadOnlyList<ShineRewardSourceRow> rows,
+            ushort rewardHandle,
+            out ShineRewardSourceRow reward)
+        {
+            reward = null;
+            if (rows == null)
+                return false;
+
+            // RewardData::rd_FindHandle resolves the native RewardHandle, not
+            // the physical SHN row. Preserve first-match linear semantics so
+            // duplicate handle 0 rows are not silently normalized away.
+            for (int i = 0; i < rows.Count; i++)
+            {
+                ShineRewardSourceRow current = rows[i];
+                if (current != null && current.RewardHandle == rewardHandle)
+                {
+                    reward = current;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public static bool TryFindDefault(
             IReadOnlyList<KingdomQuestRewardSourceRow> rows,
             KingdomQuestProtocolInfo definition,
