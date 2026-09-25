@@ -1440,6 +1440,20 @@ persistence. This prevents the 86 native TreasureChest inputs from being
 incorrectly granted as missing/direct items while the deeper
 TreasureChestMaker source tables and selection algorithm are still unresolved.
 
+The reward row's separate `KQBoxItemIDX` field is now source-resolved as
+well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
+index and all 58 values are distinct. Every one resolves to exactly one
+`ItemInfo.inxname`; there are no misses or duplicate-name ambiguities.
+All 58 resolved ItemInfo rows have the same raw source shape:
+`type=1, class=15, maxlot=1, equip=0, ItemUseSkill=UsePresentBox,
+ItemFunc=0`. The remaining six reward rows have an empty box index.
+
+`KingdomQuestRewardBoxPlan` preserves only that mapping. It deliberately
+does not treat `KQBoxItemIDX` as one of the fifteen reward contents, does
+not open the box and does not choose TreasureChest results. This separates the
+source-backed reward container item from the still-unresolved
+`TreasureChestMaker` content-selection layer.
+
 The scalar side is now closed one step further without activating mutation.
 `KingdomQuestRewardScalarPlan` consumes only the already-selected
 EXP/MONEY/HONOR rows and sums their source `Quantity u32` values into a

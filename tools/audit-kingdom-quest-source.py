@@ -34,6 +34,7 @@ WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 WORLD_REWARD_RESOLVER = ROOT / "NextGen.World/Data/KingdomQuestRewardSourceResolver.cs"
 WORLD_REWARD_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardSelectionPlan.cs"
 WORLD_REWARD_ITEM_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemPlan.cs"
+WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 NATIVE_REWARD = ROOT / "NextGen.FiestaLib/Data/KingdomQuestRewardInfo.cs"
@@ -150,8 +151,8 @@ def main():
         WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
-        WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN, WORLD_REWARD_SCALAR_PLAN,
-        NATIVE_INFO, NATIVE_REWARD,
+        WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN, WORLD_REWARD_BOX_PLAN,
+        WORLD_REWARD_SCALAR_PLAN, NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
         ITEM_INFO_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
@@ -437,6 +438,46 @@ def main():
               sorted(direct_arguments & duplicate_item_info_names))
         return 1
 
+    # KQBoxItemIDX is a distinct source field from the fifteen ShineReward
+    # handles. In this snapshot every populated box name resolves exactly once
+    # to an ItemInfo row, and all of those rows share the source PresentBox
+    # shape. This does not identify TreasureChest contents.
+    nonempty_box_indices = [
+        unquote_sql(row[3]) for row in reward_rows
+        if unquote_sql(row[3])
+    ]
+    if (len(nonempty_box_indices), len(set(nonempty_box_indices))) != (58, 58):
+        print('FAIL: KQBoxItemIDX populated/distinct corpus changed',
+              len(nonempty_box_indices), len(set(nonempty_box_indices)))
+        return 1
+    if len(reward_rows) - len(nonempty_box_indices) != 6:
+        print('FAIL: KQBoxItemIDX empty-row count changed')
+        return 1
+
+    item_rows_by_name = {}
+    for row in item_info_rows:
+        if len(row) < 57:
+            continue
+        item_rows_by_name.setdefault(unquote_sql(row[1]), []).append(row)
+
+    resolved_box_rows = []
+    for box_index in nonempty_box_indices:
+        matches = item_rows_by_name.get(box_index, [])
+        if len(matches) != 1:
+            print('FAIL: KQBoxItemIDX no longer resolves uniquely',
+                  box_index, len(matches))
+            return 1
+        resolved_box_rows.append(matches[0])
+
+    for row in resolved_box_rows:
+        source_shape = (
+            int(row[3]), int(row[4]), int(row[5]), int(row[6]),
+            unquote_sql(row[54]), int(row[56]))
+        if source_shape != (1, 15, 1, 0, 'UsePresentBox', 0):
+            print('FAIL: KQ reward box ItemInfo source shape changed',
+                  unquote_sql(row[1]), source_shape)
+            return 1
+
     reward_index_strings = [unquote_sql(row[2]) for row in reward_rows]
     if max(len(value) for value in reward_index_strings) != 20:
         print('FAIL: KingdomQuestRew IndexString width corpus changed')
@@ -491,6 +532,7 @@ def main():
     world_reward_resolver = WORLD_REWARD_RESOLVER.read_text(encoding='utf-8')
     world_reward_plan = WORLD_REWARD_PLAN.read_text(encoding='utf-8')
     world_reward_item_plan = WORLD_REWARD_ITEM_PLAN.read_text(encoding='utf-8')
+    world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     native_reward = NATIVE_REWARD.read_text(encoding='utf-8')
@@ -699,6 +741,30 @@ def main():
     ):
         if forbidden in world_reward_item_plan:
             print('FAIL: KQ reward ITEM plan activated generation/persistence',
+                  forbidden)
+            return 1
+
+    for token in (
+        'enum KingdomQuestRewardBoxResolutionKind : byte',
+        'class KingdomQuestRewardBoxPlan',
+        'rewardSource.KQBoxItemIDX',
+        'KingdomQuestRewardBoxResolutionKind.Empty',
+        'KingdomQuestRewardBoxResolutionKind.ExactItemInfoName',
+        'KingdomQuestRewardBoxResolutionKind.MissingItemInfoName',
+        'KingdomQuestRewardBoxResolutionKind.AmbiguousItemInfoName',
+        'candidate.InxName, boxItemIndex',
+        'StringComparison.Ordinal',
+        'never opens the box',
+    ):
+        if token not in world_reward_box_plan:
+            print('FAIL: KQ reward box source projection missing', token)
+            return 1
+    for forbidden in (
+        'new Item(', 'Inventory', 'ExecuteQuery', 'Random',
+        'Program.DatabaseManager', 'GiveExp(', 'ChangeMoney(',
+    ):
+        if forbidden in world_reward_box_plan:
+            print('FAIL: KQ reward box projection activated gameplay/persistence',
                   forbidden)
             return 1
 

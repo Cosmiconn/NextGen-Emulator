@@ -307,6 +307,16 @@ slots without changing order or generating an item. Exact/opaque/ambiguous
 entries remain separate until the original TreasureChestMaker source and
 selection semantics are recovered.
 
+The independent `KQBoxItemIDX` field is also source-correlated.
+Exactly 58 of 64 `KingdomQuestRew` rows have a nonempty value, all 58 are
+distinct, and every one resolves uniquely to an ItemInfo row. Those 58 rows
+uniformly carry source fields `type=1, class=15, maxlot=1, equip=0,
+ItemUseSkill=UsePresentBox, ItemFunc=0`. Six reward rows carry no box index.
+
+The runtime projection records only this exact box-item identity. It does not
+equate the box with a selected ShineReward handle and does not infer how
+`TreasureChestMaker` expands any opaque ITEM Argument.
+
 The selected scalar branches now also have a mutation-free projection.
 EXP/MONEY/HONOR `Quantity` values are summed in a deliberately wider u64
 model so no native local overflow policy is invented. For this supplied corpus
