@@ -30,19 +30,13 @@ The project documentation also contains real NA2016 packet-capture evidence for:
 
 No packet field or scheduler rule is to be invented from names alone.
 
-## First implementation slice
+## Historical first implementation slice — superseded
 
-World `DataProvider` now loads the source-faithful static KQ metadata:
-
-- `KingdomQuestTeams`;
-- `KingdomQuestVoteEnabled`;
-- `KingdomQuestVoteReasons`;
-- `KingdomQuestVoteMajorityRates`.
-
-This deliberately does **not** replace the current zero-KQ list response yet.
-The next step is to import/correlate the authoritative KingdomQuest definition
-and schedule data from the project sources, then reproduce the captured SH22
-list entry layout before enabling live registration.
+The block originally began by loading only the static KQ team/vote metadata.
+That bootstrap slice is retained here for provenance, but its former
+zero-list/definition-scheduler TODO is superseded: the exact KQ source corpus,
+native definition projection, live schedule publication and delta-based
+LIST_REFRESH path are implemented in the later sections below.
 
 ## Guardrails
 
@@ -51,7 +45,8 @@ list entry layout before enabling live registration.
 2. Captured packet fields are reproduced only after byte-level correlation.
 3. Temporary Zone allocation and transfer use the existing World->Zone
    architecture; no fixed port is inferred from captures.
-4. Vote-kick behavior stays disabled until a real KQ session state exists.
+4. Vote-kick behavior stays disabled until its native policy/error/mutation
+   ordering is source-correlated; the KQ session state itself is now live.
 5. Normal Quest code remains untouched unless a proven shared primitive is
    required.
 
@@ -227,10 +222,11 @@ ID/title/timers, level/player limits, repeat/revival gates, demand quest/item/
 class/gender, server scheduling fields, four 26-byte map links, script language/
 init strings and two team regeneration coordinates.
 
-This still does not map KingdomQuest.shn columns by assumption. It creates the
-byte-exact destination model for the source exporter. LIST_ADD/LIST_ACK/
-SCHEDULE_ACK builders can now serialize real entries once source rows are
-available; the live refresh handler continues to send an empty LIST_ADD.
+This model does not map KingdomQuest.shn columns by assumption. The later
+source-projection layer fills it only from the provenance-locked KQ tables, and
+the live scheduler publishes those definitions. LIST_REFRESH now compares the
+visible Status-0..4 snapshot per session and emits native LIST_ADD/UPDATE/DELETE
+deltas rather than the historical empty LIST_ADD stub.
 
 ## Source-owned client-definition registry
 
@@ -247,14 +243,13 @@ It deliberately performs none of the unresolved work:
 - no map selection;
 - no session-target creation.
 
-The LIST_REFRESH handler now serializes exactly the snapshot held by this
-registry through the native `LIST_ADD_ACK` serializer. With no source-backed
-definitions registered, the result remains byte-identical to the previous
-`u16 count = 0` response. Once the scheduler supplies real entries, no
-additional handler-side mapping or hard-coded list data is required.
+The LIST_REFRESH handler serializes the snapshot held by this registry through
+the native delta serializers. The source-backed scheduler now supplies the live
+entries; an actually empty registry still serializes as the native empty list
+without any handler-side hard-coded definition data.
 
-This separates source ingestion from protocol serialization without making
-schedule guesses.
+This keeps source ingestion, scheduling and protocol serialization separate
+without schedule guesses.
 
 
 ## Native Handle naming carried into routing
@@ -660,8 +655,9 @@ post-countdown START boundaries.
 
 ## Live source scheduler publication
 
-The recovered `CKQServer::AddNewScheduleList` ownership is now live without
-crossing into unresolved map allocation. `KingdomQuestScheduleRuntime`
+The recovered `CKQServer::AddNewScheduleList` ownership is live and remains
+cleanly separated from the later map-allocation lifecycle.
+`KingdomQuestScheduleRuntime`
 starts after `DataProvider` in the World `Worker` initialization stage and
 enables itself only when the exact four-table KQ corpus **and**
 `UseClassTypeInfo` provenance gates are complete.
@@ -685,9 +681,10 @@ status advancement is created here. That boundary matches the original split:
 `AddNewScheduleList` owns schedules/Handles; `DoSetMakeRoom/AllocMapLink`
 owns map allocation later.
 
-As a result, LIST/SCHEDULE/STATUS now have a real source-backed scheduler owner
-instead of waiting for an external registry feeder, while the next map-routing
-step remains gated on the still-to-be-correlated `AllocMapLink` behavior.
+As a result, LIST/SCHEDULE/STATUS have a real source-backed scheduler owner
+instead of an external registry feeder. The later sections supersede the old
+map-routing TODO: `AllocMapLink`, dynamic MapName/MapBase routing, MAKE and
+the source-backed start gate are now live.
 
 
 ## Native KingdomQuestMap slot allocation recovered
