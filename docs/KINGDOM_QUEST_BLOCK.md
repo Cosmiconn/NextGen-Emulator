@@ -1351,8 +1351,8 @@ The exact 435-row source is now checked in as
 `sql/data/data_kq_source_60_shinereward.sql`. To keep the generated source
 compact without changing values, its five always-required fields are explicit
 on every row; trailing fields default to zero and the **18** source rows with
-nonzero trailing values are patched explicitly. CI locks the generated SQL
-bytes (SHA-256
+nonzero trailing values are patched explicitly. CI locks the LF-normalized generated SQL
+content (SHA-256
 `9fa4fc1ce2db998cc61f01dc0ef6ba46575a68162efa71c467b9904032c65a88`),
 all 435 source ordinals, the 18 patches, and the 300-handle/type coverage. Its shape matches the PDB `ShineReward` struct:
 `RewardHandle u16`, `RewardType u8`, `Argument[33]`, `Quantity u32`,

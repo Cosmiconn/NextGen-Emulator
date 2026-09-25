@@ -177,7 +177,7 @@ def main():
             return 1
     shine_reward_sql = SHINE_REWARD_SQL.read_text(encoding='utf-8')
     actual_shine_sql_sha = hashlib.sha256(
-        SHINE_REWARD_SQL.read_bytes()).hexdigest()
+        shine_reward_sql.encode('utf-8')).hexdigest()
     if actual_shine_sql_sha != SHINE_REWARD_SQL_SHA256:
         print('FAIL: checked-in compact ShineReward SQL snapshot changed',
               actual_shine_sql_sha)

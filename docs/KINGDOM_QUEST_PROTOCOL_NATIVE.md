@@ -263,7 +263,7 @@ All 300 distinct nonzero handles referenced by the supplied
 14 MONEY. The checked-in compact SQL snapshot
 retains all 435 original rows and all 16 fields: zero-valued trailing fields
 use schema defaults and exactly 18 nonzero-tail rows are patched explicitly.
-CI locks that generated representation by SHA-256 and source ordinal.
+CI locks that LF-normalized generated representation by SHA-256 and source ordinal.
 PDB fixes `ShineReward` at 66 bytes and the reward-type enum at
 NONE/ITEM/EXP/MONEY/HONOR/HP_SOUL_STONE/SP_SOUL_STONE/GURAD_SOUL_STONE/
 ATTACK_SOUL_STONE/CLASS_CHANGE/PET = 0..10, with MAX=11.
