@@ -284,9 +284,15 @@ remain unresolved, so no commit/rollback label is invented in code. The
 FAIL handler does not read the packet's Error field at all; the emulator still
 preserves it in the native structure.
 
-No live grant/GameDB path is enabled yet because the exact ShineReward source
-must be loaded into the runtime and the item-generation/transaction boundary
-must be source-correlated before mutation.
+A mutation-free selection plan now composes the already-proven dice and
+RewardHandle lookup layers. It preserves native slot order and classifies only
+the proven positive KQ switch branches (ITEM/EXP/MONEY/HONOR); NONE is ignored,
+lookup misses are retained as misses, and types 5..10 are retained without an
+invented effect.
+
+No live grant/GameDB path is enabled yet because item generation, exact numeric
+accumulation/overflow behavior, transaction persistence, and the scenario
+completion trigger must be source-correlated before mutation.
 
 
 ## Original World ↔ Zone KQ lifecycle wire

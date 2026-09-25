@@ -1388,6 +1388,15 @@ PDB types, so the emulator does not label or invoke them yet. Importantly,
 the FAIL handler never reads its trailing `error` field; the field remains
 modeled because it is still part of the native wire structure.
 
+The new `KingdomQuestRewardSelectionPlan` now closes the pure selection
+layer between dice and mutation. It consumes all 15 dice results, performs the
+source-backed RewardHandle lookup, skips missing handles exactly as native
+`sp_KQReward` does, ignores NONE, and separates ITEM / EXP / MONEY / HONOR
+from later reward types. It deliberately does **not** aggregate with guessed
+overflow rules, generate inventory items, award stats/currency, or persist
+anything. Types 5..10 remain preserved as unresolved later-type entries rather
+than being promoted to KQ effects.
+
 These packet structures are modeled byte-for-byte, but no GameDB-equivalent
 send/ACK path is activated before item generation, transaction persistence,
 and the scenario completion trigger are source-equivalent.

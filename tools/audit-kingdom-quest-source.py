@@ -32,6 +32,7 @@ WORLD_RECONNECT = ROOT / "NextGen.World/Data/KingdomQuestReconnectRules.cs"
 WORLD_MAP_CONTEXT = ROOT / "NextGen.World/Data/KingdomQuestMapContext.cs"
 WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 WORLD_REWARD_RESOLVER = ROOT / "NextGen.World/Data/KingdomQuestRewardSourceResolver.cs"
+WORLD_REWARD_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardSelectionPlan.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 NATIVE_REWARD = ROOT / "NextGen.FiestaLib/Data/KingdomQuestRewardInfo.cs"
 RAW_SOURCES = {
@@ -133,7 +134,7 @@ def main():
         WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
-        NATIVE_INFO, NATIVE_REWARD,
+        WORLD_REWARD_PLAN, NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
@@ -347,6 +348,7 @@ def main():
     world_map_context = WORLD_MAP_CONTEXT.read_text(encoding='utf-8')
     world_session = WORLD_SESSION.read_text(encoding='utf-8')
     world_reward_resolver = WORLD_REWARD_RESOLVER.read_text(encoding='utf-8')
+    world_reward_plan = WORLD_REWARD_PLAN.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     native_reward = NATIVE_REWARD.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -501,6 +503,34 @@ def main():
                       'rows[(int)rewardIndex]'):
         if forbidden in world_reward_resolver:
             print('FAIL: KQ reward lookup regressed to source-row indexing',
+                  forbidden)
+            return 1
+
+    for token in (
+        'class KingdomQuestResolvedRewardEntry',
+        'class KingdomQuestRewardSelectionPlan',
+        'nativeReward.EvaluateDice(randomSamples)',
+        'if (!selected.Selected)',
+        'KingdomQuestRewardSourceResolver.TryFindShineRewardByHandle(',
+        'missing.Add(selected)',
+        'resolved.RewardType == ShineRewardType.None',
+        'case ShineRewardType.Item:',
+        'case ShineRewardType.Experience:',
+        'case ShineRewardType.Money:',
+        'case ShineRewardType.Honor:',
+        'laterTypes.Add(entry)',
+        'The recovered KQ switch has no proven positive',
+    ):
+        if token not in world_reward_plan:
+            print('FAIL: source-backed KQ reward selection plan missing', token)
+            return 1
+
+    for forbidden in (
+        'Inventory', 'ExecuteQuery', 'GiveExp(', 'Money +=', 'Fame +=',
+        'AddItem(', 'Program.DatabaseManager',
+    ):
+        if forbidden in world_reward_plan:
+            print('FAIL: KQ reward selection plan activated mutation/persistence',
                   forbidden)
             return 1
 
