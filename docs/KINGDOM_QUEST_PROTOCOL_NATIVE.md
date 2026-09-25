@@ -468,9 +468,9 @@ Status 2. The original invalid-status branch additionally destroys/frees map
 state; that destructive edge remains guarded instead of being approximated.
 
 
-## Vote wire family closed without policy inference
+## Native KQ vote state/result recovered
 
-The PDB-derived vote packet bodies are now explicit builders:
+The PDB-derived vote packet bodies remain byte-exact:
 
 ```text
 0x5828 VOTE_START_ACK:        u16 Error
@@ -486,10 +486,43 @@ The PDB-derived vote packet bodies are now explicit builders:
 0x5835 VOTE_START_CHECK_ACK: u16 Error
 ```
 
-These serializers do not decide who may start a vote, which `VoteType` values
-are valid, how the two source majority thresholds are selected, when a vote
-passes, or what any raw Error means. Request handlers remain disabled until
-those rules are tied to original behavior.
+Direct WorldManager.exe disassembly now closes the state machine behind those
+packets. `KQ_VOTE_INFO` stores team, starter index, target index, time32 end
+time and YES/NO/CANCEL counters. Its clear state is team 2, starter/target -1,
+end time zero and zero counters.
+
+`VOTE_START_ACK` starts at `0x3100`. Proven failures are invalid Handle/
+starter `0x3101`, non-running Status `0x3102`, another active vote
+`0x3103`, target/team/live/ban rejection `0x3105`, self-target
+`0x3106`, zero **contents length** `0x3107`, suggest cooldown `0x3108`
+and source IsVote=false `0x3109`. The request byte at +0x14 is VoteType;
++0x15 is contents length, so 0x3107 is not a VoteType-zero check.
+
+On successful start, only same-team members other than starter and target are
+eligible. Native sets each eligible joiner's bInVote to 1 and increments the
+initial Cancel counter once per eligible voter. `KQ_VOTING_TYPE` is
+CANCEL=0, YES=1, NO=2, MAX=3. Voting ACK uses `0x3110` success,
+`0x3111` invalid joiner, `0x3112` no active vote/wrong team and
+`0x3113` bInVote=0. An accepted vote always clears bInVote. YES/NO each
+decrement Cancel and increment their own byte; CANCEL and other values leave
+the reserved Cancel count unchanged.
+
+At expiry native runs only when `EndTime < now`. The target's byte
+`nVotingCount` selects the source majority-rate row and clamps past the end
+of that table. With the supplied source this is 70% for the first result and
+50% thereafter. The calculated ratio is `YES*100/(YES+NO)`, or zero when
+YES is zero; Cancel is excluded. Every result increments nVotingCount. All
+same-team bInVote values are cleared. A passing result sets target bBan=1.
+The success packet carries the **required threshold rate**, not the calculated
+ratio.
+
+`KingdomQuestVoteCoordinator` now models those bookkeeping/result mutations
+without network or character gameplay side effects. The native external
+settings `KQVote_SuggestCoolTime` and `KQVote_VoteLimitTime` are named
+by the executable but their configured numeric values are absent from the
+supplied server archive. Therefore live VOTE_START handlers remain gated
+rather than inventing durations. Ban transfer, target-disjoin cancellation and
+login-ban notification ordering are kept as the next transport layer.
 
 
 ## JOIN admission Error values recovered

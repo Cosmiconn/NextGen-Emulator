@@ -22,6 +22,7 @@ WORLD_INTER = ROOT / "NextGen.World/InterServer/InterHandler.cs"
 WORLD_ZONE_CONNECTION = ROOT / "NextGen.World/InterServer/ZoneConnection.cs"
 ZONE_INTER = ROOT / "NextGen.Zone/InterServer/InterHandler.cs"
 MEMBERSHIP = ROOT / "NextGen.World/Data/KingdomQuestMembershipRegistry.cs"
+VOTE_STATE = ROOT / "NextGen.World/Data/KingdomQuestVoteState.cs"
 CHARACTER = ROOT / "NextGen.Database/Storage/Character.cs"
 READ_METHODS = ROOT / "NextGen.Database/DataStore/ReadMethods.cs"
 WORLD_SCHEMA = ROOT / "sql/world/schema.sql"
@@ -45,7 +46,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, SCENARIOBOOK_SOURCE, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6]
+    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, VOTE_STATE, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, SCENARIOBOOK_SOURCE, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -72,6 +73,7 @@ def main():
     read_methods = READ_METHODS.read_text(encoding="utf-8")
     world_schema = WORLD_SCHEMA.read_text(encoding="utf-8")
     membership = MEMBERSHIP.read_text(encoding="utf-8")
+    vote_state = VOTE_STATE.read_text(encoding="utf-8")
     identity = IDENTITY.read_text(encoding="utf-8")
     packet_helper = PACKET_HELPER.read_text(encoding="utf-8")
     admission = ADMISSION.read_text(encoding="utf-8")
@@ -437,6 +439,26 @@ def main():
         "JoinListInvalidHandle = 0x3119",
         "JoinListCooldown = 0x311A",
         "JoinListCooldownSeconds = 5",
+        "VoteStartSuccess = 0x3100",
+        "VoteStartInvalidHandle = 0x3101",
+        "VoteStartWrongStatus = 0x3102",
+        "VoteStartAlreadyRunning = 0x3103",
+        "VoteStartTargetRejected = 0x3105",
+        "VoteStartSelfTarget = 0x3106",
+        "VoteStartEmptyContents = 0x3107",
+        "VoteStartSuggestCooldown = 0x3108",
+        "VoteStartDisabled = 0x3109",
+        "VoteVotingSuccess = 0x3110",
+        "VoteVotingInvalidJoiner = 0x3111",
+        "VoteVotingWrongVoteOrTeam = 0x3112",
+        "VoteVotingNotEligible = 0x3113",
+        "VoteStartCheckSuccess = 0x3120",
+        "VoteStartCheckAlreadyRunning = 0x3121",
+        "VoteStartCheckSuggestCooldown = 0x3122",
+        "VoteChoiceCancel = 0",
+        "VoteChoiceYes = 1",
+        "VoteChoiceNo = 2",
+        "VoteChoiceMax = 3",
         "TeamSelectSuccess = 0x31F0",
         "TeamSelectInvalidHandle = 0x31F1",
         "TeamSelectWrongStatus = 0x31F2",
@@ -687,6 +709,48 @@ def main():
         "ToZoneInfo()",
         "never infers one identity from the other",
     ], "combined KQ native membership identity and exact vote fields"):
+        return 1
+
+    if not require(vote_state, [
+        "class KingdomQuestVoteState",
+        "StarterIndex = -1",
+        "TargetIndex = -1",
+        "TeamType = KingdomQuestNativeConstants.NeutralTeamType",
+        "class KingdomQuestVoteCoordinator",
+        "public static bool TryPrepareStart(",
+        "VoteStartInvalidHandle",
+        "VoteStartWrongStatus",
+        "VoteStartAlreadyRunning",
+        "VoteStartDisabled",
+        "VoteStartTargetRejected",
+        "target.BanRaw == 1",
+        "VoteStartSelfTarget",
+        "contentsLength == 0",
+        "VoteStartEmptyContents",
+        "VoteStartSuggestCooldown",
+        "members[i].InVoteRaw = 1",
+        "cancelCount++",
+        "public static bool TryRecordVote(",
+        "VoteVotingInvalidJoiner",
+        "VoteVotingWrongVoteOrTeam",
+        "VoteVotingNotEligible",
+        "members[memberIndex].InVoteRaw = 0",
+        "VoteChoiceYes",
+        "VoteChoiceNo",
+        "public static bool TryResolveExpired(",
+        "state.EndTime >= currentTime",
+        "rateIndex = target.VotingCount",
+        "rateIndex =",
+        "target.VotingCount++",
+        "yesRate >= requiredRate",
+        "members[i].InVoteRaw = 0",
+        "target.BanRaw = 1",
+        "v.BanRaw != 0",
+    ], "native KQ vote state/result projection"):
+        return 1
+
+    if "Math.Round" in vote_state or "Random" in vote_state:
+        print("FAIL: KQ vote result gained inferred rounding/randomness")
         return 1
 
     for forbidden in (
@@ -1015,6 +1079,7 @@ def main():
     print("PASS: PDB names lock TeamDivideType 1=RANDOM and 2=USERSELECT; PlayerJoin type-2 initial assignment remains source-modeled")
     print("PASS: one combined membership owner carries CharacterNumber plus client identity fields into both native roster projections")
     print("PASS: native KQ_JOINER_BF +0x20 bInVote / +0x24 bBan / +0x28 nVotingCount are preserved at exact widths")
+    print("PASS: native KQ vote bookkeeping models 0x3100/0x3110 errors, eligibility counters, threshold clamp, result ban and audience without timing guesses")
     return 0
 
 if __name__ == "__main__":

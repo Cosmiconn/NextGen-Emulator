@@ -511,6 +511,34 @@ namespace NextGen.FiestaLib.Data
         public const ushort JoinListCooldown = 0x311A;
         public const int JoinListCooldownSeconds = 5;
 
+        // WorldManager.exe CKQServer::Recv_NC_KQ_VOTE_START_REQ branches.
+        public const ushort VoteStartSuccess = 0x3100;
+        public const ushort VoteStartInvalidHandle = 0x3101;
+        public const ushort VoteStartWrongStatus = 0x3102;
+        public const ushort VoteStartAlreadyRunning = 0x3103;
+        public const ushort VoteStartTargetRejected = 0x3105;
+        public const ushort VoteStartSelfTarget = 0x3106;
+        public const ushort VoteStartEmptyContents = 0x3107;
+        public const ushort VoteStartSuggestCooldown = 0x3108;
+        public const ushort VoteStartDisabled = 0x3109;
+
+        // WorldManager.exe CKQServer::Recv_NC_KQ_VOTE_VOTING_REQ branches.
+        public const ushort VoteVotingSuccess = 0x3110;
+        public const ushort VoteVotingInvalidJoiner = 0x3111;
+        public const ushort VoteVotingWrongVoteOrTeam = 0x3112;
+        public const ushort VoteVotingNotEligible = 0x3113;
+
+        // WorldManager.exe CKQServer::Recv_NC_KQ_VOTE_START_CHECK_REQ.
+        public const ushort VoteStartCheckSuccess = 0x3120;
+        public const ushort VoteStartCheckAlreadyRunning = 0x3121;
+        public const ushort VoteStartCheckSuggestCooldown = 0x3122;
+
+        // WorldManager.pdb KQ_VOTING_TYPE.
+        public const int VoteChoiceCancel = 0;
+        public const int VoteChoiceYes = 1;
+        public const int VoteChoiceNo = 2;
+        public const int VoteChoiceMax = 3;
+
         // WorldManager.exe CKQServer::Recv_NC_KQ_TEAM_SELECT_REQ branches.
         public const ushort TeamSelectSuccess = 0x31F0;
         public const ushort TeamSelectInvalidHandle = 0x31F1;

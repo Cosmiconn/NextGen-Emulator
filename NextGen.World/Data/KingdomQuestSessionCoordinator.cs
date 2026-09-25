@@ -810,6 +810,7 @@ namespace NextGen.World.Data
                 bool target = KingdomQuestSessionTargetRegistry.Remove(handle);
                 KingdomQuestStartCountdownRegistry.Remove(handle);
                 KingdomQuestDoneSkipRegistry.Remove(handle);
+                KingdomQuestVoteCoordinator.Remove(handle);
                 KingdomQuestMapAllocationRegistry.Free(handle);
                 return protocolDefinition || definition || state || participants ||
                     joinListReply || mapContext || zoneJoiners || membership || target;

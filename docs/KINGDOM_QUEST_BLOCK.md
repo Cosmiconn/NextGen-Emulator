@@ -1135,6 +1135,19 @@ tests rather than one generic managed boolean.
 The vote-success/result/disjoin ordering is recovered separately below before
 those fields are used to drive live policy.
 
+The core vote bookkeeping is now source-modeled in
+`KingdomQuestVoteCoordinator`. It preserves the exact inactive
+`KQ_VOTE_INFO` state, start/voting error families, same-team voter
+eligibility, initial Cancel reservation, YES/NO byte arithmetic, majority-rate
+clamping by target `nVotingCount`, integer YES percentage, result audience,
+target vote-count increment and success `bBan=1`. This layer performs no
+network send or forced map transfer.
+
+Two original World configuration keys remain source-named but value-unresolved:
+`KQVote_SuggestCoolTime` and `KQVote_VoteLimitTime`. Their numeric values
+are not present in the supplied Server.zip configuration corpus, so live vote
+start is intentionally not enabled with guessed durations.
+
 
 
 ### Native character save-location persistence boundary
