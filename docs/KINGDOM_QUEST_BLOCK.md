@@ -206,9 +206,9 @@ STATUS_REQ/ACK is corrected to u32 Handle + u8 Status + u16 joinerCount +
 20-byte Name5 entries.
 
 See docs/KINGDOM_QUEST_PROTOCOL_NATIVE.md for the field table. JOIN,
-JOIN_CANCEL and JOIN_LIST now use the recovered admission/membership state;
-remaining disabled Header-22 requests are the vote and TEAM_SELECT families
-whose policy/error semantics are not yet proven.
+JOIN_CANCEL, JOIN_LIST and TEAM_SELECT now use recovered native
+admission/membership state. The remaining disabled Header-22 request family is
+vote policy, whose success/failure mutation ordering is handled separately.
 
 ## Native KQ definition wire model
 
@@ -830,6 +830,20 @@ The original PDB names the divide enum values used by these branches:
 smaller-team branch is therefore the USERSELECT initialization path, not the
 random divider. Every supplied NA2016 KQTeam row has divide type 1: players
 join those KQs as neutral TeamType 2 and are divided only at start.
+
+The separate USERSELECT request path is now recovered directly from
+`CKQServer::Recv_NC_KQ_TEAM_SELECT_REQ`. It uses errors `0x31F0..0x31F7`,
+requires Status 2 and KQTD_USERSELECT=2, rejects same-team requests, applies
+the strict `newTarget < floor(MaxPlayers/2)` gate and then the directional
+`newTarget-newOld <= MaxMemberGap` gate. Success changes the combined
+membership TeamType atomically, ACKs the requester, then sends
+`NC_KQ_TEAM_SELECT_CMD` to other represented KQ sessions. An out-of-range
+request team is fail-closed because the original indexes a two-element team
+counter without a safe validation branch.
+
+All eight supplied KQTeam rows remain KQTD_RANDOM=1 / MaxMemberGap=1, so this
+generic USERSELECT success mutation is currently unreachable from the supplied
+content; those definitions return the proven wrong-divide-type `0x31F7`.
 
 The participant count and team values now have an explicit combined native
 membership owner. `KingdomQuestMembershipEntry` carries CharacterNumber,

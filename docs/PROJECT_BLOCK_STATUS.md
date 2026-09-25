@@ -41,7 +41,8 @@ Implemented and CI-locked on the KQ branch:
 - LIST/SCHEDULE/STATUS serialization and refresh deltas;
 - JOIN/JOIN_CANCEL/JOIN_LIST admission and membership state;
 - source-backed map-link allocation, dynamic Zone instance routing and transfer;
-- native start gate, random team division, W2Z MAKE/START and Z2W END/DESTROY;
+- native start gate, random team division, complete USERSELECT TEAM_SELECT
+  request/error/mutation/broadcast path, and W2Z MAKE/START + Z2W END/DESTROY;
 - save-location/reconnect state and native KQ date packing;
 - exact ScenarioBookShelf KQ catalog/file projection plus native MAKE
   duplicate/script/capacity ACK precedence, without equating shelf membership
@@ -64,8 +65,8 @@ Still required for block completion:
   source-modeled CardDeck stage, followed by TreasureChest item
   construction/options and the GameDB/item-store transaction plus exact reward
   mutation/completion timing;
-- remaining vote-kick and USERSELECT/TEAM_SELECT policy/mutation ordering where
-  original semantics are not yet fully correlated.
+- remaining vote-kick policy/mutation/login-ban ordering where original
+  semantics are not yet fully correlated.
 
 See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
 boundary. Unknown behavior remains fail-closed rather than inferred.

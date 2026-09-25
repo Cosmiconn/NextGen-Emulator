@@ -100,10 +100,9 @@ NC_KQ_PLAYER_DISJOIN   0x583B: u32 Handle + u32 CharacterNumber
 ```
 
 The old project capture's one-byte type-58 packet is therefore no longer
-unknown: it is `NC_KQ_TEAM_TYPE_CMD`. JOIN_CANCEL and JOIN_LIST are live.
-The TEAM_SELECT request remains disabled because its mutation rules and raw
-`Error` values are not yet proven; the packet boundary alone is not used to
-invent them.
+unknown: it is `NC_KQ_TEAM_TYPE_CMD`. JOIN_CANCEL, JOIN_LIST and TEAM_SELECT
+are now live. TEAM_SELECT uses only the executable-proven USERSELECT rules and
+raw Error values below.
 
 
 ## JOIN_LIST_REQ Error/cooldown behavior recovered
@@ -544,6 +543,38 @@ user-select mode, not the random-start divider.
 Every supplied NA2016 `KQTeam.shn` row is RANDOM (1). Those joins therefore
 remain neutral TeamType 2 until the start sequence invokes
 `KQTeam_DivideRandom`.
+
+### USERSELECT TEAM_SELECT recovered
+
+WorldManager.exe `CKQServer::Recv_NC_KQ_TEAM_SELECT_REQ` closes the complete
+request decision path. The ACK starts with TeamType 2 and uses these exact
+errors:
+
+| Error | Native branch |
+| --- | --- |
+| `0x31F0` | success |
+| `0x31F1` | session has no KQ Handle, or Handle lookup fails |
+| `0x31F2` | KQ Status is not 2 (JOINING) |
+| `0x31F3` | requested team already equals the joiner's current team |
+| `0x31F4` | moving would make target count `>= floor(MaxPlayers/2)` |
+| `0x31F5` | `newTargetCount - newOldCount > MaxMemberGap` |
+| `0x31F6` | no KQTeam row for the KQ ID |
+| `0x31F7` | KQTeamDivideType is not USERSELECT (2) |
+
+The `0x31F5` arithmetic is directional; the native code does not use an
+absolute difference. On success World changes the joiner's TeamType, updates
+the two team counters, sends TEAM_SELECT_ACK to the requester, then broadcasts
+TEAM_SELECT_CMD (Name5 + new team) to the other represented KQ sessions.
+
+The emulator performs that mutation through the combined membership owner, so
+client and World-to-Zone roster projections change atomically. Requests above
+team 1 are fail-closed instead of reproducing the original unchecked
+two-element counter indexing.
+
+This generic USERSELECT path is source-correct but **not exercised by the
+supplied NA2016 KQTeam corpus**: all eight supplied rows have divide type
+RANDOM (1) and MaxMemberGap 1, so a TEAM_SELECT request for those definitions
+reaches the proven `0x31F7` branch without mutating membership.
 
 At the Status-3 countdown expiry, `DoSetStart` writes Status 4, executes
 `KQTeam_DivideRandom`, then `KQTeam_LeaveParty`, then sends
