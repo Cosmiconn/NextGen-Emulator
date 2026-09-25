@@ -296,10 +296,16 @@ ItemInfo assumption. Across the 247 KQ-used ITEM handles, 161 handles / 95
 distinct arguments exactly match `ItemInfo.inxname`; 86 handles / 36
 arguments do not. Native `sp_KQReward` nevertheless sends every ITEM branch
 through `TreasureChestMaker`. The shared classifier therefore records only an
-ordinal exact ItemInfo match or an opaque TreasureChest argument and never
-synthesizes an alias. The opaque corpus includes `Weapon3`,
-`NamedWeapon4`, `HighDust`, `NorProduct`, `P_KQHBAT1` and
-`Upsource15`.
+ordinal exact ItemInfo match, an opaque TreasureChest argument, or an explicit
+ambiguous ItemInfo name and never synthesizes an alias. The supplied ItemInfo
+snapshot contains 17 duplicate names, but none intersects the 95 direct KQ
+arguments. The opaque corpus includes `Weapon3`, `NamedWeapon4`,
+`HighDust`, `NorProduct`, `P_KQHBAT1` and `Upsource15`.
+
+`KingdomQuestRewardItemPlan` applies that classifier to the selected ITEM
+slots without changing order or generating an item. Exact/opaque/ambiguous
+entries remain separate until the original TreasureChestMaker source and
+selection semantics are recovered.
 
 No live grant/GameDB path is enabled yet because item generation, exact numeric
 accumulation/overflow behavior, transaction persistence, and the scenario

@@ -36,6 +36,7 @@ namespace NextGen.FiestaLib.Data
         NotItemReward = 0,
         ExactItemInfoName = 1,
         OpaqueTreasureChestArgument = 2,
+        AmbiguousItemInfoName = 3,
     }
 
     /// <summary>
@@ -184,16 +185,28 @@ namespace NextGen.FiestaLib.Data
             if (itemInfos != null)
             {
                 string argument = Argument ?? string.Empty;
+                ItemInfo match = null;
                 foreach (ItemInfo candidate in itemInfos)
                 {
-                    if (candidate != null &&
-                        string.Equals(
+                    if (candidate == null ||
+                        !string.Equals(
                             candidate.InxName, argument,
                             StringComparison.Ordinal))
+                        continue;
+
+                    if (match != null)
                     {
-                        exactItem = candidate;
-                        return ShineRewardItemArgumentKind.ExactItemInfoName;
+                        exactItem = null;
+                        return ShineRewardItemArgumentKind.AmbiguousItemInfoName;
                     }
+
+                    match = candidate;
+                }
+
+                if (match != null)
+                {
+                    exactItem = match;
+                    return ShineRewardItemArgumentKind.ExactItemInfoName;
                 }
             }
 

@@ -1426,11 +1426,19 @@ distinct arguments) are not. The opaque set includes selectors such as
 
 `ShineRewardNativeInfo.ClassifyItemArgument` now exposes only that
 cross-correlation: exact ItemInfo name versus opaque TreasureChest argument.
-It never aliases an opaque token to an item and performs no random selection,
-item creation, inventory mutation or persistence. This prevents the 86 native
-TreasureChest inputs from being incorrectly granted as missing/direct items
-while the deeper TreasureChestMaker source tables and selection algorithm are
-still unresolved.
+The full ItemInfo snapshot contains 17 duplicate `inxname` values; none is
+used by the 95 direct KQ arguments. The classifier nevertheless has an explicit
+`AmbiguousItemInfoName` result so a future source snapshot cannot silently
+pick the first duplicate.
+
+`KingdomQuestRewardItemPlan` composes this classification over the selected
+ITEM rewards in native slot order and separates exact, opaque and ambiguous
+entries while preserving the original `ShineReward` Quantity/Upgrade/options
+on each selected row. It never aliases an opaque token to an item and performs
+no TreasureChest selection, random generation, inventory mutation or
+persistence. This prevents the 86 native TreasureChest inputs from being
+incorrectly granted as missing/direct items while the deeper
+TreasureChestMaker source tables and selection algorithm are still unresolved.
 
 These packet structures are modeled byte-for-byte, but no GameDB-equivalent
 send/ACK path is activated before item generation, transaction persistence,

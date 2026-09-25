@@ -33,6 +33,7 @@ WORLD_MAP_CONTEXT = ROOT / "NextGen.World/Data/KingdomQuestMapContext.cs"
 WORLD_SESSION = ROOT / "NextGen.World/Data/KingdomQuestSessionCoordinator.cs"
 WORLD_REWARD_RESOLVER = ROOT / "NextGen.World/Data/KingdomQuestRewardSourceResolver.cs"
 WORLD_REWARD_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardSelectionPlan.cs"
+WORLD_REWARD_ITEM_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemPlan.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 NATIVE_REWARD = ROOT / "NextGen.FiestaLib/Data/KingdomQuestRewardInfo.cs"
 RAW_SOURCES = {
@@ -148,7 +149,7 @@ def main():
         WORLD_MAP_ROUTE, WORLD_START_GATE, WORLD_MEMBERSHIP, WORLD_RANDOM,
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
-        WORLD_REWARD_PLAN, NATIVE_INFO, NATIVE_REWARD,
+        WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN, NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
         ITEM_INFO_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
@@ -318,14 +319,23 @@ def main():
     if len(item_info_rows) != 14999:
         print('FAIL: ItemInfo source row count changed', len(item_info_rows))
         return 1
-    item_info_names = {
-        unquote_sql(row[1])
-        for row in item_info_rows
-        if len(row) >= 2
-    }
+    item_info_name_counts = {}
+    for row in item_info_rows:
+        if len(row) < 2:
+            continue
+        name = unquote_sql(row[1])
+        item_info_name_counts[name] = item_info_name_counts.get(name, 0) + 1
+    item_info_names = set(item_info_name_counts)
     if len(item_info_names) != 14982:
         print('FAIL: ItemInfo distinct inxname corpus changed',
               len(item_info_names))
+        return 1
+    duplicate_item_info_names = {
+        name for name, count in item_info_name_counts.items() if count > 1
+    }
+    if len(duplicate_item_info_names) != 17:
+        print('FAIL: ItemInfo duplicate inxname corpus changed',
+              len(duplicate_item_info_names))
         return 1
 
     shine_reward_by_handle = {}
@@ -357,6 +367,11 @@ def main():
     if opaque_arguments != OPAQUE_KQ_ITEM_ARGUMENTS:
         print('FAIL: opaque KQ TreasureChest argument corpus changed',
               sorted(opaque_arguments))
+        return 1
+    direct_arguments = {row[1] for row in direct_item_rewards}
+    if direct_arguments & duplicate_item_info_names:
+        print('FAIL: a direct KQ ITEM argument became ambiguous in ItemInfo',
+              sorted(direct_arguments & duplicate_item_info_names))
         return 1
 
     reward_index_strings = [unquote_sql(row[2]) for row in reward_rows]
@@ -412,6 +427,7 @@ def main():
     world_session = WORLD_SESSION.read_text(encoding='utf-8')
     world_reward_resolver = WORLD_REWARD_RESOLVER.read_text(encoding='utf-8')
     world_reward_plan = WORLD_REWARD_PLAN.read_text(encoding='utf-8')
+    world_reward_item_plan = WORLD_REWARD_ITEM_PLAN.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     native_reward = NATIVE_REWARD.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -598,6 +614,31 @@ def main():
             return 1
 
     for token in (
+        'class KingdomQuestRewardItemPlanEntry',
+        'class KingdomQuestRewardItemPlan',
+        'selection.Items.Count',
+        'selected.Reward.ClassifyItemArgument(',
+        'ShineRewardItemArgumentKind.ExactItemInfoName',
+        'ShineRewardItemArgumentKind.OpaqueTreasureChestArgument',
+        'ShineRewardItemArgumentKind.AmbiguousItemInfoName',
+        'ExactItemInfoEntries',
+        'OpaqueTreasureChestEntries',
+        'AmbiguousItemInfoEntries',
+        'never constructs inventory items',
+    ):
+        if token not in world_reward_item_plan:
+            print('FAIL: KQ reward ITEM pre-generation plan missing', token)
+            return 1
+    for forbidden in (
+        'new Item(', 'Inventory', 'ExecuteQuery', 'Save()', 'Random',
+        'GetEmptySlot', 'Program.DatabaseManager',
+    ):
+        if forbidden in world_reward_item_plan:
+            print('FAIL: KQ reward ITEM plan activated generation/persistence',
+                  forbidden)
+            return 1
+
+    for token in (
         'public bool TryProjectNative(out KingdomQuestNativeRewardInfo value)',
         'KingdomQuestNativeRewardInfo.TryCreate(',
         'KQBoxItemIDX, RewardColumns, RewardRateColumns',
@@ -611,6 +652,7 @@ def main():
         'enum ShineRewardItemArgumentKind : byte',
         'ExactItemInfoName = 1',
         'OpaqueTreasureChestArgument = 2',
+        'AmbiguousItemInfoName = 3',
         'ClassifyItemArgument(',
         'IEnumerable<ItemInfo> itemInfos',
         'candidate.InxName, argument',
