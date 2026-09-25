@@ -141,9 +141,12 @@ defines it: a single `u32 Handle`. If the Handle exists in
 `NC_KQ_STATUS_ACK (0x5804)` with Handle, Status, Joiner count and Name5 list.
 Unknown Handles are not answered with fabricated state.
 
-`NC_KQ_JOIN_REQ (0x5805)` remains intentionally disabled until the original
-admission/error-code semantics are established. Its wire body itself is already
-known exactly as `u32 Handle`.
+`NC_KQ_JOIN_REQ (0x5805)` is now live with the recovered native
+`0x0991..0x099A` result family and admission order. The original
+`prisonmin` value is loaded from character storage; emulator rows whose
+original value is unknown remain fail-closed rather than being treated as zero.
+Cross-KQ replacement preserves the native precheck -> PlayerDisjoin ->
+PlayerJoin ordering.
 
 ## Explicit World-Handle to Zone-instance routing target
 
@@ -200,16 +203,17 @@ LIST_DELETE/LIST_UPDATE, and types 36-38 are JOINING_ALARM/
 JOINING_ALARM_END/JOINING_ALARM_LIST.
 
 The inherited 0x581C four-byte constant was a truncated Unix timestamp stub.
-The response is now the native 40-byte ServerTime + struct tm body. Type 29
-remains an exact empty LIST_ADD response (u16 count = 0) until main KQ
-definitions are imported.
+The response is now the native 40-byte ServerTime + struct tm body. Type 29 is
+the live `LIST_ADD_ACK`; source-backed refresh deltas are emitted in the
+recovered 53-entry batching threshold rather than as the historical empty stub.
 
 STATUS_REQ/ACK is corrected to u32 Handle + u8 Status + u16 joinerCount +
 20-byte Name5 entries.
 
-See docs/KINGDOM_QUEST_PROTOCOL_NATIVE.md for the field table. JOIN_REQ remains
-disabled because source-backed admission/scheduler/session rules are not yet
-loaded, not because its wire structure is unknown.
+See docs/KINGDOM_QUEST_PROTOCOL_NATIVE.md for the field table. JOIN,
+JOIN_CANCEL and JOIN_LIST now use the recovered admission/membership state;
+remaining disabled Header-22 requests are the vote and TEAM_SELECT families
+whose policy/error semantics are not yet proven.
 
 ## Native KQ definition wire model
 
@@ -538,8 +542,11 @@ those byte/word operations exactly.
 
 Finally, `AddNewScheduleList` calls `GetKQTeamData(KINGDOM_QUEST::ID)` and
 copies only IsTeamPVP plus red/blue regen XY into the native definition, or
-zeroes those fields when no KQTeam row exists. Team divide semantics remain
-UNRESOLVED and are not used here.
+zeroes those fields when no KQTeam row exists. Team division is resolved in
+the later runtime layer: PDB fixes `KQTD_RANDOM=1` and
+`KQTD_USERSELECT=2`, with RANDOM division executed at Status-3 expiry and
+the USERSELECT start gate modeled separately. This scheduler projection still
+does not perform either runtime mutation.
 
 DemandClass is still deliberately external to the scheduler projection:
 the EXE proves that source UseClass is passed through
@@ -591,9 +598,10 @@ NewStartHandle=0xFFFFFFFF; the original leaves empty NewEndHandle
 uninitialized, so the emulator deliberately zeroes it rather than reproduce
 stack-memory disclosure.
 
-This closes list-selection/refresh semantics, but it does **not** activate
-JOIN admission or synthesize scheduler entries. Live scheduler ownership,
-status transitions and map lifecycle remain separate work.
+This closes list-selection/refresh semantics. JOIN admission, scheduler
+publication, status transitions and map lifecycle are now implemented by their
+separate source-backed runtime owners described below; the list/refresh layer
+does not duplicate those decisions.
 
 
 ## Native JOIN admission and MAKE result closed
@@ -607,11 +615,13 @@ The resulting exact ACK range is 0x0991 success, then 0x0992 handle/BF,
 already joined to that Handle.
 
 The emulator already serializes Character.Job and LookInfo.Male into the same
-original shape bits used by PlayerJoin. It does **not** currently persist/model
-`PROTO_NC_CHAR_BASE_CMD::prisonmin`, and the original request also performs
-PlayerDisjoin before joining a different Handle. JOIN_REQ therefore remains
-network-disabled until those state mutations can be represented without
-defaulting an absent original field to zero.
+original shape bits used by PlayerJoin. The original
+`PROTO_NC_CHAR_BASE_CMD::prisonmin` source is now correlated to
+`tCharacter.nPrisonMin` and loaded as nullable provenance state. JOIN is live
+when that original value is known, and remains fail-closed for an emulator row
+whose source value is unknown. Cross-KQ JOIN performs the recovered
+PlayerDisjoin-before-PlayerJoin sequence instead of defaulting absent state to
+zero.
 
 The MAKE handshake is independently closed:
 `CParserZone::fc_NC_KQ_Z2W_MAKE_ACK` treats exactly `0x0981` as success.
@@ -1047,8 +1057,9 @@ exactly 4. Logout calls `PlayerDisjoin(session)` only when the result is
 false. The emulator now applies the same rule on both socket disconnect and
 Zone-reported disconnect: pre-start/non-running memberships are removed using
 the already-live native PlayerDisjoin sequence, while Status-4 membership is
-deliberately retained for reconnect. Login restoration remains a separate persistence/write step, but its
-validation is now fully bounded. Original `p_Char_GetKQMap` supplies
+deliberately retained for reconnect. Login restoration is now wired through
+the persisted KQ suffix and exact retained-joiner rebind, while its validation
+remains bounded by the original predicate. Original `p_Char_GetKQMap` supplies
 `nKQHandle`, `sKQMap`, KQ X/Y and the saved KQ date. Before
 `JoinerInfoUpdateByLogin`, World calls
 `CKQServer::IsExisted(nKQHandle, sKQMap, dKQDate)`.

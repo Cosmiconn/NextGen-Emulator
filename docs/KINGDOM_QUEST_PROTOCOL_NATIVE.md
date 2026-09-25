@@ -55,11 +55,12 @@ visible (Status 0..4) snapshot is compared with the session's prior snapshot
 and only LIST_DELETE/LIST_UPDATE/LIST_ADD deltas are emitted. Repeated KQ
 refreshes still do not replay unrelated one-time World-login callbacks.
 
-JOIN_REQ remains disabled at the network-handler boundary. Its admission
-Error/status/class/gender/team rules are now recovered, but the emulator still
-does not carry the original per-character `prisonmin` state or the complete
-cross-KQ disjoin/registration-number mutation needed to reproduce the handler
-without silently treating missing state as zero.
+JOIN_REQ is live at the network-handler boundary. Its recovered
+Error/status/class/gender/team rules use the source-correlated CharacterNumber
+and original character `prisonmin` storage. Cross-KQ replacement runs the
+native PlayerDisjoin-before-PlayerJoin sequence. A nullable emulator provenance
+sentinel for an unknown original `prisonmin` remains fail-closed and never
+silently becomes zero.
 
 ## JOIN_LIST_ACK structure closed
 
@@ -79,9 +80,8 @@ Count * KQ_JOIN_CHAR_INFO {
 
 `KingdomQuestJoinCharacterInfo` is therefore exactly 23 bytes and
 `KingdomQuestProtocol.CreateJoinListAck` serializes the native body. The
-client request handler is not enabled yet because the request-side selector
-fields have not been extracted into the committed project evidence; no handle
-or membership query is guessed.
+client request handler is live with the recovered effective-handle substitution
+for Status 4 and exact `0x3118/0x3119/0x311A` result/cooldown behavior.
 
 
 ## Additional source-level request/command layouts
@@ -100,9 +100,10 @@ NC_KQ_PLAYER_DISJOIN   0x583B: u32 Handle + u32 CharacterNumber
 ```
 
 The old project capture's one-byte type-58 packet is therefore no longer
-unknown: it is `NC_KQ_TEAM_TYPE_CMD`. Runtime builders are present for these
-server packets, but request handlers are not enabled until their admission/team
-decision rules and raw `Error` values are proven.
+unknown: it is `NC_KQ_TEAM_TYPE_CMD`. JOIN_CANCEL and JOIN_LIST are live.
+The TEAM_SELECT request remains disabled because its mutation rules and raw
+`Error` values are not yet proven; the packet boundary alone is not used to
+invent them.
 
 
 ## JOIN_LIST_REQ Error/cooldown behavior recovered
@@ -354,9 +355,9 @@ The server-only protocol layer can now build `W2Z_MAKE_REQ` and
 
 If either source is absent, the builder returns no packet. It does not derive
 CharacterNumber from a player name, select a team, allocate a map, or invent
-missing definition fields. The packets are still not sent over the emulator's
-custom InterServer transport until the native MAKE/ACK decision path is
-resolved.
+missing definition fields. The native MAKE/START/DESTROY and Z2W MAKE_ACK/END
+bodies are now carried by the emulator's custom InterServer transport; routing
+metadata remains outside the original bytes.
 
 
 ## Native KQ structures are now bidirectional
