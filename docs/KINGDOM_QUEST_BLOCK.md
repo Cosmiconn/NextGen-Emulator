@@ -1345,7 +1345,16 @@ Across all 64 supplied `KingdomQuestRew` rows there are exactly **300
 distinct nonzero reward handles**. Every one resolves in this exact
 `ShineReward` snapshot. Their used-type split is **247 ITEM, 39 EXP,
 14 MONEY**; none of the KQ reward handles in this snapshot resolves to HONOR
-or the later reward types. Its shape matches the PDB `ShineReward` struct:
+or the later reward types.
+
+The exact 435-row source is now checked in as
+`sql/data/data_kq_source_60_shinereward.sql`. To keep the generated source
+compact without changing values, its five always-required fields are explicit
+on every row; trailing fields default to zero and the **18** source rows with
+nonzero trailing values are patched explicitly. CI locks the generated SQL
+bytes (SHA-256
+`9fa4fc1ce2db998cc61f01dc0ef6ba46575a68162efa71c467b9904032c65a88`),
+all 435 source ordinals, the 18 patches, and the 300-handle/type coverage. Its shape matches the PDB `ShineReward` struct:
 `RewardHandle u16`, `RewardType u8`, `Argument[33]`, `Quantity u32`,
 `Upgrade i16`, nine additional i16 fields, `OptionDegree u16`, and
 `TitleDegree u32`. The source dumper now includes this SHN as an optional

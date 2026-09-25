@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Lock source-backed Kingdom Quest map/team/vote metadata."""
 from pathlib import Path
+import hashlib
 import re
 import sys
 
@@ -51,6 +52,8 @@ RAW_SOURCES = {
         "0ef94a55e26fb992e0497f825984742df681f94f9bf32167e4defebcbead632d", 39, 28),
 }
 SOURCE_MANIFEST_SQL = ROOT / "sql/data/data_kq_source_00_manifest.sql"
+SHINE_REWARD_SQL = ROOT / "sql/data/data_kq_source_60_shinereward.sql"
+SHINE_REWARD_SQL_SHA256 = "9fa4fc1ce2db998cc61f01dc0ef6ba46575a68162efa71c467b9904032c65a88"
 
 EXPECTED_MAPS = {
     (30, "KDPrtShip"), (31, "KDEddyHill"), (33, "KDTrDn"), (34, "KDUnHall"), (35, "KDEnMaze"),
@@ -131,7 +134,7 @@ def main():
         WORLD_START_SESSIONS, WORLD_DONE_SKIP_MESSAGES, WORLD_RECONNECT,
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
         NATIVE_INFO, NATIVE_REWARD,
-        ZONE_CHARACTER, SOURCE_MANIFEST_SQL,
+        ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
         if not path.is_file():
@@ -171,6 +174,47 @@ def main():
         if token not in manifest_sql:
             print('FAIL: checked-in ShineReward source manifest changed', token)
             return 1
+    shine_reward_sql = SHINE_REWARD_SQL.read_text(encoding='utf-8')
+    actual_shine_sql_sha = hashlib.sha256(
+        SHINE_REWARD_SQL.read_bytes()).hexdigest()
+    if actual_shine_sql_sha != SHINE_REWARD_SQL_SHA256:
+        print('FAIL: checked-in compact ShineReward SQL snapshot changed',
+              actual_shine_sql_sha)
+        return 1
+    if ('sha256=09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f; records=435; columns=16'
+            not in shine_reward_sql):
+        print('FAIL: ShineReward compact source header changed')
+        return 1
+    for token in (
+        '`RewardHandle` SMALLINT UNSIGNED NOT NULL',
+        '`RewardType` TINYINT UNSIGNED NOT NULL',
+        '`Argument` VARCHAR(33) NOT NULL',
+        '`Quantity` INT UNSIGNED NOT NULL',
+        '`Upgrade` SMALLINT NOT NULL DEFAULT 0',
+        '`Undefined 8` SMALLINT NOT NULL DEFAULT 0',
+        '`OptionDegree` SMALLINT UNSIGNED NOT NULL DEFAULT 0',
+        '`TitleDegree` INT UNSIGNED NOT NULL DEFAULT 0',
+    ):
+        if token not in shine_reward_sql:
+            print('FAIL: compact ShineReward schema changed', token)
+            return 1
+
+    shine_reward_rows = [split_row_fields(row)
+                         for row in data_rows(SHINE_REWARD_SQL)]
+    if len(shine_reward_rows) != 435:
+        print('FAIL: compact ShineReward row count changed',
+              len(shine_reward_rows))
+        return 1
+    if any(len(row) != 5 for row in shine_reward_rows):
+        print('FAIL: compact ShineReward base rows no longer have five explicit source fields')
+        return 1
+    if [int(row[0]) for row in shine_reward_rows] != list(range(435)):
+        print('FAIL: compact ShineReward source ordinals changed')
+        return 1
+    if shine_reward_sql.count('UPDATE `data_shinereward` SET') != 18:
+        print('FAIL: compact ShineReward nonzero-tail patch count changed')
+        return 1
+
     for source_name, (path, sha256, expected_rows, expected_columns) in RAW_SOURCES.items():
         raw = path.read_text(encoding='utf-8')
         header = (
@@ -223,6 +267,32 @@ def main():
     if unresolved_default_reward_indices != {45, 51, 57, 63, 71, 79, 83}:
         print('FAIL: native KQ default reward-ID miss set changed',
               sorted(unresolved_default_reward_indices))
+        return 1
+
+    used_shine_reward_handles = {
+        int(value)
+        for row in reward_rows
+        for value in row[4:19]
+        if int(value) != 0
+    }
+    shine_reward_type_by_handle = {}
+    for row in shine_reward_rows:
+        handle = int(row[1])
+        if handle not in shine_reward_type_by_handle:
+            shine_reward_type_by_handle[handle] = int(row[2])
+    missing_shine_handles = (
+        used_shine_reward_handles - set(shine_reward_type_by_handle))
+    if len(used_shine_reward_handles) != 300 or missing_shine_handles:
+        print('FAIL: KQ -> ShineReward handle coverage changed',
+              len(used_shine_reward_handles), sorted(missing_shine_handles))
+        return 1
+    used_reward_types = {}
+    for handle in used_shine_reward_handles:
+        reward_type = shine_reward_type_by_handle[handle]
+        used_reward_types[reward_type] = used_reward_types.get(reward_type, 0) + 1
+    if used_reward_types != {1: 247, 2: 39, 3: 14}:
+        print('FAIL: KQ-used ShineReward type split changed',
+              used_reward_types)
         return 1
 
     reward_index_strings = [unquote_sql(row[2]) for row in reward_rows]
