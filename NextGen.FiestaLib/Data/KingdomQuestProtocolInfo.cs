@@ -511,6 +511,16 @@ namespace NextGen.FiestaLib.Data
         public const ushort JoinListCooldown = 0x311A;
         public const int JoinListCooldownSeconds = 5;
 
+        // WorldManager.exe CKQServer::Recv_NC_KQ_TEAM_SELECT_REQ branches.
+        public const ushort TeamSelectSuccess = 0x31F0;
+        public const ushort TeamSelectInvalidHandle = 0x31F1;
+        public const ushort TeamSelectWrongStatus = 0x31F2;
+        public const ushort TeamSelectSameTeam = 0x31F3;
+        public const ushort TeamSelectTargetTeamLimit = 0x31F4;
+        public const ushort TeamSelectMemberGap = 0x31F5;
+        public const ushort TeamSelectMissingTeamData = 0x31F6;
+        public const ushort TeamSelectWrongDivideType = 0x31F7;
+
         public const int JoinHardCapacity = 100;
 
         public const byte StatusScheduled = 0;

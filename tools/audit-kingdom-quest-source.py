@@ -197,6 +197,17 @@ def main():
         print('FAIL: KQ metadata row counts changed:', counts)
         return 1
 
+    team_rows = [split_row_fields(row) for row in data_rows(TEAM)]
+    if any(len(row) != 8 for row in team_rows):
+        print('FAIL: KQTeam row width changed')
+        return 1
+    if {int(row[3]) for row in team_rows} != {1}:
+        print('FAIL: supplied KQTeam divide-type corpus is no longer all RANDOM')
+        return 1
+    if {int(row[1]) for row in team_rows} != {1}:
+        print('FAIL: supplied KQTeam MaxMemberGap corpus changed')
+        return 1
+
     manifest_sql = SOURCE_MANIFEST_SQL.read_text(encoding='utf-8')
     for token in (
         "'ShineReward', '09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f', 435, 16",
@@ -1623,7 +1634,8 @@ def main():
     print('PASS: supplied NA2016 definitions are locked to one active MapLink and 23 source-backed MapBase identities')
     print('PASS: native MapBase resolves exactly to source-backed MapInfo.ShortName without MapIndex/instance inference')
     print('PASS: DoSetStart/KQTeam_CanKQStart drives Status-2 into proven Status-3 countdown or Status-6 SetDoneSkip reasons 2/3')
-    print('PASS: PDB enum names lock KQTD_RANDOM=1 and KQTD_USERSELECT=2; supplied team rows are RANDOM')
+    print('PASS: PDB enum names lock KQTD_RANDOM=1 and KQTD_USERSELECT=2; all 8 supplied team rows remain RANDOM with MaxMemberGap=1')
+    print('PASS: generic USERSELECT TEAM_SELECT is implemented from WorldManager.exe but is unreachable for the supplied all-RANDOM team corpus')
     print('PASS: native KQTD_RANDOM assignment and RandomBox/WELL512 path are source-correlated')
     print('PASS: combined membership owns CharacterNumber and client identity together without inference')
     print('PASS: CKQServer::IsExisted packed SHINE_DATETIME decode, exact MapName match and native ten-minute reconnect expiry are source-modeled')

@@ -6,6 +6,39 @@ using NextGen.FiestaLib.Data;
 namespace NextGen.World.Data
 {
     /// <summary>
+    /// Result of the native USERSELECT team-change decision. Error branches
+    /// preserve the original ACK TeamType=2 default. On success the broadcast
+    /// audience is captured from the same authoritative membership snapshot
+    /// that was atomically changed.
+    /// </summary>
+    public sealed class KingdomQuestTeamSelectResult
+    {
+        public ushort Error { get; private set; }
+        public byte AckTeamType { get; private set; }
+        public uint Handle { get; private set; }
+        public uint CharacterNumber { get; private set; }
+        public string CharacterName { get; private set; }
+        public IReadOnlyList<uint> OtherCharacterNumbers { get; private set; }
+
+        internal KingdomQuestTeamSelectResult(
+            ushort error,
+            byte ackTeamType,
+            uint handle,
+            uint characterNumber,
+            string characterName,
+            IEnumerable<uint> otherCharacterNumbers)
+        {
+            Error = error;
+            AckTeamType = ackTeamType;
+            Handle = handle;
+            CharacterNumber = characterNumber;
+            CharacterName = characterName ?? string.Empty;
+            OtherCharacterNumbers = (otherCharacterNumbers ??
+                new uint[0]).ToList().AsReadOnly();
+        }
+    }
+
+    /// <summary>
     /// Atomically wires an already-defined KQ session into the three World
     /// registries used by list/status/transfer paths.
     ///
@@ -378,6 +411,167 @@ namespace NextGen.World.Data
             for (int i = 0; i < definition.MapLink.Length; i++)
                 definition.MapLink[i] = new KingdomQuestMapProtocolInfo();
             return definition;
+        }
+
+        /// <summary>
+        /// Reproduces CKQServer::Recv_NC_KQ_TEAM_SELECT_REQ after the caller
+        /// has resolved the session-owned KQ Handle and native CharacterNumber.
+        ///
+        /// Native code owns exactly two team counters and does not safely
+        /// validate an arbitrary request byte before indexing them. Values
+        /// outside 0/1 are therefore an emulator fail-closed condition rather
+        /// than an invented ACK error.
+        /// </summary>
+        public static bool TrySelectUserTeam(
+            uint handle,
+            uint characterNumber,
+            byte requestedTeamType,
+            out KingdomQuestTeamSelectResult result)
+        {
+            result = null;
+            if (requestedTeamType > 1)
+                return false;
+
+            lock (Sync)
+            {
+                KingdomQuestProtocolInfo protocolDefinition;
+                KingdomQuestClientInfo clientDefinition;
+                KingdomQuestInstanceWireState state;
+
+                bool hasProtocol =
+                    KingdomQuestProtocolDefinitionRegistry.TryGet(
+                        handle, out protocolDefinition);
+                bool hasClient =
+                    KingdomQuestDefinitionRegistry.TryGet(
+                        handle, out clientDefinition);
+                bool hasState =
+                    KingdomQuestInstanceRegistry.TryGet(handle, out state);
+
+                if (!hasProtocol && !hasClient && !hasState)
+                {
+                    result = CreateTeamSelectError(
+                        handle, characterNumber,
+                        KingdomQuestNativeConstants.TeamSelectInvalidHandle);
+                    return true;
+                }
+
+                if (!hasProtocol || !hasClient || !hasState ||
+                    protocolDefinition.Status != clientDefinition.Status ||
+                    protocolDefinition.Status != state.Status)
+                    return false;
+
+                if (protocolDefinition.Status !=
+                        KingdomQuestNativeConstants.StatusJoining)
+                {
+                    result = CreateTeamSelectError(
+                        handle, characterNumber,
+                        KingdomQuestNativeConstants.TeamSelectWrongStatus);
+                    return true;
+                }
+
+                DataProvider provider = DataProvider.Instance;
+                if (provider == null || provider.KingdomQuestTeams == null)
+                    return false;
+
+                KingdomQuestTeamInfo team;
+                if (!provider.KingdomQuestTeams.TryGetValue(
+                        protocolDefinition.ID, out team))
+                {
+                    result = CreateTeamSelectError(
+                        handle, characterNumber,
+                        KingdomQuestNativeConstants.TeamSelectMissingTeamData);
+                    return true;
+                }
+
+                if (team.TeamDivideType !=
+                        KingdomQuestNativeConstants.UserSelectTeamDivideType)
+                {
+                    result = CreateTeamSelectError(
+                        handle, characterNumber,
+                        KingdomQuestNativeConstants.TeamSelectWrongDivideType);
+                    return true;
+                }
+
+                IReadOnlyList<KingdomQuestMembershipEntry> current;
+                if (!KingdomQuestMembershipRegistry.TryGet(
+                        handle, out current) ||
+                    current.Count != protocolDefinition.NumOfJoiner ||
+                    current.Count != clientDefinition.NumOfJoiner)
+                    return false;
+
+                var updated = current.Select(v => v.Clone()).ToList();
+                int memberIndex = updated.FindIndex(
+                    v => v.CharacterNumber == characterNumber);
+                if (memberIndex < 0)
+                    return false;
+
+                int[] counts = new int[2];
+                for (int i = 0; i < updated.Count; i++)
+                {
+                    if (updated[i].TeamType > 1)
+                        return false;
+                    counts[updated[i].TeamType]++;
+                }
+
+                byte oldTeamType = updated[memberIndex].TeamType;
+                if (oldTeamType == requestedTeamType)
+                {
+                    result = CreateTeamSelectError(
+                        handle, characterNumber,
+                        KingdomQuestNativeConstants.TeamSelectSameTeam);
+                    return true;
+                }
+
+                int targetAfter = counts[requestedTeamType] + 1;
+                int oldAfter = counts[oldTeamType] - 1;
+                int halfMaxPlayers = protocolDefinition.MaxPlayers >> 1;
+
+                // Native branch accepts only targetAfter < MaxPlayers/2.
+                if (targetAfter >= halfMaxPlayers)
+                {
+                    result = CreateTeamSelectError(
+                        handle, characterNumber,
+                        KingdomQuestNativeConstants.TeamSelectTargetTeamLimit);
+                    return true;
+                }
+
+                // This is intentionally directional, not Math.Abs(...).
+                if (targetAfter - oldAfter > team.MaxMemberGap)
+                {
+                    result = CreateTeamSelectError(
+                        handle, characterNumber,
+                        KingdomQuestNativeConstants.TeamSelectMemberGap);
+                    return true;
+                }
+
+                updated[memberIndex].TeamType = requestedTeamType;
+                string characterName = updated[memberIndex].Name;
+                if (!TrySetMembership(handle, updated))
+                    return false;
+
+                result = new KingdomQuestTeamSelectResult(
+                    KingdomQuestNativeConstants.TeamSelectSuccess,
+                    requestedTeamType,
+                    handle,
+                    characterNumber,
+                    characterName,
+                    updated
+                        .Where(v => v.CharacterNumber != characterNumber)
+                        .Select(v => v.CharacterNumber));
+                return true;
+            }
+        }
+
+        private static KingdomQuestTeamSelectResult CreateTeamSelectError(
+            uint handle, uint characterNumber, ushort error)
+        {
+            return new KingdomQuestTeamSelectResult(
+                error,
+                KingdomQuestNativeConstants.NeutralTeamType,
+                handle,
+                characterNumber,
+                string.Empty,
+                new uint[0]);
         }
 
         /// <summary>

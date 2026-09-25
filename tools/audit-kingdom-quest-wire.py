@@ -354,6 +354,15 @@ def main():
         "KingdomQuestNativeConstants.JoinListCooldown",
         "client.KingdomQuestJoinListLastRequestTime = now",
         "KingdomQuestNativeConstants.JoinListSuccess",
+        "[PacketHandler(CH22Type.KingdomQuestTeamSelectReq)]",
+        "packet.TryReadByte(out requestedTeamType)",
+        "KingdomQuestNativeConstants.TeamSelectInvalidHandle",
+        "KingdomQuestSessionCoordinator.TrySelectUserTeam(",
+        "KingdomQuestProtocol.CreateTeamSelectAck(",
+        "result.Error != KingdomQuestNativeConstants.TeamSelectSuccess",
+        "KingdomQuestProtocol.CreateTeamSelectCmd(",
+        "result.OtherCharacterNumbers.Count",
+        "other.KingdomQuestHandle.Value != result.Handle",
         "[PacketHandler(CH22Type.KingdomQuestListRefreshReq)]",
         "if (!client.KingdomQuestListTimeSent)",
         "KingdomQuestProtocol.CreateListTime(DateTimeOffset.Now)",
@@ -428,6 +437,14 @@ def main():
         "JoinListInvalidHandle = 0x3119",
         "JoinListCooldown = 0x311A",
         "JoinListCooldownSeconds = 5",
+        "TeamSelectSuccess = 0x31F0",
+        "TeamSelectInvalidHandle = 0x31F1",
+        "TeamSelectWrongStatus = 0x31F2",
+        "TeamSelectSameTeam = 0x31F3",
+        "TeamSelectTargetTeamLimit = 0x31F4",
+        "TeamSelectMemberGap = 0x31F5",
+        "TeamSelectMissingTeamData = 0x31F6",
+        "TeamSelectWrongDivideType = 0x31F7",
         "StatusMakeRequested = 1",
         "StatusJoining = 2",
         "StatusNoMap = 8",
@@ -752,6 +769,44 @@ def main():
     ], "Zone-reported logout KQ cleanup order"):
         return 1
 
+    if not require(session_coordinator, [
+        "class KingdomQuestTeamSelectResult",
+        "public static bool TrySelectUserTeam(",
+        "requestedTeamType > 1",
+        "TeamSelectInvalidHandle",
+        "StatusJoining",
+        "TeamSelectWrongStatus",
+        "TeamSelectMissingTeamData",
+        "UserSelectTeamDivideType",
+        "TeamSelectWrongDivideType",
+        "TeamSelectSameTeam",
+        "int targetAfter = counts[requestedTeamType] + 1",
+        "int oldAfter = counts[oldTeamType] - 1",
+        "int halfMaxPlayers = protocolDefinition.MaxPlayers >> 1",
+        "targetAfter >= halfMaxPlayers",
+        "targetAfter - oldAfter > team.MaxMemberGap",
+        "TeamSelectTargetTeamLimit",
+        "TeamSelectMemberGap",
+        "TrySetMembership(handle, updated)",
+        "TeamSelectSuccess",
+        "NeutralTeamType",
+    ], "native USERSELECT TEAM_SELECT decision/mutation"):
+        return 1
+
+    if "Math.Abs(targetAfter - oldAfter)" in session_coordinator:
+        print("FAIL: TEAM_SELECT member-gap check became symmetric")
+        return 1
+
+    team_select_handler = handler.find(
+        "[PacketHandler(CH22Type.KingdomQuestTeamSelectReq)]")
+    team_select_ack = handler.find(
+        "client.SendPacket(ack);", team_select_handler)
+    team_select_cmd = handler.find(
+        "KingdomQuestProtocol.CreateTeamSelectCmd(", team_select_ack)
+    if not (0 <= team_select_handler < team_select_ack < team_select_cmd):
+        print("FAIL: TEAM_SELECT ACK/CMD ordering changed")
+        return 1
+
     if not require(make_ack_registry, [
         "KingdomQuestNativeConstants.MakeAckSuccess",
         "IsSuccess(ushort error)",
@@ -935,6 +990,8 @@ def main():
     print("PASS: join-cancel/team-select/team-type/disjoin wire layouts are source-level named")
     print("PASS: vote/start/result/ban wire layouts are source-level modeled without vote policy")
     print("PASS: JOIN_LIST_REQ uses recovered native errors/cooldown directly; no external Error placeholder is consulted")
+    print("PASS: TEAM_SELECT 0x31F0..0x31F7 is live with native USERSELECT gates, directed gap arithmetic and ACK-before-peer-CMD order")
+    print("PASS: TEAM_SELECT request bytes outside native team 0/1 remain fail-closed instead of indexing an unsafe native counter")
     print("PASS: LIST_REQ ignores request bounds and exposes only Status 0..4; SCHEDULE_REQ exposes the full scheduler array")
     print("PASS: LIST_REFRESH keeps a per-session visible snapshot and emits native delete/update/add deltas in original order")
     print("PASS: LIST_ADD refresh batches use the original/capture-correlated 53-entry threshold")

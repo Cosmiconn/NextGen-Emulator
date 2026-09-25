@@ -354,6 +354,76 @@ namespace NextGen.World.Handlers
                 client.SendPacket(response);
         }
 
+        [PacketHandler(CH22Type.KingdomQuestTeamSelectReq)]
+        public static void KingdomQuestTeamSelect(
+            WorldClient client, Packet packet)
+        {
+            byte requestedTeamType;
+            if (!packet.TryReadByte(out requestedTeamType) || client == null)
+                return;
+
+            if (!client.KingdomQuestHandle.HasValue)
+            {
+                using (Packet invalid =
+                    KingdomQuestProtocol.CreateTeamSelectAck(
+                        KingdomQuestNativeConstants.TeamSelectInvalidHandle,
+                        KingdomQuestNativeConstants.NeutralTeamType))
+                    client.SendPacket(invalid);
+                return;
+            }
+
+            uint characterNumber;
+            if (!KingdomQuestCharacterIdentity.TryGetCharacterNumber(
+                    client.Character, out characterNumber))
+                return;
+
+            KingdomQuestTeamSelectResult result;
+            if (!KingdomQuestSessionCoordinator.TrySelectUserTeam(
+                    client.KingdomQuestHandle.Value,
+                    characterNumber,
+                    requestedTeamType,
+                    out result))
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "KQ TEAM_SELECT fail-closed for CharacterNumber {0}.",
+                    characterNumber);
+                return;
+            }
+
+            // Native success mutates first, ACKs the requester, then sends
+            // TEAM_SELECT_CMD to the other represented KQ sessions.
+            using (Packet ack = KingdomQuestProtocol.CreateTeamSelectAck(
+                result.Error, result.AckTeamType))
+                client.SendPacket(ack);
+
+            if (result.Error != KingdomQuestNativeConstants.TeamSelectSuccess)
+                return;
+
+            using (Packet command = KingdomQuestProtocol.CreateTeamSelectCmd(
+                result.CharacterName, result.AckTeamType))
+            {
+                for (int i = 0;
+                    i < result.OtherCharacterNumbers.Count;
+                    i++)
+                {
+                    uint otherNumber = result.OtherCharacterNumbers[i];
+                    if (otherNumber > int.MaxValue ||
+                        ClientManager.Instance == null)
+                        continue;
+
+                    WorldClient other =
+                        ClientManager.Instance.GetClientByCharID(
+                            (int)otherNumber);
+                    if (other == null ||
+                        !other.KingdomQuestHandle.HasValue ||
+                        other.KingdomQuestHandle.Value != result.Handle)
+                        continue;
+
+                    other.SendPacket(command);
+                }
+            }
+        }
+
         [PacketHandler(CH22Type.KingdomQuestListRefreshReq)]
         public static void KingdomQuestListRefresh(WorldClient client, Packet packet)
         {
