@@ -136,3 +136,22 @@ INSERT INTO `data_kq_source_columns` VALUES
   ('UseClassTypeInfo', 25, 'Ass', 1, 1),
   ('UseClassTypeInfo', 26, 'Sen', 1, 1),
   ('UseClassTypeInfo', 27, 'Sav', 1, 1);
+
+INSERT INTO `data_kq_source_manifest` VALUES ('ShineReward', '09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f', 435, 16);
+INSERT INTO `data_kq_source_columns` VALUES
+  ('ShineReward', 0, 'RewardHandle', 2, 2),
+  ('ShineReward', 1, 'RewardType', 12, 1),
+  ('ShineReward', 2, 'Argument', 9, 33),
+  ('ShineReward', 3, 'Quantity', 3, 4),
+  ('ShineReward', 4, 'Upgrade', 21, 2),
+  ('ShineReward', 5, 'Undefined 0', 21, 2),
+  ('ShineReward', 6, 'Undefined 1', 21, 2),
+  ('ShineReward', 7, 'Undefined 2', 21, 2),
+  ('ShineReward', 8, 'Undefined 3', 21, 2),
+  ('ShineReward', 9, 'Undefined 4', 21, 2),
+  ('ShineReward', 10, 'Undefined 5', 21, 2),
+  ('ShineReward', 11, 'Undefined 6', 21, 2),
+  ('ShineReward', 12, 'Undefined 7', 21, 2),
+  ('ShineReward', 13, 'Undefined 8', 21, 2),
+  ('ShineReward', 14, 'OptionDegree', 2, 2),
+  ('ShineReward', 15, 'TitleDegree', 3, 4);

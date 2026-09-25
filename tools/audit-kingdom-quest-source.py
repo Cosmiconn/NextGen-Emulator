@@ -158,6 +158,19 @@ def main():
         return 1
 
     manifest_sql = SOURCE_MANIFEST_SQL.read_text(encoding='utf-8')
+    for token in (
+        "'ShineReward', '09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f', 435, 16",
+        "('ShineReward', 0, 'RewardHandle', 2, 2)",
+        "('ShineReward', 1, 'RewardType', 12, 1)",
+        "('ShineReward', 2, 'Argument', 9, 33)",
+        "('ShineReward', 3, 'Quantity', 3, 4)",
+        "('ShineReward', 4, 'Upgrade', 21, 2)",
+        "('ShineReward', 14, 'OptionDegree', 2, 2)",
+        "('ShineReward', 15, 'TitleDegree', 3, 4)",
+    ):
+        if token not in manifest_sql:
+            print('FAIL: checked-in ShineReward source manifest changed', token)
+            return 1
     for source_name, (path, sha256, expected_rows, expected_columns) in RAW_SOURCES.items():
         raw = path.read_text(encoding='utf-8')
         header = (
