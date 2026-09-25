@@ -29,31 +29,39 @@ block.
 
 ## Remaining major blocks
 
-### 1. Kingdom Quests — NOT IMPLEMENTED
+### 1. Kingdom Quests — IN PROGRESS
 
-This is the largest clearly unimplemented gameplay block.
+The former zero-KQ World stub is superseded. The current branch has a
+source-backed KQ scheduler and native Header-22/server lifecycle model tied to
+the supplied NA2016 SHN, PDB/EXE and capture evidence.
 
-Current code still answers the World-side KQ initialization with
-`p3.WriteShort(0) // zero kingdom quests!` in
-`NextGen.World/Handlers/Handler22.cs`.
+Implemented and CI-locked on the KQ branch:
 
-Evidence already available:
+- exact main KQ source/provenance loading plus native schedule/Handle ownership;
+- LIST/SCHEDULE/STATUS serialization and refresh deltas;
+- JOIN/JOIN_CANCEL/JOIN_LIST admission and membership state;
+- source-backed map-link allocation, dynamic Zone instance routing and transfer;
+- native start gate, random team division, W2Z MAKE/START and Z2W END/DESTROY;
+- save-location/reconnect state and native KQ date packing;
+- original script/static-regen source boundaries without treating file presence
+  as successful scenario loading;
+- deterministic reward preparation through KQ reward lookup/dice,
+  ShineReward lookup, ITEM classifier source resolution, box identity and
+  exact scalar accumulation;
+- native reward ACK packet/identity validation boundary without inventing the
+  unresolved item-store transaction semantics.
 
-- real World-server KQ list traffic (SH22 type 29);
-- instance-detail and registration requests (CH22 types 3 and 5);
-- registration responses, countdown traffic and instance-state broadcasts;
-- a complete failed KQ session including temporary Zone transfer and
-  `KingdomQuestFailed`;
-- KQ description/vote data exports.
+Still required for block completion:
 
-Still required:
+- a source-equivalent ScenarioBookShelf/PineScript/Lua runtime and the live
+  scenario-driven mob/objective/success/failure flow;
+- TreasureChest/CardDeck group-candidate selection, item creation and the
+  GameDB/item-store transaction plus exact reward mutation/completion timing;
+- remaining vote-kick and USERSELECT/TEAM_SELECT policy/mutation ordering where
+  original semantics are not yet fully correlated.
 
-- authoritative KQ definition/schedule/session data or reconstruction;
-- exact list serialization and instance lifecycle;
-- registration/team assignment;
-- temporary map-instance allocation/transfer;
-- success/failure objectives, respawn policy and reward completion;
-- persistence/reconnect behavior.
+See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
+boundary. Unknown behavior remains fail-closed rather than inferred.
 
 ### 2. Combat / skills / AbState fidelity — PARTIAL
 
