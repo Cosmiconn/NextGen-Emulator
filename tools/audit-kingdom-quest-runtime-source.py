@@ -982,6 +982,22 @@ def main():
             print("FAIL: KQ Pine one-step/control bridge changed", token)
             return 1
 
+    for token in (
+        "public bool HasPauseDeadline;",
+        "public uint PauseDeadlineTick;",
+        'IsCommandVerb(node.Text, "pause")',
+        "private void StepPause(",
+        "KingdomQuestPineTimingPlan.TryBuildPause(",
+        "frame.State = 1",
+        "frame.HasPauseDeadline = true",
+        "frame.PauseDeadlineTick = plan.DeadlineTick",
+        "frame.PauseDeadlineTick < currentTick",
+        "Native Pine pause tick dependency missing",
+    ):
+        if token not in pine_control_text:
+            print("FAIL: KQ Pine pause/control runtime changed", token)
+            return 1
+
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
@@ -1204,6 +1220,7 @@ def main():
     print("PASS: all 10 used Pine @CharName calls preserve u16 native-handle lookup, empty-on-miss, and TName5 length boundary")
     print("PASS: used Pine @Random/@DistanceBetween/@CharName expressions execute before generic host fallback with explicit native dependencies")
     print("PASS: 589 source-proven one-step Pine commands dispatch before generic host fallback through explicit tick/regen/effect dependencies")
+    print("PASS: all 202 source-used Pine pause commands execute native 10-Hz deadline state before host fallback")
     print("PASS: Pine ScriptInitValue remains a separate cc_PlayFilm token; UnderHall=10 proves it is not a top-level block key")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
