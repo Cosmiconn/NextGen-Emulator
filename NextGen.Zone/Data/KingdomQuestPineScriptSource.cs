@@ -13,6 +13,25 @@ namespace NextGen.Zone.Data
         If = 2,
         Infinite = 3,
         Scope = 4,
+        VariableDeclaration = 5,
+        Assignment = 6,
+    }
+
+    public sealed class KingdomQuestPineVariableDeclarationSource
+    {
+        public int CanonicalLine { get; private set; }
+        public string Name { get; private set; }
+        public string InitializerExpression { get; private set; }
+
+        internal KingdomQuestPineVariableDeclarationSource(
+            int canonicalLine,
+            string name,
+            string initializerExpression)
+        {
+            CanonicalLine = canonicalLine;
+            Name = name ?? string.Empty;
+            InitializerExpression = initializerExpression ?? string.Empty;
+        }
     }
 
     public sealed class KingdomQuestPineNodeSource
@@ -22,19 +41,29 @@ namespace NextGen.Zone.Data
         public string Text { get; private set; }
         public IReadOnlyList<KingdomQuestPineNodeSource> Children { get; private set; }
         public IReadOnlyList<KingdomQuestPineNodeSource> ElseChildren { get; private set; }
+        public IReadOnlyList<KingdomQuestPineVariableDeclarationSource> Declarations { get; private set; }
+        public string AssignmentTarget { get; private set; }
+        public string AssignmentExpression { get; private set; }
 
         internal KingdomQuestPineNodeSource(
             KingdomQuestPineNodeKind kind,
             int canonicalLine,
             string text,
             List<KingdomQuestPineNodeSource> children,
-            List<KingdomQuestPineNodeSource> elseChildren)
+            List<KingdomQuestPineNodeSource> elseChildren,
+            List<KingdomQuestPineVariableDeclarationSource> declarations = null,
+            string assignmentTarget = null,
+            string assignmentExpression = null)
         {
             Kind = kind;
             CanonicalLine = canonicalLine;
             Text = text ?? string.Empty;
             Children = (children ?? new List<KingdomQuestPineNodeSource>()).AsReadOnly();
             ElseChildren = (elseChildren ?? new List<KingdomQuestPineNodeSource>()).AsReadOnly();
+            Declarations = (declarations ??
+                new List<KingdomQuestPineVariableDeclarationSource>()).AsReadOnly();
+            AssignmentTarget = assignmentTarget ?? string.Empty;
+            AssignmentExpression = assignmentExpression ?? string.Empty;
         }
     }
 
@@ -94,11 +123,14 @@ namespace NextGen.Zone.Data
             public int Ifs;
             public int Infinites;
             public int Scopes;
+            public int VariableDeclarations;
+            public int Assignments;
             public string Sha256;
 
             public PineMeta(
                 int lines, int blocks, int commands, int ifs,
-                int infinites, int scopes, string sha256)
+                int infinites, int scopes, int variableDeclarations,
+                int assignments, string sha256)
             {
                 Lines = lines;
                 Blocks = blocks;
@@ -106,6 +138,8 @@ namespace NextGen.Zone.Data
                 Ifs = ifs;
                 Infinites = infinites;
                 Scopes = scopes;
+                VariableDeclarations = variableDeclarations;
+                Assignments = assignments;
                 Sha256 = sha256;
             }
         }
@@ -113,15 +147,15 @@ namespace NextGen.Zone.Data
         private static readonly Dictionary<string, PineMeta> Expected =
             new Dictionary<string, PineMeta>(StringComparer.Ordinal)
         {
-            { "KQ/GordonMaster", new PineMeta(355, 16, 277, 8, 5, 0, "44707dadd6281c5bd98ab43dc3f73d8cb1e4005e9650d0c35c2227222eb85d19") },
-            { "KQ/Honeying", new PineMeta(208, 15, 163, 1, 4, 0, "b73986320a92f88f02c4efe07391a13bd6f4c6fba08273ee73ad1ed1a94fbbae") },
-            { "KQ/KQHBat1", new PineMeta(151, 10, 112, 3, 2, 1, "28e47ac8886c882119e5440903b3b717e50debc50d8d188583b3f86f1ebdfacb") },
-            { "KQ/KQHBat2", new PineMeta(151, 10, 112, 3, 2, 1, "8682d925484e2fb4673689c6e1503b11b33a77edbf87e5bcd3180ce106fd6225") },
-            { "KQ/KQHBat3", new PineMeta(151, 10, 112, 3, 2, 1, "c9ec42eb1772691bf1e9191daab3fea0556c9c5e887b7348b854cea11da6d12b") },
-            { "KQ/KQHBat4", new PineMeta(151, 10, 112, 3, 2, 1, "f8a8b43e783c7878e87e6a47cef1d0b748047d65d2f06a0a105a7be3ddd9b235") },
-            { "KQ/KQHBat5", new PineMeta(151, 10, 112, 3, 2, 1, "988c99a4a47665137a08bbcaf2a72280829af8016413e26d005f1e234ef85ebc") },
-            { "KQ/UnderHall", new PineMeta(405, 45, 255, 1, 19, 0, "887c0372185d90d46e598ff2697d344a4c04640229a84d3169702b2b713d77e7") },
-            { "KQ/UnderHall2", new PineMeta(588, 57, 405, 1, 22, 0, "818c228f2f05d7c1fbba2a14aaa128df0c607eaa44b30ecfa0a2d53189674c7a") },
+            { "KQ/GordonMaster", new PineMeta(355, 16, 249, 8, 5, 0, 7, 8, "44707dadd6281c5bd98ab43dc3f73d8cb1e4005e9650d0c35c2227222eb85d19") },
+            { "KQ/Honeying", new PineMeta(208, 15, 153, 1, 4, 0, 1, 0, "b73986320a92f88f02c4efe07391a13bd6f4c6fba08273ee73ad1ed1a94fbbae") },
+            { "KQ/KQHBat1", new PineMeta(151, 10, 92, 3, 2, 1, 1, 8, "28e47ac8886c882119e5440903b3b717e50debc50d8d188583b3f86f1ebdfacb") },
+            { "KQ/KQHBat2", new PineMeta(151, 10, 92, 3, 2, 1, 1, 8, "8682d925484e2fb4673689c6e1503b11b33a77edbf87e5bcd3180ce106fd6225") },
+            { "KQ/KQHBat3", new PineMeta(151, 10, 92, 3, 2, 1, 1, 8, "c9ec42eb1772691bf1e9191daab3fea0556c9c5e887b7348b854cea11da6d12b") },
+            { "KQ/KQHBat4", new PineMeta(151, 10, 92, 3, 2, 1, 1, 8, "f8a8b43e783c7878e87e6a47cef1d0b748047d65d2f06a0a105a7be3ddd9b235") },
+            { "KQ/KQHBat5", new PineMeta(151, 10, 92, 3, 2, 1, 1, 8, "988c99a4a47665137a08bbcaf2a72280829af8016413e26d005f1e234ef85ebc") },
+            { "KQ/UnderHall", new PineMeta(405, 45, 251, 1, 19, 0, 1, 0, "887c0372185d90d46e598ff2697d344a4c04640229a84d3169702b2b713d77e7") },
+            { "KQ/UnderHall2", new PineMeta(588, 57, 401, 1, 22, 0, 1, 0, "818c228f2f05d7c1fbba2a14aaa128df0c607eaa44b30ecfa0a2d53189674c7a") },
         };
 
         private const string CompressedCanonicalSource =
@@ -182,11 +216,14 @@ namespace NextGen.Zone.Data
                 int ifs = 0;
                 int infinites = 0;
                 int scopes = 0;
+                int variableDeclarations = 0;
+                int assignments = 0;
                 foreach (KingdomQuestPineBlockSource block
                     in document.Blocks.Values)
                     CountNodes(
                         block.Statements,
-                        ref commands, ref ifs, ref infinites, ref scopes);
+                        ref commands, ref ifs, ref infinites, ref scopes,
+                        ref variableDeclarations, ref assignments);
 
                 int lines = source.Split(
                     new[] { '\n' },
@@ -197,7 +234,9 @@ namespace NextGen.Zone.Data
                     commands != pair.Value.Commands ||
                     ifs != pair.Value.Ifs ||
                     infinites != pair.Value.Infinites ||
-                    scopes != pair.Value.Scopes)
+                    scopes != pair.Value.Scopes ||
+                    variableDeclarations != pair.Value.VariableDeclarations ||
+                    assignments != pair.Value.Assignments)
                     throw new InvalidDataException(
                         "KQ Pine parsed source shape changed: " + pair.Key);
 
@@ -212,7 +251,9 @@ namespace NextGen.Zone.Data
             ref int commands,
             ref int ifs,
             ref int infinites,
-            ref int scopes)
+            ref int scopes,
+            ref int variableDeclarations,
+            ref int assignments)
         {
             for (int i = 0; i < nodes.Count; i++)
             {
@@ -231,14 +272,22 @@ namespace NextGen.Zone.Data
                     case KingdomQuestPineNodeKind.Scope:
                         scopes++;
                         break;
+                    case KingdomQuestPineNodeKind.VariableDeclaration:
+                        variableDeclarations++;
+                        break;
+                    case KingdomQuestPineNodeKind.Assignment:
+                        assignments++;
+                        break;
                 }
 
                 CountNodes(
                     node.Children,
-                    ref commands, ref ifs, ref infinites, ref scopes);
+                    ref commands, ref ifs, ref infinites, ref scopes,
+                    ref variableDeclarations, ref assignments);
                 CountNodes(
                     node.ElseChildren,
-                    ref commands, ref ifs, ref infinites, ref scopes);
+                    ref commands, ref ifs, ref infinites, ref scopes,
+                    ref variableDeclarations, ref assignments);
             }
         }
 
@@ -292,6 +341,42 @@ namespace NextGen.Zone.Data
                 {
                     index++;
                     return result;
+                }
+
+                if (line.StartsWith(
+                        "var ", StringComparison.OrdinalIgnoreCase))
+                {
+                    List<KingdomQuestPineVariableDeclarationSource>
+                        declarations = ParseVariableDeclarations(
+                            key, lines, ref index);
+                    result.Add(new KingdomQuestPineNodeSource(
+                        KingdomQuestPineNodeKind.VariableDeclaration,
+                        lineNumber,
+                        "var",
+                        null,
+                        null,
+                        declarations));
+                    continue;
+                }
+
+                string assignmentTarget;
+                string assignmentExpression;
+                if (TryAssignment(
+                        line,
+                        out assignmentTarget,
+                        out assignmentExpression))
+                {
+                    result.Add(new KingdomQuestPineNodeSource(
+                        KingdomQuestPineNodeKind.Assignment,
+                        lineNumber,
+                        line,
+                        null,
+                        null,
+                        null,
+                        assignmentTarget,
+                        assignmentExpression));
+                    index++;
+                    continue;
                 }
 
                 if (line.StartsWith("if ", StringComparison.OrdinalIgnoreCase))
@@ -391,6 +476,136 @@ namespace NextGen.Zone.Data
 
             throw ParseError(
                 key, lines.Length, "missing close before EOF");
+        }
+
+        private static List<KingdomQuestPineVariableDeclarationSource>
+            ParseVariableDeclarations(
+                string key, string[] lines, ref int index)
+        {
+            var declarations =
+                new List<KingdomQuestPineVariableDeclarationSource>();
+            bool first = true;
+
+            while (index < lines.Length)
+            {
+                int lineNumber = index + 1;
+                string line = lines[index].Trim();
+                if (first)
+                {
+                    if (!line.StartsWith(
+                            "var ", StringComparison.OrdinalIgnoreCase))
+                        throw ParseError(
+                            key, index, "expected var declaration");
+                    line = line.Substring(4).TrimStart();
+                    first = false;
+                }
+
+                bool last = line.EndsWith(".", StringComparison.Ordinal);
+                if (last)
+                    line = line.Substring(0, line.Length - 1).TrimEnd();
+
+                int split = IndexOfWhiteSpace(line);
+                if (split <= 0)
+                    throw ParseError(
+                        key, index, "invalid var declaration");
+
+                string name = line.Substring(0, split);
+                int expressionStart = split;
+                while (expressionStart < line.Length &&
+                    char.IsWhiteSpace(line[expressionStart]))
+                    expressionStart++;
+
+                if (expressionStart >= line.Length)
+                    throw ParseError(
+                        key, index, "missing var initializer");
+
+                string expression =
+                    line.Substring(expressionStart).Trim();
+                declarations.Add(
+                    new KingdomQuestPineVariableDeclarationSource(
+                        lineNumber, name, expression));
+                index++;
+
+                if (last)
+                    return declarations;
+            }
+
+            throw ParseError(
+                key, lines.Length, "unterminated var declaration");
+        }
+
+        private static bool TryAssignment(
+            string line,
+            out string target,
+            out string expression)
+        {
+            target = null;
+            expression = null;
+            if (string.IsNullOrEmpty(line))
+                return false;
+
+            bool quoted = false;
+            int depth = 0;
+            int equals = -1;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char ch = line[i];
+                if (ch == '"')
+                {
+                    quoted = !quoted;
+                    continue;
+                }
+                if (quoted)
+                    continue;
+
+                if (ch == '(')
+                {
+                    depth++;
+                    continue;
+                }
+                if (ch == ')')
+                {
+                    if (depth > 0)
+                        depth--;
+                    continue;
+                }
+                if (ch == '=' && depth == 0)
+                {
+                    // IF comparison operators are parsed before this helper's
+                    // result is consumed, but reject them here as well so the
+                    // assignment boundary stays explicit.
+                    char before = i > 0 ? line[i - 1] : '\0';
+                    char after =
+                        i + 1 < line.Length ? line[i + 1] : '\0';
+                    if (before == '=' || before == '!' ||
+                        after == '=' || after == '!')
+                        return false;
+                    equals = i;
+                    break;
+                }
+            }
+
+            if (equals <= 0)
+                return false;
+
+            target = line.Substring(0, equals).Trim();
+            expression = line.Substring(equals + 1).Trim();
+            if (expression.EndsWith(".", StringComparison.Ordinal))
+                expression =
+                    expression.Substring(
+                        0, expression.Length - 1).TrimEnd();
+
+            return target.Length != 0 && expression.Length != 0;
+        }
+
+        private static int IndexOfWhiteSpace(string value)
+        {
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (char.IsWhiteSpace(value[i]))
+                    return i;
+            }
+            return -1;
         }
 
         private static void RequireToken(
