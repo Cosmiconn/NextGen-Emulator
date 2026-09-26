@@ -53,8 +53,11 @@ Implemented and CI-locked on the KQ branch:
   CardDeck candidate shuffle/rotation/UseClass filtering plus native
   class-family mask expansion from explicit CRT/class state, box identity and
   exact scalar accumulation;
-- native reward ACK packet/identity validation boundary without inventing the
-  unresolved item-store transaction semantics;
+- native reward ACK packet/identity validation plus recovered
+  InventoryCellLockList transaction semantics: request lock index is serialized
+  before send, MONEY/FAME are staged on that lock, EXP is granted immediately,
+  success ACK applies/frees the staged cells and failure ACK frees without
+  apply; no emulator persistence path is substituted for the native lock list;
 - complete source-backed World vote transport: 60-second vote duration,
   300-second login/suggest cooldowns, start/voting/check ACK families,
   result/ban processing, force-ban map links, target-disjoin cancellation and
@@ -66,11 +69,13 @@ Still required for block completion:
   (CinemaComplex film/actions) and the live scenario-driven
   mob/objective/success/failure flow;
 - exact native-thread assignment/consumer ordering for the thread-local Zone
-  CRT rand stream used by CardDeck, plus the KQ-reachable
-  ItemAttributeClass item-create/random-option field payloads; the
-  TreasureChest 111-byte layout, seven-content cap and construction call order
-  are already source-modeled. GameDB/item-store transaction and exact reward
-  mutation/completion timing remain;
+  CRT rand stream used by CardDeck, plus authoritative completion of the
+  remaining ItemTotalInformation construction stages (base per-class
+  itemcreate/registration and the KQ-reachable socket/option path). The
+  reward-specific ItemAttributeClass writes for all 10 reachable native item
+  classes, TreasureChest 111-byte layout/seven-content cap/call order and the
+  GameDB ACK lock-list transaction order are now source-modeled. Live native
+  GameDB/lock-list integration and scenario-triggered reward completion remain;
 
 See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
 boundary. Unknown behavior remains fail-closed rather than inferred.
