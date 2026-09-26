@@ -34,6 +34,7 @@ UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallComman
 UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandRuntime.cs"
 UNDERHALL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandState.cs"
 UNDERHALL_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallExternalPlan.cs"
+UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
@@ -253,8 +254,8 @@ def main():
                  PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
                  PINE_LOCAL_COMMAND_STATE, UNDERHALL_COMMAND_SOURCE,
                  UNDERHALL_COMMAND_RUNTIME, UNDERHALL_COMMAND_STATE,
-                 UNDERHALL_EXTERNAL_PLAN, UNDERHALL_TIMED_INTERRUPT_DUE,
-                 UNDERHALL_SOURCE_CATALOG,
+                 UNDERHALL_EXTERNAL_PLAN, UNDERHALL_SOURCE_FLOW,
+                 UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_WAITLOGIN,
@@ -846,6 +847,40 @@ def main():
               "{0}:{1}:{2}".format(line_no, block, line)
               for line_no, block, line in underhall_external_blocks))
 
+    expected_underhall_external_blocks = [
+        (12, "main", 'scriptfile "KQUnderHall".'),
+        (339, "Nineteenth", 'mobregen KQ_BossRobo "KQ_BossRobo" 2300 2500 90 1000 "Normal".'),
+        (355, "Summon1", 'summonmob KQ_BossRobo "KQ_DesertWolf" 3.'),
+        (356, "Summon1", 'summonmob KQ_BossRobo "KQ_GiantMushRoom" 2.'),
+        (359, "Summon2", 'summonmob KQ_BossRobo "KQ_Skeleton" 5.'),
+        (362, "Summon3", 'summonmob KQ_BossRobo "KQ_SkelWarrior" 3.'),
+        (363, "Summon3", 'summonmob KQ_BossRobo "KQ_SkelKnight" 2.'),
+        (364, "Summon3", 'summonmob KQ_BossRobo "KQ_SkelArcher" 4.'),
+        (367, "Summon4", 'summonmob KQ_BossRobo "KQ_Skeleton" 5.'),
+        (368, "Summon4", 'summonmob KQ_BossRobo "KQ_WildKebing" 5.'),
+        (369, "Summon4", 'summonmob KQ_BossRobo "KQ_Zombie" 5.'),
+        (372, "Summon5", 'summonmob KQ_BossRobo "KQ_SkelWarrior" 5.'),
+        (373, "Summon5", 'summonmob KQ_BossRobo "KQ_RapidBoar" 5.'),
+        (374, "Summon5", 'summonmob KQ_BossRobo "KQ_FireViVi" 6.'),
+        (378, "QuestSuc", 'reward KingdomQuest.'),
+        (379, "QuestSuc", 'questmobkill 2668 "Daliy_Check" 1.'),
+        (380, "QuestSuc", 'broadcast all "KQReturn30".'),
+        (382, "QuestSuc", 'broadcast all "KQReturn20".'),
+        (384, "QuestSuc", 'broadcast all "KQReturn10".'),
+        (386, "QuestSuc", 'broadcast all "KQReturn5".'),
+        (388, "QuestSuc", 'linkto all "Eld" "Eld" 17214 13445.'),
+        (394, "QuestFail", 'broadcast all "KQReturn30".'),
+        (396, "QuestFail", 'broadcast all "KQReturn20".'),
+        (398, "QuestFail", 'broadcast all "KQReturn10".'),
+        (400, "QuestFail", 'broadcast all "KQReturn5".'),
+        (402, "QuestFail", 'linkto all "Eld" "Eld" 17214 13445.'),
+    ]
+    if underhall_external_blocks != expected_underhall_external_blocks:
+        print("FAIL: KQ UnderHall exact external block routing changed",
+              underhall_external_blocks)
+        return 1
+    print("PASS: KQ UnderHall exact external block routing is source-locked")
+
     underhall_waitlogin_context = []
     for index, line in enumerate(underhall_source_lines):
         if line == "waitlogin Wait.":
@@ -1047,6 +1082,33 @@ def main():
                   forbidden)
             return 1
 
+    underhall_source_flow_text = UNDERHALL_SOURCE_FLOW.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHallExternalSourceSite",
+        "class KingdomQuestUnderHallSourceFlow",
+        'SuccessBlock = "QuestSuc"',
+        'FailureBlock = "QuestFail"',
+        "ExternalOccurrenceCount = 26",
+        "SuccessRewardOccurrenceCount = 1",
+        "FailureRewardOccurrenceCount = 0",
+        "{ 378, Site(378, SuccessBlock, KingdomQuestUnderHallExternalPlanKind.Reward) }",
+        "{ 388, Site(388, SuccessBlock, KingdomQuestUnderHallExternalPlanKind.LinkTo) }",
+        "{ 402, Site(402, FailureBlock, KingdomQuestUnderHallExternalPlanKind.LinkTo) }",
+        "candidate.Kind != kind",
+    ):
+        if token not in underhall_source_flow_text:
+            print("FAIL: KQ UnderHall source-flow routing changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "System.Random", "DateTime.Now",
+            "Environment.TickCount"):
+        if forbidden in underhall_source_flow_text:
+            print("FAIL: KQ UnderHall source-flow routing invented a side effect",
+                  forbidden)
+            return 1
+
     underhall_external_plan_text = UNDERHALL_EXTERNAL_PLAN.read_text(
         encoding="utf-8")
     for token in (
@@ -1084,6 +1146,8 @@ def main():
         "IKingdomQuestUnderHallCommandSink",
         "KingdomQuestUnderHallCommandKind.WaitInterrupt",
         "KingdomQuestUnderHallExternalPlanBuilder.TryBuild(",
+        "KingdomQuestUnderHallSourceFlow.TryResolve(",
+        "KingdomQuestUnderHallExternalSourceSite sourceSite",
         "externalSink.TryStep(",
         "interruptDeliverySource.TryTake(out delivery)",
         "document.Blocks.ContainsKey(delivery.ActionBlock)",
