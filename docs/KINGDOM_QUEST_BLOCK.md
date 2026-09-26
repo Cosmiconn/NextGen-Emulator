@@ -1855,11 +1855,20 @@ deduplicated reachable KQ ITEM space this yields
 Therefore native weapon class **5** is genuinely reachable, but only through
 the group/CardDeck path; no direct KQ ITEM argument resolves to class 5.
 
-Live authoritative ITI emission still requires the native **thread assignment
-and per-thread consumer order** for CRT/CardDeck work, the remaining normal
-per-class item-create/registration bytes, and the class-5 weapon socket-rate
-stage for those group-selected rewards. Inventory mutation/persistence remains
-separate.
+`KingdomQuestRewardConstructionPlan` now composes the recovered
+candidate stage into the reward-specific ItemAttributeClass stage. It derives
+the native item class directly from source-backed `ItemInfo.Class`, consumes
+one explicitly supplied WELL512 sample only for native classes **5..8**, and
+consumes none for classifier misses or TreasureChest capacity rejection.
+Every successfully selected item remains explicitly marked as requiring normal
+per-class item-create/registration, while only native class **5** carries the
+additional weapon-socket-rate requirement.
+
+Live authoritative ITI emission therefore still requires native **thread
+assignment and per-thread consumer order** for CRT/CardDeck work, the remaining
+normal per-class item-create/registration bytes, and the class-5 weapon
+socket-rate stage for those group-selected rewards. Inventory
+mutation/persistence remains separate.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
