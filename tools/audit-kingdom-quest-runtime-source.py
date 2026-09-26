@@ -22,6 +22,7 @@ PINE_RANDOM_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineRandomExpress
 PINE_DISTANCE_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineDistanceExpression.cs"
 PINE_CONDITION_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineConditionExpression.cs"
 PINE_CHAR_NAME_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineCharNameExpression.cs"
+PINE_USED_EXPRESSION_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedExpressionRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -233,7 +234,7 @@ def main():
                  PINE_BASIC_EXPRESSION, PINE_REMOVE_FIRST,
                  PINE_RANDOM_EXPRESSION, PINE_DISTANCE_EXPRESSION,
                  PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
-                 PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
+                 PINE_USED_EXPRESSION_RUNTIME, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
@@ -670,6 +671,45 @@ def main():
                   forbidden)
             return 1
 
+    pine_used_expression_text = PINE_USED_EXPRESSION_RUNTIME.read_text(
+        encoding="utf-8")
+    pine_used_expression_tokens = (
+        "class KingdomQuestPineUsedExpressionContext",
+        "class KingdomQuestPineUsedExpressionRuntime",
+        "MsvcCrtRand Random",
+        "IKingdomQuestPineNativeObjectCoordinateResolver CoordinateResolver",
+        "IKingdomQuestPineNativeObjectNameResolver NameResolver",
+        "KingdomQuestPineRandomExpression.TryParseUsedExpression(",
+        "context == null || context.Random == null",
+        "KingdomQuestPineDistanceExpression.TryParseUsedExpression(",
+        "context == null || context.CoordinateResolver == null",
+        "KingdomQuestPineCharNameExpression.TryParseUsedExpression(",
+        "context == null || context.NameResolver == null",
+        "return KingdomQuestPineExpressionResolution.Unsupported",
+        "silently falling through to a generic host implementation",
+    )
+    for token in pine_used_expression_tokens:
+        if token not in pine_used_expression_text:
+            print("FAIL: KQ Pine used-expression dispatcher changed", token)
+            return 1
+    for forbidden in (
+            "new MsvcCrtRand(", "System.Random", "MapManager.Instance",
+            ".MapObjectID"):
+        if forbidden in pine_used_expression_text:
+            print("FAIL: KQ Pine used-expression dispatcher invented a native dependency",
+                  forbidden)
+            return 1
+
+    for token in (
+        "KingdomQuestPineUsedExpressionContext expressionContext",
+        "KingdomQuestPineUsedExpressionRuntime.TryCalculate(",
+        "expressionContext,",
+        "return host.TryCalculateExpression(",
+    ):
+        if token not in pine_control_text:
+            print("FAIL: KQ Pine used-expression/control bridge changed", token)
+            return 1
+
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
@@ -890,6 +930,7 @@ def main():
     print("PASS: both used Pine @DistanceBetween calls are source-modeled through explicit native-object resolution and exact DirectDistanceTable integer math")
     print("PASS: all 26 used Pine IFs map to native comparison modes: numeric ==/!=/</>/<=/>= and token ===/=!=")
     print("PASS: all 10 used Pine @CharName calls preserve u16 native-handle lookup, empty-on-miss, and TName5 length boundary")
+    print("PASS: used Pine @Random/@DistanceBetween/@CharName expressions execute before generic host fallback with explicit native dependencies")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
     print("PASS: all 202 used Pine pause and 14 timelimit constants are modeled on the native 10-Hz tick clock with exact deadline semantics")
