@@ -754,7 +754,6 @@ def main():
         "ref int nativeState",
         "out bool completed",
         "SourceUsedVerbs.Contains(verb)",
-        "? null",
     ):
         if token not in underhall_runtime_text:
             print("FAIL: KQ UnderHall command runtime composition changed",
