@@ -268,6 +268,16 @@ def main():
         print('FAIL: compact ShineReward nonzero-tail patch count changed')
         return 1
 
+    shine_reward_patch_lines = [
+        line.strip() for line in shine_reward_sql.splitlines()
+        if line.lstrip().startswith('UPDATE `data_shinereward` SET')
+    ]
+    for forbidden_column in ('`Upgrade`=', '`OptionDegree`=', '`TitleDegree`='):
+        if any(forbidden_column in line for line in shine_reward_patch_lines):
+            print('FAIL: supplied ShineReward zero reward-shape field gained a nonzero patch',
+                  forbidden_column)
+            return 1
+
     for source_name, (path, sha256, expected_rows, expected_columns) in RAW_SOURCES.items():
         raw = path.read_text(encoding='utf-8')
         header = (
