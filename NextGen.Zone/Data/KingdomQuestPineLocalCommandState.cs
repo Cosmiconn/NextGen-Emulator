@@ -57,6 +57,19 @@ namespace NextGen.Zone.Data
             this.externalSink = externalSink;
         }
 
+        public KingdomQuestUnderHallCommandState CreateUnderHallCommandState(
+            KingdomQuestPineScriptDocument document,
+            IKingdomQuestUnderHallInterruptDeliverySource
+                interruptDeliverySource,
+            IKingdomQuestUnderHallExternalCommandSink externalSink = null)
+        {
+            return new KingdomQuestUnderHallCommandState(
+                document,
+                interruptDeliverySource,
+                interrupts,
+                externalSink);
+        }
+
         public bool TrySetTimeLimit(KingdomQuestPineTimeLimitPlan plan)
         {
             if (plan == null)
