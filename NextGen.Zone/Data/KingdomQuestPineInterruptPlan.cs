@@ -494,6 +494,20 @@ namespace NextGen.Zone.Data
             entries.Clear();
         }
 
+        public bool ContainsReference(
+            KingdomQuestPineInterruptSetPlan plan)
+        {
+            if (plan == null)
+                return false;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (object.ReferenceEquals(entries[i], plan))
+                    return true;
+            }
+            return false;
+        }
+
         private static bool SameName16(byte[] left, byte[] right)
         {
             if (left == null || right == null ||
