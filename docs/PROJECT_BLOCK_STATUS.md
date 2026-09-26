@@ -71,11 +71,14 @@ Still required for block completion:
 - exact native-thread assignment/consumer ordering for the thread-local Zone
   CRT rand stream used by CardDeck, plus authoritative completion of the
   remaining ItemTotalInformation construction stages (base per-class
-  itemcreate/registration and the KQ-reachable socket/option path). The
-  reward-specific ItemAttributeClass writes for all 10 reachable native item
-  classes, TreasureChest 111-byte layout/seven-content cap/call order and the
-  GameDB ACK lock-list transaction order are now source-modeled. Live native
-  GameDB/lock-list integration and scenario-triggered reward completion remain;
+  itemcreate/registration and the KQ-reachable weapon-socket path). The
+  optional reward OptionCard path is source-empty for the supplied corpus:
+  all 247 used ITEM rewards have OptionDegree=0 and the original ItemOptions
+  source has no degree-zero cards. Reward-specific ItemAttributeClass writes
+  for all 10 reachable native item classes, TreasureChest 111-byte
+  layout/seven-content cap/call order and the GameDB ACK lock-list transaction
+  order are now source-modeled. Live native GameDB/lock-list integration and
+  scenario-triggered reward completion remain;
 
 See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
 boundary. Unknown behavior remains fail-closed rather than inferred.
