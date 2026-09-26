@@ -591,6 +591,8 @@ def main():
         "Name5Equals(member.Name, source.Name)",
         "KingdomQuestSessionTargetRegistry.TryGet(handle, out target)",
         "client.KingdomQuestHandle = handle",
+        "existingJoiner.BanRaw == 1",
+        "voteBanLogoff = true",
         "for (int i = 0; i < 20; i++)",
         "Encoding.ASCII.GetBytes",
         "never creates membership",
@@ -602,7 +604,12 @@ def main():
         return 1
 
     if not require(world_handler4, [
+        "KingdomQuestNativeConstants.VoteLoginCooldownSeconds",
+        "client.KingdomQuestVoteSuggestCooldownUntil = unchecked(",
         "KingdomQuestReconnectService.TryRestore(",
+        "out voteBanLogoff",
+        "Handler22.KingdomQuestLoginBan(",
+        "Handler22.FlushKingdomQuestVoteBanLogoff(client)",
         "reconnectTarget.MapID",
         "reconnectTarget.MapInstance",
         "character.Character.PositionInfo.XPos = reconnectX",
@@ -659,6 +666,7 @@ def main():
         "!client.Character.Character.PrisonMinutes.HasValue",
         "alreadyInRequestedKq",
         "TryRemoveCurrentMembership",
+        "TryRemoveMembership(",
         "client.KingdomQuestHandle.Value",
         "uint targetCharacterNumber = characterNumber",
         "v => v.CharacterNumber == targetCharacterNumber",
@@ -827,18 +835,58 @@ def main():
         print("FAIL: VoteProcessing ban-link-before-expiry order changed")
         return 1
 
-    disjoin = handler.find("private static bool PlayerDisjoin(WorldClient client)")
+    disjoin = handler.find(
+        "private static bool PlayerDisjoin(\n            WorldClient client, uint oldHandle, uint characterNumber)")
     cancel_vote = handler.find(
         "KingdomQuestVoteCoordinator.TryCancelForTargetDisjoin(", disjoin)
     remove_member = handler.find(
-        "KingdomQuestAdmissionCoordinator.TryRemoveCurrentMembership(", disjoin)
+        "KingdomQuestAdmissionCoordinator.TryRemoveMembership(", disjoin)
     if not (0 <= disjoin < cancel_vote < remove_member):
         print("FAIL: PlayerDisjoin target-vote cancellation order changed")
         return 1
 
     if not require(world_client, [
         "int? KingdomQuestVoteSuggestCooldownUntil",
-    ], "native KQ vote suggest-cooldown session deadline"):
+        "bool KingdomQuestVoteBanLogoffPending",
+    ], "native KQ vote session deadlines/ban-logoff flag"):
+        return 1
+
+    if not require(handler, [
+        "internal static void KingdomQuestLoginBan(",
+        "client.KingdomQuestVoteBanLogoffPending = true",
+        "PlayerDisjoin(client, handle, characterNumber)",
+        "internal static void FlushKingdomQuestVoteBanLogoff(",
+        "KingdomQuestProtocol.CreateVoteBanMessageLogoff()",
+        "client.KingdomQuestVoteBanLogoffPending = false",
+    ], "native login-ban deferred VOTE_BAN_MSG_LOGOFF path"):
+        return 1
+
+    login_ban = handler.find("internal static void KingdomQuestLoginBan(")
+    pending_set = handler.find(
+        "client.KingdomQuestVoteBanLogoffPending = true", login_ban)
+    login_disjoin = handler.find(
+        "PlayerDisjoin(client, handle, characterNumber)", pending_set)
+    flush = handler.find(
+        "internal static void FlushKingdomQuestVoteBanLogoff(", login_disjoin)
+    logoff_send = handler.find(
+        "KingdomQuestProtocol.CreateVoteBanMessageLogoff()", flush)
+    pending_clear = handler.find(
+        "client.KingdomQuestVoteBanLogoffPending = false", logoff_send)
+    if not (0 <= login_ban < pending_set < login_disjoin <
+            flush < logoff_send < pending_clear):
+        print("FAIL: login-ban flag/disjoin/logoff ordering changed")
+        return 1
+
+    login_cool = world_handler4.find(
+        "client.KingdomQuestVoteSuggestCooldownUntil = unchecked(")
+    reconnect = world_handler4.find(
+        "KingdomQuestReconnectService.TryRestore(", login_cool)
+    login_ban_call = world_handler4.find(
+        "Handler22.KingdomQuestLoginBan(", reconnect)
+    login_logoff_call = world_handler4.find(
+        "Handler22.FlushKingdomQuestVoteBanLogoff(client)", login_ban_call)
+    if not (0 <= login_cool < reconnect < login_ban_call < login_logoff_call):
+        print("FAIL: character-login KQ vote cooldown/ban ordering changed")
         return 1
 
     if not require(world_scheduler, [
@@ -1180,6 +1228,8 @@ def main():
     print("PASS: VOTE_START/VOTING/START_CHECK transport is live with exact SingleData 60s/300s timing and ACK-before-command ordering")
     print("PASS: VoteProcessing preserves existing-ban force-link before expiry/result, and passing targets receive BAN_MSG before next-tick force link")
     print("PASS: PlayerDisjoin cancels only an active unbanned vote target before normal membership removal")
+    print("PASS: character login initializes the shared vote deadline from KQVote_LoginCoolTime=300 before reconnect checks")
+    print("PASS: CheckCharBannedInLogin exact bBan==1 is represented as pending flag -> PlayerDisjoin -> deferred 0x5830 send/clear")
     return 0
 
 if __name__ == "__main__":

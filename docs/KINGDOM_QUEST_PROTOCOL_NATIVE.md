@@ -535,10 +535,17 @@ contains `KQVote_VoteLimitTime=60`,
 `KQPlayerList_ResetListCoolTime=5`. Direct WorldManager disassembly shows
 the vote-start path resolving the first two through
 `CSingleDataMap::GetValue`, using 60 seconds for the vote EndTime and
-300 seconds for the starter suggest-cooldown deadline. The full 41-row source snapshot is provenance-locked. The remaining vote edge
-is the separate login/rebind ban notification path that emits
-VOTE_BAN_MSG_LOGOFF; it is not inferred from the now-live in-session
-VoteProcessing path.
+300 seconds for the starter suggest-cooldown deadline. The full 41-row source snapshot is provenance-locked. Direct login-path
+disassembly additionally closes the last ban edge:
+`CheckCharBannedInLogin` at 0x00454EE0 tests the retained joiner's bBan
+DWORD exactly against 1 after JoinerInfoUpdateByLogin. Success sets
+CWMClientSession +0x1DF74 to 1 and runs PlayerDisjoin; the later login
+continuation sends empty VOTE_BAN_MSG_LOGOFF (0x5830) and clears that field.
+The shared vote deadline at +0x1DF70 is initialized on character login from
+KQVote_LoginCoolTime=300 before later successful suggestions overwrite it
+with SuggestCoolTime. The emulator mirrors those two session fields and this
+ordering without treating arbitrary nonzero BanRaw values as the exact-one
+login condition.
 
 
 ## JOIN admission Error values recovered

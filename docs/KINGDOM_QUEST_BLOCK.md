@@ -1163,6 +1163,24 @@ current `bInVote` values, sends VOTE_CANCEL_CMD to every other live joiner,
 clears KQ_VOTE_INFO, and only then performs normal membership removal. A
 starter-only disjoin does not cancel the vote.
 
+The final login-ban edge is closed as well. Native
+`CheckCharBannedInLogin` at WorldManager address `0x00454EE0` resolves
+the retained joiner and returns true only when its `bBan` DWORD is
+**exactly 1**. The character-login caller first runs
+`JoinerInfoUpdateByLogin`, then on that result sets CWMClientSession field
+`+0x1DF74=1` and calls `PlayerDisjoin`; the saved KQ coordinates are not
+restored on that branch. A later login-continuation check sends the empty
+`VOTE_BAN_MSG_LOGOFF (0x5830)` when that field equals 1 and immediately
+clears it.
+
+The emulator mirrors that deferred ordering. Reconnect rebinds the retained
+Handle, tests `BanRaw == 1`, suppresses KQ-position restoration, sets an
+explicit pending-logoff session flag, executes the same PlayerDisjoin path,
+then emits 0x5830 and clears the flag. The native session deadline at
+`+0x1DF70` is initialized on character login with
+`KQVote_LoginCoolTime=300`; successful vote suggestions later overwrite
+that same deadline with the separately sourced 300-second SuggestCoolTime.
+
 The previously unresolved vote timings are now closed by the original
 `SingleData.shn` from the supplied Server.zip. The exact file is SHA-256
 `8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88`

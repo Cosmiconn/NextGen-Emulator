@@ -54,7 +54,11 @@ Implemented and CI-locked on the KQ branch:
   class-family mask expansion from explicit CRT/class state, box identity and
   exact scalar accumulation;
 - native reward ACK packet/identity validation boundary without inventing the
-  unresolved item-store transaction semantics.
+  unresolved item-store transaction semantics;
+- complete source-backed World vote transport: 60-second vote duration,
+  300-second login/suggest cooldowns, start/voting/check ACK families,
+  result/ban processing, force-ban map links, target-disjoin cancellation and
+  exact-one login-ban PlayerDisjoin -> deferred VOTE_BAN_MSG_LOGOFF.
 
 Still required for block completion:
 
@@ -65,10 +69,6 @@ Still required for block completion:
   source-modeled CardDeck stage, followed by TreasureChest item
   construction/options and the GameDB/item-store transaction plus exact reward
   mutation/completion timing;
-- the main vote transport is now live (60-second duration, 300-second
-  suggest cooldown, result, force-ban link and target-disjoin cancellation);
-  the separate login/rebind VOTE_BAN_MSG_LOGOFF edge still needs its exact
-  session-state ownership/order correlated before activation.
 
 See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
 boundary. Unknown behavior remains fail-closed rather than inferred.
