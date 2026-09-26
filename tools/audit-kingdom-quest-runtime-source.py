@@ -823,15 +823,37 @@ def main():
         if current_waitlogin_script is not None and line:
             pine_source_lines_by_script[current_waitlogin_script].append(line)
 
+    waitlogin_targets = {}
     for key in sorted(PINE_SCRIPT_KEYS):
         lines = pine_source_lines_by_script.get(key, [])
-        for index, line in enumerate(lines):
-            if not line.lower().startswith("waitlogin "):
-                continue
-            start = max(0, index - 3)
-            end = min(len(lines), index + 5)
-            print("INFO: KQ Pine waitlogin context {0}: {1}".format(
-                key, " || ".join(lines[start:end])))
+        matches = [
+            (index, line)
+            for index, line in enumerate(lines)
+            if line.lower().startswith("waitlogin ")
+        ]
+        if len(matches) != 1:
+            print("FAIL: KQ Pine waitlogin count changed", key, matches)
+            return 1
+
+        index, line = matches[0]
+        target = line[len("waitlogin "):].rstrip(".").strip()
+        if not target or index + 1 >= len(lines):
+            print("FAIL: KQ Pine waitlogin target/context malformed", key, line)
+            return 1
+
+        expected_numeric = "if {0} == 0".format(target)
+        expected_token = "if {0} === 0".format(target)
+        if lines[index + 1] not in (expected_numeric, expected_token):
+            print("FAIL: KQ Pine waitlogin no longer feeds immediate zero gate",
+                  key, lines[index:index + 2])
+            return 1
+        waitlogin_targets[key] = target
+
+    if len(waitlogin_targets) != 9:
+        print("FAIL: KQ Pine waitlogin script coverage changed",
+              waitlogin_targets)
+        return 1
+    print("PASS: all 9 Pine KQs route one waitlogin target directly into a zero gate")
 
     underhall_interrupt_type_counts = Counter()
     for line in pine_command_lines_by_script["KQ/UnderHall"].get(
