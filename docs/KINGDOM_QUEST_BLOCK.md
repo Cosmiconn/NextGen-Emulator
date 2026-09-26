@@ -1538,6 +1538,12 @@ native KQ map slots. For every populated map it obtains the KQ element's
 `ScriptInitValue` tokens. MAKE created those two `PineScriptToken` values
 from the corresponding fields of `PROTO_KQ_INFO`.
 
+The Zone lifecycle now preserves that recovered START boundary explicitly in
+`KingdomQuestScenarioStartPlan`. W2Z START records the native action order
+**DropFilm -> CloseAllDoors -> PlayFilm(ScriptLanguage, ScriptInitValue)** in
+the KQ runtime state and carries it unchanged through later disjoin/end state
+updates. This does not execute a film or choose a Pine block.
+
 The meaning of the second `cc_PlayFilm` token remains deliberately
 **UNRESOLVED** beyond that call boundary. The canonical Pine corpus disproves a
 tempting shortcut: `KQ/UnderHall` is started with
