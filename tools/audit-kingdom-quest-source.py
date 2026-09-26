@@ -46,6 +46,7 @@ WORLD_REWARD_ITEM_CANDIDATE_PLAN = ROOT / "NextGen.World/Data/KingdomQuestReward
 WORLD_REWARD_TREASURE_CHEST = ROOT / "NextGen.World/Data/KingdomQuestRewardTreasureChestNative.cs"
 WORLD_REWARD_ITEM_ATTRIBUTE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemAttributeNative.cs"
 WORLD_REWARD_CONSTRUCTION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardConstructionPlan.cs"
+WORLD_REWARD_NATIVE_ITEM_EMISSION = ROOT / "NextGen.World/Data/KingdomQuestRewardNativeItemEmissionPlan.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
@@ -174,7 +175,7 @@ def main():
         SHARED_MSVC_CRT_RAND, WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_CLASS_GROUP,
         WORLD_REWARD_ITEM_CANDIDATE_PLAN, WORLD_REWARD_TREASURE_CHEST,
         WORLD_REWARD_ITEM_ATTRIBUTE, WORLD_REWARD_CONSTRUCTION_PLAN,
-        WORLD_REWARD_BOX_PLAN,
+        WORLD_REWARD_NATIVE_ITEM_EMISSION, WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
         ZONE_REWARD_ACK_IDENTITY, ZONE_REWARD_NATIVE_TRANSACTION,
         NATIVE_INFO, NATIVE_REWARD,
@@ -834,6 +835,7 @@ def main():
     world_reward_treasure_chest = WORLD_REWARD_TREASURE_CHEST.read_text(encoding='utf-8')
     world_reward_item_attribute = WORLD_REWARD_ITEM_ATTRIBUTE.read_text(encoding='utf-8')
     world_reward_construction_plan = WORLD_REWARD_CONSTRUCTION_PLAN.read_text(encoding='utf-8')
+    world_reward_native_item_emission = WORLD_REWARD_NATIVE_ITEM_EMISSION.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
@@ -1297,6 +1299,41 @@ def main():
     ):
         if forbidden in world_reward_construction_plan:
             print('FAIL: KQ reward construction composition invented mutation/RNG',
+                  forbidden)
+            return 1
+
+    for token in (
+        'interface IKingdomQuestRewardNativeBaseItemSource',
+        'interface IKingdomQuestRewardNativeWeaponSocketSource',
+        'interface IKingdomQuestRewardNativeResidualAttributeSource',
+        'class KingdomQuestRewardNativeItemEmissionEntry',
+        'class KingdomQuestRewardNativeItemEmissionPlan',
+        'KingdomQuestRewardTreasureChestNative.ItemTotalInformationBytes',
+        'baseItemSource.TryCreateBaseItem(',
+        'ApplyKnownRewardWrites(',
+        'KingdomQuestRewardItemAttributeNative.RewardValueOffset',
+        'KingdomQuestRewardItemAttributeNative.RewardAuxiliaryByteOffset',
+        'entry.ItemAttribute.ClearsDecorationPayload',
+        'residualSource.TryApplyResidualAttribute(',
+        'entry.RequiresWeaponSocketRate',
+        'entry.ItemAttribute.NativeItemClass != 5',
+        'KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate',
+        'weaponSocketSource.TryApplyWeaponSocketRate(',
+        'never calls legacy emulator inventory',
+        'never generates registration numbers',
+        'never chooses RNG',
+    ):
+        if token not in world_reward_native_item_emission:
+            print('FAIL: native KQ reward ITI composition boundary missing',
+                  token)
+            return 1
+    for forbidden in (
+        'new Item(', 'Inventory.', 'ExecuteQuery', 'Program.DatabaseManager',
+        'SendPacket(', 'DateTime.Now', 'System.Random', 'new Random(',
+        'iti_mkregnum(', 'MakeRegistrationNumber(',
+    ):
+        if forbidden in world_reward_native_item_emission:
+            print('FAIL: KQ reward ITI composition invented native state',
                   forbidden)
             return 1
 
