@@ -1351,11 +1351,12 @@ used Pine corpus contains exactly one `@Random(0 99)`, in GordonMaster.
 calls the linked MSVC CRT `rand()` at `0x006594B2`, and computes
 `min + rand() % (max-min+1)`; the upper bound is inclusive. The linked
 `rand()` transition is the same `state*0x343FD+0x269EC3` / 15-bit output
-already recovered for CardDeck. That math now lives in the shared
+already recovered for CardDeck. That math now lives in the common
 `MsvcCrtRand` primitive used by the World CardDeck model and available to
-Zone Pine. Neither layer chooses a seed or claims ownership of Zone's shared
-CRT stream; authoritative process-wide state/consumer ordering remains
-explicitly unresolved before live `@Random` or reward CardDeck execution.
+Zone Pine. Neither layer chooses a seed or claims ownership of the native
+**thread-local** Zone CRT stream; authoritative native-thread assignment and
+per-thread consumer ordering remain explicitly unresolved before live
+`@Random` or reward CardDeck execution.
 
 The two used GordonMaster `@DistanceBetween(...)` expressions are now
 recovered without identifying native ShineObject handles with emulator object
@@ -1403,11 +1404,11 @@ The three source-proven system-function families now compose directly into
 `KingdomQuestPineUsedExpressionRuntime`: the exact used `@Random`,
 `@DistanceBetween` and `@CharName` forms are attempted before the
 generic expression host fallback. Their native dependencies remain explicit:
-the caller supplies the shared `MsvcCrtRand` state and the native-object
-coordinate/name resolvers. A recognized used expression with a missing
+the caller supplies the appropriate native-thread `MsvcCrtRand` state and the
+native-object coordinate/name resolvers. A recognized used expression with a missing
 dependency is an invalid calculation and faults fail-closed; it is not silently
 reinterpreted by the generic host. This closes the runtime composition boundary
-without inventing process-wide CRT ownership or a native-handle-to-emulator-ID
+without inventing native-thread CRT ownership or a native-handle-to-emulator-ID
 mapping.
 
 The canonical Pine bundle is now audited into an exact **44-verb**
