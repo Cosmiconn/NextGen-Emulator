@@ -27,6 +27,7 @@ PINE_CONDITION_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineConditionE
 PINE_CHAR_NAME_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineCharNameExpression.cs"
 PINE_USED_EXPRESSION_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedExpressionRuntime.cs"
 PINE_USED_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedCommandRuntime.cs"
+PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalCommandState.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -239,7 +240,7 @@ def main():
                  PINE_RANDOM_EXPRESSION, PINE_DISTANCE_EXPRESSION,
                  PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
                  PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
-                 PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
+                 PINE_LOCAL_COMMAND_STATE, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
@@ -982,6 +983,35 @@ def main():
             print("FAIL: KQ Pine one-step/control bridge changed", token)
             return 1
 
+    pine_local_command_text = PINE_LOCAL_COMMAND_STATE.read_text(
+        encoding="utf-8")
+    pine_local_command_tokens = (
+        "interface IKingdomQuestPineExternalCommandSink",
+        "class KingdomQuestPineLocalCommandState",
+        "IKingdomQuestPineUsedCommandSink",
+        "KingdomQuestPineInterruptRegistryState interrupts",
+        "KingdomQuestPineTimeLimitPlan timeLimit",
+        "timeLimit = plan",
+        "interrupts.TryRegister(plan)",
+        "interrupts.Erase(nativeName16)",
+        "interrupts.Clear()",
+        "externalSink.TryRunRegenGroup(plan)",
+        "externalSink.TryApplyQuestResult(plan)",
+        "externalSink.TryEndKingdomQuest(plan)",
+        "Zero matches still means the command itself ran.",
+    )
+    for token in pine_local_command_tokens:
+        if token not in pine_local_command_text:
+            print("FAIL: KQ Pine local command state changed", token)
+            return 1
+    for forbidden in (
+            "DateTime.Now", "Environment.TickCount", "System.Random",
+            "MapManager.Instance", "SendPacket(", "Program.DatabaseManager"):
+        if forbidden in pine_local_command_text:
+            print("FAIL: KQ Pine local command state invented an external side effect",
+                  forbidden)
+            return 1
+
     for token in (
         "public bool HasPauseDeadline;",
         "public uint PauseDeadlineTick;",
@@ -1220,6 +1250,7 @@ def main():
     print("PASS: all 10 used Pine @CharName calls preserve u16 native-handle lookup, empty-on-miss, and TName5 length boundary")
     print("PASS: used Pine @Random/@DistanceBetween/@CharName expressions execute before generic host fallback with explicit native dependencies")
     print("PASS: 589 source-proven one-step Pine commands dispatch before generic host fallback through explicit tick/regen/effect dependencies")
+    print("PASS: Pine TimeLimit plus 20-slot interrupt register/erase/clear state has a concrete local owner; regen/result/end remain explicitly delegated")
     print("PASS: all 202 source-used Pine pause commands execute native 10-Hz deadline state before host fallback")
     print("PASS: Pine ScriptInitValue remains a separate cc_PlayFilm token; UnderHall=10 proves it is not a top-level block key")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
