@@ -528,7 +528,10 @@ def main():
         "(int)(deadlineTick - currentTick) <= 0",
         "removes every matching active interrupt",
         "applies ListEraser to",
-        "does not choose BlastCheck ordering",
+        "bool TryRegister(KingdomQuestPineInterruptSetPlan plan)",
+        "entries.Count >= KingdomQuestPineInterruptPlan.NativeManagerCapacity",
+        "public int Erase(byte[] nativeName16)",
+        "public void Clear()",
     )
     for token in pine_interrupt_tokens:
         if token not in pine_interrupt_text:
