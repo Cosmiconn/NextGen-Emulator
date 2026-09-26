@@ -1188,7 +1188,9 @@ def main():
         '"KQUnderHall"',
         '"InterruptBlock", "InterruptArg"',
         '"Wait"',
-        'string.Equals( t[2].Text, "KQ_SkelWarrior"',
+        '"KQ_SkelWarrior"',
+        "count != 3 && count != 5",
+        "SummonCounts.TryGetValue(",
     ):
         compact = underhall_command_source_text.replace("\n", " ")
         if token not in underhall_command_source_text and token not in compact:
