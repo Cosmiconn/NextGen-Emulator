@@ -477,7 +477,10 @@ def main():
     pine_expression_tokens = (
         "class KingdomQuestPineBasicExpression",
         "enum KingdomQuestPineExpressionResolution",
+        "String::sa_Load                         0x004DB330",
+        "PineScriptToken::pst_RemoveQuatator 0x004D6310",
         "Number::sa_Calculate / String::sa_Calculate 0x004D6710",
+        "source.Substring(1, source.Length - 2)",
         "Identify::sa_Calculate                    0x004D6650",
         "PineScriptToken::pst_GetNumber           0x004D6360",
         "PineScriptToken::operator+               0x004D7390",
