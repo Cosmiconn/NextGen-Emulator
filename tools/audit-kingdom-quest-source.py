@@ -1281,6 +1281,9 @@ def main():
         'sampleIndex != weightedGradeSamples.Count',
         'RequiresBaseItemCreateRegistration',
         'RequiresWeaponSocketRate',
+        'HasUnexpectedDirectWeaponSocketCandidate',
+        'RequiresWeaponSocketFromGroupCandidateOnly',
+        'KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate',
         'NativeTreasureChestCapacityRejected',
         'NativeNoCompatibleCandidate',
     ):
