@@ -1489,15 +1489,14 @@ native KQ map slots. For every populated map it obtains the KQ element's
 `ScriptInitValue` tokens. MAKE created those two `PineScriptToken` values
 from the corresponding fields of `PROTO_KQ_INFO`.
 
-That START source pair is now executable-bound as well.
-`KingdomQuestPineStartRuntime` accepts a KQ definition only when its exact
-`ScriptLanguage` resolves to one of the nine source-backed Pine documents and
-its exact `ScriptInitValue` names a top-level block in that document. It then
-creates `KingdomQuestPineControlRuntime` at precisely that block. There is no
-default `"10"`, first-block fallback or Lua substitution. The accompanying
-runtime-source audit derives the top-level blocks from the hash-locked canonical
-Pine bundle and correlates all supplied Pine-backed definitions against their
-original `InitValue`.
+The meaning of the second `cc_PlayFilm` token remains deliberately
+**UNRESOLVED** beyond that call boundary. The canonical Pine corpus disproves a
+tempting shortcut: `KQ/UnderHall` is started with
+`ScriptInitValue="10"`, but `10` is not a top-level block name in that
+source. Therefore the emulator does not reinterpret `ScriptInitValue` as an
+entry-block key, does not pick a default block, and does not substitute a Lua
+entrypoint. The runtime-source audit locks this counterexample so that the
+disproven mapping cannot be reintroduced.
 
 Static regen is reached later and lazily by the running scenario. The recovered
 PineScript `regengroup` node follows this exact path:
