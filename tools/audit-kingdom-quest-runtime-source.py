@@ -33,6 +33,7 @@ PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalComman
 UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandSource.cs"
 UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandRuntime.cs"
 UNDERHALL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandState.cs"
+UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
@@ -250,7 +251,7 @@ def main():
                  PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
                  PINE_LOCAL_COMMAND_STATE, UNDERHALL_COMMAND_SOURCE,
                  UNDERHALL_COMMAND_RUNTIME, UNDERHALL_COMMAND_STATE,
-                 UNDERHALL_SOURCE_CATALOG,
+                 UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
@@ -807,6 +808,16 @@ def main():
               "{0}={1}".format(kind, underhall_interrupt_type_counts[kind])
               for kind in sorted(underhall_interrupt_type_counts)))
 
+    underhall_interrupt_lines = (
+        pine_command_lines_by_script["KQ/UnderHall"].get(
+            "interruptset", []))
+    if any(
+            len(line.split()) < 4 or line.split()[3] != "1"
+            for line in underhall_interrupt_lines):
+        print("FAIL: KQ UnderHall interrupt RepeatCount is no longer exact-one")
+        return 1
+    print("PASS: all 61 UnderHall interrupt registrations use RepeatCount=1")
+
     underhall_catalog_text = UNDERHALL_SOURCE_CATALOG.read_text(
         encoding="utf-8")
     for token in (
@@ -936,6 +947,36 @@ def main():
             "Environment.TickCount"):
         if forbidden in underhall_state_text:
             print("FAIL: KQ UnderHall wait state invented an external effect",
+                  forbidden)
+            return 1
+
+    underhall_timed_due_text = UNDERHALL_TIMED_INTERRUPT_DUE.read_text(
+        encoding="utf-8")
+    for token in (
+        "enum KingdomQuestUnderHallTimedInterruptEvaluation",
+        "class KingdomQuestUnderHallTimedInterruptDue",
+        "UnderHallSecondIntervalCount = 18",
+        "UnderHallTimeOutCount = 19",
+        "UnderHallTimedInterruptCount =",
+        "KingdomQuestPineInterruptKind.SecondInterval",
+        "plan.InitialIntervalDeadlineTick.HasValue",
+        "KingdomQuestPineInterruptPlan.IsIntervalDue(",
+        "KingdomQuestPineInterruptKind.TimeOut",
+        "timeLimit == null || !timeLimit.NativeActive",
+        "KingdomQuestPineInterruptPlan.IsTimeLimitExpired(",
+        "does NOT select one candidate",
+        "decrement RepeatCount",
+        "decide BlastCheck iteration/order",
+    ):
+        if token not in underhall_timed_due_text:
+            print("FAIL: KQ UnderHall timed-interrupt evaluator changed", token)
+            return 1
+    for forbidden in (
+            "RemoveAt(", ".Clear(", "AdvanceIntervalDeadline(",
+            "MapManager.Instance", "SendPacket(", "Program.DatabaseManager",
+            "System.Random", "DateTime.Now", "Environment.TickCount"):
+        if forbidden in underhall_timed_due_text:
+            print("FAIL: KQ UnderHall timed evaluator invented mutation/order",
                   forbidden)
             return 1
 
