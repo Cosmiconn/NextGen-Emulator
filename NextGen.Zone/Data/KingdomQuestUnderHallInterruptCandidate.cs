@@ -17,11 +17,11 @@ namespace NextGen.Zone.Data
     public interface IKingdomQuestUnderHallEventPredicateSource
     {
         bool TryEvaluateHPLow(
-            KingdomQuestPineInterruptSetPlan plan,
+            KingdomQuestUnderHallEventPredicatePlan plan,
             out bool due);
 
         bool TryEvaluatePlayerEliminate(
-            KingdomQuestPineInterruptSetPlan plan,
+            KingdomQuestUnderHallEventPredicatePlan plan,
             out bool due);
     }
 
@@ -77,29 +77,28 @@ namespace NextGen.Zone.Data
                     }
 
                 case KingdomQuestPineInterruptKind.HPLow:
-                    if (eventSource == null ||
-                        plan.Arguments == null ||
-                        plan.Arguments.Count != 2)
-                        return KingdomQuestUnderHallInterruptCandidateResult.Invalid;
-
-                    bool hpLowDue;
-                    if (!eventSource.TryEvaluateHPLow(plan, out hpLowDue))
-                        return KingdomQuestUnderHallInterruptCandidateResult.Invalid;
-                    return hpLowDue
-                        ? KingdomQuestUnderHallInterruptCandidateResult.Due
-                        : KingdomQuestUnderHallInterruptCandidateResult.NotDue;
-
                 case KingdomQuestPineInterruptKind.PlayerEliminate:
-                    if (eventSource == null ||
-                        plan.Arguments == null ||
-                        plan.Arguments.Count != 0)
+                    if (eventSource == null)
                         return KingdomQuestUnderHallInterruptCandidateResult.Invalid;
 
-                    bool eliminateDue;
-                    if (!eventSource.TryEvaluatePlayerEliminate(
-                            plan, out eliminateDue))
+                    KingdomQuestUnderHallEventPredicatePlan eventPlan;
+                    if (!KingdomQuestUnderHallEventPredicatePlanBuilder.TryBuild(
+                            plan, out eventPlan) ||
+                        eventPlan == null)
                         return KingdomQuestUnderHallInterruptCandidateResult.Invalid;
-                    return eliminateDue
+
+                    bool eventDue;
+                    bool evaluated =
+                        eventPlan.Kind ==
+                            KingdomQuestUnderHallEventPredicateKind.HPLow
+                        ? eventSource.TryEvaluateHPLow(
+                            eventPlan, out eventDue)
+                        : eventSource.TryEvaluatePlayerEliminate(
+                            eventPlan, out eventDue);
+                    if (!evaluated)
+                        return KingdomQuestUnderHallInterruptCandidateResult.Invalid;
+
+                    return eventDue
                         ? KingdomQuestUnderHallInterruptCandidateResult.Due
                         : KingdomQuestUnderHallInterruptCandidateResult.NotDue;
 
