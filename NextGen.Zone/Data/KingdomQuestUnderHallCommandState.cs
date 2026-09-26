@@ -36,13 +36,13 @@ namespace NextGen.Zone.Data
 
     /// <summary>
     /// Optional owner for the eight non-waitinterrupt UnderHall command
-    /// families. This keeps their still-unrecovered side effects separate from
-    /// the source-proven waitinterrupt variable handoff.
+    /// families. It receives only source-resolved plans; raw Pine argument
+    /// interpretation remains inside the checked source boundary.
     /// </summary>
     public interface IKingdomQuestUnderHallExternalCommandSink
     {
         bool TryStep(
-            KingdomQuestUnderHallCommandSourcePlan plan,
+            KingdomQuestUnderHallExternalPlan plan,
             KingdomQuestPineVariableStack variables,
             int canonicalLine,
             ref int nativeState,
@@ -102,9 +102,15 @@ namespace NextGen.Zone.Data
                 return TryStepWaitInterrupt(
                     plan, variables, out completed);
 
+            KingdomQuestUnderHallExternalPlan externalPlan;
+            if (!KingdomQuestUnderHallExternalPlanBuilder.TryBuild(
+                    plan, out externalPlan) ||
+                externalPlan == null)
+                return false;
+
             return externalSink != null &&
                 externalSink.TryStep(
-                    plan,
+                    externalPlan,
                     variables,
                     canonicalLine,
                     ref nativeState,
