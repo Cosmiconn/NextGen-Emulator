@@ -30,10 +30,12 @@ namespace NextGen.Zone.Data
         public short MapInstance { get; private set; }
         public KingdomQuestZoneLifecycleState State { get; private set; }
         public KingdomQuestProtocolInfo Definition { get; private set; }
+        public KingdomQuestScenarioStartPlan ScenarioStartPlan { get; private set; }
         public IReadOnlyList<KingdomQuestZoneJoinerInfo> Joiners { get; private set; }
 
         internal KingdomQuestZoneRuntimeState(uint handle, ushort mapId, short mapInstance,
             KingdomQuestZoneLifecycleState state, KingdomQuestProtocolInfo definition,
+            KingdomQuestScenarioStartPlan scenarioStartPlan,
             IEnumerable<KingdomQuestZoneJoinerInfo> joiners)
         {
             Handle = handle;
@@ -41,13 +43,15 @@ namespace NextGen.Zone.Data
             MapInstance = mapInstance;
             State = state;
             Definition = CloneDefinition(definition);
+            ScenarioStartPlan = scenarioStartPlan;
             Joiners = CloneJoiners(joiners);
         }
 
         internal KingdomQuestZoneRuntimeState Clone()
         {
             return new KingdomQuestZoneRuntimeState(
-                Handle, MapID, MapInstance, State, Definition, Joiners);
+                Handle, MapID, MapInstance, State, Definition,
+                ScenarioStartPlan, Joiners);
         }
 
         private static KingdomQuestProtocolInfo CloneDefinition(
@@ -181,7 +185,7 @@ namespace NextGen.Zone.Data
                     new KingdomQuestZoneRuntimeState(
                         definition.Handle, mapId, mapInstance,
                         KingdomQuestZoneLifecycleState.Made,
-                        definition, null));
+                        definition, null, null));
                 return KingdomQuestZoneMakeResult.Success;
             }
         }
@@ -199,9 +203,15 @@ namespace NextGen.Zone.Data
                 if (!ByHandle.TryGetValue(definition.Handle, out current))
                     return false;
 
+                KingdomQuestScenarioStartPlan scenarioStartPlan;
+                if (!KingdomQuestScenarioStartPlan.TryBuild(
+                        definition, out scenarioStartPlan))
+                    return false;
+
                 ByHandle[definition.Handle] = new KingdomQuestZoneRuntimeState(
                     current.Handle, current.MapID, current.MapInstance,
-                    KingdomQuestZoneLifecycleState.Started, definition, roster);
+                    KingdomQuestZoneLifecycleState.Started, definition,
+                    scenarioStartPlan, roster);
                 return true;
             }
         }
@@ -233,7 +243,8 @@ namespace NextGen.Zone.Data
 
                 ByHandle[handle] = new KingdomQuestZoneRuntimeState(
                     current.Handle, current.MapID, current.MapInstance,
-                    current.State, current.Definition, roster);
+                    current.State, current.Definition,
+                    current.ScenarioStartPlan, roster);
                 return true;
             }
         }
@@ -249,7 +260,8 @@ namespace NextGen.Zone.Data
                 ByHandle[handle] = new KingdomQuestZoneRuntimeState(
                     current.Handle, current.MapID, current.MapInstance,
                     KingdomQuestZoneLifecycleState.Ended,
-                    current.Definition, current.Joiners);
+                    current.Definition, current.ScenarioStartPlan,
+                    current.Joiners);
                 return true;
             }
         }
