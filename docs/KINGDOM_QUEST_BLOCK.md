@@ -1478,19 +1478,31 @@ edge. It declares `InterruptBlock=""` and `InterruptArg=""`, contains
 each is immediately followed by `call InterruptBlock.`. Its 61
 `interruptset` registrations use only **HPLow=5, PlayerEliminate=19,
 Sec=18, TimeOut=19**; every final ActionBlock token resolves to a real
-UnderHall top-level block. `KingdomQuestUnderHallCommandState` can therefore
-apply an **already authoritatively selected** interrupt delivery to the two
-Pine variables, after which the control runtime resolves the exact
-UnderHall-only dynamic `call InterruptBlock.` through VariableStack. It does
-not choose BlastCheck ordering or synthesize HPLow/PlayerEliminate/Sec/TimeOut
-events; that event-production boundary remains open.
+UnderHall top-level block. The delivery handoff is now tied to the same
+`KingdomQuestPineInterruptRegistryState` owned by the local Pine command
+state: the external selector must return an actually registered plan by object
+identity, and the delivered `InterruptBlock` is copied only from that plan's
+source-backed `ActionBlock`. Free-form action-block delivery is no longer
+accepted.
 
-The two timing predicates inside that boundary are now source/native bounded as
-well. `KingdomQuestUnderHallTimedInterruptDue` evaluates the **18 Sec** and
-**19 TimeOut** registrations with the recovered native tick/deadline rules only;
-it deliberately does not select manager order, mutate RepeatCount or construct
-`InterruptArg`. All 61 UnderHall interrupt registrations have exact
-`RepeatCount=1`.
+The two timing predicates inside that boundary are source/native bounded.
+`KingdomQuestUnderHallTimedInterruptDue` evaluates the **18 Sec** and
+**19 TimeOut** registrations with the recovered native tick/deadline rules.
+For the remaining event predicates the exact UnderHall source shapes are now
+typed before reaching any native provider: all five HPLow registrations target
+source MobID **1068 / KQ_BossRobo** with raw operands
+**800/600/400/200/100** mapping exactly to `Summon1..5`, while all
+**19 PlayerEliminate** registrations map to `QuestFail`.
+`KingdomQuestUnderHallInterruptCandidate` composes those explicit predicate
+providers with the recovered timing candidates, but still does **not** choose
+manager/BlastCheck order or invent the HPLow/PlayerEliminate comparison
+semantics. All 61 registrations have exact `RepeatCount=1`.
+
+`InterruptArg` itself is no longer a control-flow blocker for this supplied
+script: the canonical source contains exactly one declaration and the 19
+`waitinterrupt` write sites, with **no consumer anywhere else in UnderHall**.
+The native provider still supplies/writes the opaque value, but no UnderHall
+branch or command reads it.
 
 UnderHall's one `waitlogin Wait.` is source-locked in its surrounding
 control flow: `KQ_BossRobo 0.` precedes it and the next condition is exactly
