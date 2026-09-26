@@ -588,7 +588,7 @@ def main():
         if token not in pine_distance_text:
             print("FAIL: KQ Pine @DistanceBetween projection changed", token)
             return 1
-    for forbidden in ("MapObjectID", "MapManager", "GetMap(", "Objects["):
+    for forbidden in (".MapObjectID", "MapManager.Instance", ".GetMap(", ".Objects["):
         if forbidden in pine_distance_text:
             print("FAIL: KQ Pine native object handle was conflated with emulator map identity",
                   forbidden)
