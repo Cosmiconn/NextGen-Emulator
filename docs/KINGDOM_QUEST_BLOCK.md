@@ -1441,10 +1441,15 @@ separate because they require persistent interrupt-delivery state rather than a
 single command step.
 
 Other system functions and dynamic `#(...)` identifiers still fall through
-to the fail-closed host rather than being guessed. The remaining gameplay
-commands from the exact inventory (including broadcast/chat UI, summon/mob,
-door, item, NPC and link actions) stay outside the executable layer until their
-native side-effect paths are correlated.
+to the fail-closed host rather than being guessed. The exact 44-verb source
+inventory is now guarded more strictly as well: after the seven executable
+one-step families and the separately recovered `call`/`break`/`pause`
+control paths, the remaining **34 source-used command verbs** are recognized
+explicitly as source-used-but-unrecovered. They return an invalid/fail-closed
+resolution before the generic command host can reinterpret them. This includes
+broadcast/chat UI, summon/mob, door, item, NPC, link, `waitinterrupt` and
+`waitlogin` actions. Native side-effect recovery can enable those families
+one at a time without allowing guessed fallback semantics in the meantime.
 
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
