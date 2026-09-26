@@ -94,6 +94,32 @@ namespace NextGen.World.Data
             }
         }
 
+        public bool HasUnexpectedDirectWeaponSocketCandidate
+        {
+            get
+            {
+                for (int i = 0; i < Entries.Count; i++)
+                {
+                    KingdomQuestRewardConstructionEntry entry = Entries[i];
+                    if (entry.RequiresWeaponSocketRate &&
+                        entry.Candidate != null &&
+                        entry.Candidate.Kind !=
+                            KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate)
+                        return true;
+                }
+                return false;
+            }
+        }
+
+        public bool RequiresWeaponSocketFromGroupCandidateOnly
+        {
+            get
+            {
+                return RequiresWeaponSocketRate &&
+                    !HasUnexpectedDirectWeaponSocketCandidate;
+            }
+        }
+
         private KingdomQuestRewardConstructionPlan(
             List<KingdomQuestRewardConstructionEntry> entries,
             int weightedSampleCount)
