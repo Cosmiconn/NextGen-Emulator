@@ -236,6 +236,113 @@ namespace NextGen.FiestaLib.Data
     }
 
     /// <summary>
+    /// Source-exact NC_KQ_REWARD_REQ (0x5815) envelope.
+    ///
+    /// The recovered fixed payload is:
+    ///   u32 fame + u64 cen + 23 raw bytes of
+    ///   PROTO_NC_ITEMDB_CREATEITEMLIST_REQ base,
+    /// followed by the variable item-create list.
+    ///
+    /// The 23-byte substructure is intentionally kept opaque until its fields
+    /// are independently recovered. This closes wire ordering/length without
+    /// inventing ItemDB semantics.
+    /// </summary>
+    public sealed class KingdomQuestRewardRequestInfo
+    {
+        public uint Fame { get; private set; }
+        public ulong Cen { get; private set; }
+        public byte[] ItemCreateRequestBase { get; private set; }
+        public byte[] VariableItemList { get; private set; }
+
+        public int PayloadSize
+        {
+            get
+            {
+                return KingdomQuestRewardProtocolConstants.
+                    RewardRequestPayloadBaseSize +
+                    VariableItemList.Length;
+            }
+        }
+
+        private KingdomQuestRewardRequestInfo(
+            uint fame,
+            ulong cen,
+            byte[] itemCreateRequestBase,
+            byte[] variableItemList)
+        {
+            Fame = fame;
+            Cen = cen;
+            ItemCreateRequestBase =
+                (byte[])itemCreateRequestBase.Clone();
+            VariableItemList =
+                (byte[])variableItemList.Clone();
+        }
+
+        public static bool TryCreate(
+            uint fame,
+            ulong cen,
+            byte[] itemCreateRequestBase,
+            byte[] variableItemList,
+            out KingdomQuestRewardRequestInfo value)
+        {
+            value = null;
+            if (itemCreateRequestBase == null ||
+                itemCreateRequestBase.Length !=
+                    KingdomQuestRewardProtocolConstants.
+                        ItemCreateRequestBaseSize ||
+                variableItemList == null)
+                return false;
+
+            value = new KingdomQuestRewardRequestInfo(
+                fame, cen, itemCreateRequestBase, variableItemList);
+            return true;
+        }
+
+        public void Write(Packet packet)
+        {
+            if (packet == null)
+                throw new ArgumentNullException("packet");
+
+            packet.WriteUInt(Fame);
+            packet.WriteULong(Cen);
+            packet.WriteBytes(ItemCreateRequestBase);
+            packet.WriteBytes(VariableItemList);
+        }
+
+        public static bool TryRead(
+            Packet packet,
+            out KingdomQuestRewardRequestInfo value)
+        {
+            value = null;
+            if (packet == null ||
+                packet.Remaining <
+                    KingdomQuestRewardProtocolConstants.
+                        RewardRequestPayloadBaseSize)
+                return false;
+
+            uint fame;
+            ulong cen;
+            byte[] itemCreateBase;
+            if (!packet.TryReadUInt(out fame) ||
+                !packet.TryReadULong(out cen) ||
+                !packet.TryReadBytes(
+                    KingdomQuestRewardProtocolConstants.
+                        ItemCreateRequestBaseSize,
+                    out itemCreateBase))
+                return false;
+
+            byte[] variableItems;
+            if (!packet.TryReadBytes(
+                    packet.Remaining,
+                    out variableItems))
+                return false;
+
+            return TryCreate(
+                fame, cen, itemCreateBase, variableItems, out value);
+        }
+    }
+
+    /// <summary>
     /// Original PROTO_NC_KQ_REWARDSUC_ACK payload. GameDBSession validates
     /// ClientHandle -> player and CharacterNumber before forwarding LockIndex
     /// to the player's item-store transaction path.
