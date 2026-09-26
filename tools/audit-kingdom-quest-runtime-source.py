@@ -684,16 +684,56 @@ def main():
             return 1
     print("PASS: KQ Pine per-script unresolved verb matrix is source-locked")
 
-    underhall_focus_verbs = (
-        "broadcast", "linkto", "mobregen", "questmobkill", "reward",
-        "scriptfile", "summonmob", "waitinterrupt", "waitlogin",
-    )
-    for verb in underhall_focus_verbs:
-        forms = sorted(set(
-            pine_command_lines_by_script["KQ/UnderHall"].get(verb, [])))
-        print(
-            "INFO: KQ UnderHall {0} forms ({1}): {2}".format(
-                verb, len(forms), " || ".join(forms)))
+    expected_underhall_forms = {
+        "broadcast": {
+            'broadcast all "KQReturn10".',
+            'broadcast all "KQReturn20".',
+            'broadcast all "KQReturn30".',
+            'broadcast all "KQReturn5".',
+        },
+        "linkto": {
+            'linkto all "Eld" "Eld" 17214 13445.',
+        },
+        "mobregen": {
+            'mobregen KQ_BossRobo "KQ_BossRobo" 2300 2500 90 1000 "Normal".',
+        },
+        "questmobkill": {
+            'questmobkill 2668 "Daliy_Check" 1.',
+        },
+        "reward": {
+            'reward KingdomQuest.',
+        },
+        "scriptfile": {
+            'scriptfile "KQUnderHall".',
+        },
+        "summonmob": {
+            'summonmob KQ_BossRobo "KQ_DesertWolf" 3.',
+            'summonmob KQ_BossRobo "KQ_FireViVi" 6.',
+            'summonmob KQ_BossRobo "KQ_GiantMushRoom" 2.',
+            'summonmob KQ_BossRobo "KQ_RapidBoar" 5.',
+            'summonmob KQ_BossRobo "KQ_SkelArcher" 4.',
+            'summonmob KQ_BossRobo "KQ_SkelKnight" 2.',
+            'summonmob KQ_BossRobo "KQ_SkelWarrior" 3.',
+            'summonmob KQ_BossRobo "KQ_SkelWarrior" 5.',
+            'summonmob KQ_BossRobo "KQ_Skeleton" 5.',
+            'summonmob KQ_BossRobo "KQ_WildKebing" 5.',
+            'summonmob KQ_BossRobo "KQ_Zombie" 5.',
+        },
+        "waitinterrupt": {
+            'waitinterrupt InterruptBlock "InterruptArg".',
+        },
+        "waitlogin": {
+            'waitlogin Wait.',
+        },
+    }
+    for verb, expected_forms in expected_underhall_forms.items():
+        forms = set(
+            pine_command_lines_by_script["KQ/UnderHall"].get(verb, []))
+        if forms != expected_forms:
+            print("FAIL: KQ UnderHall source command forms changed",
+                  verb, sorted(forms))
+            return 1
+    print("PASS: KQ UnderHall unresolved command forms are source-locked")
 
     pine_top_blocks = {}
     current_pine_key = None
