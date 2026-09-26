@@ -544,7 +544,8 @@ def main():
         "MsvcCrtRand random",
         "int nativeRand = random.Next()",
         "minimum + (nativeRand % width)",
-        "upper bound is therefore inclusive",
+        "int width = maximum - minimum + 1",
+        "minimum + (nativeRand % width)",
         "does not seed",
     )
     for token in pine_random_tokens:
