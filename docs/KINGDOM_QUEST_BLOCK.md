@@ -1463,6 +1463,19 @@ per-script matrix is derived directly from the hash-locked canonical Pine bundle
 and is CI-guarded, so implementation can close the smallest source-equivalent
 slice first without hiding broader gaps.
 
+The complete UnderHall source slice is now composed into the Pine control
+runtime as well. `KingdomQuestUnderHallCommandRuntime` recognizes exactly the
+nine families and **46 source occurrences / 22 distinct source forms** locked by
+the canonical bundle, parses each through
+`KingdomQuestUnderHallCommandSource`, and forwards only the validated plan to
+an explicit `IKingdomQuestUnderHallCommandSink`. The native Pine command-frame
+state is passed by reference and completion remains sink-owned, so
+`waitinterrupt` and `waitlogin` can remain multi-step without inventing
+their wake predicates. A changed UnderHall form or a missing side-effect owner
+is Invalid/fail-closed before the generic host. This closes source parsing and
+runtime routing for the smallest Pine KQ slice; the nine native side-effect
+implementations themselves remain the next evidence boundary.
+
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
 and compares it with the PDB global `index_suc`. A match creates Header 22
