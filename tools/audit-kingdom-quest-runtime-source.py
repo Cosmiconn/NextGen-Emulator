@@ -950,6 +950,14 @@ def main():
               current_pine_key, pine_depth)
         return 1
 
+    common_pine_top_blocks = set.intersection(
+        *(set(pine_top_blocks[key]) for key in sorted(PINE_SCRIPT_KEYS)))
+    print("INFO: KQ Pine common top-level blocks:",
+          ", ".join(sorted(common_pine_top_blocks)) or "<none>")
+    print("INFO: KQ Pine scripts with top-level main:",
+          sum("main" in pine_top_blocks[key] for key in PINE_SCRIPT_KEYS),
+          "of", len(PINE_SCRIPT_KEYS))
+
     underhall_interrupt_action_blocks = []
     for line in underhall_interruptset_forms:
         match = re.search(r'"([^"]*)"\.\s*    underhall_interruptset_forms = sorted(set(
