@@ -1249,7 +1249,10 @@ def main():
         'KingdomQuestRewardAckKind.Failure',
         'LockIndex = lockIndex',
         'does not resolve ClientHandle',
-        'does not invoke the native item-store virtual methods',
+        'does not execute the recovered native lock-list transaction',
+        'TryValidateResolvedSuccessPlan(',
+        'TryValidateResolvedFailurePlan(',
+        'KingdomQuestRewardNativeTransaction.TryBuildAckPlan(',
     ):
         if token not in zone_reward_ack_identity:
             print('FAIL: KQ reward ACK identity boundary missing', token)
