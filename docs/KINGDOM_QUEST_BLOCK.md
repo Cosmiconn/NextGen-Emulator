@@ -1685,11 +1685,26 @@ the validated `LockIndex` plus ACK kind into
 is intentionally not copied into that transaction reference because the
 recovered native failure handler never reads it.
 
-This helper deliberately does **not** invent the missing emulator-side
-ClientHandle resolver and does not invoke the native item-store virtual
-methods. Their exact method names/commit/rollback semantics are still
-unresolved from PDB types, so live reward persistence remains gated on that
-boundary. The wire-level `error` field remains modeled in
+The item-store transaction semantics behind that identity gate are now
+recovered as well. `ShinePlayer::sp_KQReward` obtains the embedded
+`InventoryCellLockList` through `so_ply_GetInventoryLockList`
+(`0x0055A1D0`, player offset `+0xFAA8`). Native serializes the current
+lock index into `NC_KQ_REWARD_REQ` and sends it to GameDB **before** staging
+MONEY and FAME on that same lock index, then advances the lock index and calls
+`sp_GainExp` immediately. EXP is therefore outside the later ACK rollback
+boundary. Success ACK `0x5816` invokes
+`InventoryCellLockList::icl_Apply_N_Free` (vtable `+0x1C`,
+`0x0048BE90`) with apply mode 0; failure ACK `0x5817` invokes
+`icl_Free` (vtable `+0x28`, `0x0048B2C0`) and never reads the packet's
+trailing Error. The Cen/Fame releasers apply the staged mutation only on the
+success path.
+
+`KingdomQuestRewardNativeTransaction` now locks this pre-ACK ordering and
+projects validated ACK identities into exact `ApplyAndFree` versus
+`FreeWithoutApply` actions. It deliberately does **not** map those native
+lock cells onto the emulator's legacy direct-MySQL Inventory implementation;
+live GameDB/lock-list integration remains a separate implementation boundary.
+The wire-level `error` field remains modeled in
 `KingdomQuestRewardFailAckInfo` because it is still part of the native
 packet structure.
 
@@ -1807,11 +1822,23 @@ native `count*8+3` location. `KingdomQuestRewardTreasureChestNative`
 locks this layout, the distinct raw-ITI overload's `count <= 8` guard, and
 the exact call-stage order without constructing guessed item bytes.
 
-Live execution still requires the native **thread assignment and per-thread
-consumer order** for the Zone CRT stream. The remaining TreasureChest-specific
-gap is now narrower: per-item-class `iac_itemcreate` field semantics and the
-optional random-option payload must be recovered before an authoritative ITI
-can be emitted. Inventory mutation and persistence remain separate.
+The reward-specific `ItemAttributeClass::iac_itemcreate` overloads are now
+recovered for every KQ-reachable native item class. The supplied reward/item
+correlation reaches exactly classes **0, 3, 4, 5, 6, 7, 8, 10, 11 and 14**
+across 884 unique candidate ItemIDs. `KingdomQuestRewardItemAttributeNative`
+locks their reward-write targets/offsets. Weapon/armor/shield/boot consume an
+explicit `well512_GetRandom(1000)` sample and select the native grade from
+`Upgrade + Undefined0..8`; quantity/grade writes, option-storage offsets,
+decoration clear behavior and the skill-scroll no-op overload are preserved.
+All 247 supplied ITEM rewards have `Upgrade=0`, `OptionDegree=0` and
+`TitleDegree=0`. The original ItemOptions corpus has no degree-zero cards, so
+the optional option-card source path is empty for this supplied reward shape,
+although the native lookup/call boundary remains represented.
+
+Live authoritative ITI emission still requires the native **thread assignment
+and per-thread consumer order** for CRT/CardDeck work, the remaining normal
+per-class item-create/registration bytes, and the KQ-reachable weapon
+socket-rate stage. Inventory mutation/persistence remains separate.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
@@ -1845,9 +1872,11 @@ handles, the largest possible per-reward sum is **150,000,000 EXP** or
 **5,000 MONEY**, and only reward IDs **56** and **62** contain more than
 one EXP handle.
 
-The projection performs no `GiveExp`, currency/fame mutation, item creation,
-database write or ACK processing. Scalar arithmetic is therefore no longer an
-unresolved reward boundary; mutation/transaction timing remains separate.
+The scalar projection itself performs no mutation. The native timing is now
+known separately: EXP is gained immediately after the request lock index is
+advanced, while MONEY/FAME are staged and become visible only through the
+success `ApplyAndFree` ACK path. Scalar arithmetic and ACK transaction timing
+are therefore no longer unresolved reward boundaries.
 
 The recovered reward stages now have a single mutation-free composition point:
 `KingdomQuestRewardPreparationPlan` chains the exact RewardSource row,
@@ -1860,20 +1889,19 @@ outcomes; future source ambiguity (duplicate ItemInfo name, missing/ambiguous
 box, or a currently-unproven later reward type) is surfaced separately and
 never converted into a grant.
 
-The preparation plan performs no item creation, character mutation, database
-write, network send or ACK processing. For the supplied source snapshot this
-means the source-backed reward path through classifier candidate choice is
-represented when authoritative native CRT/class-group state is supplied. The
-remaining live-reward blockers are exact native-thread assignment/consumer
-ordering for CRT-backed CardDeck calls, the KQ-reachable
-`ItemAttributeClass::iac_itemcreate` / random-option field payloads, the
-GameDB/item transaction boundary, and exact mutation/ACK/scenario-completion
-timing. The TreasureChest container layout, seven-content cap and construction
-call order are no longer unresolved.
+The preparation plan still performs no live item creation, character mutation,
+database write or network send. For the supplied source snapshot the remaining
+live-reward blockers are now limited to authoritative native-thread
+assignment/per-thread CRT consumer ordering, completion of the remaining base
+ITI/registration and weapon-socket construction stages, live
+GameDB/InventoryCellLockList integration, and the scenario success trigger that
+starts reward processing. TreasureChest layout/cap/call order,
+reward-specific ItemAttribute writes, scalar mutation timing and ACK
+apply/free semantics are no longer unresolved.
 
-These packet structures are modeled byte-for-byte, but no GameDB-equivalent
-send/ACK path is activated before those remaining mutation boundaries are
-source-equivalent.
+The packet/transaction structures are modeled byte-for-byte, but the emulator
+does not activate a guessed GameDB-equivalent persistence path before those
+remaining construction/integration boundaries are source-equivalent.
 
 
 ## Zone MAKE result branches recovered
