@@ -26,7 +26,6 @@ PINE_DISTANCE_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineDistanceExp
 PINE_CONDITION_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineConditionExpression.cs"
 PINE_CHAR_NAME_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineCharNameExpression.cs"
 PINE_USED_EXPRESSION_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedExpressionRuntime.cs"
-PINE_START_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineStartRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -238,8 +237,7 @@ def main():
                  PINE_BASIC_EXPRESSION, PINE_REMOVE_FIRST,
                  PINE_RANDOM_EXPRESSION, PINE_DISTANCE_EXPRESSION,
                  PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
-                 PINE_USED_EXPRESSION_RUNTIME, PINE_START_RUNTIME,
-                 PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
+                 PINE_USED_EXPRESSION_RUNTIME, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
@@ -519,6 +517,57 @@ def main():
               sum(pine_meta_command_counts))
         return 1
 
+    expected_pine_command_verbs = {
+        "abstatereset": 2,
+        "abstateset": 8,
+        "battlestart": 5,
+        "battlestop": 15,
+        "break": 71,
+        "broadcast": 87,
+        "call": 139,
+        "chatwin": 83,
+        "doorbuild": 6,
+        "doorclose": 7,
+        "dooropen": 7,
+        "effectobj": 3,
+        "endofkq": 19,
+        "exchange2mob": 1,
+        "interruptclear": 65,
+        "interrupterase": 14,
+        "interruptset": 225,
+        "invensearch": 3,
+        "invidualreward": 10,
+        "itemdrop": 9,
+        "itemerase": 22,
+        "itemowner": 2,
+        "linkto": 19,
+        "mobattr": 4,
+        "mobregen": 5,
+        "npcchat": 20,
+        "npcshout": 5,
+        "npcstand": 2,
+        "pause": 202,
+        "questmobkill": 5,
+        "questresult": 9,
+        "regengroup": 243,
+        "revival": 5,
+        "reward": 5,
+        "scriptfile": 19,
+        "sendquestresult": 10,
+        "suicide": 1,
+        "summonmob": 72,
+        "teleport": 1,
+        "timelimit": 14,
+        "vanish": 3,
+        "waitinterrupt": 55,
+        "waitlogin": 9,
+        "whoclickme": 3,
+    }
+    if pine_command_verbs != Counter(expected_pine_command_verbs):
+        print("FAIL: KQ Pine exact command verb inventory changed",
+              dict(sorted(pine_command_verbs.items())))
+        return 1
+
     pine_command_inventory = ", ".join(
         f"{verb}={pine_command_verbs[verb]}"
         for verb in sorted(pine_command_verbs))
@@ -569,6 +618,7 @@ def main():
         return 1
 
     pine_init_pairs = set()
+    pine_init_non_top_level = set()
     for line in data_rows(KQ_SQL):
         fields = split_row_fields(line)
         if len(fields) != 36:
@@ -578,22 +628,25 @@ def main():
         if script_key not in PINE_SCRIPT_KEYS:
             continue
         init_value = unquote_sql(fields[32])
+        pine_init_pairs.add((script_key, init_value))
         if (script_key not in pine_top_blocks or
                 init_value not in pine_top_blocks[script_key]):
-            print("FAIL: KQ Pine ScriptInitValue is not a top-level source block",
-                  script_key, init_value)
-            return 1
-        pine_init_pairs.add((script_key, init_value))
+            pine_init_non_top_level.add((script_key, init_value))
 
     if len(pine_init_pairs) != 9:
-        print("FAIL: KQ Pine ScriptInitValue mapping count changed",
+        print("FAIL: KQ Pine ScriptInitValue pair count changed",
               sorted(pine_init_pairs))
         return 1
 
-    print("PASS: KQ Pine ScriptInitValue top-level entries:",
+    if ("KQ/UnderHall", "10") not in pine_init_non_top_level:
+        print("FAIL: KQ Pine ScriptInitValue/top-level counterexample changed")
+        return 1
+
+    print("PASS: KQ Pine ScriptInitValue is not treated as a top-level block key; "
+          "locked non-top-level pairs:",
           ", ".join(
               f"{script}={init}"
-              for script, init in sorted(pine_init_pairs)))
+              for script, init in sorted(pine_init_non_top_level)))
 
     pine_control_text = PINE_CONTROL_RUNTIME.read_text(encoding="utf-8")
     pine_control_tokens = (
@@ -877,31 +930,6 @@ def main():
             print("FAIL: KQ Pine used-expression/control bridge changed", token)
             return 1
 
-    pine_start_runtime_text = PINE_START_RUNTIME.read_text(
-        encoding="utf-8")
-    pine_start_tokens = (
-        "class KingdomQuestPineStartBinding",
-        "class KingdomQuestPineStartRuntime",
-        "definition.ScriptLanguage",
-        "definition.ScriptInitValue",
-        "KingdomQuestPineScriptSource.TryGet(",
-        "document.Blocks.TryGetValue(",
-        "binding.EntryBlock.Name",
-        "KingdomQuestPineControlRuntime.TryCreate(",
-        "No default init value, first-block fallback or Lua substitution exists.",
-    )
-    for token in pine_start_tokens:
-        if token not in pine_start_runtime_text:
-            print("FAIL: KQ Pine START runtime binding changed", token)
-            return 1
-    for forbidden in (
-            'ScriptInitValue = "10"', 'ScriptInitValue = "1"',
-            "Blocks.Values.First", "FirstOrDefault("):
-        if forbidden in pine_start_runtime_text:
-            print("FAIL: KQ Pine START runtime invented an entry fallback",
-                  forbidden)
-            return 1
-
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
@@ -1123,7 +1151,7 @@ def main():
     print("PASS: all 26 used Pine IFs map to native comparison modes: numeric ==/!=/</>/<=/>= and token ===/=!=")
     print("PASS: all 10 used Pine @CharName calls preserve u16 native-handle lookup, empty-on-miss, and TName5 length boundary")
     print("PASS: used Pine @Random/@DistanceBetween/@CharName expressions execute before generic host fallback with explicit native dependencies")
-    print("PASS: Pine START binds exact ScriptLanguage + ScriptInitValue to an existing top-level source block with no fallback")
+    print("PASS: Pine ScriptInitValue remains a separate cc_PlayFilm token; UnderHall=10 proves it is not a top-level block key")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
     print("PASS: all 202 used Pine pause and 14 timelimit constants are modeled on the native 10-Hz tick clock with exact deadline semantics")
