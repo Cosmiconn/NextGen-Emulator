@@ -711,7 +711,8 @@ def main():
         "public static bool TryDisjoin(uint handle, uint characterNumber)",
         "v => v.CharacterNumber == characterNumber",
         "roster.RemoveAt(index)",
-        "current.State, current.Definition, roster",
+        "current.State, current.Definition,",
+        "current.ScenarioStartPlan, roster",
     ], "Zone KQ player-info deletion"):
         return 1
 
