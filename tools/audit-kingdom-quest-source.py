@@ -601,6 +601,62 @@ def main():
                   source_row, item_id, use_class,
                   int(item_info_row[0]), int(item_info_row[31]))
             return 1
+
+
+    use_class_rows = [
+        split_row_fields(row)
+        for row in data_rows(RAW_SOURCES["UseClassTypeInfo"][0])
+    ]
+    use_class_masks = {}
+    for row in use_class_rows:
+        use_class = int(row[1])
+        flags = [int(value) for value in row[2:29]]
+        value = 0
+        for flag in reversed(flags):
+            value = (value << 1) + flag
+        use_class_masks[use_class] = value << 1
+
+    missing_candidate_use_classes = {
+        int(row[5]) for row in candidate_rows
+        if int(row[5]) not in use_class_masks
+    }
+    if missing_candidate_use_classes:
+        print('FAIL: KQ CardDeck candidate lost UseClassTypeInfo mapping',
+              sorted(missing_candidate_use_classes))
+        return 1
+
+    native_player_class_groups = {
+        1: sum(1 << bit for bit in range(1, 6)),
+        6: sum(1 << bit for bit in range(6, 11)),
+        11: sum(1 << bit for bit in range(11, 16)),
+        16: sum(1 << bit for bit in range(16, 21)),
+        21: sum(1 << bit for bit in range(21, 26)),
+        26: sum(1 << bit for bit in range(26, 28)),
+    }
+    compatibility_counts = []
+    for group in sorted(candidate_groups):
+        group_rows = [row for row in candidate_rows if row[3] == group]
+        for class_root, class_mask in native_player_class_groups.items():
+            compatible = sum(
+                1 for row in group_rows
+                if use_class_masks[int(row[5])] & class_mask)
+            compatibility_counts.append((group, class_root, compatible))
+
+    unique_compatibility_pairs = sum(
+        1 for _group, _root, count in compatibility_counts if count == 1)
+    multi_compatibility_pairs = sum(
+        1 for _group, _root, count in compatibility_counts if count > 1)
+    zero_compatibility_pairs = sum(
+        1 for _group, _root, count in compatibility_counts if count == 0)
+    max_compatible_candidates = max(
+        count for _group, _root, count in compatibility_counts)
+    print(
+        'INFO: KQ CardDeck compatible-candidate pairs '
+        'unique={0} multi={1} zero={2} max={3}'.format(
+            unique_compatibility_pairs,
+            multi_compatibility_pairs,
+            zero_compatibility_pairs,
+            max_compatible_candidates))
     for token in (
         'NativeValidStoreCalls = 5758',
         'NativeDistinctGroups = 789',
