@@ -1754,10 +1754,22 @@ A complete pass without a compatible card returns native `0xFFFF`.
 state machine, and `KingdomQuestRewardItemCandidatePlan` composes it after
 the existing direct-first classifier result. No framework randomness is used.
 The model deliberately requires explicit CRT state at both native
-`igc_Load` start and reward lookup. Zone seeds CRT `rand` from
-`_time32` and also consumes that shared stream elsewhere (including the
-16 values used to seed WELL512), so wall-clock startup time is **not** promoted
-to an authoritative later CardDeck state.
+`igc_Load` start and reward lookup. Direct Zone.exe recovery corrects the
+earlier ownership wording: the statically linked `srand` at
+`0x006594A0` and `rand` at `0x006594B2` both obtain the current CRT
+thread-data block through `0x006637A8` and write/read the RNG DWORD at
+offset `+0x14`. The stream is therefore **native-thread-local**, not
+process-global. Three `srand` callsites are present in this Zone.exe: two
+seed from the native time routine at `0x0065910B`; the third is the Lua
+random-seed path and consumes one `rand()` immediately after reseeding. One
+time-seeded path then consumes sixteen CRT values before handing that vector to
+the WELL512 initialization boundary.
+
+`MsvcCrtRand` now models the exact per-thread state transition plus direct
+`srand`-style `Seed()` replacement. It does not choose a native execution
+thread, synthesize wall-clock seed timing, or merge independent native thread
+streams. An observed startup time is therefore **not** promoted to an
+authoritative later CardDeck state.
 
 `sp_KQReward` passes the result of
 `sp_GetItemWhoEquip_ClassGroup()` into
@@ -1770,9 +1782,10 @@ models exactly that bit construction, and the candidate plan can consume an
 explicit native player-class byte through `TryBuildFromNativeClass`.
 
 Candidate selection is therefore source-modeled through class-family masking
-as well, but it is not wired live until the shared Zone CRT-state owner is
-represented. Item construction, upgrades/options, inventory mutation and
-persistence remain separate.
+as well, but live execution still requires the native **thread assignment and
+per-thread consumer order** for the Zone CRT stream. The former
+process-wide-owner interpretation is removed. Item construction,
+upgrades/options, inventory mutation and persistence remain separate.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
@@ -1825,9 +1838,10 @@ The preparation plan performs no item creation, character mutation, database
 write, network send or ACK processing. For the supplied source snapshot this
 means the source-backed reward path through classifier candidate choice is
 represented when authoritative native CRT/class-group state is supplied. The
-remaining live-reward blockers are ownership of that shared Zone CRT state,
-TreasureChest item construction/options, the GameDB/item transaction boundary,
-and exact mutation/ACK/scenario-completion timing.
+remaining live-reward blockers are exact native-thread assignment/consumer
+ordering for CRT-backed CardDeck calls, TreasureChest item
+construction/options, the GameDB/item transaction boundary, and exact
+mutation/ACK/scenario-completion timing.
 
 These packet structures are modeled byte-for-byte, but no GameDB-equivalent
 send/ACK path is activated before those remaining mutation boundaries are
