@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NextGen.FiestaLib.Data;
 
 namespace NextGen.World.Data
 {
