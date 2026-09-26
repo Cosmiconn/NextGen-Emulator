@@ -1513,6 +1513,17 @@ native meaning is not independently recovered remain explicitly raw rather
 than being renamed as guessed gameplay fields. The external sink receives only
 these resolved plans; it no longer interprets raw Pine strings.
 
+Their **top-level block ownership is now source-locked as well**.
+`KingdomQuestUnderHallSourceFlow` accepts each external plan only at its exact
+canonical source site: `scriptfile` is in `main`, `mobregen` in
+`Nineteenth`, the eleven summon calls in `Summon1..5`, and the return paths
+in `QuestSuc` / `QuestFail`. Most importantly, UnderHall has exactly one
+`reward KingdomQuest.` occurrence and it is canonical line 378 inside
+`QuestSuc`; `QuestFail` has **zero** reward occurrences. Both success and
+failure perform their own broadcast/link return sequence. This closes the
+UnderHall **scenario-to-reward source trigger location** without claiming the
+still-unrecovered native side effect of `ShineReward::sa_Step`.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. This is strong source evidence for
 a common entry candidate, but it is not promoted to the native
