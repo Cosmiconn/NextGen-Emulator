@@ -792,11 +792,22 @@ def main():
             end = min(len(underhall_source_lines), index + 5)
             underhall_waitlogin_context = underhall_source_lines[start:end]
             break
-    if not underhall_waitlogin_context:
-        print("FAIL: KQ UnderHall waitlogin source context disappeared")
+    expected_underhall_waitlogin_context = [
+        'var Wait            ""',
+        'InterruptBlock  ""',
+        'InterruptArg    ""',
+        'KQ_BossRobo 0.',
+        'waitlogin Wait.',
+        'if Wait == 0',
+        'then open',
+        'call "QuestFail".',
+        'close',
+    ]
+    if underhall_waitlogin_context != expected_underhall_waitlogin_context:
+        print("FAIL: KQ UnderHall waitlogin source context changed",
+              underhall_waitlogin_context)
         return 1
-    print("INFO: KQ UnderHall waitlogin context:",
-          " || ".join(underhall_waitlogin_context))
+    print("PASS: KQ UnderHall waitlogin feeds exact Wait == 0 -> QuestFail gate")
 
     underhall_interrupt_type_counts = Counter()
     for line in pine_command_lines_by_script["KQ/UnderHall"].get(
