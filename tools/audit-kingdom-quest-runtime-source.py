@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "docs/KINGDOM_QUEST_RUNTIME_SOURCE_MANIFEST.tsv"
 KQ_SQL = ROOT / "sql/data/data_kq_source_10_kingdomquest.sql"
 MAP_SQL = ROOT / "sql/data/data_kq_source_20_kingdomquestmap.sql"
+MAP_INFO_SQL = ROOT / "sql/data/mapinfo.sql"
+MOB_INFO_SQL = ROOT / "sql/data/data_mobinfo.sql"
 REGEN_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestRegenSource.cs"
 SCENARIOBOOK_SOURCE = ROOT / "docs/KINGDOM_QUEST_SCENARIOBOOK_SOURCE.tsv"
 SCENARIOBOOK_PROJECTION = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShelfSource.cs"
@@ -30,6 +32,7 @@ PINE_USED_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedComman
 PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalCommandState.cs"
 UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandSource.cs"
 UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandRuntime.cs"
+UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
@@ -237,7 +240,7 @@ def load_single_data_source():
 
 
 def main():
-    for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE,
+    for path in (MANIFEST, KQ_SQL, MAP_SQL, MAP_INFO_SQL, MOB_INFO_SQL, REGEN_SOURCE,
                  SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION, PINE_SOURCE,
                  PINE_CONTROL_RUNTIME, PINE_VARIABLE_STACK,
                  PINE_BASIC_EXPRESSION, PINE_REMOVE_FIRST,
@@ -245,7 +248,8 @@ def main():
                  PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
                  PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
                  PINE_LOCAL_COMMAND_STATE, UNDERHALL_COMMAND_SOURCE,
-                 UNDERHALL_COMMAND_RUNTIME, SCENARIO_START_PLAN, ZONE_RUNTIME,
+                 UNDERHALL_COMMAND_RUNTIME, UNDERHALL_SOURCE_CATALOG,
+                 SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
@@ -740,6 +744,76 @@ def main():
                   verb, sorted(forms))
             return 1
     print("PASS: KQ UnderHall unresolved command forms are source-locked")
+
+    underhall_catalog_text = UNDERHALL_SOURCE_CATALOG.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHallSourceCatalog",
+        "ElderineMapId = 9",
+        "CorrelatedMobCount = 11",
+        '"Eld"',
+        '"Elderine"',
+        "17214",
+        "13445",
+        "They do not assert how a Pine command consumes",
+    ):
+        if token not in underhall_catalog_text:
+            print("FAIL: KQ UnderHall source catalog changed", token)
+            return 1
+
+    mapinfo_rows = {}
+    for row in data_rows(MAP_INFO_SQL):
+        fields = split_row_fields(row)
+        if len(fields) != 10:
+            print("FAIL: MapInfo source row width changed")
+            return 1
+        mapinfo_rows[int(fields[0])] = fields
+    elderine = mapinfo_rows.get(9)
+    if (elderine is None or
+            unquote_sql(elderine[1]) != "Eld" or
+            unquote_sql(elderine[2]) != "Elderine" or
+            int(elderine[4]) != 17214 or
+            int(elderine[5]) != 13445 or
+            unquote_sql(elderine[7]) != "Eld"):
+        print("FAIL: UnderHall Elderine source correlation changed",
+              elderine)
+        return 1
+
+    expected_underhall_mobs = {
+        "KQ_BossRobo": (1068, "Millennium Robo"),
+        "KQ_DesertWolf": (1051, "Carnival Wolf"),
+        "KQ_FireViVi": (1066, "Angry Fire ViVi"),
+        "KQ_GiantMushRoom": (1046, "Giant Mushroom"),
+        "KQ_RapidBoar": (1058, "Rapid Boar"),
+        "KQ_SkelArcher": (1056, "Skeleton Archer"),
+        "KQ_SkelKnight": (1060, "Dark Skeleton Knight"),
+        "KQ_SkelWarrior": (1059, "Powerful Skeleton Warrior"),
+        "KQ_Skeleton": (1054, "Brave Skeleton"),
+        "KQ_WildKebing": (1055, "Cave Kebing"),
+        "KQ_Zombie": (1065, "Madness Zombie"),
+    }
+    mobinfo_by_inx = {}
+    for row in data_rows(MOB_INFO_SQL):
+        fields = split_row_fields(row)
+        if len(fields) != 15:
+            print("FAIL: MobInfo source row width changed")
+            return 1
+        mobinfo_by_inx[unquote_sql(fields[1])] = fields
+
+    for inx_name, expected in expected_underhall_mobs.items():
+        fields = mobinfo_by_inx.get(inx_name)
+        if (fields is None or int(fields[0]) != expected[0] or
+                unquote_sql(fields[2]) != expected[1]):
+            print("FAIL: UnderHall MobInfo source correlation changed",
+                  inx_name, fields)
+            return 1
+        for token in (
+                str(expected[0]), '"' + inx_name + '"',
+                '"' + expected[1] + '"'):
+            if token not in underhall_catalog_text:
+                print("FAIL: UnderHall source catalog lost MobInfo row",
+                      inx_name, token)
+                return 1
 
     underhall_runtime_text = UNDERHALL_COMMAND_RUNTIME.read_text(
         encoding="utf-8")
