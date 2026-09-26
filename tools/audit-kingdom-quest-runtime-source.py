@@ -971,6 +971,14 @@ def main():
               "{0}={1}".format(kind, underhall_interrupt_type_counts[kind])
               for kind in sorted(underhall_interrupt_type_counts)))
 
+    for interrupt_kind in ("HPLow", "PlayerEliminate"):
+        forms = [
+            line for line in underhall_interrupt_lines
+            if len(line.split()) >= 2 and line.split()[1] == interrupt_kind
+        ]
+        print("INFO: KQ UnderHall {0} interrupt forms: {1}".format(
+            interrupt_kind, " || ".join(forms)))
+
     underhall_interrupt_lines = (
         pine_command_lines_by_script["KQ/UnderHall"].get(
             "interruptset", []))
