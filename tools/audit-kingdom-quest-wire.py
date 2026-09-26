@@ -37,6 +37,7 @@ RECONNECT_SERVICE = ROOT / "NextGen.World/Data/KingdomQuestReconnectService.cs"
 WORLD_HANDLER4 = ROOT / "NextGen.World/Handlers/Handler4.cs"
 CLIENT_TRANSFER = ROOT / "NextGen.Util/ClientTransfer.cs"
 ZONE_HANDLER6 = ROOT / "NextGen.Zone/Handlers/Handler6.cs"
+WORLD_SCHEDULER = ROOT / "NextGen.World/Data/KingdomQuestSourceScheduler.cs"
 
 def require(text, tokens, label):
     missing = [t for t in tokens if t not in text]
@@ -46,7 +47,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, VOTE_STATE, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, SCENARIOBOOK_SOURCE, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6]
+    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, VOTE_STATE, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, SCENARIOBOOK_SOURCE, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6, WORLD_SCHEDULER]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -85,6 +86,7 @@ def main():
     world_handler4 = WORLD_HANDLER4.read_text(encoding="utf-8")
     client_transfer = CLIENT_TRANSFER.read_text(encoding="utf-8")
     zone_handler6 = ZONE_HANDLER6.read_text(encoding="utf-8")
+    world_scheduler = WORLD_SCHEDULER.read_text(encoding="utf-8")
 
     if not require(cenum, [
         "KingdomQuestListReq = 1",
@@ -92,7 +94,10 @@ def main():
         "KingdomQuestJoinReq = 5",
         "KingdomQuestScheduleReq = 9",
         "KingdomQuestListRefreshReq = 27",
+        "KingdomQuestVoteStartReq = 39",
+        "KingdomQuestVoteVotingReq = 42",
         "KingdomQuestJoinListReq = 49",
+        "KingdomQuestVoteStartCheckReq = 52",
     ], "native CH22 KQ request names"):
         return 1
 
@@ -114,7 +119,17 @@ def main():
         "KingdomQuestJoiningAlarm = 36",
         "KingdomQuestJoiningAlarmEnd = 37",
         "KingdomQuestJoiningAlarmList = 38",
+        "KingdomQuestVoteStartAck = 40",
+        "KingdomQuestVoteVotingCmd = 41",
+        "KingdomQuestVoteVotingAck = 43",
+        "KingdomQuestVoteResultSuccess = 44",
+        "KingdomQuestVoteResultFail = 45",
+        "KingdomQuestVoteCancel = 46",
+        "KingdomQuestVoteBanMessage = 47",
+        "KingdomQuestVoteBanMessageLogoff = 48",
         "KingdomQuestJoinListAck = 50",
+        "KingdomQuestLinkToForceByBan = 51",
+        "KingdomQuestVoteStartCheckAck = 53",
         "KingdomQuestTeamSelectAck = 56",
         "KingdomQuestTeamSelectCmd = 57",
         "KingdomQuestTeamTypeCmd = 58",
@@ -752,7 +767,83 @@ def main():
         "members[i].InVoteRaw = 0",
         "target.BanRaw = 1",
         "v.BanRaw != 0",
+        "class KingdomQuestVoteCancelPlan",
+        "public static bool TryCancelForTargetDisjoin(",
+        "target.CharacterNumber != characterNumber",
+        "target.BanRaw != 0",
+        "members[i].InVoteRaw = 0",
+        "ByHandle.Remove(handle)",
     ], "native KQ vote state/result projection"):
+        return 1
+
+    if not require(handler, [
+        "[PacketHandler(CH22Type.KingdomQuestVoteStartReq)]",
+        "packet.TryReadString(out targetName, 20)",
+        "packet.TryReadByte(out voteType)",
+        "packet.TryReadByte(out contentsLength)",
+        "KingdomQuestNativeConstants.VoteLimitSeconds",
+        "KingdomQuestNativeConstants.VoteSuggestCooldownSeconds",
+        "KingdomQuestVoteCoordinator.TryPrepareStart(",
+        "KingdomQuestProtocol.CreateVoteStartAck(error)",
+        "KingdomQuestProtocol.CreateVoteVotingCmd(",
+        "plan.VoterCharacterNumbers.Count",
+        "[PacketHandler(CH22Type.KingdomQuestVoteVotingReq)]",
+        "packet.TryReadInt(out choice)",
+        "KingdomQuestVoteCoordinator.TryRecordVote(",
+        "KingdomQuestProtocol.CreateVoteVotingAck(error)",
+        "[PacketHandler(CH22Type.KingdomQuestVoteStartCheckReq)]",
+        "KingdomQuestVoteCoordinator.TryGetState(handle, out state)",
+        "VoteStartCheckAlreadyRunning",
+        "VoteStartCheckSuggestCooldown",
+        "internal static void ProcessKingdomQuestVotes(DateTime localNow)",
+        "KingdomQuestVoteCoordinator.TryGetBannedMembers(",
+        "KingdomQuestProtocol.CreateLinkToForceByBan(",
+        "KingdomQuestVoteCoordinator.TryResolveExpired(",
+        "KingdomQuestProtocol.CreateVoteResultSuccess(",
+        "KingdomQuestProtocol.CreateVoteResultFail(",
+        "KingdomQuestProtocol.CreateVoteBanMessage(",
+        "KingdomQuestVoteCoordinator.TryCancelForTargetDisjoin(",
+        "KingdomQuestProtocol.CreateVoteCancel(plan.TargetName)",
+    ], "live native KQ vote transport"):
+        return 1
+
+    vote_start = handler.find(
+        "[PacketHandler(CH22Type.KingdomQuestVoteStartReq)]")
+    vote_start_ack = handler.find(
+        "KingdomQuestProtocol.CreateVoteStartAck(error)", vote_start)
+    vote_voting_cmd = handler.find(
+        "KingdomQuestProtocol.CreateVoteVotingCmd(", vote_start_ack)
+    if not (0 <= vote_start < vote_start_ack < vote_voting_cmd):
+        print("FAIL: native VOTE_START ACK-before-VOTING_CMD order changed")
+        return 1
+
+    vote_process = handler.find(
+        "internal static void ProcessKingdomQuestVotes(DateTime localNow)")
+    force_link = handler.find(
+        "KingdomQuestProtocol.CreateLinkToForceByBan(", vote_process)
+    resolve_vote = handler.find(
+        "KingdomQuestVoteCoordinator.TryResolveExpired(", vote_process)
+    if not (0 <= vote_process < force_link < resolve_vote):
+        print("FAIL: VoteProcessing ban-link-before-expiry order changed")
+        return 1
+
+    disjoin = handler.find("private static bool PlayerDisjoin(WorldClient client)")
+    cancel_vote = handler.find(
+        "KingdomQuestVoteCoordinator.TryCancelForTargetDisjoin(", disjoin)
+    remove_member = handler.find(
+        "KingdomQuestAdmissionCoordinator.TryRemoveCurrentMembership(", disjoin)
+    if not (0 <= disjoin < cancel_vote < remove_member):
+        print("FAIL: PlayerDisjoin target-vote cancellation order changed")
+        return 1
+
+    if not require(world_client, [
+        "int? KingdomQuestVoteSuggestCooldownUntil",
+    ], "native KQ vote suggest-cooldown session deadline"):
+        return 1
+
+    if not require(world_scheduler, [
+        "Handler22.ProcessKingdomQuestVotes(local)",
+    ], "continuous native KQ vote processing"):
         return 1
 
     if "Math.Round" in vote_state or "Random" in vote_state:
@@ -1085,7 +1176,10 @@ def main():
     print("PASS: PDB names lock TeamDivideType 1=RANDOM and 2=USERSELECT; PlayerJoin type-2 initial assignment remains source-modeled")
     print("PASS: one combined membership owner carries CharacterNumber plus client identity fields into both native roster projections")
     print("PASS: native KQ_JOINER_BF +0x20 bInVote / +0x24 bBan / +0x28 nVotingCount are preserved at exact widths")
-    print("PASS: native KQ vote bookkeeping models 0x3100/0x3110 errors, eligibility counters, threshold clamp, result ban and audience without timing guesses")
+    print("PASS: native KQ vote bookkeeping models 0x3100/0x3110 errors, eligibility counters, threshold clamp, result ban and audience")
+    print("PASS: VOTE_START/VOTING/START_CHECK transport is live with exact SingleData 60s/300s timing and ACK-before-command ordering")
+    print("PASS: VoteProcessing preserves existing-ban force-link before expiry/result, and passing targets receive BAN_MSG before next-tick force link")
+    print("PASS: PlayerDisjoin cancels only an active unbanned vote target before normal membership removal")
     return 0
 
 if __name__ == "__main__":

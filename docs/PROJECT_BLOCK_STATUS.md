@@ -65,9 +65,10 @@ Still required for block completion:
   source-modeled CardDeck stage, followed by TreasureChest item
   construction/options and the GameDB/item-store transaction plus exact reward
   mutation/completion timing;
-- vote transport remains to be wired from the now source-closed 60-second
-  vote duration / 300-second suggest cooldown through result, force-ban link,
-  link-end notification and disjoin ordering.
+- the main vote transport is now live (60-second duration, 300-second
+  suggest cooldown, result, force-ban link and target-disjoin cancellation);
+  the separate login/rebind VOTE_BAN_MSG_LOGOFF edge still needs its exact
+  session-state ownership/order correlated before activation.
 
 See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
 boundary. Unknown behavior remains fail-closed rather than inferred.

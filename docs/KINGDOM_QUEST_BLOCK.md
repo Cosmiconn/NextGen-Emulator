@@ -1135,13 +1135,33 @@ tests rather than one generic managed boolean.
 The vote-success/result/disjoin ordering is recovered separately below before
 those fields are used to drive live policy.
 
-The core vote bookkeeping is now source-modeled in
+The core vote bookkeeping is source-modeled in
 `KingdomQuestVoteCoordinator`. It preserves the exact inactive
 `KQ_VOTE_INFO` state, start/voting error families, same-team voter
 eligibility, initial Cancel reservation, YES/NO byte arithmetic, majority-rate
 clamping by target `nVotingCount`, integer YES percentage, result audience,
-target vote-count increment and success `bBan=1`. This layer performs no
-network send or forced map transfer.
+target vote-count increment and success `bBan=1`.
+
+The client transport is now live as well. Direct WorldManager disassembly
+closes the request bodies and observable ordering: VOTE_START reads fixed
+`Name5 Target[20] + u8 VoteType + u8 Len + bytes[Len]`, sends its ACK
+before VOTE_VOTING_CMD, and uses the exact SingleData deadlines below.
+VOTE_VOTING consumes the 32-bit `KQ_VOTING_TYPE` value and returns the
+recovered 0x3110..0x3113 ACK family. VOTE_START_CHECK sends no reply for an
+invalid/non-running session; a valid running session receives 0x3120, 0x3121
+for an active vote, or 0x3122 while its suggest cooldown is still active.
+
+The one-second KQ runtime now executes the recovered VoteProcessing order.
+Already-banned live joiners receive `LINK_TO_FORCE_BY_BAN` with the current
+four native MapName fields **before** expired votes are resolved. Expiry then
+broadcasts RESULT_SUC/RESULT_FAIL to the same-team audience; success sends
+VOTE_BAN_MSG to the target after the result and sets `bBan=1`, so that
+target first receives the force-link on the following processing tick.
+PlayerDisjoin also reproduces the native target-only cancellation edge: when
+the leaving joiner is the active, not-yet-banned vote target it clears all
+current `bInVote` values, sends VOTE_CANCEL_CMD to every other live joiner,
+clears KQ_VOTE_INFO, and only then performs normal membership removal. A
+starter-only disjoin does not cancel the vote.
 
 The previously unresolved vote timings are now closed by the original
 `SingleData.shn` from the supplied Server.zip. The exact file is SHA-256

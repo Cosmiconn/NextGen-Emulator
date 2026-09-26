@@ -308,6 +308,9 @@ namespace NextGen.World.Data
                 RunMakeRoom(local);
                 RunStartGate(local);
                 RunStartCountdownExpiry(local);
+                // Native CKQServer processing runs the vote pass continuously;
+                // the Handler owner preserves ban-link-before-result order.
+                NextGen.World.Handlers.Handler22.ProcessKingdomQuestVotes(local);
                 RunDeleteOldSchedules();
             }
         }

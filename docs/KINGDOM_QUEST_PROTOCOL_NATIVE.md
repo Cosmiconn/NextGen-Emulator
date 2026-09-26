@@ -516,18 +516,29 @@ same-team bInVote values are cleared. A passing result sets target bBan=1.
 The success packet carries the **required threshold rate**, not the calculated
 ratio.
 
-`KingdomQuestVoteCoordinator` now models those bookkeeping/result mutations
-without network or character gameplay side effects. The timing source is no
-longer unresolved: original `SingleData.shn`
+`KingdomQuestVoteCoordinator` models those bookkeeping/result mutations.
+The World transport now consumes that state with the recovered native ordering:
+VOTE_START_ACK precedes VOTE_VOTING_CMD; the 32-bit VOTING request receives
+the 0x3110..0x3113 ACK family; START_CHECK is silent for an invalid/non-running
+KQ and otherwise reports 0x3120/0x3121/0x3122. Continuous VoteProcessing
+sends force-link packets for already-banned live joiners before resolving
+expired votes, broadcasts the result, and only then sends VOTE_BAN_MSG to a
+newly banned target. Consequently a new ban reaches LINK_TO_FORCE_BY_BAN on
+the following processing tick. PlayerDisjoin cancels only when the leaving
+joiner is the active unbanned vote target; it sends VOTE_CANCEL to every other
+joiner before normal removal and does not cancel on starter-only departure.
+
+The timing source is no longer unresolved: original `SingleData.shn`
 (SHA-256 `8a0bf604d4cb843fb998c9d9ea42ef693700a73d3391dfe2590dfdf19fe80a88`)
 contains `KQVote_VoteLimitTime=60`,
 `KQVote_SuggestCoolTime=300`, `KQVote_LoginCoolTime=300` and
 `KQPlayerList_ResetListCoolTime=5`. Direct WorldManager disassembly shows
 the vote-start path resolving the first two through
 `CSingleDataMap::GetValue`, using 60 seconds for the vote EndTime and
-300 seconds for the starter suggest-cooldown deadline. The full 41-row source
-snapshot is provenance-locked. Ban transfer, target-disjoin cancellation and
-login-ban notification ordering remain the next transport layer.
+300 seconds for the starter suggest-cooldown deadline. The full 41-row source snapshot is provenance-locked. The remaining vote edge
+is the separate login/rebind ban notification path that emits
+VOTE_BAN_MSG_LOGOFF; it is not inferred from the now-live in-session
+VoteProcessing path.
 
 
 ## JOIN admission Error values recovered

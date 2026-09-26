@@ -194,16 +194,81 @@ namespace NextGen.World.Handlers
             }
         }
 
-        private static bool PlayerDisjoin(WorldClient client)
+        private static bool TryGetActiveKqClient(
+            uint characterNumber, uint handle, out WorldClient client)
         {
-            uint oldHandle;
-            uint characterNumber;
-            if (!KingdomQuestAdmissionCoordinator.TryRemoveCurrentMembership(
-                    client, out oldHandle, out characterNumber))
+            client = null;
+            if (characterNumber > int.MaxValue ||
+                ClientManager.Instance == null)
                 return false;
 
-            // Native PlayerDisjoin order: Zone broadcast, JOIN_LIST broadcast,
-            // then session nKQHandle = 0xFFFFFFFF.
+            WorldClient candidate =
+                ClientManager.Instance.GetClientByCharID((int)characterNumber);
+            if (candidate == null ||
+                !candidate.KingdomQuestHandle.HasValue ||
+                candidate.KingdomQuestHandle.Value != handle)
+                return false;
+
+            uint resolvedCharacterNumber;
+            if (!KingdomQuestCharacterIdentity.TryGetCharacterNumber(
+                    candidate.Character, out resolvedCharacterNumber) ||
+                resolvedCharacterNumber != characterNumber)
+                return false;
+
+            client = candidate;
+            return true;
+        }
+
+        private static void SendVoteCancel(
+            uint handle, KingdomQuestVoteCancelPlan plan)
+        {
+            if (plan == null)
+                return;
+
+            using (Packet cancel =
+                KingdomQuestProtocol.CreateVoteCancel(plan.TargetName))
+            {
+                for (int i = 0; i < plan.AudienceCharacterNumbers.Count; i++)
+                {
+                    WorldClient audience;
+                    if (TryGetActiveKqClient(
+                            plan.AudienceCharacterNumbers[i],
+                            handle, out audience))
+                        audience.SendPacket(cancel);
+                }
+            }
+        }
+
+        private static bool PlayerDisjoin(WorldClient client)
+        {
+            if (client == null || !client.KingdomQuestHandle.HasValue)
+                return false;
+
+            uint oldHandle = client.KingdomQuestHandle.Value;
+            uint characterNumber;
+            if (!KingdomQuestCharacterIdentity.TryGetCharacterNumber(
+                    client.Character, out characterNumber))
+                return false;
+
+            // Native PlayerDisjoin cancels an active vote only when the
+            // leaving joiner is the vote target and is not already banned.
+            // VOTE_CANCEL is emitted before normal membership deletion.
+            KingdomQuestVoteCancelPlan cancelPlan;
+            if (!KingdomQuestVoteCoordinator.TryCancelForTargetDisjoin(
+                    oldHandle, characterNumber, out cancelPlan))
+                return false;
+            SendVoteCancel(oldHandle, cancelPlan);
+
+            uint removedHandle;
+            uint removedCharacterNumber;
+            if (!KingdomQuestAdmissionCoordinator.TryRemoveCurrentMembership(
+                    client, out removedHandle, out removedCharacterNumber) ||
+                removedHandle != oldHandle ||
+                removedCharacterNumber != characterNumber)
+                return false;
+
+            // Native PlayerDisjoin order after vote cancellation: Zone
+            // broadcast, JOIN_LIST broadcast, then session nKQHandle=FFFFFFFF.
             BroadcastPlayerDisjoinToZones(oldHandle, characterNumber);
             BroadcastJoinList(oldHandle);
             KingdomQuestAdmissionCoordinator.CompleteDisjoin(
@@ -352,6 +417,306 @@ namespace NextGen.World.Handlers
             using (Packet response = KingdomQuestProtocol.CreateJoinListAck(
                 KingdomQuestNativeConstants.JoinListSuccess, participants))
                 client.SendPacket(response);
+        }
+
+        [PacketHandler(CH22Type.KingdomQuestVoteStartReq)]
+        public static void KingdomQuestVoteStart(
+            WorldClient client, Packet packet)
+        {
+            string targetName;
+            byte voteType;
+            byte contentsLength;
+            string contents;
+            if (client == null || packet == null ||
+                !packet.TryReadString(out targetName, 20) ||
+                !packet.TryReadByte(out voteType) ||
+                !packet.TryReadByte(out contentsLength) ||
+                !packet.TryReadString(out contents, contentsLength) ||
+                packet.Remaining != 0)
+                return;
+
+            if (!client.KingdomQuestHandle.HasValue)
+            {
+                using (Packet invalid =
+                    KingdomQuestProtocol.CreateVoteStartAck(
+                        KingdomQuestNativeConstants.VoteStartInvalidHandle))
+                    client.SendPacket(invalid);
+                return;
+            }
+
+            uint characterNumber;
+            if (!KingdomQuestCharacterIdentity.TryGetCharacterNumber(
+                    client.Character, out characterNumber))
+                return;
+
+            uint handle = client.KingdomQuestHandle.Value;
+            WorldClient targetClient =
+                ClientManager.Instance == null
+                    ? null
+                    : ClientManager.Instance.GetClientByCharname(targetName);
+            bool targetSessionAvailable =
+                targetClient != null &&
+                targetClient.KingdomQuestHandle.HasValue &&
+                targetClient.KingdomQuestHandle.Value == handle;
+
+            DateTime localNow = DateTime.Now;
+            int currentTime =
+                KingdomQuestSourceScheduler.ToNativeTime32(localNow);
+            bool suggestCooldownActive =
+                client.KingdomQuestVoteSuggestCooldownUntil.HasValue &&
+                client.KingdomQuestVoteSuggestCooldownUntil.Value >
+                    currentTime;
+            int voteEndTime = unchecked(
+                currentTime + KingdomQuestNativeConstants.VoteLimitSeconds);
+
+            ushort error;
+            KingdomQuestVoteStartPlan plan;
+            if (!KingdomQuestVoteCoordinator.TryPrepareStart(
+                    handle,
+                    characterNumber,
+                    targetName,
+                    voteType,
+                    contentsLength,
+                    targetSessionAvailable,
+                    suggestCooldownActive,
+                    voteEndTime,
+                    out error,
+                    out plan))
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "KQ VOTE_START fail-closed for CharacterNumber {0}.",
+                    characterNumber);
+                return;
+            }
+
+            // Native sends VOTE_START_ACK before broadcasting VOTE_VOTING_CMD.
+            using (Packet ack =
+                KingdomQuestProtocol.CreateVoteStartAck(error))
+                client.SendPacket(ack);
+
+            if (error != KingdomQuestNativeConstants.VoteStartSuccess ||
+                plan == null)
+                return;
+
+            client.KingdomQuestVoteSuggestCooldownUntil = unchecked(
+                currentTime +
+                KingdomQuestNativeConstants.VoteSuggestCooldownSeconds);
+
+            KingdomQuestNativeTime endTm =
+                KingdomQuestNativeTime.FromLocalDateTime(
+                    localNow.AddSeconds(
+                        KingdomQuestNativeConstants.VoteLimitSeconds));
+            using (Packet command =
+                KingdomQuestProtocol.CreateVoteVotingCmd(
+                    plan.StarterName,
+                    plan.TargetName,
+                    plan.VoteType,
+                    endTm,
+                    contents))
+            {
+                for (int i = 0; i < plan.VoterCharacterNumbers.Count; i++)
+                {
+                    WorldClient voter;
+                    if (TryGetActiveKqClient(
+                            plan.VoterCharacterNumbers[i],
+                            handle, out voter))
+                        voter.SendPacket(command);
+                }
+            }
+        }
+
+        [PacketHandler(CH22Type.KingdomQuestVoteVotingReq)]
+        public static void KingdomQuestVoteVoting(
+            WorldClient client, Packet packet)
+        {
+            int choice;
+            if (client == null || packet == null ||
+                !packet.TryReadInt(out choice) ||
+                packet.Remaining != 0)
+                return;
+
+            if (!client.KingdomQuestHandle.HasValue)
+            {
+                using (Packet invalid =
+                    KingdomQuestProtocol.CreateVoteVotingAck(
+                        KingdomQuestNativeConstants.VoteVotingInvalidJoiner))
+                    client.SendPacket(invalid);
+                return;
+            }
+
+            uint characterNumber;
+            if (!KingdomQuestCharacterIdentity.TryGetCharacterNumber(
+                    client.Character, out characterNumber))
+                return;
+
+            ushort error;
+            if (!KingdomQuestVoteCoordinator.TryRecordVote(
+                    client.KingdomQuestHandle.Value,
+                    characterNumber,
+                    choice,
+                    out error))
+            {
+                Log.WriteLine(LogLevel.Warn,
+                    "KQ VOTE_VOTING fail-closed for CharacterNumber {0}.",
+                    characterNumber);
+                return;
+            }
+
+            using (Packet ack =
+                KingdomQuestProtocol.CreateVoteVotingAck(error))
+                client.SendPacket(ack);
+        }
+
+        [PacketHandler(CH22Type.KingdomQuestVoteStartCheckReq)]
+        public static void KingdomQuestVoteStartCheck(
+            WorldClient client, Packet packet)
+        {
+            if (client == null || !client.KingdomQuestHandle.HasValue)
+                return;
+
+            uint handle = client.KingdomQuestHandle.Value;
+            KingdomQuestProtocolInfo definition;
+            if (!KingdomQuestProtocolDefinitionRegistry.TryGet(
+                    handle, out definition) ||
+                definition.Status != KingdomQuestNativeConstants.StatusRunning)
+                return;
+
+            int currentTime =
+                KingdomQuestSourceScheduler.ToNativeTime32(DateTime.Now);
+            KingdomQuestVoteState state;
+            if (!KingdomQuestVoteCoordinator.TryGetState(handle, out state))
+                return;
+
+            ushort error =
+                state.IsActive
+                    ? KingdomQuestNativeConstants.VoteStartCheckAlreadyRunning
+                    : (client.KingdomQuestVoteSuggestCooldownUntil.HasValue &&
+                       client.KingdomQuestVoteSuggestCooldownUntil.Value >
+                           currentTime
+                        ? KingdomQuestNativeConstants.VoteStartCheckSuggestCooldown
+                        : KingdomQuestNativeConstants.VoteStartCheckSuccess);
+
+            using (Packet ack =
+                KingdomQuestProtocol.CreateVoteStartCheckAck(error))
+                client.SendPacket(ack);
+        }
+
+        /// <summary>
+        /// Native CKQServer::VoteProcessing order is important: already-banned
+        /// joiners receive LINK_TO_FORCE_BY_BAN before this tick resolves an
+        /// expired vote. A newly-banned target therefore receives its force
+        /// link on the following processing tick.
+        /// </summary>
+        internal static void ProcessKingdomQuestVotes(DateTime localNow)
+        {
+            int currentTime =
+                KingdomQuestSourceScheduler.ToNativeTime32(localNow);
+            IReadOnlyList<KingdomQuestProtocolInfo> definitions =
+                KingdomQuestProtocolDefinitionRegistry.Snapshot();
+
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                KingdomQuestProtocolInfo definition = definitions[i];
+                if (definition.Status !=
+                        KingdomQuestNativeConstants.StatusRunning)
+                    continue;
+
+                IReadOnlyList<KingdomQuestMembershipEntry> banned;
+                if (KingdomQuestVoteCoordinator.TryGetBannedMembers(
+                        definition.Handle, out banned) &&
+                    definition.MapLink != null &&
+                    definition.MapLink.Length == 4)
+                {
+                    var mapNames = new List<string>(4);
+                    bool completeMapLinks = true;
+                    for (int mapIndex = 0; mapIndex < 4; mapIndex++)
+                    {
+                        if (definition.MapLink[mapIndex] == null)
+                        {
+                            completeMapLinks = false;
+                            break;
+                        }
+                        mapNames.Add(
+                            definition.MapLink[mapIndex].MapName ??
+                            string.Empty);
+                    }
+
+                    if (completeMapLinks)
+                    {
+                        for (int bannedIndex = 0;
+                            bannedIndex < banned.Count;
+                            bannedIndex++)
+                        {
+                            WorldClient bannedClient;
+                            if (!TryGetActiveKqClient(
+                                    banned[bannedIndex].CharacterNumber,
+                                    definition.Handle,
+                                    out bannedClient))
+                                continue;
+
+                            using (Packet force =
+                                KingdomQuestProtocol.CreateLinkToForceByBan(
+                                    banned[bannedIndex].CharacterNumber,
+                                    mapNames.AsReadOnly()))
+                                bannedClient.SendPacket(force);
+                        }
+                    }
+                }
+
+                KingdomQuestVoteResolution resolution;
+                if (!KingdomQuestVoteCoordinator.TryResolveExpired(
+                        definition.Handle,
+                        currentTime,
+                        out resolution))
+                    continue;
+
+                using (Packet result =
+                    resolution.Passed
+                        ? KingdomQuestProtocol.CreateVoteResultSuccess(
+                            resolution.TargetName,
+                            resolution.RequiredRate,
+                            resolution.YesCount,
+                            resolution.NoCount,
+                            resolution.CancelCount)
+                        : KingdomQuestProtocol.CreateVoteResultFail(
+                            resolution.TargetName,
+                            resolution.YesCount,
+                            resolution.NoCount,
+                            resolution.CancelCount))
+                {
+                    for (int audienceIndex = 0;
+                        audienceIndex <
+                            resolution.AudienceCharacterNumbers.Count;
+                        audienceIndex++)
+                    {
+                        WorldClient audience;
+                        if (TryGetActiveKqClient(
+                                resolution.AudienceCharacterNumbers[
+                                    audienceIndex],
+                                definition.Handle,
+                                out audience))
+                            audience.SendPacket(result);
+                    }
+                }
+
+                if (resolution.Passed)
+                {
+                    WorldClient target;
+                    if (TryGetActiveKqClient(
+                            resolution.TargetCharacterNumber,
+                            definition.Handle,
+                            out target))
+                    {
+                        using (Packet ban =
+                            KingdomQuestProtocol.CreateVoteBanMessage(
+                                resolution.RequiredRate,
+                                resolution.YesCount,
+                                resolution.NoCount,
+                                resolution.CancelCount))
+                            target.SendPacket(ban);
+                    }
+                }
+            }
         }
 
         [PacketHandler(CH22Type.KingdomQuestTeamSelectReq)]

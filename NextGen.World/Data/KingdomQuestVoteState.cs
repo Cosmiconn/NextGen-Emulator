@@ -149,6 +149,20 @@ namespace NextGen.World.Data
         }
     }
 
+    public sealed class KingdomQuestVoteCancelPlan
+    {
+        public string TargetName { get; private set; }
+        public IReadOnlyList<uint> AudienceCharacterNumbers { get; private set; }
+
+        internal KingdomQuestVoteCancelPlan(
+            string targetName, IEnumerable<uint> audienceCharacterNumbers)
+        {
+            TargetName = targetName ?? string.Empty;
+            AudienceCharacterNumbers =
+                (audienceCharacterNumbers ?? new uint[0]).ToList().AsReadOnly();
+        }
+    }
+
     /// <summary>
     /// Mutation-free-to-gameplay projection of the recovered WorldManager vote
     /// state machine. It mutates only KQ membership/vote bookkeeping; it does
@@ -478,6 +492,61 @@ namespace NextGen.World.Data
                     audience);
 
                 ByHandle.Remove(handle);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Models the vote branch inside CKQServer::PlayerDisjoin.
+        /// Only disjoining the active vote target cancels the vote, and a
+        /// nonzero target bBan suppresses that cancellation. Native clears
+        /// every current joiner's bInVote, sends VOTE_CANCEL_CMD to every
+        /// other represented joiner, then clears KQ_VOTE_INFO before the
+        /// normal membership removal continues.
+        /// </summary>
+        public static bool TryCancelForTargetDisjoin(
+            uint handle,
+            uint characterNumber,
+            out KingdomQuestVoteCancelPlan plan)
+        {
+            plan = null;
+            lock (Sync)
+            {
+                KingdomQuestVoteState state;
+                if (!ByHandle.TryGetValue(handle, out state) ||
+                    !state.IsActive)
+                    return true;
+
+                IReadOnlyList<KingdomQuestMembershipEntry> source;
+                if (!KingdomQuestMembershipRegistry.TryGet(handle, out source))
+                    return false;
+
+                var members = source.Select(v => v.Clone()).ToList();
+                if (state.TargetIndex < 0 ||
+                    state.TargetIndex >= members.Count)
+                    return false;
+
+                KingdomQuestMembershipEntry target =
+                    members[state.TargetIndex];
+                if (target.CharacterNumber != characterNumber ||
+                    target.BanRaw != 0)
+                    return true;
+
+                var audience = new List<uint>();
+                for (int i = 0; i < members.Count; i++)
+                {
+                    members[i].InVoteRaw = 0;
+                    if (members[i].CharacterNumber != characterNumber)
+                        audience.Add(members[i].CharacterNumber);
+                }
+
+                if (!KingdomQuestSessionCoordinator.TrySetMembership(
+                        handle, members))
+                    return false;
+
+                ByHandle.Remove(handle);
+                plan = new KingdomQuestVoteCancelPlan(
+                    target.Name, audience);
                 return true;
             }
         }

@@ -38,6 +38,11 @@ namespace NextGen.World.Networking
         // Recv_NC_KQ_JOIN_LIST_REQ stores the last successful list request
         // time and applies SingleData.KQPlayerList_ResetListCoolTime.
         internal int? KingdomQuestJoinListLastRequestTime { get; set; }
+
+        // Recv_NC_KQ_VOTE_START_REQ compares this native time32 deadline with
+        // the current second before allowing another suggestion from the same
+        // World session. Null is the managed equivalent of the initial zero.
+        internal int? KingdomQuestVoteSuggestCooldownUntil { get; set; }
 		#endregion
 		#region .ctor
 		public WorldClient(Socket socket)
