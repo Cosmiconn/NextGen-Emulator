@@ -1489,6 +1489,16 @@ native KQ map slots. For every populated map it obtains the KQ element's
 `ScriptInitValue` tokens. MAKE created those two `PineScriptToken` values
 from the corresponding fields of `PROTO_KQ_INFO`.
 
+That START source pair is now executable-bound as well.
+`KingdomQuestPineStartRuntime` accepts a KQ definition only when its exact
+`ScriptLanguage` resolves to one of the nine source-backed Pine documents and
+its exact `ScriptInitValue` names a top-level block in that document. It then
+creates `KingdomQuestPineControlRuntime` at precisely that block. There is no
+default `"10"`, first-block fallback or Lua substitution. The accompanying
+runtime-source audit derives the top-level blocks from the hash-locked canonical
+Pine bundle and correlates all supplied Pine-backed definitions against their
+original `InitValue`.
+
 Static regen is reached later and lazily by the running scenario. The recovered
 PineScript `regengroup` node follows this exact path:
 
