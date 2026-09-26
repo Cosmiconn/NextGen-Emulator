@@ -792,6 +792,19 @@ def main():
                 return 1
     print("PASS: KQ UnderHall has 19 waitinterrupt -> dynamic call InterruptBlock pairs")
 
+    underhall_interrupt_arg_lines = [
+        line for line in underhall_source_lines
+        if "InterruptArg" in line
+    ]
+    if (len(underhall_interrupt_arg_lines) != 20 or
+            underhall_interrupt_arg_lines.count('InterruptArg    ""') != 1 or
+            underhall_interrupt_arg_lines.count(
+                'waitinterrupt InterruptBlock "InterruptArg".') != 19):
+        print("FAIL: KQ UnderHall InterruptArg gained a source consumer",
+              underhall_interrupt_arg_lines)
+        return 1
+    print("PASS: KQ UnderHall InterruptArg is only declared and written by waitinterrupt")
+
     underhall_external_verbs = {
         "broadcast", "linkto", "mobregen", "questmobkill",
         "reward", "scriptfile", "summonmob",
