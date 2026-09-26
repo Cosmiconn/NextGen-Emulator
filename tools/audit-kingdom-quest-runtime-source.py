@@ -745,6 +745,19 @@ def main():
             return 1
     print("PASS: KQ UnderHall unresolved command forms are source-locked")
 
+    underhall_interrupt_state_lines = []
+    current_source_script = None
+    for raw_line in pine_bundle.splitlines():
+        line = raw_line.strip()
+        if line.startswith("@@ "):
+            current_source_script = line[3:].strip()
+            continue
+        if (current_source_script == "KQ/UnderHall" and
+                ("InterruptBlock" in line or "InterruptArg" in line)):
+            underhall_interrupt_state_lines.append(line)
+    print("INFO: KQ UnderHall interrupt state lines:",
+          " || ".join(underhall_interrupt_state_lines))
+
     underhall_catalog_text = UNDERHALL_SOURCE_CATALOG.read_text(
         encoding="utf-8")
     for token in (
