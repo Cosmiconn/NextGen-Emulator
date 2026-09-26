@@ -13,6 +13,7 @@ MAP_SQL = ROOT / "sql/data/data_kq_source_20_kingdomquestmap.sql"
 REGEN_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestRegenSource.cs"
 SCENARIOBOOK_SOURCE = ROOT / "docs/KINGDOM_QUEST_SCENARIOBOOK_SOURCE.tsv"
 SCENARIOBOOK_PROJECTION = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShelfSource.cs"
+PINE_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestPineScriptSource.cs"
 SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
 SINGLE_DATA_PROJECTION = ROOT / "NextGen.FiestaLib/Data/KingdomQuestSingleDataInfo.cs"
 SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
@@ -215,7 +216,7 @@ def load_single_data_source():
 
 def main():
     for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE,
-                 SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION,
+                 SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION, PINE_SOURCE,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
@@ -367,6 +368,37 @@ def main():
               "proven KQ catalog")
         return 1
 
+    pine_source_text = PINE_SOURCE.read_text(encoding="utf-8")
+    pine_tokens = (
+        "class KingdomQuestPineScriptSource",
+        "UsedPineScriptCount = 9",
+        "390c0e948eb035aee62078327cb63d81ddef54aa9e28c38d642d02c86a9f9e57",
+        "KingdomQuestPineNodeKind.Command",
+        "KingdomQuestPineNodeKind.If",
+        "KingdomQuestPineNodeKind.Infinite",
+        "KingdomQuestPineNodeKind.Scope",
+        "expected top-level named open",
+        "orphan structural token",
+        "missing close before EOF",
+        "KQ/GordonMaster",
+        "KQ/Honeying",
+        "KQ/KQHBat1",
+        "KQ/KQHBat2",
+        "KQ/KQHBat3",
+        "KQ/KQHBat4",
+        "KQ/KQHBat5",
+        "KQ/UnderHall",
+        "KQ/UnderHall2",
+    )
+    for token in pine_tokens:
+        if token not in pine_source_text:
+            print("FAIL: KQ Pine executable-source projection changed", token)
+            return 1
+
+    if "no Pine command is assigned gameplay" not in pine_source_text:
+        print("FAIL: KQ Pine source parser lost execution-boundary guard")
+        return 1
+
     script_list = [row for row in rows if row["kind"] == "script"]
     regen_list = [row for row in rows if row["kind"] == "regen"]
     script_rows = {row["key"]: row for row in script_list}
@@ -469,6 +501,7 @@ def main():
     print("PASS: original World/PineScript.txt KQ shelf is locked to 32 exact keys (9 Pine + 23 Lua), all with source files")
     print("PASS: native sbs_Read file-presence insertion is locked: sb_Load return is ignored before shelf insertion")
     print("PASS: all 27 supplied KQ ScriptLanguage values are proven members of the source-backed ScenarioBookShelf")
+    print("PASS: all 9 used Pine ScenarioBooks are canonical-source modeled and structurally parsed without gameplay semantics")
     print("PASS: MAKE error precedence is source-locked to duplicate -> script lookup -> 300-slot capacity")
     print("PASS: separate KQScriptManager/DialogFile capacity is not conflated with ScenarioBookShelf")
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
