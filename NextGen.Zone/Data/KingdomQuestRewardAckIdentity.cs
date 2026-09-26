@@ -17,9 +17,9 @@ namespace NextGen.Zone.Data
     /// Mutation-free transaction identity forwarded by the recovered native
     /// ACK handlers after both ClientHandle and CharacterNumber validation.
     ///
-    /// The native item-store virtual method names/commit semantics remain
-    /// unresolved, so this object carries only the proven identity and
-    /// LockIndex boundary.
+    /// The exact downstream ApplyAndFree/Free action is projected separately
+    /// by KingdomQuestRewardNativeTransaction; this object remains the common
+    /// identity + LockIndex boundary.
     /// </summary>
     public sealed class KingdomQuestRewardAckTransactionRef
     {
@@ -49,7 +49,7 @@ namespace NextGen.Zone.Data
     /// The caller must already have resolved the native ClientHandle to a
     /// player and supplies that player's exact CharacterNumber. This class
     /// does not resolve ClientHandle, does not access inventory/database state,
-    /// and does not invoke the native item-store virtual methods.
+    /// and does not execute the recovered native lock-list transaction.
     /// </summary>
     public static class KingdomQuestRewardAckIdentity
     {
@@ -94,6 +94,40 @@ namespace NextGen.Zone.Data
                 ack.CharacterNumber,
                 ack.LockIndex);
             return true;
+        }
+
+        public static bool TryValidateResolvedSuccessPlan(
+            KingdomQuestRewardSuccessAckInfo ack,
+            ushort resolvedClientHandle,
+            uint resolvedCharacterNumber,
+            out KingdomQuestRewardNativeAckPlan plan)
+        {
+            plan = null;
+            KingdomQuestRewardAckTransactionRef transaction;
+            return TryValidateResolvedSuccess(
+                    ack,
+                    resolvedClientHandle,
+                    resolvedCharacterNumber,
+                    out transaction) &&
+                KingdomQuestRewardNativeTransaction.TryBuildAckPlan(
+                    transaction, out plan);
+        }
+
+        public static bool TryValidateResolvedFailurePlan(
+            KingdomQuestRewardFailAckInfo ack,
+            ushort resolvedClientHandle,
+            uint resolvedCharacterNumber,
+            out KingdomQuestRewardNativeAckPlan plan)
+        {
+            plan = null;
+            KingdomQuestRewardAckTransactionRef transaction;
+            return TryValidateResolvedFailure(
+                    ack,
+                    resolvedClientHandle,
+                    resolvedCharacterNumber,
+                    out transaction) &&
+                KingdomQuestRewardNativeTransaction.TryBuildAckPlan(
+                    transaction, out plan);
         }
     }
 }
