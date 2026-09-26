@@ -535,6 +535,12 @@ namespace NextGen.Zone.Data
                 return;
             }
 
+            if (IsCommandVerb(node.Text, "waitlogin"))
+            {
+                StepWaitLogin(frame, node);
+                return;
+            }
+
             bool completed;
             int state = frame.State;
             KingdomQuestPineCommandResolution commandResolution =
@@ -596,6 +602,59 @@ namespace NextGen.Zone.Data
                 Fail(
                     "Unresolved Pine command at canonical line " +
                     node.CanonicalLine + ": " + node.Text);
+                return;
+            }
+
+            frame.State = state;
+            if (completed)
+                Pop();
+        }
+
+        private void StepWaitLogin(
+            Frame frame,
+            KingdomQuestPineNodeSource node)
+        {
+            string targetIdentifier;
+            if (!KingdomQuestPineWaitLogin.TryParseUsed(
+                    node.Text, out targetIdentifier) ||
+                string.IsNullOrEmpty(targetIdentifier))
+            {
+                Fail(
+                    "Invalid source-used Pine waitlogin at canonical line " +
+                    node.CanonicalLine + ": " + node.Text);
+                return;
+            }
+
+            KingdomQuestPineTokenValue destination;
+            if (!variables.TryFind(targetIdentifier, out destination) ||
+                destination == null)
+            {
+                Fail(
+                    "Pine waitlogin target variable not found at canonical " +
+                    "line " + node.CanonicalLine + ": " + targetIdentifier);
+                return;
+            }
+
+            if (commandContext == null ||
+                commandContext.WaitLoginSource == null)
+            {
+                Fail(
+                    "Native Pine waitlogin source missing at canonical line " +
+                    node.CanonicalLine + ".");
+                return;
+            }
+
+            int state = frame.State;
+            bool completed;
+            if (!commandContext.WaitLoginSource.TryStep(
+                    targetIdentifier,
+                    destination,
+                    ref state,
+                    out completed))
+            {
+                Fail(
+                    "Native Pine waitlogin source failed at canonical line " +
+                    node.CanonicalLine + ".");
                 return;
             }
 
