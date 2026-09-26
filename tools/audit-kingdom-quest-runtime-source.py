@@ -785,6 +785,19 @@ def main():
                 return 1
     print("PASS: KQ UnderHall has 19 waitinterrupt -> dynamic call InterruptBlock pairs")
 
+    underhall_waitlogin_context = []
+    for index, line in enumerate(underhall_source_lines):
+        if line == "waitlogin Wait.":
+            start = max(0, index - 4)
+            end = min(len(underhall_source_lines), index + 5)
+            underhall_waitlogin_context = underhall_source_lines[start:end]
+            break
+    if not underhall_waitlogin_context:
+        print("FAIL: KQ UnderHall waitlogin source context disappeared")
+        return 1
+    print("INFO: KQ UnderHall waitlogin context:",
+          " || ".join(underhall_waitlogin_context))
+
     underhall_interrupt_type_counts = Counter()
     for line in pine_command_lines_by_script["KQ/UnderHall"].get(
             "interruptset", []):
