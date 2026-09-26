@@ -788,6 +788,24 @@ def main():
                 return 1
     print("PASS: KQ UnderHall has 19 waitinterrupt -> dynamic call InterruptBlock pairs")
 
+    underhall_external_verbs = {
+        "broadcast", "linkto", "mobregen", "questmobkill",
+        "reward", "scriptfile", "summonmob",
+    }
+    underhall_external_sequence = []
+    for index, line in enumerate(underhall_source_lines):
+        verb = line.split(None, 1)[0].lower().rstrip(".")
+        if verb in underhall_external_verbs:
+            underhall_external_sequence.append((index + 1, line))
+    if len(underhall_external_sequence) != 26:
+        print("FAIL: KQ UnderHall external command occurrence count changed",
+              underhall_external_sequence)
+        return 1
+    print("INFO: KQ UnderHall external command sequence:",
+          " || ".join(
+              "{0}:{1}".format(line_no, line)
+              for line_no, line in underhall_external_sequence))
+
     underhall_waitlogin_context = []
     for index, line in enumerate(underhall_source_lines):
         if line == "waitlogin Wait.":
