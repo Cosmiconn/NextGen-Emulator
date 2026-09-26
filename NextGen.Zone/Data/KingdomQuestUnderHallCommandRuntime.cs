@@ -15,6 +15,7 @@ namespace NextGen.Zone.Data
     {
         bool TryStep(
             KingdomQuestUnderHallCommandSourcePlan plan,
+            KingdomQuestPineVariableStack variables,
             int canonicalLine,
             ref int nativeState,
             out bool completed);
@@ -57,6 +58,7 @@ namespace NextGen.Zone.Data
             string scriptLanguage,
             string commandText,
             int canonicalLine,
+            KingdomQuestPineVariableStack variables,
             IKingdomQuestUnderHallCommandSink sink,
             ref int nativeState,
             out bool completed)
@@ -76,11 +78,13 @@ namespace NextGen.Zone.Data
             if (!KingdomQuestUnderHallCommandSource.TryParse(
                     commandText, out plan) ||
                 plan == null ||
+                variables == null ||
                 sink == null)
                 return KingdomQuestPineCommandResolution.Invalid;
 
             if (!sink.TryStep(
                     plan,
+                    variables,
                     canonicalLine,
                     ref nativeState,
                     out completed))
