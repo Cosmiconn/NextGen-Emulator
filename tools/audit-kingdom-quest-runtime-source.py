@@ -32,6 +32,7 @@ PINE_USED_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedComman
 PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalCommandState.cs"
 UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandSource.cs"
 UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandRuntime.cs"
+UNDERHALL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandState.cs"
 UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
@@ -248,7 +249,8 @@ def main():
                  PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
                  PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
                  PINE_LOCAL_COMMAND_STATE, UNDERHALL_COMMAND_SOURCE,
-                 UNDERHALL_COMMAND_RUNTIME, UNDERHALL_SOURCE_CATALOG,
+                 UNDERHALL_COMMAND_RUNTIME, UNDERHALL_COMMAND_STATE,
+                 UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
@@ -903,6 +905,37 @@ def main():
             "Program.DatabaseManager", "System.Random", "DateTime.Now"):
         if forbidden in underhall_runtime_text:
             print("FAIL: KQ UnderHall runtime invented a side effect",
+                  forbidden)
+            return 1
+
+    underhall_state_text = UNDERHALL_COMMAND_STATE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHallInterruptDelivery",
+        "interface IKingdomQuestUnderHallInterruptDeliverySource",
+        "interface IKingdomQuestUnderHallExternalCommandSink",
+        "class KingdomQuestUnderHallCommandState",
+        "IKingdomQuestUnderHallCommandSink",
+        "KingdomQuestUnderHallCommandKind.WaitInterrupt",
+        "interruptDeliverySource.TryTake(out delivery)",
+        "document.Blocks.ContainsKey(delivery.ActionBlock)",
+        "variables.TryFind(plan.Arguments[0], out blockValue)",
+        "variables.TryFind(plan.Arguments[1], out argumentValue)",
+        "blockValue.TrySetAscii(delivery.ActionBlock)",
+        "argumentValue.TrySetAscii(delivery.Argument)",
+        "A wait with no selected native interrupt remains active.",
+        "does not evaluate",
+        "choose BlastCheck ordering",
+    ):
+        if token not in underhall_state_text:
+            print("FAIL: KQ UnderHall interrupt-delivery state changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "System.Random", "DateTime.Now",
+            "Environment.TickCount"):
+        if forbidden in underhall_state_text:
+            print("FAIL: KQ UnderHall wait state invented an external effect",
                   forbidden)
             return 1
 
