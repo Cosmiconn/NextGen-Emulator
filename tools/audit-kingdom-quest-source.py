@@ -38,6 +38,7 @@ WORLD_REWARD_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardSelectionPlan.c
 WORLD_REWARD_ITEM_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemPlan.cs"
 WORLD_REWARD_ITEM_GROUP_SOURCE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemGroupSource.cs"
 WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemGroupCandidateSource.cs"
+SHARED_MSVC_CRT_RAND = ROOT / "NextGen.FiestaLib/Data/MsvcCrtRand.cs"
 WORLD_NATIVE_ITEM_GROUP_CLASSIFIER = ROOT / "NextGen.World/Data/KingdomQuestNativeItemGroupClassifierState.cs"
 WORLD_REWARD_CLASS_GROUP = ROOT / "NextGen.World/Data/KingdomQuestRewardClassGroup.cs"
 WORLD_REWARD_ITEM_CANDIDATE_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemCandidatePlan.cs"
@@ -165,7 +166,7 @@ def main():
         WORLD_MAP_CONTEXT, WORLD_SESSION, WORLD_REWARD_RESOLVER,
         WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN,
         WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE,
-        WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_CLASS_GROUP,
+        SHARED_MSVC_CRT_RAND, WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_CLASS_GROUP,
         WORLD_REWARD_ITEM_CANDIDATE_PLAN,
         WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
@@ -694,6 +695,7 @@ def main():
     world_reward_item_plan = WORLD_REWARD_ITEM_PLAN.read_text(encoding='utf-8')
     world_reward_item_group_source = WORLD_REWARD_ITEM_GROUP_SOURCE.read_text(encoding='utf-8')
     world_reward_item_group_candidate_source = WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE.read_text(encoding='utf-8')
+    shared_msvc_crt_rand = SHARED_MSVC_CRT_RAND.read_text(encoding='utf-8')
     world_native_item_group_classifier = WORLD_NATIVE_ITEM_GROUP_CLASSIFIER.read_text(encoding='utf-8')
     world_reward_class_group = WORLD_REWARD_CLASS_GROUP.read_text(encoding='utf-8')
     world_reward_item_candidate_plan = WORLD_REWARD_ITEM_CANDIDATE_PLAN.read_text(encoding='utf-8')
@@ -938,8 +940,9 @@ def main():
 
     for token in (
         'class KingdomQuestMsvcCrtRand',
-        'State = State * 0x343fdu + 0x269ec3u',
-        '(State >> 16) & 0x7fffu',
+        'private readonly MsvcCrtRand shared',
+        'return shared.Next()',
+        'shared.Consume(2)',
         'class KingdomQuestNativeItemGroupClassifierState',
         'random.Next() % cards.Count',
         'cards.Insert(0, itemId)',
@@ -955,6 +958,22 @@ def main():
         if token not in world_native_item_group_classifier:
             print('FAIL: native KQ CardDeck/class filter model missing', token)
             return 1
+    for token in (
+        'class MsvcCrtRand',
+        'State = State * 0x343fdu + 0x269ec3u',
+        '(State >> 16) & 0x7fffu',
+        'public void Consume(int count)',
+        'throw new ArgumentOutOfRangeException("count")',
+    ):
+        if token not in shared_msvc_crt_rand:
+            print('FAIL: shared MSVC CRT rand primitive changed', token)
+            return 1
+    for forbidden in ('System.Random', 'DateTime', 'Environment.TickCount'):
+        if forbidden in shared_msvc_crt_rand:
+            print('FAIL: shared MSVC CRT rand primitive invented a live seed',
+                  forbidden)
+            return 1
+
     for forbidden in (
         'System.Random', 'new Random(', 'Inventory.', 'ExecuteQuery',
         'Program.DatabaseManager', 'SendPacket(',

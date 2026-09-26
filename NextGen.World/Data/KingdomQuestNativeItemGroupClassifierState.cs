@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NextGen.FiestaLib.Data;
 
 namespace NextGen.World.Data
 {
@@ -9,26 +10,26 @@ namespace NextGen.World.Data
     /// </summary>
     public sealed class KingdomQuestMsvcCrtRand
     {
-        public uint State { get; private set; }
+        private readonly MsvcCrtRand shared;
+
+        public uint State
+        {
+            get { return shared.State; }
+        }
 
         public KingdomQuestMsvcCrtRand(uint state)
         {
-            State = state;
+            shared = new MsvcCrtRand(state);
         }
 
         public ushort Next()
         {
-            unchecked
-            {
-                State = State * 0x343fdu + 0x269ec3u;
-            }
-            return (ushort)((State >> 16) & 0x7fffu);
+            return shared.Next();
         }
 
         internal void ConsumeShuffle()
         {
-            Next();
-            Next();
+            shared.Consume(2);
         }
     }
 

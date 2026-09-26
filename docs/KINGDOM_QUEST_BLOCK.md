@@ -1345,10 +1345,22 @@ Simple identifiers copy the resolved VariableStack value. The native `PineScript
 suffix, preserve any left-hand prefix, perform 32-bit arithmetic and append
 the result through native `"%d"` formatting. This closes all **98**
 declaration initializers plus literal/direct-copy/simple +/- assignments in the
-used KQ Pine corpus. System functions, dynamic `#(...)` identifiers and the
-remaining comparison/function expression semantics still fall through to the
-fail-closed host rather than being guessed. Fiesta gameplay commands remain
-separate from this expression layer.
+used KQ Pine corpus. The first stateful system-function boundary is now recovered as well. The
+used Pine corpus contains exactly one `@Random(0 99)`, in GordonMaster.
+`SysFuncRand::sfb_Calculate` at `0x004D77D0` evaluates the two operands,
+calls the linked MSVC CRT `rand()` at `0x006594B2`, and computes
+`min + rand() % (max-min+1)`; the upper bound is inclusive. The linked
+`rand()` transition is the same `state*0x343FD+0x269EC3` / 15-bit output
+already recovered for CardDeck. That math now lives in the shared
+`MsvcCrtRand` primitive used by the World CardDeck model and available to
+Zone Pine. Neither layer chooses a seed or claims ownership of Zone's shared
+CRT stream; authoritative process-wide state/consumer ordering remains
+explicitly unresolved before live `@Random` or reward CardDeck execution.
+
+Other system functions, dynamic `#(...)` identifiers and the remaining
+comparison/function expression semantics still fall through to the fail-closed
+host rather than being guessed. Fiesta gameplay commands remain separate from
+this expression layer.
 
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
