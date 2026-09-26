@@ -14,8 +14,11 @@ namespace NextGen.Zone.Data
     /// Source-proven host-free subset of the native Pine expression runtime.
     ///
     /// Native anchors:
+    ///   String::sa_Load                         0x004DB330
+    ///     removes surrounding quotation marks through
+    ///     PineScriptToken::pst_RemoveQuatator 0x004D6310.
     ///   Number::sa_Calculate / String::sa_Calculate 0x004D6710
-    ///     copy the full 0x100-byte token into the destination.
+    ///     then copy the full 0x100-byte stored token into the destination.
     ///   Identify::sa_Calculate                    0x004D6650
     ///     copies the resolved VariableStack value token.
     ///   PineScriptToken::pst_GetNumber           0x004D6360
@@ -24,6 +27,10 @@ namespace NextGen.Zone.Data
     ///   PineScriptToken::operator-               0x004D74B0
     ///     preserve the left token prefix before its numeric suffix and append
     ///     the signed decimal result using native "%d" formatting.
+    ///
+    /// Quoted source strings are therefore represented at runtime without
+    /// their surrounding quotation marks, exactly as native String::sa_Load
+    /// prepares them before calculation.
     ///
     /// This deliberately does not evaluate system functions, dynamic '#(...)'
     /// identifiers, multiply/divide/percent, or comparison operators.
@@ -44,7 +51,13 @@ namespace NextGen.Zone.Data
             if (source.Length == 0)
                 return KingdomQuestPineExpressionResolution.Invalid;
 
-            if (IsQuotedLiteral(source) || IsUnsignedDecimal(source))
+            if (IsQuotedLiteral(source))
+                return destination.TrySetAscii(
+                        source.Substring(1, source.Length - 2))
+                    ? KingdomQuestPineExpressionResolution.Success
+                    : KingdomQuestPineExpressionResolution.Invalid;
+
+            if (IsUnsignedDecimal(source))
                 return destination.TrySetAscii(source)
                     ? KingdomQuestPineExpressionResolution.Success
                     : KingdomQuestPineExpressionResolution.Invalid;
@@ -172,7 +185,12 @@ namespace NextGen.Zone.Data
                 ? string.Empty
                 : expression.Trim();
 
-            if (IsQuotedLiteral(source) || IsUnsignedDecimal(source))
+            if (IsQuotedLiteral(source))
+                return KingdomQuestPineTokenValue.TryCreate(
+                    source.Substring(1, source.Length - 2),
+                    out value);
+
+            if (IsUnsignedDecimal(source))
                 return KingdomQuestPineTokenValue.TryCreate(
                     source, out value);
 
