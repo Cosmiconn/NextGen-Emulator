@@ -110,6 +110,7 @@ namespace NextGen.Zone.Data
         private readonly KingdomQuestPineScriptDocument document;
         private readonly IKingdomQuestPineRuntimeHost host;
         private readonly KingdomQuestPineUsedExpressionContext expressionContext;
+        private readonly KingdomQuestPineUsedCommandContext commandContext;
         private readonly List<Frame> stack;
         private readonly KingdomQuestPineVariableStack variables;
         private string fault;
@@ -134,11 +135,13 @@ namespace NextGen.Zone.Data
         private KingdomQuestPineControlRuntime(
             KingdomQuestPineScriptDocument document,
             IKingdomQuestPineRuntimeHost host,
-            KingdomQuestPineUsedExpressionContext expressionContext = null)
+            KingdomQuestPineUsedExpressionContext expressionContext = null,
+            KingdomQuestPineUsedCommandContext commandContext = null)
         {
             this.document = document;
             this.host = host;
             this.expressionContext = expressionContext;
+            this.commandContext = commandContext;
             stack = new List<Frame>(NativeMaxFrameIndex + 1);
             variables = new KingdomQuestPineVariableStack();
             Status = KingdomQuestPineRuntimeStatus.Running;
@@ -165,6 +168,23 @@ namespace NextGen.Zone.Data
             string entryBlock,
             out KingdomQuestPineControlRuntime runtime)
         {
+            return TryCreate(
+                document,
+                host,
+                expressionContext,
+                null,
+                entryBlock,
+                out runtime);
+        }
+
+        public static bool TryCreate(
+            KingdomQuestPineScriptDocument document,
+            IKingdomQuestPineRuntimeHost host,
+            KingdomQuestPineUsedExpressionContext expressionContext,
+            KingdomQuestPineUsedCommandContext commandContext,
+            string entryBlock,
+            out KingdomQuestPineControlRuntime runtime)
+        {
             runtime = null;
             if (document == null ||
                 host == null ||
@@ -177,7 +197,7 @@ namespace NextGen.Zone.Data
                 return false;
 
             runtime = new KingdomQuestPineControlRuntime(
-                document, host, expressionContext);
+                document, host, expressionContext, commandContext);
             runtime.stack.Add(Frame.Sequence(block.Name, block.Statements));
             return true;
         }
@@ -500,6 +520,27 @@ namespace NextGen.Zone.Data
             }
 
             bool completed;
+            KingdomQuestPineCommandResolution commandResolution =
+                KingdomQuestPineUsedCommandRuntime.TryStep(
+                    node.Text,
+                    commandContext,
+                    out completed);
+            if (commandResolution ==
+                KingdomQuestPineCommandResolution.Success)
+            {
+                if (completed)
+                    Pop();
+                return;
+            }
+            if (commandResolution ==
+                KingdomQuestPineCommandResolution.Invalid)
+            {
+                Fail(
+                    "Source-proven Pine command dependency failed at canonical " +
+                    "line " + node.CanonicalLine + ": " + node.Text);
+                return;
+            }
+
             int state = frame.State;
             if (!host.TryStepCommand(
                     node.Text,
