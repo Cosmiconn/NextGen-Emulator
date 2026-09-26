@@ -6,6 +6,7 @@ import gzip
 import hashlib
 import re
 import sys
+from collections import Counter
 
 ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "sql/data/mapinfo.sql"
