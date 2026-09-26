@@ -1300,6 +1300,25 @@ without pretending to execute a script. What remains unimplemented is the
 later ScenarioBook/PineScript/Lua **execution** path driven by
 `CinemaComplex::cc_PlayFilm`, not the source-backed MAKE lookup itself.
 
+The first execution-side source layer is now represented for all **nine**
+Pine-backed KQs used by the supplied definitions. The original `.ps` bytes
+were reduced only by removing comments/blank lines and normalizing executable
+text to ASCII/LF; command text, expressions and ordering are unchanged. The
+canonical executable bundle is SHA-256
+`390c0e948eb035aee62078327cb63d81ddef54aa9e28c38d642d02c86a9f9e57`.
+
+`KingdomQuestPineScriptSource` validates per-script hashes and parses the
+whole used Pine corpus into named blocks plus explicit Command / If / Infinite /
+named Scope nodes. Both source syntaxes found in the originals are preserved:
+separate `if ...` + `then open`, and GordonMaster's inline
+`if ... then` + `open`. All nine sources parse with their exact locked
+block/node counts. This is intentionally still an execution-source boundary:
+the parser assigns **no gameplay meaning** to commands such as
+`regengroup`, `interruptset`, `questresult`, `reward`, `linkto`
+or `endofkq`. Those host operations are the next layer to bind against the
+native Zone behavior.
+
+
 The same 57 definitions use 18 distinct `KingdomQuestMap.BaseMap` values.
 Fifteen have an exact
 `MobRegen/KingdomQuest/<BaseMap>.txt` source. Three do not:
