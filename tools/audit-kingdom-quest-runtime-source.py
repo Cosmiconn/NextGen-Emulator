@@ -654,7 +654,7 @@ def main():
         "0x004E45A0",
         "0x0054FD10",
         "ShineObject::so_CharName",
-        "vtable offset +0x56C",
+        "offset +0x56C",
         "ushort nativeHandle = unchecked((ushort)nativeNumber)",
         "objectResolver.TryResolveCharName(",
         "destination.TrySetAscii(string.Empty)",
