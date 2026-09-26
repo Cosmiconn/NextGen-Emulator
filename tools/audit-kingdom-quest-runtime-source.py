@@ -971,6 +971,10 @@ def main():
               "{0}={1}".format(kind, underhall_interrupt_type_counts[kind])
               for kind in sorted(underhall_interrupt_type_counts)))
 
+    underhall_interrupt_lines = (
+        pine_command_lines_by_script["KQ/UnderHall"].get(
+            "interruptset", []))
+
     for interrupt_kind in ("HPLow", "PlayerEliminate"):
         forms = [
             line for line in underhall_interrupt_lines
@@ -979,9 +983,6 @@ def main():
         print("INFO: KQ UnderHall {0} interrupt forms: {1}".format(
             interrupt_kind, " || ".join(forms)))
 
-    underhall_interrupt_lines = (
-        pine_command_lines_by_script["KQ/UnderHall"].get(
-            "interruptset", []))
     if any(
             len(line.split()) < 4 or line.split()[3] != "1"
             for line in underhall_interrupt_lines):
@@ -1156,7 +1157,14 @@ def main():
         "KingdomQuestUnderHallExternalPlanBuilder.TryBuild(",
         "KingdomQuestUnderHallSourceFlow.TryResolve(",
         "KingdomQuestUnderHallExternalSourceSite sourceSite",
-        "externalSink.TryStep(",
+        "private bool TryStepExternal(",
+        "externalSink.TryBroadcast(",
+        "externalSink.TryLinkTo(",
+        "externalSink.TryMobRegen(",
+        "externalSink.TryQuestMobKill(",
+        "externalSink.TryReward(",
+        "externalSink.TryScriptFile(",
+        "externalSink.TrySummonMob(",
         "interruptDeliverySource.TryTake(out delivery)",
         "document.Blocks.ContainsKey(delivery.ActionBlock)",
         "variables.TryFind(plan.Arguments[0], out blockValue)",
