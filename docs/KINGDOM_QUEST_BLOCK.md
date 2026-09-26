@@ -1422,6 +1422,16 @@ and effect-sink interfaces; the dispatcher itself owns no wall clock, map
 manager, packet send or database mutation. A recognized command with a missing
 dependency faults fail-closed instead of falling through to guessed semantics.
 
+`KingdomQuestPineLocalCommandState` now supplies the concrete local owner for
+the one-step state that is already fully native-correlated: the current
+`Movie::TimeLimit` plus the fixed **20-entry** interrupt manager. A later
+`timelimit` replaces the current time-limit state; `interruptset` obeys
+the recovered capacity; `interrupterase` performs the exact 16-byte-name
+erase pass across all matches; and `interruptclear` empties the active list.
+The external effects of `regengroup`, `questresult` and `endofkq`
+are still delegated through a separate sink rather than being approximated by
+this local state owner.
+
 All **202** used `pause` commands now execute directly in
 `KingdomQuestPineControlRuntime` as well. The first step builds the recovered
 10-Hz native deadline from the explicit tick source, later steps remain active
