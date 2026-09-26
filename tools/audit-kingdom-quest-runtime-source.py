@@ -478,6 +478,7 @@ def main():
 
     pine_command_verbs = Counter()
     pine_command_verbs_by_script = {}
+    pine_command_lines_by_script = {}
     current_command_script = None
     in_var_declaration = False
     for raw_line in pine_bundle.splitlines():
@@ -488,6 +489,8 @@ def main():
             current_command_script = line[3:].strip()
             pine_command_verbs_by_script.setdefault(
                 current_command_script, Counter())
+            pine_command_lines_by_script.setdefault(
+                current_command_script, {})
             in_var_declaration = False
             continue
         lower = line.lower()
@@ -517,6 +520,8 @@ def main():
             print("FAIL: KQ Pine command appeared before script marker")
             return 1
         pine_command_verbs_by_script[current_command_script][verb] += 1
+        pine_command_lines_by_script[current_command_script].setdefault(
+            verb, []).append(line)
 
     pine_meta_command_counts = [
         int(value) for value in re.findall(
@@ -678,6 +683,17 @@ def main():
                   key, unresolved)
             return 1
     print("PASS: KQ Pine per-script unresolved verb matrix is source-locked")
+
+    underhall_focus_verbs = (
+        "broadcast", "linkto", "mobregen", "questmobkill", "reward",
+        "scriptfile", "summonmob", "waitinterrupt", "waitlogin",
+    )
+    for verb in underhall_focus_verbs:
+        forms = sorted(set(
+            pine_command_lines_by_script["KQ/UnderHall"].get(verb, [])))
+        print(
+            "INFO: KQ UnderHall {0} forms ({1}): {2}".format(
+                verb, len(forms), " || ".join(forms)))
 
     pine_top_blocks = {}
     current_pine_key = None
