@@ -72,9 +72,13 @@ Still required for block completion:
   ScriptInitValue) order without inventing an entry-block mapping. The smallest
   Pine slice, UnderHall, now has exact command routing, generic 9/9
   `waitlogin <variable>` handoff, source/native Sec/TimeOut due-candidate
-  evaluation, authoritative interrupt-delivery handoff, and source-resolved
+  evaluation, active-registry-bound interrupt delivery, typed source plans for
+  the five HPLow and 19 PlayerEliminate predicates, and source-resolved
   MapInfo/MobInfo plans for its remaining seven external command families.
-  Their exact top-level source sites are also locked: UnderHall's sole
+  HPLow/PlayerEliminate native predicate evaluation plus manager selection/
+  mutation remain external; `InterruptArg` has no consumer in the supplied
+  UnderHall source and is no longer a control-flow blocker. Their exact
+  top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command, so the scenario-to-reward source trigger location is no
   longer ambiguous. Native event production/command side effects and the actual
