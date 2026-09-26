@@ -325,9 +325,10 @@ a full incompatible pass returns `0xFFFF`.
 `KingdomQuestNativeItemGroupClassifierState` and
 `KingdomQuestRewardItemCandidatePlan` model that boundary from explicit
 native CRT/class-group state. They do not seed from wall-clock time or use a
-framework RNG. The original CRT stream is shared with other Zone work, so
-exact live state ownership remains separate from the now-closed shuffle/filter
-algorithm.
+framework RNG. Direct Zone.exe recovery shows the statically linked CRT state
+is **thread-local** (current CRT thread-data block, RNG DWORD at +0x14), so
+exact live native-thread assignment and per-thread consumer ordering remain
+separate from the now-closed shuffle/filter algorithm.
 
 The caller class-group calculation is also exact.
 `sp_GetItemWhoEquip_ClassGroup` recognizes native class-family roots
@@ -369,10 +370,12 @@ Source ambiguity and unproven later reward types remain explicit blockers
 rather than fallback behavior.
 
 No live grant/GameDB path is enabled yet. Candidate selection is now
-source-modeled, but authoritative ownership of the shared native CRT state,
-TreasureChest item construction/options, transaction persistence and exact
-mutation/ACK timing, plus the scenario completion trigger, remain required
-before mutation.
+source-modeled, and the TreasureChest 111-byte layout, seven-content cap and
+construction call order are also recovered. Remaining blockers are authoritative
+native-thread assignment/per-thread CRT consumer ordering, KQ-reachable
+`ItemAttributeClass::iac_itemcreate` and optional random-option field payloads,
+transaction persistence and exact mutation/ACK timing, plus the scenario
+completion trigger.
 
 
 ## Original World ↔ Zone KQ lifecycle wire
