@@ -490,7 +490,8 @@ def main():
         "MergeNativeNumberSuffix(",
         "GetNativeNumberSuffix(",
         "result.ToString(CultureInfo.InvariantCulture)",
-        "does not evaluate system functions",
+        "KingdomQuestPineRemoveFirst.TryCalculateUsed(",
+        "Other system functions, dynamic",
     )
     for token in pine_expression_tokens:
         if token not in pine_expression_text:
