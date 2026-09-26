@@ -109,6 +109,7 @@ namespace NextGen.Zone.Data
 
         private readonly KingdomQuestPineScriptDocument document;
         private readonly IKingdomQuestPineRuntimeHost host;
+        private readonly KingdomQuestPineUsedExpressionContext expressionContext;
         private readonly List<Frame> stack;
         private readonly KingdomQuestPineVariableStack variables;
         private string fault;
@@ -132,10 +133,12 @@ namespace NextGen.Zone.Data
 
         private KingdomQuestPineControlRuntime(
             KingdomQuestPineScriptDocument document,
-            IKingdomQuestPineRuntimeHost host)
+            IKingdomQuestPineRuntimeHost host,
+            KingdomQuestPineUsedExpressionContext expressionContext = null)
         {
             this.document = document;
             this.host = host;
+            this.expressionContext = expressionContext;
             stack = new List<Frame>(NativeMaxFrameIndex + 1);
             variables = new KingdomQuestPineVariableStack();
             Status = KingdomQuestPineRuntimeStatus.Running;
@@ -144,6 +147,21 @@ namespace NextGen.Zone.Data
         public static bool TryCreate(
             KingdomQuestPineScriptDocument document,
             IKingdomQuestPineRuntimeHost host,
+            string entryBlock,
+            out KingdomQuestPineControlRuntime runtime)
+        {
+            return TryCreate(
+                document,
+                host,
+                null,
+                entryBlock,
+                out runtime);
+        }
+
+        public static bool TryCreate(
+            KingdomQuestPineScriptDocument document,
+            IKingdomQuestPineRuntimeHost host,
+            KingdomQuestPineUsedExpressionContext expressionContext,
             string entryBlock,
             out KingdomQuestPineControlRuntime runtime)
         {
@@ -158,7 +176,8 @@ namespace NextGen.Zone.Data
                 block == null)
                 return false;
 
-            runtime = new KingdomQuestPineControlRuntime(document, host);
+            runtime = new KingdomQuestPineControlRuntime(
+                document, host, expressionContext);
             runtime.stack.Add(Frame.Sequence(block.Name, block.Statements));
             return true;
         }
@@ -439,6 +458,19 @@ namespace NextGen.Zone.Data
             KingdomQuestPineExpressionResolution resolution =
                 KingdomQuestPineBasicExpression.TryCalculate(
                     expression, variables, destination);
+            if (resolution ==
+                KingdomQuestPineExpressionResolution.Success)
+                return true;
+            if (resolution ==
+                KingdomQuestPineExpressionResolution.Invalid)
+                return false;
+
+            resolution =
+                KingdomQuestPineUsedExpressionRuntime.TryCalculate(
+                    expression,
+                    variables,
+                    expressionContext,
+                    destination);
             if (resolution ==
                 KingdomQuestPineExpressionResolution.Success)
                 return true;
