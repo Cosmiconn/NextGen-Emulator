@@ -43,10 +43,12 @@ WORLD_NATIVE_ITEM_GROUP_CLASSIFIER = ROOT / "NextGen.World/Data/KingdomQuestNati
 WORLD_REWARD_CLASS_GROUP = ROOT / "NextGen.World/Data/KingdomQuestRewardClassGroup.cs"
 WORLD_REWARD_ITEM_CANDIDATE_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemCandidatePlan.cs"
 WORLD_REWARD_TREASURE_CHEST = ROOT / "NextGen.World/Data/KingdomQuestRewardTreasureChestNative.cs"
+WORLD_REWARD_ITEM_ATTRIBUTE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemAttributeNative.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
 ZONE_REWARD_ACK_IDENTITY = ROOT / "NextGen.Zone/Data/KingdomQuestRewardAckIdentity.cs"
+ZONE_REWARD_NATIVE_TRANSACTION = ROOT / "NextGen.Zone/Data/KingdomQuestRewardNativeTransaction.cs"
 NATIVE_INFO = ROOT / "NextGen.FiestaLib/Data/KingdomQuestProtocolInfo.cs"
 NATIVE_REWARD = ROOT / "NextGen.FiestaLib/Data/KingdomQuestRewardInfo.cs"
 RAW_SOURCES = {
@@ -169,9 +171,10 @@ def main():
         WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE,
         SHARED_MSVC_CRT_RAND, WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_CLASS_GROUP,
         WORLD_REWARD_ITEM_CANDIDATE_PLAN, WORLD_REWARD_TREASURE_CHEST,
-        WORLD_REWARD_BOX_PLAN,
+        WORLD_REWARD_ITEM_ATTRIBUTE, WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
-        ZONE_REWARD_ACK_IDENTITY, NATIVE_INFO, NATIVE_REWARD,
+        ZONE_REWARD_ACK_IDENTITY, ZONE_REWARD_NATIVE_TRANSACTION,
+        NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
         ITEM_INFO_SQL, ITEM_GROUP_SOURCE_TSV,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
@@ -701,10 +704,12 @@ def main():
     world_reward_class_group = WORLD_REWARD_CLASS_GROUP.read_text(encoding='utf-8')
     world_reward_item_candidate_plan = WORLD_REWARD_ITEM_CANDIDATE_PLAN.read_text(encoding='utf-8')
     world_reward_treasure_chest = WORLD_REWARD_TREASURE_CHEST.read_text(encoding='utf-8')
+    world_reward_item_attribute = WORLD_REWARD_ITEM_ATTRIBUTE.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
     zone_reward_ack_identity = ZONE_REWARD_ACK_IDENTITY.read_text(encoding='utf-8')
+    zone_reward_native_transaction = ZONE_REWARD_NATIVE_TRANSACTION.read_text(encoding='utf-8')
     native_info = NATIVE_INFO.read_text(encoding='utf-8')
     native_reward = NATIVE_REWARD.read_text(encoding='utf-8')
     for token in ('KingdomQuestMaps = Maps.Values', '.Where(map => map.Kingdom == 1)', 'KingdomQuestDescriptions', 'data_kingdomquestdesc', 'KingdomQuestTeams', 'KingdomQuestVoteEnabled'):
@@ -1087,6 +1092,52 @@ def main():
             return 1
 
     for token in (
+        'class KingdomQuestRewardItemAttributePlan',
+        'class KingdomQuestRewardItemAttributeNative',
+        'UsedItemRewardHandleCount = 247',
+        'ReachableUniqueItemIdCount = 884',
+        'ReachableNativeItemClassCount = 10',
+        'RewardValueOffset = 0x0A',
+        'RewardAuxiliaryByteOffset = 0x0C',
+        'ArmorOptionStorageOffset = 0x16',
+        'AmuletOptionStorageOffset = 0x2F',
+        'WeaponSocketCountOffset = 0x43',
+        'WeaponOptionStorageOffset = 0x4A',
+        'GradeWeightCount = 10',
+        'NativeGradeRandomUpperExclusive = 1000',
+        'ByteLotRewardItemCreateAddress = 0x0063F5B0u',
+        'QuestLotRewardItemCreateAddress = 0x0063F5D0u',
+        'AmuletRewardItemCreateAddress = 0x0063F610u',
+        'WeaponRewardItemCreateAddress = 0x0063F650u',
+        'ArmorRewardItemCreateAddress = 0x0063F700u',
+        'DecorationRewardItemCreateAddress = 0x0063F780u',
+        'SkillScrollRewardItemCreateAddress = 0x004C2450u',
+        'OptionCardMakeAddress = 0x0064C8A0u',
+        'Well512GetRandomAddress = 0x0063CB10u',
+        'WeaponSocketRateAddress = 0x0064C5C0u',
+        '0, 3, 4, 5, 6, 7, 8, 10, 11, 14',
+        'reward.RewardType == ShineRewardType.Item',
+        'reward.Upgrade == 0',
+        'reward.OptionDegree == 0',
+        'reward.TitleDegree == 0',
+        'TrySelectWeightedGrade(',
+        'reward.UnknownShorts.Count != 9',
+        'well512Sample >= NativeGradeRandomUpperExclusive',
+    ):
+        if token not in world_reward_item_attribute:
+            print('FAIL: native KQ reward ItemAttribute projection missing',
+                  token)
+            return 1
+    for forbidden in (
+        'new Item(', 'Inventory.', 'ExecuteQuery', 'Program.DatabaseManager',
+        'SendPacket(', 'DateTime.Now', 'System.Random', 'new Random(',
+    ):
+        if forbidden in world_reward_item_attribute:
+            print('FAIL: native KQ reward ItemAttribute projection invented mutation/state',
+                  forbidden)
+            return 1
+
+    for token in (
         'enum KingdomQuestRewardBoxResolutionKind : byte',
         'class KingdomQuestRewardBoxPlan',
         'rewardSource.KQBoxItemIDX',
@@ -1209,6 +1260,51 @@ def main():
     ):
         if forbidden in zone_reward_ack_identity:
             print('FAIL: KQ reward ACK identity boundary activated unresolved mutation',
+                  forbidden)
+            return 1
+
+    for token in (
+        'enum KingdomQuestRewardNativeTransactionStep : byte',
+        'enum KingdomQuestRewardNativeAckAction : byte',
+        'class KingdomQuestRewardNativeAckPlan',
+        'class KingdomQuestRewardNativeTransaction',
+        'ShinePlayerKqRewardAddress = 0x0052DA70u',
+        'GetInventoryLockListAddress = 0x0055A1D0u',
+        'ShinePlayerInventoryLockOffset = 0xFAA8',
+        'InventoryCellLockListVtableAddress = 0x006BB37Cu',
+        'StoreMoneyAddress = 0x00489130u',
+        'StoreFameAddress = 0x00489260u',
+        'GainExperienceAddress = 0x0042D830u',
+        'SuccessAckHandlerAddress = 0x0052E570u',
+        'FailureAckHandlerAddress = 0x0052E680u',
+        'ApplyAndFreeVtableOffset = 0x1C',
+        'FreeVtableOffset = 0x28',
+        'ApplyAndFreeAddress = 0x0048BE90u',
+        'FreeAddress = 0x0048B2C0u',
+        'CenChangeReleaserAddress = 0x00487D50u',
+        'FameChangeReleaserAddress = 0x00487E60u',
+        'SerializeRequestLockIndex',
+        'SendGameDbRequest',
+        'StageMoney',
+        'StageFame',
+        'AdvanceInventoryLockIndex',
+        'GainExperienceImmediately',
+        'AwaitRewardAck',
+        'KingdomQuestRewardNativeAckAction.ApplyAndFree',
+        'KingdomQuestRewardNativeAckAction.FreeWithoutApply',
+        'get { return false; }',
+        'get { return true; }',
+    ):
+        if token not in zone_reward_native_transaction:
+            print('FAIL: native KQ reward transaction projection missing',
+                  token)
+            return 1
+    for forbidden in (
+        'ExecuteQuery', 'Program.DatabaseManager', 'SendPacket(',
+        'InventoryOwner', 'new Item(', '.Save()',
+    ):
+        if forbidden in zone_reward_native_transaction:
+            print('FAIL: native KQ reward transaction projection activated emulator persistence',
                   forbidden)
             return 1
 
