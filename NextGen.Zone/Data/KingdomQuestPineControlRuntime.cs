@@ -529,7 +529,35 @@ namespace NextGen.Zone.Data
             }
 
             bool completed;
+            int state = frame.State;
             KingdomQuestPineCommandResolution commandResolution =
+                KingdomQuestUnderHallCommandRuntime.TryStep(
+                    document.ScriptLanguage,
+                    node.Text,
+                    node.CanonicalLine,
+                    commandContext == null
+                        ? null
+                        : commandContext.UnderHallSink,
+                    ref state,
+                    out completed);
+            if (commandResolution ==
+                KingdomQuestPineCommandResolution.Success)
+            {
+                frame.State = state;
+                if (completed)
+                    Pop();
+                return;
+            }
+            if (commandResolution ==
+                KingdomQuestPineCommandResolution.Invalid)
+            {
+                Fail(
+                    "Exact UnderHall Pine command dependency failed at canonical " +
+                    "line " + node.CanonicalLine + ": " + node.Text);
+                return;
+            }
+
+            commandResolution =
                 KingdomQuestPineUsedCommandRuntime.TryStep(
                     node.Text,
                     commandContext,
@@ -550,7 +578,7 @@ namespace NextGen.Zone.Data
                 return;
             }
 
-            int state = frame.State;
+            state = frame.State;
             if (!host.TryStepCommand(
                     node.Text,
                     node.CanonicalLine,
