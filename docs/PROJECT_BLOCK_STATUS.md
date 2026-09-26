@@ -66,9 +66,11 @@ Still required for block completion:
   (CinemaComplex film/actions) and the live scenario-driven
   mob/objective/success/failure flow;
 - exact native-thread assignment/consumer ordering for the thread-local Zone
-  CRT rand stream used by the source-modeled CardDeck stage, followed by
-  TreasureChest item construction/options and the GameDB/item-store transaction
-  plus exact reward mutation/completion timing;
+  CRT rand stream used by CardDeck, plus the KQ-reachable
+  ItemAttributeClass item-create/random-option field payloads; the
+  TreasureChest 111-byte layout, seven-content cap and construction call order
+  are already source-modeled. GameDB/item-store transaction and exact reward
+  mutation/completion timing remain;
 
 See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
 boundary. Unknown behavior remains fail-closed rather than inferred.
