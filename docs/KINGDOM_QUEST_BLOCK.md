@@ -1334,10 +1334,13 @@ then pops. `KingdomQuestPineVariableStack` and the control runtime now model
 that ordering without rollback invention.
 
 The host-free expression subset needed by those statements is executable as
-well. Native `Number::sa_Calculate` and `String::sa_Calculate` share
-`0x004D6710` and copy the raw 0x100-byte token unchanged, so quoted Pine
-strings remain quoted token data. Simple identifiers copy the resolved
-VariableStack value. The native `PineScriptToken::operator+` /
+well. Native `String::sa_Load` at `0x004DB330` removes surrounding
+quotation marks through `PineScriptToken::pst_RemoveQuatator` at
+`0x004D6310`. `Number::sa_Calculate` and `String::sa_Calculate` then
+share `0x004D6710` and copy the resulting 0x100-byte stored token unchanged.
+Quoted source operands such as `"ResultList"` therefore reach runtime
+system functions as `ResultList`, not as a token containing quote bytes.
+Simple identifiers copy the resolved VariableStack value. The native `PineScriptToken::operator+` /
 `operator-` paths at `0x004D7390/0x004D74B0` parse the trailing decimal
 suffix, preserve any left-hand prefix, perform 32-bit arithmetic and append
 the result through native `"%d"` formatting. This closes all **98**
