@@ -74,8 +74,11 @@ Still required for block completion:
   `waitlogin <variable>` handoff, source/native Sec/TimeOut due-candidate
   evaluation, authoritative interrupt-delivery handoff, and source-resolved
   MapInfo/MobInfo plans for its remaining seven external command families.
-  Native event production/side effects and the actual `cc_PlayFilm` entry
-  binding remain fail-closed;
+  Their exact top-level source sites are also locked: UnderHall's sole
+  `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
+  no reward command, so the scenario-to-reward source trigger location is no
+  longer ambiguous. Native event production/command side effects and the actual
+  `cc_PlayFilm` entry binding remain fail-closed;
 - exact native-thread assignment/consumer ordering for the thread-local Zone
   CRT rand stream used by CardDeck, plus authoritative completion of the
   remaining ItemTotalInformation construction stages. The live construction
@@ -93,8 +96,9 @@ Still required for block completion:
   composes candidate selection into the recovered reward-specific
   ItemAttributeClass writes with exact WELL512 sample consumption for native
   classes 5..8, while keeping base registration and class-5 socket work
-  explicit. Live native GameDB/lock-list integration and scenario-triggered
-  reward completion remain;
+  explicit. Live native GameDB/lock-list integration and the native
+  `reward KingdomQuest` command side effect remain; UnderHall's source-side
+  success trigger location is already fixed to `QuestSuc`;
 
 See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
 boundary. Unknown behavior remains fail-closed rather than inferred.
