@@ -943,6 +943,9 @@ def main():
         "class KingdomQuestPineUsedCommandContext",
         "class KingdomQuestPineUsedCommandRuntime",
         "UsedOneStepCommandCount = 589",
+        "SourceUsedUnrecoveredVerbCount = 34",
+        "IsSourceUsedUnrecoveredVerb(verb)",
+        "? KingdomQuestPineCommandResolution.Invalid",
         'case "timelimit":',
         'case "interruptset":',
         'case "interrupterase":',
@@ -970,6 +973,28 @@ def main():
             print("FAIL: KQ Pine one-step command dispatcher invented a side effect",
                   forbidden)
             return 1
+
+    unrecovered_pine_verbs = {
+        "abstatereset", "abstateset", "battlestart", "battlestop",
+        "broadcast", "chatwin", "doorbuild", "doorclose", "dooropen",
+        "effectobj", "exchange2mob", "invensearch", "invidualreward",
+        "itemdrop", "itemerase", "itemowner", "linkto", "mobattr",
+        "mobregen", "npcchat", "npcshout", "npcstand", "questmobkill",
+        "revival", "reward", "scriptfile", "sendquestresult", "suicide",
+        "summonmob", "teleport", "vanish", "waitinterrupt", "waitlogin",
+        "whoclickme",
+    }
+    if len(unrecovered_pine_verbs) != 34:
+        print("FAIL: internal unrecovered Pine verb audit count changed")
+        return 1
+    missing_unrecovered = [
+        verb for verb in sorted(unrecovered_pine_verbs)
+        if ('case "' + verb + '":') not in pine_used_command_text
+    ]
+    if missing_unrecovered:
+        print("FAIL: source-used unrecovered Pine verb lost fail-closed guard",
+              missing_unrecovered)
+        return 1
 
     for token in (
         "KingdomQuestPineUsedCommandContext commandContext",
