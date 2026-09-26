@@ -33,6 +33,7 @@ PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalComman
 UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandSource.cs"
 UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandRuntime.cs"
 UNDERHALL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandState.cs"
+UNDERHALL_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallExternalPlan.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
@@ -251,7 +252,8 @@ def main():
                  PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
                  PINE_LOCAL_COMMAND_STATE, UNDERHALL_COMMAND_SOURCE,
                  UNDERHALL_COMMAND_RUNTIME, UNDERHALL_COMMAND_STATE,
-                 UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_SOURCE_CATALOG,
+                 UNDERHALL_EXTERNAL_PLAN, UNDERHALL_TIMED_INTERRUPT_DUE,
+                 UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
@@ -943,6 +945,33 @@ def main():
                   forbidden)
             return 1
 
+    underhall_external_plan_text = UNDERHALL_EXTERNAL_PLAN.read_text(
+        encoding="utf-8")
+    for token in (
+        "enum KingdomQuestUnderHallExternalPlanKind",
+        "class KingdomQuestUnderHallExternalPlan",
+        "class KingdomQuestUnderHallExternalPlanBuilder",
+        "SourceUsedOccurrenceCount = 27",
+        "SourceDistinctFormCount = 21",
+        "KingdomQuestUnderHallSourceCatalog.GetElderine()",
+        "KingdomQuestUnderHallSourceCatalog.TryGetMob(",
+        "KingdomQuestUnderHallCommandKind.WaitInterrupt",
+        "return false;",
+        "RawNumeric1",
+        "RawNumeric2",
+    ):
+        if token not in underhall_external_plan_text:
+            print("FAIL: KQ UnderHall external source plan changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "System.Random", "DateTime.Now",
+            "Environment.TickCount"):
+        if forbidden in underhall_external_plan_text:
+            print("FAIL: KQ UnderHall external plan invented a side effect",
+                  forbidden)
+            return 1
+
     underhall_state_text = UNDERHALL_COMMAND_STATE.read_text(
         encoding="utf-8")
     for token in (
@@ -952,6 +981,8 @@ def main():
         "class KingdomQuestUnderHallCommandState",
         "IKingdomQuestUnderHallCommandSink",
         "KingdomQuestUnderHallCommandKind.WaitInterrupt",
+        "KingdomQuestUnderHallExternalPlanBuilder.TryBuild(",
+        "externalSink.TryStep(",
         "interruptDeliverySource.TryTake(out delivery)",
         "document.Blocks.ContainsKey(delivery.ActionBlock)",
         "variables.TryFind(plan.Arguments[0], out blockValue)",
