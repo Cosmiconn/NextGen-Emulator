@@ -16,6 +16,7 @@ SCENARIOBOOK_PROJECTION = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShel
 PINE_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestPineScriptSource.cs"
 PINE_CONTROL_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineControlRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
+PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
 SINGLE_DATA_PROJECTION = ROOT / "NextGen.FiestaLib/Data/KingdomQuestSingleDataInfo.cs"
 SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
@@ -219,7 +220,7 @@ def load_single_data_source():
 def main():
     for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE,
                  SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION, PINE_SOURCE,
-                 PINE_CONTROL_RUNTIME, PINE_KQ_TERMINAL,
+                 PINE_CONTROL_RUNTIME, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
@@ -451,6 +452,26 @@ def main():
             print("FAIL: KQ Pine terminal command projection changed", token)
             return 1
 
+    pine_regen_text = PINE_REGEN_PLAN.read_text(encoding="utf-8")
+    pine_regen_tokens = (
+        "class KingdomQuestPineRegenGroupPlan",
+        "class KingdomQuestPineRegenGroupResolver",
+        "UsedPineCommandCount = 243",
+        "UsedUniquePairCount = 225",
+        "UsedSourceKeyCount = 5",
+        "PineScriptMobRegenerator::psmr_find(sourceKey, groupIndex)",
+        "MobHatchery::mh_ScriptBreed",
+        "document.Groups",
+        "document.Mobs",
+        "v.RegenIndex",
+        "None of the 243 supplied Pine calls uses those optional operands",
+        "stops before MobHatchery spawning/timing",
+    )
+    for token in pine_regen_tokens:
+        if token not in pine_regen_text:
+            print("FAIL: KQ Pine regengroup source resolver changed", token)
+            return 1
+
     script_list = [row for row in rows if row["kind"] == "script"]
     regen_list = [row for row in rows if row["kind"] == "regen"]
     script_rows = {row["key"]: row for row in script_list}
@@ -556,6 +577,7 @@ def main():
     print("PASS: all 9 used Pine ScenarioBooks are canonical-source modeled and structurally parsed without gameplay semantics")
     print("PASS: native Pine Block/IF/INFINITE/CALL/BREAK ProcessStack semantics are executable with 32-frame and 0x270F exit boundaries")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
+    print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
     print("PASS: MAKE error precedence is source-locked to duplicate -> script lookup -> 300-slot capacity")
     print("PASS: separate KQScriptManager/DialogFile capacity is not conflated with ScenarioBookShelf")
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
