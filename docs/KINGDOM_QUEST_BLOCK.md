@@ -1485,6 +1485,19 @@ UnderHall-only dynamic `call InterruptBlock.` through VariableStack. It does
 not choose BlastCheck ordering or synthesize HPLow/PlayerEliminate/Sec/TimeOut
 events; that event-production boundary remains open.
 
+The two timing predicates inside that boundary are now source/native bounded as
+well. `KingdomQuestUnderHallTimedInterruptDue` evaluates the **18 Sec** and
+**19 TimeOut** registrations with the recovered native tick/deadline rules only;
+it deliberately does not select manager order, mutate RepeatCount or construct
+`InterruptArg`. All 61 UnderHall interrupt registrations have exact
+`RepeatCount=1`.
+
+UnderHall's one `waitlogin Wait.` is now source-locked in its surrounding
+control flow: `KQ_BossRobo 0.` precedes it and the next condition is exactly
+`if Wait == 0 -> call "QuestFail".`. This proves the failure gate but not the
+native meaning or wake predicate of the value written to `Wait`; that part
+remains fail-closed rather than being guessed as a player count.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. This is strong source evidence for
 a common entry candidate, but it is not promoted to the native
