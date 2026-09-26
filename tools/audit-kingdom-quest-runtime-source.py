@@ -37,6 +37,7 @@ UNDERHALL_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallExterna
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
+UNDERHALL_EVENT_PREDICATE_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallEventPredicatePlan.cs"
 UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
@@ -257,7 +258,7 @@ def main():
                  UNDERHALL_COMMAND_RUNTIME, UNDERHALL_COMMAND_STATE,
                  UNDERHALL_EXTERNAL_PLAN, UNDERHALL_SOURCE_FLOW,
                  UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_INTERRUPT_CANDIDATE,
-                 UNDERHALL_SOURCE_CATALOG,
+                 UNDERHALL_EVENT_PREDICATE_PLAN, UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_WAITLOGIN,
@@ -977,13 +978,33 @@ def main():
         pine_command_lines_by_script["KQ/UnderHall"].get(
             "interruptset", []))
 
-    for interrupt_kind in ("HPLow", "PlayerEliminate"):
-        forms = [
-            line for line in underhall_interrupt_lines
-            if len(line.split()) >= 2 and line.split()[1] == interrupt_kind
-        ]
-        print("INFO: KQ UnderHall {0} interrupt forms: {1}".format(
-            interrupt_kind, " || ".join(forms)))
+    expected_underhall_hp_low_forms = [
+        'interruptset HPLow "" 1 KQ_BossRobo 800 "Summon1".',
+        'interruptset HPLow "" 1 KQ_BossRobo 600 "Summon2".',
+        'interruptset HPLow "" 1 KQ_BossRobo 400 "Summon3".',
+        'interruptset HPLow "" 1 KQ_BossRobo 200 "Summon4".',
+        'interruptset HPLow "" 1 KQ_BossRobo 100 "Summon5".',
+    ]
+    actual_hp_low_forms = [
+        line for line in underhall_interrupt_lines
+        if len(line.split()) >= 2 and line.split()[1] == "HPLow"
+    ]
+    if actual_hp_low_forms != expected_underhall_hp_low_forms:
+        print("FAIL: KQ UnderHall HPLow forms changed", actual_hp_low_forms)
+        return 1
+
+    actual_player_eliminate_forms = [
+        line for line in underhall_interrupt_lines
+        if len(line.split()) >= 2 and line.split()[1] == "PlayerEliminate"
+    ]
+    expected_player_eliminate = 'interruptset PlayerEliminate "" 1 "QuestFail".'
+    if (len(actual_player_eliminate_forms) != 19 or
+            any(line != expected_player_eliminate
+                for line in actual_player_eliminate_forms)):
+        print("FAIL: KQ UnderHall PlayerEliminate forms changed",
+              actual_player_eliminate_forms)
+        return 1
+    print("PASS: KQ UnderHall event interrupt forms are source-locked")
 
     if any(
             len(line.split()) < 4 or line.split()[3] != "1"
@@ -1189,6 +1210,34 @@ def main():
                   forbidden)
             return 1
 
+    underhall_event_plan_text = UNDERHALL_EVENT_PREDICATE_PLAN.read_text(
+        encoding="utf-8")
+    for token in (
+        "enum KingdomQuestUnderHallEventPredicateKind",
+        "class KingdomQuestUnderHallEventPredicatePlan",
+        "class KingdomQuestUnderHallEventPredicatePlanBuilder",
+        "HPLowCount = 5",
+        "PlayerEliminateCount = 19",
+        '"KQ_BossRobo"',
+        "case 800:",
+        '"Summon1"',
+        "case 100:",
+        '"Summon5"',
+        "mob.MobId != 1068",
+        "KingdomQuestUnderHallSourceFlow.FailureBlock",
+        "RawThreshold deliberately preserves",
+    ):
+        if token not in underhall_event_plan_text:
+            print("FAIL: KQ UnderHall event predicate plan changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "SendPacket(", "Program.DatabaseManager",
+            "System.Random", "DateTime.Now", "Environment.TickCount"):
+        if forbidden in underhall_event_plan_text:
+            print("FAIL: KQ UnderHall event plan invented gameplay semantics",
+                  forbidden)
+            return 1
+
     underhall_candidate_text = UNDERHALL_INTERRUPT_CANDIDATE.read_text(
         encoding="utf-8")
     for token in (
@@ -1200,10 +1249,10 @@ def main():
         "SecondIntervalCount = 18",
         "TimeOutCount = 19",
         "KingdomQuestUnderHallTimedInterruptDue.Evaluate(",
-        "eventSource.TryEvaluateHPLow(plan, out hpLowDue)",
+        "KingdomQuestUnderHallEventPredicatePlanBuilder.TryBuild(",
+        "eventSource.TryEvaluateHPLow(",
         "eventSource.TryEvaluatePlayerEliminate(",
-        "plan.Arguments.Count != 2",
-        "plan.Arguments.Count != 0",
+        "KingdomQuestUnderHallEventPredicatePlan eventPlan",
         "does not iterate/select manager entries",
         "choose BlastCheck order",
     ):
