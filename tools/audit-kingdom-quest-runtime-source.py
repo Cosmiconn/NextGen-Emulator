@@ -16,6 +16,7 @@ SCENARIOBOOK_PROJECTION = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShel
 PINE_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestPineScriptSource.cs"
 PINE_CONTROL_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineControlRuntime.cs"
 PINE_VARIABLE_STACK = ROOT / "NextGen.Zone/Data/KingdomQuestPineVariableStack.cs"
+PINE_BASIC_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineBasicExpression.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -223,7 +224,8 @@ def load_single_data_source():
 def main():
     for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE,
                  SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION, PINE_SOURCE,
-                 PINE_CONTROL_RUNTIME, PINE_VARIABLE_STACK, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
+                 PINE_CONTROL_RUNTIME, PINE_VARIABLE_STACK,
+                 PINE_BASIC_EXPRESSION, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
@@ -470,6 +472,36 @@ def main():
             print("FAIL: KQ Pine native VariableStack changed", token)
             return 1
 
+    pine_expression_text = PINE_BASIC_EXPRESSION.read_text(
+        encoding="utf-8")
+    pine_expression_tokens = (
+        "class KingdomQuestPineBasicExpression",
+        "enum KingdomQuestPineExpressionResolution",
+        "Number::sa_Calculate / String::sa_Calculate 0x004D6710",
+        "Identify::sa_Calculate                    0x004D6650",
+        "PineScriptToken::pst_GetNumber           0x004D6360",
+        "PineScriptToken::operator+               0x004D7390",
+        "PineScriptToken::operator-               0x004D74B0",
+        "MergeNativeNumberSuffix(",
+        "GetNativeNumberSuffix(",
+        "result.ToString(CultureInfo.InvariantCulture)",
+        "does not evaluate system functions",
+    )
+    for token in pine_expression_tokens:
+        if token not in pine_expression_text:
+            print("FAIL: KQ Pine basic expression runtime changed", token)
+            return 1
+
+    for token in (
+        "KingdomQuestPineBasicExpression.TryCalculate(",
+        "KingdomQuestPineBasicExpression.TrySimpleIdentifier(",
+        "return host.TryCalculateExpression(",
+    ):
+        if token not in pine_control_text:
+            print("FAIL: KQ Pine control/basic-expression bridge changed",
+                  token)
+            return 1
+
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
@@ -683,7 +715,8 @@ def main():
     print("PASS: native Pine Block/IF/INFINITE/CALL/BREAK ProcessStack semantics are executable with 32-frame and 0x270F exit boundaries")
     print("PASS: Pine source parser distinguishes 15 var groups/98 declarations and 48 assignments from gameplay commands")
     print("PASS: native Pine VariableStack is modeled at 127 entries with 0x100-byte tokens, 0x200 stride and newest-first lookup")
-    print("PASS: StateVarDeclear/StateAssignment execute push/find -> host-gated expression -> pop in native order")
+    print("PASS: StateVarDeclear/StateAssignment execute push/find -> expression -> pop in native order")
+    print("PASS: native Pine literal/copy/+/- expression core runs host-free; system functions/dynamic identifiers remain gated")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
     print("PASS: all 202 used Pine pause and 14 timelimit constants are modeled on the native 10-Hz tick clock with exact deadline semantics")
