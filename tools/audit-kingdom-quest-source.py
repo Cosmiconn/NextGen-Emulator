@@ -42,6 +42,7 @@ SHARED_MSVC_CRT_RAND = ROOT / "NextGen.FiestaLib/Data/MsvcCrtRand.cs"
 WORLD_NATIVE_ITEM_GROUP_CLASSIFIER = ROOT / "NextGen.World/Data/KingdomQuestNativeItemGroupClassifierState.cs"
 WORLD_REWARD_CLASS_GROUP = ROOT / "NextGen.World/Data/KingdomQuestRewardClassGroup.cs"
 WORLD_REWARD_ITEM_CANDIDATE_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemCandidatePlan.cs"
+WORLD_REWARD_TREASURE_CHEST = ROOT / "NextGen.World/Data/KingdomQuestRewardTreasureChestNative.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
@@ -167,7 +168,7 @@ def main():
         WORLD_REWARD_PLAN, WORLD_REWARD_ITEM_PLAN,
         WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE,
         SHARED_MSVC_CRT_RAND, WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_CLASS_GROUP,
-        WORLD_REWARD_ITEM_CANDIDATE_PLAN,
+        WORLD_REWARD_ITEM_CANDIDATE_PLAN, WORLD_REWARD_TREASURE_CHEST,
         WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
         ZONE_REWARD_ACK_IDENTITY, NATIVE_INFO, NATIVE_REWARD,
@@ -699,6 +700,7 @@ def main():
     world_native_item_group_classifier = WORLD_NATIVE_ITEM_GROUP_CLASSIFIER.read_text(encoding='utf-8')
     world_reward_class_group = WORLD_REWARD_CLASS_GROUP.read_text(encoding='utf-8')
     world_reward_item_candidate_plan = WORLD_REWARD_ITEM_CANDIDATE_PLAN.read_text(encoding='utf-8')
+    world_reward_treasure_chest = WORLD_REWARD_TREASURE_CHEST.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
@@ -1022,6 +1024,11 @@ def main():
         'KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate',
         'KingdomQuestRewardItemCandidateKind.NativeClassifierKeyMiss',
         'KingdomQuestRewardItemCandidateKind.NativeNoCompatibleGroupCandidate',
+        'KingdomQuestRewardItemCandidateKind.NativeTreasureChestCapacityRejected',
+        'HasTreasureChestCapacityRejection',
+        'KingdomQuestRewardTreasureChestNative.RewardContentCapacity',
+        'successfulContentCount++',
+        'checks its current item count before igc_Getitem',
         'KingdomQuestItemGroupLookupKind.SourceIncomplete',
         'itemById.TryGetValue(',
     ):
@@ -1034,6 +1041,48 @@ def main():
     ):
         if forbidden in world_reward_item_candidate_plan:
             print('FAIL: KQ candidate plan activated guessed RNG/mutation',
+                  forbidden)
+            return 1
+
+    for token in (
+        'class KingdomQuestRewardTreasureChestNative',
+        'ItemTotalInformationBytes = 0x6F',
+        'InternalItemSlotCount = 9',
+        'ItemCountOffset = 0x3E8',
+        'ItemIdOffset = 0x08',
+        'ChestFlagOffset = 0x0A',
+        'RequiredChestItemClass = 0x0F',
+        'InitialItemCount = 1',
+        'RewardMakeCountLimitExclusive = 8',
+        'RewardContentCapacity = 7',
+        'NativeNoItem = 0xFFFF',
+        'ConstructorAddress = 0x00595A40u',
+        'RawItemMakeAddress = 0x00595BA0u',
+        'RewardItemMakeAddress = 0x00595D00u',
+        'ItemGroupClassifierLookupAddress = 0x004903E0u',
+        'ItemDataLookupAddress = 0x00419020u',
+        'ItemAttributeClassLookupAddress = 0x0063E2A0u',
+        'MakeRegistrationNumberAddress = 0x00640710u',
+        'RandomOptionFillAddress = 0x00493590u',
+        'currentItemCount < RewardMakeCountLimitExclusive',
+        'currentItemCount <= RewardMakeCountLimitExclusive',
+        'itemCount * 8 + 3',
+        'return (byte)(chestFlag << 4)',
+        'KingdomQuestTreasureChestConstructionStage.ItemAttributeCreate',
+        'KingdomQuestTreasureChestConstructionStage.RandomOptionFill',
+        'KingdomQuestTreasureChestConstructionStage.EmbedChildRegistration',
+        'KingdomQuestTreasureChestConstructionStage.IncrementItemCount',
+    ):
+        if token not in world_reward_treasure_chest:
+            print('FAIL: native KQ TreasureChest construction boundary missing',
+                  token)
+            return 1
+    for forbidden in (
+        'new Item(', 'Inventory.', 'ExecuteQuery', 'Program.DatabaseManager',
+        'SendPacket(', 'DateTime.Now', 'System.Random',
+    ):
+        if forbidden in world_reward_treasure_chest:
+            print('FAIL: native KQ TreasureChest boundary invented mutation/state',
                   forbidden)
             return 1
 
@@ -1654,6 +1703,7 @@ def main():
     print('PASS: exact NA2016 KQ/source dependency corpus locked (57/38/64/2/39 rows; includes UseClassTypeInfo)')
     print('PASS: native KQ ItemGroup candidate corpus locked (5758 stores; 789 groups; 791 KQ assignments / 790 item IDs)')
     print('PASS: native MSVC CRT rand/CardStack shuffle, rotation and UseClass mask-filter boundary are source-modeled without live RNG invention')
+    print('PASS: native TreasureChest layout/order is locked to 111-byte ITI, chest slot 0, seven successful contents and pre-classifier capacity rejection')
     print('PASS: sp_GetItemWhoEquip_ClassGroup family-root mask expansion is source-modeled (1/6/11/16/21/26)')
     print('PASS: KQ raw SQL preserves contiguous zero-based __SourceRow ordinals')
     print('PASS: supplied NA2016 definitions are locked to one active MapLink and 23 source-backed MapBase identities')
