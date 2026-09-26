@@ -19,6 +19,7 @@ PINE_VARIABLE_STACK = ROOT / "NextGen.Zone/Data/KingdomQuestPineVariableStack.cs
 PINE_BASIC_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineBasicExpression.cs"
 PINE_REMOVE_FIRST = ROOT / "NextGen.Zone/Data/KingdomQuestPineRemoveFirst.cs"
 PINE_RANDOM_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineRandomExpression.cs"
+PINE_DISTANCE_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineDistanceExpression.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -228,7 +229,7 @@ def main():
                  SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION, PINE_SOURCE,
                  PINE_CONTROL_RUNTIME, PINE_VARIABLE_STACK,
                  PINE_BASIC_EXPRESSION, PINE_REMOVE_FIRST,
-                 PINE_RANDOM_EXPRESSION,
+                 PINE_RANDOM_EXPRESSION, PINE_DISTANCE_EXPRESSION,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
@@ -553,6 +554,43 @@ def main():
             print("FAIL: KQ Pine @Random projection changed", token)
             return 1
 
+    pine_distance_text = PINE_DISTANCE_EXPRESSION.read_text(
+        encoding="utf-8")
+    pine_distance_tokens = (
+        "interface IKingdomQuestPineNativeObjectCoordinateResolver",
+        "class KingdomQuestPineNativeDistance",
+        "class KingdomQuestPineDistanceExpression",
+        "UsedCallCount = 2",
+        "SysFuncShineDistance::sfb_Calculate",
+        "0x004E5F40",
+        "0x0054FD10",
+        "DirectDistanceTable::ddt_Distance",
+        "0x004012D0",
+        "DirectDistanceTable::ddt_Initialize",
+        "0x0045FC80",
+        "NativeCoordinateLimit = 0x400",
+        "x = HalfTowardZero(x)",
+        "y = HalfTowardZero(y)",
+        "scale += scale",
+        "(int)Math.Sqrt((double)squared)",
+        "(value + 1) >> 1",
+        'const string prefix = "@DistanceBetween("',
+        "variables.TryFind(leftIdentifier, out leftValue)",
+        "GetNativeNumberSuffix(",
+        "objectResolver.TryResolveObject(",
+        "unchecked(leftX - rightX)",
+        "unchecked(leftY - rightY)",
+    )
+    for token in pine_distance_tokens:
+        if token not in pine_distance_text:
+            print("FAIL: KQ Pine @DistanceBetween projection changed", token)
+            return 1
+    for forbidden in ("MapObjectID", "MapManager", "GetMap(", "Objects["):
+        if forbidden in pine_distance_text:
+            print("FAIL: KQ Pine native object handle was conflated with emulator map identity",
+                  forbidden)
+            return 1
+
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
@@ -770,6 +808,7 @@ def main():
     print("PASS: native Pine literal/copy/+/- expression core runs host-free; system functions/dynamic identifiers remain gated")
     print("PASS: all 7 used @RemoveFirst calls run host-free with native destructive source-list mutation")
     print("PASS: used Pine @Random(0 99) is source-modeled as inclusive MSVC CRT rand modulo without inventing CRT ownership")
+    print("PASS: both used Pine @DistanceBetween calls are source-modeled through explicit native-object resolution and exact DirectDistanceTable integer math")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
     print("PASS: all 202 used Pine pause and 14 timelimit constants are modeled on the native 10-Hz tick clock with exact deadline semantics")

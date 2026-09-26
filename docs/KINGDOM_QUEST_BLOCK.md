@@ -1357,6 +1357,21 @@ Zone Pine. Neither layer chooses a seed or claims ownership of Zone's shared
 CRT stream; authoritative process-wide state/consumer ordering remains
 explicitly unresolved before live `@Random` or reward CardDeck execution.
 
+The two used GordonMaster `@DistanceBetween(...)` expressions are now
+recovered without identifying native ShineObject handles with emulator object
+IDs. `SysFuncShineDistance::sfb_Calculate` at `0x004E5F40` evaluates both
+operands, applies `pst_GetNumber`, resolves each through
+`ShineObjectManager::som_GetObject` at `0x0054FD10`, subtracts X/Y and calls
+`DirectDistanceTable::ddt_Distance` at `0x004012D0`.
+`ddt_Distance` repeatedly halves both signed deltas toward zero whenever
+either lies outside **[-1024,1024]**, doubling a scale each time. Its
+2049x2049 cache was built by `ddt_Initialize` at `0x0045FC80` as
+`floor(sqrt(dx²+dy²))`; the final native result is that integer times the
+scale. `KingdomQuestPineNativeDistance` reproduces this result directly.
+`KingdomQuestPineDistanceExpression` keeps the native handle→coordinate
+lookup behind an explicit resolver, so no `MapObjectID` equivalence is
+invented.
+
 Other system functions, dynamic `#(...)` identifiers and the remaining
 comparison/function expression semantics still fall through to the fail-closed
 host rather than being guessed. Fiesta gameplay commands remain separate from
