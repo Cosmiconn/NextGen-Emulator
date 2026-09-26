@@ -11,6 +11,7 @@ namespace NextGen.World.Data
         ItemGroupClassifierCandidate = 2,
         NativeClassifierKeyMiss = 3,
         NativeNoCompatibleGroupCandidate = 4,
+        NativeTreasureChestCapacityRejected = 5,
     }
 
     public sealed class KingdomQuestRewardItemCandidatePlanEntry
@@ -34,9 +35,16 @@ namespace NextGen.World.Data
     /// Mutation-free continuation of KingdomQuestRewardItemPlan through the
     /// recovered ItemGroupClassifier/CardStack candidate-choice boundary.
     ///
-    /// The caller owns both native CRT states: classifierState was built from
-    /// the authoritative igc_Load-start state; random is the authoritative
-    /// reward-time CRT state. No seed is guessed and no framework RNG is used.
+    /// The caller owns both explicit native-thread CRT states:
+    /// classifierState was built from the authoritative igc_Load-start state;
+    /// random is the authoritative reward-time state for the native thread
+    /// executing this path. No seed/thread assignment is guessed and no
+    /// framework RNG is used.
+    ///
+    /// Native TreasureChestMaker checks count < 8 before igc_Getitem. Because
+    /// slot zero is already the chest, only seven successfully resolved reward
+    /// items may reach construction. Later calls are represented as native
+    /// capacity rejects without classifier/CardDeck RNG consumption.
     ///
     /// This does not create ItemTotalInformation, apply upgrades/options,
     /// mutate inventory, persist, or send GameDB packets.
@@ -58,6 +66,16 @@ namespace NextGen.World.Data
                         KingdomQuestRewardItemCandidateKind.NativeClassifierKeyMiss ||
                     v.Kind ==
                         KingdomQuestRewardItemCandidateKind.NativeNoCompatibleGroupCandidate);
+            }
+        }
+
+        public bool HasTreasureChestCapacityRejection
+        {
+            get
+            {
+                return Entries.Any(v =>
+                    v.Kind ==
+                        KingdomQuestRewardItemCandidateKind.NativeTreasureChestCapacityRejected);
             }
         }
 
@@ -117,12 +135,28 @@ namespace NextGen.World.Data
             var entries =
                 new List<KingdomQuestRewardItemCandidatePlanEntry>(
                     itemPlan.Entries.Count);
+            int successfulContentCount = 0;
 
             for (int i = 0; i < itemPlan.Entries.Count; i++)
             {
                 KingdomQuestRewardItemPlanEntry source = itemPlan.Entries[i];
                 if (source == null)
                     return false;
+
+                // TreasureChestMaker::tcm_ItemMake(int, ShineReward*, u32)
+                // checks its current item count before igc_Getitem. Keep this
+                // before the switch so capacity rejection consumes no
+                // classifier/CardDeck RNG.
+                if (successfulContentCount >=
+                        KingdomQuestRewardTreasureChestNative.RewardContentCapacity)
+                {
+                    entries.Add(
+                        new KingdomQuestRewardItemCandidatePlanEntry(
+                            source,
+                            KingdomQuestRewardItemCandidateKind.NativeTreasureChestCapacityRejected,
+                            null));
+                    continue;
+                }
 
                 switch (source.ArgumentKind)
                 {
@@ -134,6 +168,7 @@ namespace NextGen.World.Data
                                 source,
                                 KingdomQuestRewardItemCandidateKind.ExactItemInfo,
                                 source.ExactItemInfo));
+                        successfulContentCount++;
                         break;
 
                     case ShineRewardItemArgumentKind.ItemGroupClassifierGroup:
@@ -172,6 +207,7 @@ namespace NextGen.World.Data
                                 source,
                                 KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate,
                                 selectedItem));
+                        successfulContentCount++;
                         break;
                     }
 
