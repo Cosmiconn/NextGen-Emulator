@@ -434,7 +434,7 @@ def main():
         return 1
 
     compressed_match = re.search(
-        r'private const string CompressedCanonicalSource\\s*=\\s*"([^"]+)";',
+        r'private const string CompressedCanonicalSource\s*=\s*"([^"]+)";',
         pine_source_text)
     if compressed_match is None:
         print("FAIL: KQ Pine canonical bundle literal missing")
@@ -507,7 +507,7 @@ def main():
 
     pine_meta_command_counts = [
         int(value) for value in re.findall(
-            r"new PineMeta\\(\\d+,\\s*\\d+,\\s*(\\d+),",
+            r"new PineMeta\(\d+,\s*\d+,\s*(\d+),",
             pine_source_text)
     ]
     if len(pine_meta_command_counts) != 9:
