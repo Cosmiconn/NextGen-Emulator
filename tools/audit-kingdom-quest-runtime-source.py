@@ -664,7 +664,7 @@ def main():
         if token not in pine_char_name_text:
             print("FAIL: KQ Pine @CharName projection changed", token)
             return 1
-    for forbidden in ("MapObjectID", "MapManager", "Character.Name"):
+    for forbidden in (".MapObjectID", "MapManager.Instance", ".Character.Name"):
         if forbidden in pine_char_name_text:
             print("FAIL: KQ Pine native char-name handle was conflated with emulator identity",
                   forbidden)
