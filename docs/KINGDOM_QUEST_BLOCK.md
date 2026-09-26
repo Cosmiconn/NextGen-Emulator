@@ -1492,16 +1492,20 @@ it deliberately does not select manager order, mutate RepeatCount or construct
 `InterruptArg`. All 61 UnderHall interrupt registrations have exact
 `RepeatCount=1`.
 
-UnderHall's one `waitlogin Wait.` is now source-locked in its surrounding
+UnderHall's one `waitlogin Wait.` is source-locked in its surrounding
 control flow: `KQ_BossRobo 0.` precedes it and the next condition is exactly
-`if Wait == 0 -> call "QuestFail".`. This proves the failure gate but not the
-native meaning or wake predicate of the value written to `Wait`; that part
-remains fail-closed rather than being guessed as a player count.
+`if Wait == 0 -> call "QuestFail".`. The same source pattern is present in
+all **9/9** supplied Pine KQs: each has exactly one
+`waitlogin <identifier>.` and immediately tests that variable against zero.
+`KingdomQuestPineWaitLogin` and the control runtime now resolve this common
+target-variable/frame-state handoff generically. The injected
+`IKingdomQuestPineWaitLoginSource` still owns the native value, wake predicate
+and timing, so no player-count interpretation is invented.
 
-The eight non-`waitinterrupt` UnderHall families are now source-resolved one
-step further before any gameplay owner can see them.
-`KingdomQuestUnderHallExternalPlanBuilder` converts the **27 occurrences /
-21 distinct forms** into typed immutable plans and correlates the checked-in
+The remaining seven non-`waitinterrupt`/non-`waitlogin` UnderHall families
+are source-resolved one step further before any gameplay owner can see them.
+`KingdomQuestUnderHallExternalPlanBuilder` converts the **26 occurrences /
+20 distinct forms** into typed immutable plans and correlates the checked-in
 MapInfo/MobInfo identities where source permits it: the Elderine target is
 MapID 9 at exact source coordinates 17214/13445, and mob/summon identifiers
 resolve through the 11-row UnderHall MobInfo catalog. Numeric operands whose
