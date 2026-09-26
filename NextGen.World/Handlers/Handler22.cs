@@ -239,15 +239,12 @@ namespace NextGen.World.Handlers
             }
         }
 
-        private static bool PlayerDisjoin(WorldClient client)
+        private static bool PlayerDisjoin(
+            WorldClient client, uint oldHandle, uint characterNumber)
         {
-            if (client == null || !client.KingdomQuestHandle.HasValue)
-                return false;
-
-            uint oldHandle = client.KingdomQuestHandle.Value;
-            uint characterNumber;
-            if (!KingdomQuestCharacterIdentity.TryGetCharacterNumber(
-                    client.Character, out characterNumber))
+            if (client == null ||
+                !client.KingdomQuestHandle.HasValue ||
+                client.KingdomQuestHandle.Value != oldHandle)
                 return false;
 
             // Native PlayerDisjoin cancels an active vote only when the
@@ -259,12 +256,8 @@ namespace NextGen.World.Handlers
                 return false;
             SendVoteCancel(oldHandle, cancelPlan);
 
-            uint removedHandle;
-            uint removedCharacterNumber;
-            if (!KingdomQuestAdmissionCoordinator.TryRemoveCurrentMembership(
-                    client, out removedHandle, out removedCharacterNumber) ||
-                removedHandle != oldHandle ||
-                removedCharacterNumber != characterNumber)
+            if (!KingdomQuestAdmissionCoordinator.TryRemoveMembership(
+                    oldHandle, characterNumber))
                 return false;
 
             // Native PlayerDisjoin order after vote cancellation: Zone
@@ -274,6 +267,51 @@ namespace NextGen.World.Handlers
             KingdomQuestAdmissionCoordinator.CompleteDisjoin(
                 client, oldHandle);
             return true;
+        }
+
+        private static bool PlayerDisjoin(WorldClient client)
+        {
+            if (client == null || !client.KingdomQuestHandle.HasValue)
+                return false;
+
+            uint characterNumber;
+            if (!KingdomQuestCharacterIdentity.TryGetCharacterNumber(
+                    client.Character, out characterNumber))
+                return false;
+
+            return PlayerDisjoin(
+                client, client.KingdomQuestHandle.Value, characterNumber);
+        }
+
+        /// <summary>
+        /// Native login order after JoinerInfoUpdateByLogin:
+        /// CheckCharBannedInLogin compares bBan exactly with 1; on success it
+        /// sets the session's deferred-logoff flag before PlayerDisjoin.
+        /// </summary>
+        internal static void KingdomQuestLoginBan(
+            WorldClient client, uint handle, uint characterNumber)
+        {
+            if (client == null)
+                return;
+
+            client.KingdomQuestVoteBanLogoffPending = true;
+            PlayerDisjoin(client, handle, characterNumber);
+        }
+
+        /// <summary>
+        /// Mirrors the later login-continuation check of native session field
+        /// +0x1DF74: value 1 sends the empty 0x5830 packet and then clears it.
+        /// </summary>
+        internal static void FlushKingdomQuestVoteBanLogoff(WorldClient client)
+        {
+            if (client == null ||
+                !client.KingdomQuestVoteBanLogoffPending)
+                return;
+
+            using (Packet logoff =
+                KingdomQuestProtocol.CreateVoteBanMessageLogoff())
+                client.SendPacket(logoff);
+            client.KingdomQuestVoteBanLogoffPending = false;
         }
 
         /// <summary>

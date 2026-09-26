@@ -54,10 +54,15 @@ namespace NextGen.World.Data
                     client.Character, out characterNumber))
                 return false;
 
+            handle = client.KingdomQuestHandle.Value;
+            return TryRemoveMembership(handle, characterNumber);
+        }
+
+        public static bool TryRemoveMembership(
+            uint handle, uint characterNumber)
+        {
             lock (Sync)
             {
-                handle = client.KingdomQuestHandle.Value;
-
                 IReadOnlyList<KingdomQuestMembershipEntry> current;
                 if (!KingdomQuestMembershipRegistry.TryGet(handle, out current))
                     return false;

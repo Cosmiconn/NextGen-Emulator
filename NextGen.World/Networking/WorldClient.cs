@@ -43,6 +43,11 @@ namespace NextGen.World.Networking
         // the current second before allowing another suggestion from the same
         // World session. Null is the managed equivalent of the initial zero.
         internal int? KingdomQuestVoteSuggestCooldownUntil { get; set; }
+
+        // Native CWMClientSession +0x1DF74 is set to exactly 1 when
+        // CheckCharBannedInLogin succeeds. A later login-continuation path
+        // sends NC_KQ_VOTE_BAN_MSG_LOGOFF and clears the field.
+        internal bool KingdomQuestVoteBanLogoffPending { get; set; }
 		#endregion
 		#region .ctor
 		public WorldClient(Socket socket)

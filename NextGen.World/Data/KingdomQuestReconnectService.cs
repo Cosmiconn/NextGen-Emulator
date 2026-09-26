@@ -21,11 +21,13 @@ namespace NextGen.World.Data
             DateTime now,
             out KingdomQuestSessionTarget target,
             out int x,
-            out int y)
+            out int y,
+            out bool voteBanLogoff)
         {
             target = null;
             x = 0;
             y = 0;
+            voteBanLogoff = false;
 
             if (client == null ||
                 character == null ||
@@ -52,26 +54,33 @@ namespace NextGen.World.Data
             if (!KingdomQuestMembershipRegistry.TryGet(handle, out members))
                 return false;
 
-            bool existingJoiner = false;
+            KingdomQuestMembershipEntry existingJoiner = null;
             for (int i = 0; i < members.Count; i++)
             {
                 KingdomQuestMembershipEntry member = members[i];
                 if (member != null &&
                     Name5Equals(member.Name, source.Name))
                 {
-                    existingJoiner = true;
+                    existingJoiner = member;
                     break;
                 }
             }
 
-            if (!existingJoiner ||
+            if (existingJoiner == null ||
                 !KingdomQuestSessionTargetRegistry.TryGet(handle, out target))
                 return false;
 
-            // JoinerInfoUpdateByLogin writes the already-existing KQ Handle
-            // into the new World session. The native joiner row itself is not
-            // inserted/replaced here.
+            // Native JoinerInfoUpdateByLogin rebinds the retained Handle
+            // before CheckCharBannedInLogin. That check compares bBan exactly
+            // with 1; other nonzero raw values are not promoted to this path.
             client.KingdomQuestHandle = handle;
+            if (existingJoiner.BanRaw == 1)
+            {
+                voteBanLogoff = true;
+                target = null;
+                return false;
+            }
+
             x = source.KingdomQuestX.Value;
             y = source.KingdomQuestY.Value;
             return true;

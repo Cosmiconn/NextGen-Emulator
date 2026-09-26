@@ -23,13 +23,41 @@ namespace NextGen.World.Handlers
             WorldCharacter character;
             if (client.Characters.TryGetValue(slot, out character))
             {
+                DateTime localNow = DateTime.Now;
+                int nativeNow =
+                    KingdomQuestSourceScheduler.ToNativeTime32(localNow);
+                client.KingdomQuestVoteSuggestCooldownUntil = unchecked(
+                    nativeNow +
+                    KingdomQuestNativeConstants.VoteLoginCooldownSeconds);
+
                 KingdomQuestSessionTarget reconnectTarget;
                 int reconnectX;
                 int reconnectY;
+                bool voteBanLogoff;
                 bool kingdomQuestReconnect =
                     KingdomQuestReconnectService.TryRestore(
-                        client, character, DateTime.Now,
-                        out reconnectTarget, out reconnectX, out reconnectY);
+                        client, character, localNow,
+                        out reconnectTarget, out reconnectX, out reconnectY,
+                        out voteBanLogoff);
+
+                if (voteBanLogoff)
+                {
+                    uint characterNumber;
+                    if (client.KingdomQuestHandle.HasValue &&
+                        KingdomQuestCharacterIdentity.TryGetCharacterNumber(
+                            character, out characterNumber))
+                    {
+                        uint bannedHandle =
+                            client.KingdomQuestHandle.Value;
+                        Handler22.KingdomQuestLoginBan(
+                            client, bannedHandle, characterNumber);
+                        Handler22.FlushKingdomQuestVoteBanLogoff(client);
+                    }
+                    else
+                    {
+                        client.KingdomQuestHandle = null;
+                    }
+                }
 
                 ushort targetMap = kingdomQuestReconnect
                     ? reconnectTarget.MapID
