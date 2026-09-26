@@ -29,6 +29,7 @@ PINE_USED_EXPRESSION_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedExp
 PINE_USED_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedCommandRuntime.cs"
 PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalCommandState.cs"
 UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandSource.cs"
+UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandRuntime.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
@@ -244,7 +245,7 @@ def main():
                  PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
                  PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
                  PINE_LOCAL_COMMAND_STATE, UNDERHALL_COMMAND_SOURCE,
-                 SCENARIO_START_PLAN, ZONE_RUNTIME,
+                 UNDERHALL_COMMAND_RUNTIME, SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
@@ -740,6 +741,37 @@ def main():
             return 1
     print("PASS: KQ UnderHall unresolved command forms are source-locked")
 
+    underhall_runtime_text = UNDERHALL_COMMAND_RUNTIME.read_text(
+        encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestUnderHallCommandSink",
+        "class KingdomQuestUnderHallCommandRuntime",
+        'ScriptLanguage = "KQ/UnderHall"',
+        "SourceUsedFamilyCount = 9",
+        "SourceUsedOccurrenceCount = 46",
+        "SourceDistinctFormCount = 22",
+        "KingdomQuestUnderHallCommandSource.TryParse(",
+        "ref int nativeState",
+        "out bool completed",
+        "SourceUsedVerbs.Contains(verb)",
+        "? null",
+    ):
+        if token not in underhall_runtime_text:
+            print("FAIL: KQ UnderHall command runtime composition changed",
+                  token)
+            return 1
+    for verb in expected_underhall_forms:
+        if ('"' + verb + '"') not in underhall_runtime_text:
+            print("FAIL: KQ UnderHall runtime lost source-used verb", verb)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "System.Random", "DateTime.Now"):
+        if forbidden in underhall_runtime_text:
+            print("FAIL: KQ UnderHall runtime invented a side effect",
+                  forbidden)
+            return 1
+
     pine_top_blocks = {}
     current_pine_key = None
     pine_depth = 0
@@ -1105,6 +1137,7 @@ def main():
         "interface IKingdomQuestPineRegenDocumentResolver",
         "interface IKingdomQuestPineUsedCommandSink",
         "class KingdomQuestPineUsedCommandContext",
+        "IKingdomQuestUnderHallCommandSink UnderHallSink",
         "class KingdomQuestPineUsedCommandRuntime",
         "UsedOneStepCommandCount = 589",
         "SourceUsedUnrecoveredVerbCount = 34",
@@ -1162,6 +1195,9 @@ def main():
 
     for token in (
         "KingdomQuestPineUsedCommandContext commandContext",
+        "KingdomQuestUnderHallCommandRuntime.TryStep(",
+        "commandContext.UnderHallSink",
+        "Exact UnderHall Pine command dependency failed",
         "KingdomQuestPineUsedCommandRuntime.TryStep(",
         "KingdomQuestPineCommandResolution.Success",
         "KingdomQuestPineCommandResolution.Invalid",
