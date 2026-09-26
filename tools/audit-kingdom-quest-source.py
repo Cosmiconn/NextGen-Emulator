@@ -998,6 +998,10 @@ def main():
 
     for token in (
         'class KingdomQuestResolvedRewardEntry',
+        'public ShineRewardSourceRow SourceReward { get; private set; }',
+        'SourceReward = sourceReward',
+        'new KingdomQuestResolvedRewardEntry(',
+        'selected, sourceReward, resolved',
         'class KingdomQuestRewardSelectionPlan',
         'nativeReward.EvaluateDice(randomSamples)',
         'if (!selected.Selected)',
