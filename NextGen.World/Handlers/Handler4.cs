@@ -1,5 +1,6 @@
 using System;
 using NextGen.FiestaLib;
+using NextGen.FiestaLib.Data;
 using NextGen.FiestaLib.Networking;
 using NextGen.Util;
 using NextGen.World.Data;
