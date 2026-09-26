@@ -755,8 +755,32 @@ def main():
         if (current_source_script == "KQ/UnderHall" and
                 ("InterruptBlock" in line or "InterruptArg" in line)):
             underhall_interrupt_state_lines.append(line)
-    print("INFO: KQ UnderHall interrupt state lines:",
-          " || ".join(underhall_interrupt_state_lines))
+    if (underhall_interrupt_state_lines.count('InterruptBlock  ""') != 1 or
+            underhall_interrupt_state_lines.count('InterruptArg    ""') != 1 or
+            underhall_interrupt_state_lines.count(
+                'waitinterrupt InterruptBlock "InterruptArg".') != 19 or
+            underhall_interrupt_state_lines.count(
+                'call InterruptBlock.') != 19):
+        print("FAIL: KQ UnderHall waitinterrupt/dynamic-call source shape changed",
+              underhall_interrupt_state_lines)
+        return 1
+
+    underhall_source_lines = []
+    current_source_script = None
+    for raw_line in pine_bundle.splitlines():
+        line = raw_line.strip()
+        if line.startswith("@@ "):
+            current_source_script = line[3:].strip()
+            continue
+        if current_source_script == "KQ/UnderHall" and line:
+            underhall_source_lines.append(line)
+    for index, line in enumerate(underhall_source_lines[:-1]):
+        if line == 'waitinterrupt InterruptBlock "InterruptArg".':
+            if underhall_source_lines[index + 1] != 'call InterruptBlock.':
+                print("FAIL: KQ UnderHall waitinterrupt no longer feeds dynamic CALL",
+                      index, underhall_source_lines[index:index + 2])
+                return 1
+    print("PASS: KQ UnderHall has 19 waitinterrupt -> dynamic call InterruptBlock pairs")
 
     underhall_catalog_text = UNDERHALL_SOURCE_CATALOG.read_text(
         encoding="utf-8")
