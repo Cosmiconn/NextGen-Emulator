@@ -529,7 +529,8 @@ def main():
         "removes every matching active interrupt",
         "applies ListEraser to",
         "bool TryRegister(KingdomQuestPineInterruptSetPlan plan)",
-        "entries.Count >= KingdomQuestPineInterruptPlan.NativeManagerCapacity",
+        "entries.Count >=",
+        "KingdomQuestPineInterruptPlan.NativeManagerCapacity)",
         "public int Erase(byte[] nativeName16)",
         "public void Clear()",
     )
