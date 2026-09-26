@@ -71,8 +71,10 @@ Still required for block completion:
 - exact native-thread assignment/consumer ordering for the thread-local Zone
   CRT rand stream used by CardDeck, plus authoritative completion of the
   remaining ItemTotalInformation construction stages (base per-class
-  itemcreate/registration and the KQ-reachable weapon-socket path). The
-  optional reward OptionCard path is source-empty for the supplied corpus:
+  itemcreate/registration and the group/CardDeck-only weapon-socket path).
+  Original-source correlation proves native item class 5 is reached by 537 of
+  the 791 CardDeck candidate rows and by none of the 95 direct ITEM arguments.
+  The optional reward OptionCard path is source-empty for the supplied corpus:
   all 247 used ITEM rewards have OptionDegree=0 and the original ItemOptions
   source has no degree-zero cards. Reward-specific ItemAttributeClass writes
   for all 10 reachable native item classes, TreasureChest 111-byte
