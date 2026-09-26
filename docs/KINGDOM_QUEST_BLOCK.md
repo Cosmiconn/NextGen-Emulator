@@ -1469,12 +1469,28 @@ nine families and **46 source occurrences / 22 distinct source forms** locked by
 the canonical bundle, parses each through
 `KingdomQuestUnderHallCommandSource`, and forwards only the validated plan to
 an explicit `IKingdomQuestUnderHallCommandSink`. The native Pine command-frame
-state is passed by reference and completion remains sink-owned, so
-`waitinterrupt` and `waitlogin` can remain multi-step without inventing
-their wake predicates. A changed UnderHall form or a missing side-effect owner
-is Invalid/fail-closed before the generic host. This closes source parsing and
-runtime routing for the smallest Pine KQ slice; the nine native side-effect
-implementations themselves remain the next evidence boundary.
+state and VariableStack are explicit dependencies. A changed UnderHall form or
+a missing side-effect owner is Invalid/fail-closed before the generic host.
+
+The canonical UnderHall source also closes one previously hidden control-flow
+edge. It declares `InterruptBlock=""` and `InterruptArg=""`, contains
+**19** exact `waitinterrupt InterruptBlock "InterruptArg".` statements, and
+each is immediately followed by `call InterruptBlock.`. Its 61
+`interruptset` registrations use only **HPLow=5, PlayerEliminate=19,
+Sec=18, TimeOut=19**; every final ActionBlock token resolves to a real
+UnderHall top-level block. `KingdomQuestUnderHallCommandState` can therefore
+apply an **already authoritatively selected** interrupt delivery to the two
+Pine variables, after which the control runtime resolves the exact
+UnderHall-only dynamic `call InterruptBlock.` through VariableStack. It does
+not choose BlastCheck ordering or synthesize HPLow/PlayerEliminate/Sec/TimeOut
+events; that event-production boundary remains open.
+
+Across all nine supplied Pine KQs the only common top-level block is
+`main`, and all **9/9** scripts contain it. This is strong source evidence for
+a common entry candidate, but it is not promoted to the native
+`CinemaComplex::cc_PlayFilm` entry rule: `ScriptInitValue` remains opaque
+and the emulator still does not start `main` until that native binding is
+independently recovered.
 
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
