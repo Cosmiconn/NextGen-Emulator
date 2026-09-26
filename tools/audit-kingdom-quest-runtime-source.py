@@ -477,10 +477,18 @@ def main():
         return False
 
     pine_command_verbs = Counter()
+    pine_command_verbs_by_script = {}
+    current_command_script = None
     in_var_declaration = False
     for raw_line in pine_bundle.splitlines():
         line = raw_line.strip()
-        if not line or line.startswith("@@ "):
+        if not line:
+            continue
+        if line.startswith("@@ "):
+            current_command_script = line[3:].strip()
+            pine_command_verbs_by_script.setdefault(
+                current_command_script, Counter())
+            in_var_declaration = False
             continue
         lower = line.lower()
 
@@ -505,6 +513,10 @@ def main():
 
         verb = line.split(None, 1)[0].rstrip(".").lower()
         pine_command_verbs[verb] += 1
+        if current_command_script is None:
+            print("FAIL: KQ Pine command appeared before script marker")
+            return 1
+        pine_command_verbs_by_script[current_command_script][verb] += 1
 
     pine_meta_command_counts = [
         int(value) for value in re.findall(
@@ -575,6 +587,35 @@ def main():
         f"{verb}={pine_command_verbs[verb]}"
         for verb in sorted(pine_command_verbs))
     print("PASS: KQ Pine command verb inventory:", pine_command_inventory)
+
+    unrecovered_pine_verbs = {
+        "abstatereset", "abstateset", "battlestart", "battlestop",
+        "broadcast", "chatwin", "doorbuild", "doorclose", "dooropen",
+        "effectobj", "exchange2mob", "invensearch", "invidualreward",
+        "itemdrop", "itemerase", "itemowner", "linkto", "mobattr",
+        "mobregen", "npcchat", "npcshout", "npcstand", "questmobkill",
+        "revival", "reward", "scriptfile", "sendquestresult", "suicide",
+        "summonmob", "teleport", "vanish", "waitinterrupt", "waitlogin",
+        "whoclickme",
+    }
+    if set(pine_command_verbs_by_script) != PINE_SCRIPT_KEYS:
+        print("FAIL: KQ Pine per-script command key set changed",
+              sorted(pine_command_verbs_by_script))
+        return 1
+    for key in sorted(pine_command_verbs_by_script):
+        counts = pine_command_verbs_by_script[key]
+        unresolved = {
+            verb: counts[verb]
+            for verb in sorted(unrecovered_pine_verbs)
+            if counts[verb]
+        }
+        print(
+            "INFO: KQ Pine unresolved verbs {0}: total={1} {2}".format(
+                key,
+                sum(unresolved.values()),
+                ",".join(
+                    "{0}={1}".format(verb, unresolved[verb])
+                    for verb in sorted(unresolved)) or "<none>"))
 
     pine_top_blocks = {}
     current_pine_key = None
