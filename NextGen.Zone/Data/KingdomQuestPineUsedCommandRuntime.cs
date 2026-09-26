@@ -63,6 +63,11 @@ namespace NextGen.Zone.Data
             private set;
         }
         public IKingdomQuestPineUsedCommandSink Sink { get; private set; }
+        public IKingdomQuestUnderHallCommandSink UnderHallSink
+        {
+            get;
+            private set;
+        }
         public uint? CurrentKingdomQuestHandle { get; private set; }
 
         public KingdomQuestPineUsedCommandContext(
@@ -70,10 +75,26 @@ namespace NextGen.Zone.Data
             IKingdomQuestPineRegenDocumentResolver regenResolver,
             IKingdomQuestPineUsedCommandSink sink,
             uint? currentKingdomQuestHandle)
+            : this(
+                tickSource,
+                regenResolver,
+                sink,
+                null,
+                currentKingdomQuestHandle)
+        {
+        }
+
+        public KingdomQuestPineUsedCommandContext(
+            IKingdomQuestPineNativeTickSource tickSource,
+            IKingdomQuestPineRegenDocumentResolver regenResolver,
+            IKingdomQuestPineUsedCommandSink sink,
+            IKingdomQuestUnderHallCommandSink underHallSink,
+            uint? currentKingdomQuestHandle)
         {
             TickSource = tickSource;
             RegenResolver = regenResolver;
             Sink = sink;
+            UnderHallSink = underHallSink;
             CurrentKingdomQuestHandle = currentKingdomQuestHandle;
         }
     }
