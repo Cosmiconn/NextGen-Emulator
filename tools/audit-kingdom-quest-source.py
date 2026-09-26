@@ -960,10 +960,16 @@ def main():
             return 1
     for token in (
         'class MsvcCrtRand',
+        'NativeSrandAddress = 0x006594A0u',
+        'NativeRandAddress = 0x006594B2u',
+        'NativeThreadDataResolverAddress = 0x006637A8u',
+        'NativeThreadStateOffset = 0x14',
+        'public void Seed(uint state)',
         'State = State * 0x343fdu + 0x269ec3u',
         '(State >> 16) & 0x7fffu',
         'public void Consume(int count)',
         'throw new ArgumentOutOfRangeException("count")',
+        'native-thread-local, not process-global',
     ):
         if token not in shared_msvc_crt_rand:
             print('FAIL: shared MSVC CRT rand primitive changed', token)
