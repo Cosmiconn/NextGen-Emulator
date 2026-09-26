@@ -1452,6 +1452,17 @@ broadcast/chat UI, summon/mob, door, item, NPC, link, `waitinterrupt` and
 `waitlogin` actions. Native side-effect recovery can enable those families
 one at a time without allowing guessed fallback semantics in the meantime.
 
+The exact unresolved shape is now locked per script as well. `UnderHall`
+needs only **9** unrecovered verb families
+(`broadcast/linkto/mobregen/questmobkill/reward/scriptfile/summonmob/waitinterrupt/waitlogin`);
+`UnderHall2` uses the same core plus `chatwin`. The five Warrior's Code
+scripts `KQHBat1..5` share the same **14** unresolved families and therefore
+form one reusable native-recovery target rather than five independent runtimes.
+`Honeying` currently needs 16 families and `GordonMaster` 26. This
+per-script matrix is derived directly from the hash-locked canonical Pine bundle
+and is CI-guarded, so implementation can close the smallest source-equivalent
+slice first without hiding broader gaps.
+
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
 and compares it with the PDB global `index_suc`. A match creates Header 22
