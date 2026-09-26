@@ -41,7 +41,49 @@ namespace NextGen.Zone.Data
     /// </summary>
     public interface IKingdomQuestUnderHallExternalCommandSink
     {
-        bool TryStep(
+        bool TryBroadcast(
+            KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestPineVariableStack variables,
+            ref int nativeState,
+            out bool completed);
+
+        bool TryLinkTo(
+            KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestPineVariableStack variables,
+            ref int nativeState,
+            out bool completed);
+
+        bool TryMobRegen(
+            KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestPineVariableStack variables,
+            ref int nativeState,
+            out bool completed);
+
+        bool TryQuestMobKill(
+            KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestPineVariableStack variables,
+            ref int nativeState,
+            out bool completed);
+
+        bool TryReward(
+            KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestPineVariableStack variables,
+            ref int nativeState,
+            out bool completed);
+
+        bool TryScriptFile(
+            KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestPineVariableStack variables,
+            ref int nativeState,
+            out bool completed);
+
+        bool TrySummonMob(
             KingdomQuestUnderHallExternalPlan plan,
             KingdomQuestUnderHallExternalSourceSite sourceSite,
             KingdomQuestPineVariableStack variables,
@@ -114,13 +156,67 @@ namespace NextGen.Zone.Data
                 sourceSite == null)
                 return false;
 
-            return externalSink != null &&
-                externalSink.TryStep(
-                    externalPlan,
-                    sourceSite,
-                    variables,
-                    ref nativeState,
-                    out completed);
+            return TryStepExternal(
+                externalPlan,
+                sourceSite,
+                variables,
+                ref nativeState,
+                out completed);
+        }
+
+        private bool TryStepExternal(
+            KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestPineVariableStack variables,
+            ref int nativeState,
+            out bool completed)
+        {
+            completed = false;
+            if (plan == null ||
+                sourceSite == null ||
+                externalSink == null)
+                return false;
+
+            switch (plan.Kind)
+            {
+                case KingdomQuestUnderHallExternalPlanKind.Broadcast:
+                    return externalSink.TryBroadcast(
+                        plan, sourceSite, variables,
+                        ref nativeState, out completed);
+
+                case KingdomQuestUnderHallExternalPlanKind.LinkTo:
+                    return externalSink.TryLinkTo(
+                        plan, sourceSite, variables,
+                        ref nativeState, out completed);
+
+                case KingdomQuestUnderHallExternalPlanKind.MobRegen:
+                    return externalSink.TryMobRegen(
+                        plan, sourceSite, variables,
+                        ref nativeState, out completed);
+
+                case KingdomQuestUnderHallExternalPlanKind.QuestMobKill:
+                    return externalSink.TryQuestMobKill(
+                        plan, sourceSite, variables,
+                        ref nativeState, out completed);
+
+                case KingdomQuestUnderHallExternalPlanKind.Reward:
+                    return externalSink.TryReward(
+                        plan, sourceSite, variables,
+                        ref nativeState, out completed);
+
+                case KingdomQuestUnderHallExternalPlanKind.ScriptFile:
+                    return externalSink.TryScriptFile(
+                        plan, sourceSite, variables,
+                        ref nativeState, out completed);
+
+                case KingdomQuestUnderHallExternalPlanKind.SummonMob:
+                    return externalSink.TrySummonMob(
+                        plan, sourceSite, variables,
+                        ref nativeState, out completed);
+
+                default:
+                    return false;
+            }
         }
 
         private bool TryStepWaitInterrupt(
