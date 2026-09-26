@@ -1385,6 +1385,19 @@ models all eight modes, and the control runtime now evaluates recovered
 condition syntax itself after calculating both operands; only unknown syntax
 still falls through to the explicit host boundary.
 
+The original `@CharName` system function is now source-modeled too.
+`SysFuncShineCharName::sfb_Calculate` at `0x004E45A0` evaluates its
+single operand, takes the low **u16** of `pst_GetNumber`, resolves that native
+handle through `som_GetObject` at `0x0054FD10`, then calls the virtual
+`ShineObject::so_CharName()` identified by Zone.pdb at vtable offset
+`+0x56C`. The returned `TName5` is copied as **20 payload bytes + NUL**.
+A missing native object yields an empty Pine token, not a calculation failure.
+The supplied Pine corpus uses this exact function **10 times**: five
+`PlayerHandle` and five `LooterHandle` calls.
+`KingdomQuestPineCharNameExpression` preserves that boundary behind an
+explicit native-handle→name resolver; it does not equate the handle with an
+emulator `MapObjectID`.
+
 Other system functions and dynamic `#(...)` identifiers still fall through
 to the fail-closed host rather than being guessed. Fiesta gameplay commands
 remain separate from this expression layer.

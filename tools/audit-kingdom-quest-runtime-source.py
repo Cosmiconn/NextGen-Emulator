@@ -21,6 +21,7 @@ PINE_REMOVE_FIRST = ROOT / "NextGen.Zone/Data/KingdomQuestPineRemoveFirst.cs"
 PINE_RANDOM_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineRandomExpression.cs"
 PINE_DISTANCE_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineDistanceExpression.cs"
 PINE_CONDITION_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineConditionExpression.cs"
+PINE_CHAR_NAME_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineCharNameExpression.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -231,7 +232,7 @@ def main():
                  PINE_CONTROL_RUNTIME, PINE_VARIABLE_STACK,
                  PINE_BASIC_EXPRESSION, PINE_REMOVE_FIRST,
                  PINE_RANDOM_EXPRESSION, PINE_DISTANCE_EXPRESSION,
-                 PINE_CONDITION_EXPRESSION,
+                 PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
@@ -638,6 +639,37 @@ def main():
             print("FAIL: KQ Pine condition/control bridge changed", token)
             return 1
 
+    pine_char_name_text = PINE_CHAR_NAME_EXPRESSION.read_text(
+        encoding="utf-8")
+    pine_char_name_tokens = (
+        "interface IKingdomQuestPineNativeObjectNameResolver",
+        "class KingdomQuestPineCharNameExpression",
+        "UsedCallCount = 10",
+        "UsedPlayerHandleCallCount = 5",
+        "UsedLooterHandleCallCount = 5",
+        "NativeNamePayloadBytes = 20",
+        "NativeNameBufferBytes = 0x15",
+        "SysFuncShineCharName::sfb_Calculate",
+        "0x004E45A0",
+        "0x0054FD10",
+        "ShineObject::so_CharName",
+        "vtable offset +0x56C",
+        "ushort nativeHandle = unchecked((ushort)nativeNumber)",
+        "objectResolver.TryResolveCharName(",
+        "destination.TrySetAscii(string.Empty)",
+        "encoded.Length > NativeNamePayloadBytes",
+        'const string prefix = "@CharName("',
+    )
+    for token in pine_char_name_tokens:
+        if token not in pine_char_name_text:
+            print("FAIL: KQ Pine @CharName projection changed", token)
+            return 1
+    for forbidden in ("MapObjectID", "MapManager", "Character.Name"):
+        if forbidden in pine_char_name_text:
+            print("FAIL: KQ Pine native char-name handle was conflated with emulator identity",
+                  forbidden)
+            return 1
+
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
@@ -857,6 +889,7 @@ def main():
     print("PASS: used Pine @Random(0 99) is source-modeled as inclusive MSVC CRT rand modulo without inventing CRT ownership")
     print("PASS: both used Pine @DistanceBetween calls are source-modeled through explicit native-object resolution and exact DirectDistanceTable integer math")
     print("PASS: all 26 used Pine IFs map to native comparison modes: numeric ==/!=/</>/<=/>= and token ===/=!=")
+    print("PASS: all 10 used Pine @CharName calls preserve u16 native-handle lookup, empty-on-miss, and TName5 length boundary")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
     print("PASS: all 202 used Pine pause and 14 timelimit constants are modeled on the native 10-Hz tick clock with exact deadline semantics")
