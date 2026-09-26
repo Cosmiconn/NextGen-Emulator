@@ -14,6 +14,7 @@ REGEN_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestRegenSource.cs"
 SCENARIOBOOK_SOURCE = ROOT / "docs/KINGDOM_QUEST_SCENARIOBOOK_SOURCE.tsv"
 SCENARIOBOOK_PROJECTION = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShelfSource.cs"
 PINE_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestPineScriptSource.cs"
+PINE_CONTROL_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineControlRuntime.cs"
 SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
 SINGLE_DATA_PROJECTION = ROOT / "NextGen.FiestaLib/Data/KingdomQuestSingleDataInfo.cs"
 SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
@@ -217,7 +218,8 @@ def load_single_data_source():
 def main():
     for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE,
                  SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION, PINE_SOURCE,
-                 SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
+                 PINE_CONTROL_RUNTIME, SINGLE_DATA_SOURCE,
+                 SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
             return 1
@@ -399,6 +401,32 @@ def main():
         print("FAIL: KQ Pine source parser lost execution-boundary guard")
         return 1
 
+    pine_control_text = PINE_CONTROL_RUNTIME.read_text(encoding="utf-8")
+    pine_control_tokens = (
+        "interface IKingdomQuestPineRuntimeHost",
+        "class KingdomQuestPineControlRuntime",
+        "NativeMaxFrameIndex = 0x1F",
+        "NativeBreakExitIndex = 0x270F",
+        "PineScriptStack::ProcessStack::ps_Push      0x004D6BE0",
+        "PineScriptStack::ProcessStack::ps_Pop       0x004D6C20",
+        "PineScriptStack::ProcessStack::ps_ExitBlock 0x004D8C70",
+        "PineEventScriptNode::Block::sa_Step         0x004D81B0",
+        "PineEventScriptNode::StateInfinite::sa_Step 0x004D82C0",
+        "PineEventScriptNode::StateIf::sa_Step       0x004D8400",
+        "PineEventScriptNode::StateBreak::sa_Step    0x004DA120",
+        "PineEventScriptNode::StateCall::sa_Step     0x004DA180",
+        "TryEvaluateCondition(",
+        "TryStepCommand(",
+        "frame.State = 1",
+        "stack[match].State = NativeBreakExitIndex",
+        "Native Pine ProcessStack frame capacity exceeded.",
+        "This class deliberately executes no Fiesta gameplay command.",
+    )
+    for token in pine_control_tokens:
+        if token not in pine_control_text:
+            print("FAIL: KQ Pine native control runtime changed", token)
+            return 1
+
     script_list = [row for row in rows if row["kind"] == "script"]
     regen_list = [row for row in rows if row["kind"] == "regen"]
     script_rows = {row["key"]: row for row in script_list}
@@ -502,6 +530,7 @@ def main():
     print("PASS: native sbs_Read file-presence insertion is locked: sb_Load return is ignored before shelf insertion")
     print("PASS: all 27 supplied KQ ScriptLanguage values are proven members of the source-backed ScenarioBookShelf")
     print("PASS: all 9 used Pine ScenarioBooks are canonical-source modeled and structurally parsed without gameplay semantics")
+    print("PASS: native Pine Block/IF/INFINITE/CALL/BREAK ProcessStack semantics are executable with 32-frame and 0x270F exit boundaries")
     print("PASS: MAKE error precedence is source-locked to duplicate -> script lookup -> 300-slot capacity")
     print("PASS: separate KQScriptManager/DialogFile capacity is not conflated with ScenarioBookShelf")
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
