@@ -782,6 +782,19 @@ def main():
                 return 1
     print("PASS: KQ UnderHall has 19 waitinterrupt -> dynamic call InterruptBlock pairs")
 
+    underhall_interrupt_type_counts = Counter()
+    for line in pine_command_lines_by_script["KQ/UnderHall"].get(
+            "interruptset", []):
+        parts = line.split()
+        if len(parts) < 2:
+            print("FAIL: malformed UnderHall interruptset source", line)
+            return 1
+        underhall_interrupt_type_counts[parts[1]] += 1
+    print("INFO: KQ UnderHall interrupt types:",
+          ",".join(
+              "{0}={1}".format(kind, underhall_interrupt_type_counts[kind])
+              for kind in sorted(underhall_interrupt_type_counts)))
+
     underhall_catalog_text = UNDERHALL_SOURCE_CATALOG.read_text(
         encoding="utf-8")
     for token in (
