@@ -29,6 +29,8 @@ PINE_USED_EXPRESSION_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedExp
 PINE_USED_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedCommandRuntime.cs"
 PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalCommandState.cs"
 UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandSource.cs"
+SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
+ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -241,7 +243,9 @@ def main():
                  PINE_RANDOM_EXPRESSION, PINE_DISTANCE_EXPRESSION,
                  PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
                  PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
-                 PINE_LOCAL_COMMAND_STATE, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
+                 PINE_LOCAL_COMMAND_STATE, UNDERHALL_COMMAND_SOURCE,
+                 SCENARIO_START_PLAN, ZONE_RUNTIME,
+                 PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
@@ -1248,6 +1252,40 @@ def main():
     ):
         if token not in pine_control_text:
             print("FAIL: KQ Pine pause/control runtime changed", token)
+            return 1
+
+    scenario_start_text = SCENARIO_START_PLAN.read_text(encoding="utf-8")
+    zone_runtime_text = ZONE_RUNTIME.read_text(encoding="utf-8")
+    for token in (
+        "enum KingdomQuestScenarioStartAction : byte",
+        "class KingdomQuestScenarioStartPlan",
+        "DropCurrentFilm = 1",
+        "CloseAllDoors = 2",
+        "PlayFilm = 3",
+        "definition.ScriptLanguage",
+        "definition.ScriptInitValue",
+        "ContainsSourceBackedScenarioBook(",
+        "exposes no entry-block mapping",
+    ):
+        if token not in scenario_start_text:
+            print("FAIL: KQ native scenario start plan changed", token)
+            return 1
+    for forbidden in (
+            "entryBlock", "TryCreate(", "MapManager.Instance",
+            "SendPacket(", "Program.DatabaseManager"):
+        if forbidden in scenario_start_text:
+            print("FAIL: KQ scenario start plan invented execution", forbidden)
+            return 1
+
+    for token in (
+        "public KingdomQuestScenarioStartPlan ScenarioStartPlan",
+        "KingdomQuestScenarioStartPlan.TryBuild(",
+        "scenarioStartPlan, roster",
+        "current.ScenarioStartPlan, roster",
+        "current.Definition, current.ScenarioStartPlan",
+    ):
+        if token not in zone_runtime_text:
+            print("FAIL: KQ Zone scenario-start lifecycle bridge changed", token)
             return 1
 
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
