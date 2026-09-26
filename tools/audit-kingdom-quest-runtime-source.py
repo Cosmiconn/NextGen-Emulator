@@ -522,6 +522,77 @@ def main():
         for verb in sorted(pine_command_verbs))
     print("PASS: KQ Pine command verb inventory:", pine_command_inventory)
 
+    pine_top_blocks = {}
+    current_pine_key = None
+    pine_depth = 0
+    for raw_line in pine_bundle.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("@@ "):
+            if current_pine_key is not None and pine_depth != 0:
+                print("FAIL: KQ Pine canonical block depth did not return to zero",
+                      current_pine_key, pine_depth)
+                return 1
+            current_pine_key = line[3:]
+            pine_top_blocks[current_pine_key] = set()
+            pine_depth = 0
+            continue
+
+        lower = line.lower()
+        if lower.startswith("open [") and line.endswith("]"):
+            if current_pine_key is None:
+                print("FAIL: KQ Pine named block appeared before script marker")
+                return 1
+            if pine_depth == 0:
+                pine_top_blocks[current_pine_key].add(
+                    line[line.index("[") + 1:-1])
+            pine_depth += 1
+            continue
+
+        if lower in ("open", "then open", "else open"):
+            pine_depth += 1
+            continue
+
+        if lower == "close":
+            pine_depth -= 1
+            if pine_depth < 0:
+                print("FAIL: KQ Pine canonical block depth became negative",
+                      current_pine_key)
+                return 1
+
+    if current_pine_key is not None and pine_depth != 0:
+        print("FAIL: final KQ Pine canonical block depth did not return to zero",
+              current_pine_key, pine_depth)
+        return 1
+
+    pine_init_pairs = set()
+    for line in data_rows(KQ_SQL):
+        fields = split_row_fields(line)
+        if len(fields) != 36:
+            print("FAIL: KingdomQuest source row width changed while checking Pine init")
+            return 1
+        script_key = unquote_sql(fields[31])
+        if script_key not in PINE_SCRIPT_KEYS:
+            continue
+        init_value = unquote_sql(fields[32])
+        if (script_key not in pine_top_blocks or
+                init_value not in pine_top_blocks[script_key]):
+            print("FAIL: KQ Pine ScriptInitValue is not a top-level source block",
+                  script_key, init_value)
+            return 1
+        pine_init_pairs.add((script_key, init_value))
+
+    if len(pine_init_pairs) != 9:
+        print("FAIL: KQ Pine ScriptInitValue mapping count changed",
+              sorted(pine_init_pairs))
+        return 1
+
+    print("PASS: KQ Pine ScriptInitValue top-level entries:",
+          ", ".join(
+              f"{script}={init}"
+              for script, init in sorted(pine_init_pairs)))
+
     pine_control_text = PINE_CONTROL_RUNTIME.read_text(encoding="utf-8")
     pine_control_tokens = (
         "interface IKingdomQuestPineRuntimeHost",
