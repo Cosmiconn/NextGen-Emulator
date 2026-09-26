@@ -663,8 +663,11 @@ def main():
         return 1
     candidate_native_class_counts = Counter(
         int(item_info_rows[int(row[1])][4]) for row in candidate_rows)
-    print('INFO: KQ CardDeck candidate native item classes',
-          dict(sorted(candidate_native_class_counts.items())))
+    if candidate_native_class_counts != Counter(
+            {0: 59, 5: 537, 6: 118, 7: 2, 8: 66, 14: 9}):
+        print('FAIL: KQ CardDeck candidate native item-class shape changed',
+              dict(sorted(candidate_native_class_counts.items())))
+        return 1
     direct_item_rows = [
         row for row in item_info_rows
         if unquote_sql(row[1]) in direct_arguments
@@ -689,10 +692,19 @@ def main():
               len(reachable_item_ids),
               sum(reachable_native_class_counts.values()))
         return 1
-    print('INFO: direct KQ ITEM native classes',
-          dict(sorted(Counter(int(row[4]) for row in direct_item_rows).items())))
-    print('INFO: all reachable KQ ITEM native classes',
-          dict(sorted(reachable_native_class_counts.items())))
+    direct_native_class_counts = Counter(
+        int(row[4]) for row in direct_item_rows)
+    if direct_native_class_counts != Counter(
+            {0: 13, 3: 5, 4: 57, 6: 4, 8: 4, 10: 3, 11: 1, 14: 8}):
+        print('FAIL: direct KQ ITEM native item-class shape changed',
+              dict(sorted(direct_native_class_counts.items())))
+        return 1
+    if reachable_native_class_counts != Counter(
+            {0: 72, 3: 5, 4: 57, 5: 537, 6: 120, 7: 2,
+             8: 70, 10: 3, 11: 1, 14: 17}):
+        print('FAIL: all reachable KQ ITEM native item-class shape changed',
+              dict(sorted(reachable_native_class_counts.items())))
+        return 1
     for token in (
         'NativeValidStoreCalls = 5758',
         'NativeDistinctGroups = 789',
