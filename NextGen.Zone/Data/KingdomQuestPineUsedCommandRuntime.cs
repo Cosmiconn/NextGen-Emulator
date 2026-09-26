@@ -101,6 +101,7 @@ namespace NextGen.Zone.Data
     public static class KingdomQuestPineUsedCommandRuntime
     {
         public const int UsedOneStepCommandCount = 589;
+        public const int SourceUsedUnrecoveredVerbCount = 34;
 
         public static KingdomQuestPineCommandResolution TryStep(
             string commandText,
@@ -136,7 +137,64 @@ namespace NextGen.Zone.Data
                     return StepEndOfKq(commandText, context, out completed);
 
                 default:
-                    return KingdomQuestPineCommandResolution.Unsupported;
+                    return IsSourceUsedUnrecoveredVerb(verb)
+                        ? KingdomQuestPineCommandResolution.Invalid
+                        : KingdomQuestPineCommandResolution.Unsupported;
+            }
+        }
+
+        /// <summary>
+        /// Exact source-used command families whose native side effects are not
+        /// yet recovered far enough to execute. They fail closed here instead
+        /// of reaching the generic host fallback.
+        ///
+        /// call/break/pause are deliberately absent because
+        /// KingdomQuestPineControlRuntime owns those recovered control paths.
+        /// The seven one-step families above are absent because they are
+        /// executable here already.
+        /// </summary>
+        private static bool IsSourceUsedUnrecoveredVerb(string verb)
+        {
+            switch (verb)
+            {
+                case "abstatereset":
+                case "abstateset":
+                case "battlestart":
+                case "battlestop":
+                case "broadcast":
+                case "chatwin":
+                case "doorbuild":
+                case "doorclose":
+                case "dooropen":
+                case "effectobj":
+                case "exchange2mob":
+                case "invensearch":
+                case "invidualreward":
+                case "itemdrop":
+                case "itemerase":
+                case "itemowner":
+                case "linkto":
+                case "mobattr":
+                case "mobregen":
+                case "npcchat":
+                case "npcshout":
+                case "npcstand":
+                case "questmobkill":
+                case "revival":
+                case "reward":
+                case "scriptfile":
+                case "sendquestresult":
+                case "suicide":
+                case "summonmob":
+                case "teleport":
+                case "vanish":
+                case "waitinterrupt":
+                case "waitlogin":
+                case "whoclickme":
+                    return true;
+
+                default:
+                    return false;
             }
         }
 
