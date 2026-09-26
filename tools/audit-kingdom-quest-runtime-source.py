@@ -42,6 +42,7 @@ PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
 PINE_INTERRUPT_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptPlan.cs"
+PINE_WAITLOGIN = ROOT / "NextGen.Zone/Data/KingdomQuestPineWaitLogin.cs"
 SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
 SINGLE_DATA_PROJECTION = ROOT / "NextGen.FiestaLib/Data/KingdomQuestSingleDataInfo.cs"
 SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
@@ -256,7 +257,7 @@ def main():
                  UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
-                 PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
+                 PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_WAITLOGIN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
@@ -972,8 +973,8 @@ def main():
         "enum KingdomQuestUnderHallExternalPlanKind",
         "class KingdomQuestUnderHallExternalPlan",
         "class KingdomQuestUnderHallExternalPlanBuilder",
-        "SourceUsedOccurrenceCount = 27",
-        "SourceDistinctFormCount = 21",
+        "SourceUsedOccurrenceCount = 26",
+        "SourceDistinctFormCount = 20",
         "KingdomQuestUnderHallSourceCatalog.GetElderine()",
         "KingdomQuestUnderHallSourceCatalog.TryGetMob(",
         "KingdomQuestUnderHallCommandKind.WaitInterrupt",
@@ -1453,6 +1454,41 @@ def main():
             print("FAIL: KQ Pine used-expression/control bridge changed", token)
             return 1
 
+    pine_waitlogin_text = PINE_WAITLOGIN.read_text(encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestPineWaitLoginSource",
+        "class KingdomQuestPineWaitLogin",
+        "UsedCommandCount = 9",
+        "TryParseUsed(",
+        "KingdomQuestPineBasicExpression.TrySimpleIdentifier(",
+        "No player-count meaning, login predicate or polling cadence is invented.",
+    ):
+        if token not in pine_waitlogin_text:
+            print("FAIL: KQ Pine waitlogin handoff changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ClientManager.Instance", "GetCharacters",
+            "SendPacket(", "Program.DatabaseManager", "DateTime.Now",
+            "Environment.TickCount"):
+        if forbidden in pine_waitlogin_text:
+            print("FAIL: KQ Pine waitlogin handoff invented login semantics",
+                  forbidden)
+            return 1
+
+    for token in (
+        'IsCommandVerb(node.Text, "waitlogin")',
+        "private void StepWaitLogin(",
+        "KingdomQuestPineWaitLogin.TryParseUsed(",
+        "variables.TryFind(targetIdentifier, out destination)",
+        "commandContext.WaitLoginSource == null",
+        "commandContext.WaitLoginSource.TryStep(",
+        "ref state",
+        "frame.State = state",
+    ):
+        if token not in pine_control_text:
+            print("FAIL: KQ Pine waitlogin/control bridge changed", token)
+            return 1
+
     pine_used_command_text = PINE_USED_COMMAND_RUNTIME.read_text(
         encoding="utf-8")
     pine_used_command_tokens = (
@@ -1461,6 +1497,7 @@ def main():
         "interface IKingdomQuestPineRegenDocumentResolver",
         "interface IKingdomQuestPineUsedCommandSink",
         "class KingdomQuestPineUsedCommandContext",
+        "IKingdomQuestPineWaitLoginSource WaitLoginSource",
         "IKingdomQuestUnderHallCommandSink UnderHallSink",
         "class KingdomQuestPineUsedCommandRuntime",
         "UsedOneStepCommandCount = 589",
