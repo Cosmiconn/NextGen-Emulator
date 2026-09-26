@@ -18,6 +18,7 @@ PINE_CONTROL_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineControlRuntime.
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
+PINE_INTERRUPT_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptPlan.cs"
 SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
 SINGLE_DATA_PROJECTION = ROOT / "NextGen.FiestaLib/Data/KingdomQuestSingleDataInfo.cs"
 SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
@@ -222,7 +223,8 @@ def main():
     for path in (MANIFEST, KQ_SQL, MAP_SQL, REGEN_SOURCE,
                  SCENARIOBOOK_SOURCE, SCENARIOBOOK_PROJECTION, PINE_SOURCE,
                  PINE_CONTROL_RUNTIME, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
-                 PINE_TIMING_PLAN, SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
+                 PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
+                 SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
             return 1
@@ -500,6 +502,39 @@ def main():
             print("FAIL: KQ Pine timing projection changed", token)
             return 1
 
+    pine_interrupt_text = PINE_INTERRUPT_PLAN.read_text(encoding="utf-8")
+    pine_interrupt_tokens = (
+        "class KingdomQuestPineInterruptPlan",
+        "class KingdomQuestPineInterruptSetPlan",
+        "class KingdomQuestPineInterruptRegistryState",
+        "NativeManagerCapacity = 20",
+        "NativeEraseNameBytes = 16",
+        "UsedInterruptSetCount = 225",
+        "UsedInterruptEraseCount = 14",
+        "UsedInterruptClearCount = 65",
+        "UsedWaitInterruptCount = 55",
+        "PlayerEliminate 50",
+        "TimeOut 55",
+        "Sec 45",
+        "HPLow 21",
+        "PlayerDead 15",
+        "DeadIndex 12",
+        "PickUpItemIndex 10",
+        "DeadHandle 9",
+        "NPCClickHandle 4",
+        "MobEliminate 4",
+        "previousDeadlineTick, durationTicks",
+        "nextDeadlineTick <= currentTick",
+        "(int)(deadlineTick - currentTick) <= 0",
+        "removes every matching active interrupt",
+        "applies ListEraser to",
+        "does not choose BlastCheck ordering",
+    )
+    for token in pine_interrupt_tokens:
+        if token not in pine_interrupt_text:
+            print("FAIL: KQ Pine interrupt projection changed", token)
+            return 1
+
     script_list = [row for row in rows if row["kind"] == "script"]
     regen_list = [row for row in rows if row["kind"] == "regen"]
     script_rows = {row["key"]: row for row in script_list}
@@ -607,6 +642,7 @@ def main():
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
     print("PASS: all 202 used Pine pause and 14 timelimit constants are modeled on the native 10-Hz tick clock with exact deadline semantics")
+    print("PASS: used Pine interrupt set/erase/clear/wait forms are source-modeled with the native 20-slot manager, 16-byte erase key and timed-trigger semantics")
     print("PASS: MAKE error precedence is source-locked to duplicate -> script lookup -> 300-slot capacity")
     print("PASS: separate KQScriptManager/DialogFile capacity is not conflated with ScenarioBookShelf")
     print("PASS: 18 used KingdomQuestMap BaseMap keys are covered; 15 static KQ regen files present, 3 explicitly absent")
