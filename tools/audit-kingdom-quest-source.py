@@ -650,13 +650,16 @@ def main():
         1 for _group, _root, count in compatibility_counts if count == 0)
     max_compatible_candidates = max(
         count for _group, _root, count in compatibility_counts)
-    print(
-        'INFO: KQ CardDeck compatible-candidate pairs '
-        'unique={0} multi={1} zero={2} max={3}'.format(
-            unique_compatibility_pairs,
-            multi_compatibility_pairs,
-            zero_compatibility_pairs,
-            max_compatible_candidates))
+    compatibility_shape = (
+        unique_compatibility_pairs,
+        multi_compatibility_pairs,
+        zero_compatibility_pairs,
+        max_compatible_candidates,
+    )
+    if compatibility_shape != (35, 154, 9, 21):
+        print('FAIL: KQ CardDeck class-compatible candidate shape changed',
+              compatibility_shape)
+        return 1
     for token in (
         'NativeValidStoreCalls = 5758',
         'NativeDistinctGroups = 789',
