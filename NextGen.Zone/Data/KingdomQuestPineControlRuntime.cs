@@ -81,6 +81,8 @@ namespace NextGen.Zone.Data
             public IReadOnlyList<KingdomQuestPineNodeSource> Statements;
             public KingdomQuestPineNodeSource Node;
             public int State;
+            public bool HasPauseDeadline;
+            public uint PauseDeadlineTick;
 
             public static Frame Sequence(
                 string name,
@@ -519,6 +521,13 @@ namespace NextGen.Zone.Data
                 return;
             }
 
+            if (frame.HasPauseDeadline ||
+                IsCommandVerb(node.Text, "pause"))
+            {
+                StepPause(frame, node);
+                return;
+            }
+
             bool completed;
             KingdomQuestPineCommandResolution commandResolution =
                 KingdomQuestPineUsedCommandRuntime.TryStep(
@@ -556,6 +565,56 @@ namespace NextGen.Zone.Data
 
             frame.State = state;
             if (completed)
+                Pop();
+        }
+
+        private void StepPause(
+            Frame frame,
+            KingdomQuestPineNodeSource node)
+        {
+            uint currentTick;
+            if (commandContext == null ||
+                commandContext.TickSource == null ||
+                !commandContext.TickSource.TryGetCurrentTick(out currentTick))
+            {
+                Fail(
+                    "Native Pine pause tick dependency missing at canonical " +
+                    "line " + node.CanonicalLine + ".");
+                return;
+            }
+
+            if (frame.State == 0)
+            {
+                KingdomQuestPinePausePlan plan;
+                if (!KingdomQuestPineTimingPlan.TryBuildPause(
+                        node.Text, currentTick, out plan))
+                {
+                    Fail(
+                        "Invalid source-used Pine pause at canonical line " +
+                        node.CanonicalLine + ": " + node.Text);
+                    return;
+                }
+
+                // Native ShinePause increments its command-frame state once and
+                // stores currentTick + duration. Keep the same observable
+                // state/deadline rule without inventing a wall-clock source.
+                frame.State = 1;
+                frame.HasPauseDeadline = true;
+                frame.PauseDeadlineTick = plan.DeadlineTick;
+                return;
+            }
+
+            if (frame.State != 1 || !frame.HasPauseDeadline)
+            {
+                Fail(
+                    "Invalid native Pine pause frame state at canonical line " +
+                    node.CanonicalLine + ".");
+                return;
+            }
+
+            // ShinePause remains active while deadline >= currentTick and pops
+            // only after the unsigned deadline < currentTick comparison holds.
+            if (frame.PauseDeadlineTick < currentTick)
                 Pop();
         }
 
@@ -663,6 +722,27 @@ namespace NextGen.Zone.Data
         {
             fault = message ?? "Unknown Pine runtime fault.";
             Status = KingdomQuestPineRuntimeStatus.Faulted;
+        }
+
+        private static bool IsCommandVerb(
+            string text,
+            string verb)
+        {
+            if (string.IsNullOrWhiteSpace(text) ||
+                string.IsNullOrEmpty(verb))
+                return false;
+
+            string value = text.TrimStart();
+            if (!value.StartsWith(
+                    verb, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (value.Length == verb.Length)
+                return true;
+
+            return char.IsWhiteSpace(value[verb.Length]) ||
+                (value.Length == verb.Length + 1 &&
+                 value[verb.Length] == '.');
         }
 
         private static bool TryQuotedControl(
