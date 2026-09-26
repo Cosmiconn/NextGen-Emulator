@@ -1201,11 +1201,15 @@ def main():
         "externalSink.TryReward(",
         "externalSink.TryScriptFile(",
         "externalSink.TrySummonMob(",
-        "interruptDeliverySource.TryTake(out delivery)",
-        "document.Blocks.ContainsKey(delivery.ActionBlock)",
+        "KingdomQuestPineInterruptRegistryState activeInterrupts",
+        "interruptDeliverySource.TryTake(",
+        "activeInterrupts, out delivery",
+        "activeInterrupts.ContainsReference(delivery.SelectedPlan)",
+        "document.Blocks.ContainsKey(",
+        "delivery.SelectedPlan.ActionBlock",
         "variables.TryFind(plan.Arguments[0], out blockValue)",
         "variables.TryFind(plan.Arguments[1], out argumentValue)",
-        "blockValue.TrySetAscii(delivery.ActionBlock)",
+        "blockValue.TrySetAscii(",
         "argumentValue.TrySetAscii(delivery.Argument)",
         "A wait with no selected native interrupt remains active.",
         "does not evaluate",
@@ -1872,6 +1876,9 @@ def main():
     pine_local_command_tokens = (
         "interface IKingdomQuestPineExternalCommandSink",
         "class KingdomQuestPineLocalCommandState",
+        "CreateUnderHallCommandState(",
+        "interruptDeliverySource,",
+        "interrupts,",
         "IKingdomQuestPineUsedCommandSink",
         "KingdomQuestPineInterruptRegistryState interrupts",
         "KingdomQuestPineTimeLimitPlan timeLimit",
@@ -2047,6 +2054,8 @@ def main():
         "KingdomQuestPineInterruptPlan.NativeManagerCapacity)",
         "public int Erase(byte[] nativeName16)",
         "public void Clear()",
+        "public bool ContainsReference(",
+        "object.ReferenceEquals(entries[i], plan)",
     )
     for token in pine_interrupt_tokens:
         if token not in pine_interrupt_text:
