@@ -22,6 +22,14 @@ namespace NextGen.Zone.Data
     {
         bool TryEvaluateCondition(string expression, out int value);
 
+        bool TryResolveIdentifier(
+            string identifierExpression,
+            out string identifier);
+
+        bool TryCalculateExpression(
+            string expression,
+            KingdomQuestPineTokenValue destination);
+
         bool TryStepCommand(
             string commandText,
             int canonicalLine,
@@ -102,6 +110,7 @@ namespace NextGen.Zone.Data
         private readonly KingdomQuestPineScriptDocument document;
         private readonly IKingdomQuestPineRuntimeHost host;
         private readonly List<Frame> stack;
+        private readonly KingdomQuestPineVariableStack variables;
         private string fault;
 
         public KingdomQuestPineRuntimeStatus Status { get; private set; }
@@ -116,6 +125,11 @@ namespace NextGen.Zone.Data
             get { return stack.Count; }
         }
 
+        public KingdomQuestPineVariableStack Variables
+        {
+            get { return variables; }
+        }
+
         private KingdomQuestPineControlRuntime(
             KingdomQuestPineScriptDocument document,
             IKingdomQuestPineRuntimeHost host)
@@ -123,6 +137,7 @@ namespace NextGen.Zone.Data
             this.document = document;
             this.host = host;
             stack = new List<Frame>(NativeMaxFrameIndex + 1);
+            variables = new KingdomQuestPineVariableStack();
             Status = KingdomQuestPineRuntimeStatus.Running;
         }
 
@@ -236,6 +251,14 @@ namespace NextGen.Zone.Data
                     StepCommand(frame, node);
                     break;
 
+                case KingdomQuestPineNodeKind.VariableDeclaration:
+                    StepVariableDeclaration(node);
+                    break;
+
+                case KingdomQuestPineNodeKind.Assignment:
+                    StepAssignment(node);
+                    break;
+
                 case KingdomQuestPineNodeKind.Scope:
                     Fail("Named Pine scope reached node-frame path.");
                     break;
@@ -285,6 +308,105 @@ namespace NextGen.Zone.Data
             // Native StateInfinite never advances a state member. Whenever its
             // child Block returns, the same frame pushes that body again.
             PushSequence(null, node.Children);
+        }
+
+        private void StepVariableDeclaration(
+            KingdomQuestPineNodeSource node)
+        {
+            // StateVarDeclear::sa_Step (0x004DA040) loops every declaration
+            // in this one statement. For each entry it resolves the identifier,
+            // pushes it to VariableStack, then calculates the initializer
+            // directly into the returned value-token storage.
+            if (node.Declarations == null ||
+                node.Declarations.Count == 0)
+            {
+                Fail(
+                    "Pine variable declaration has no source entries at " +
+                    "canonical line " + node.CanonicalLine + ".");
+                return;
+            }
+
+            for (int i = 0; i < node.Declarations.Count; i++)
+            {
+                KingdomQuestPineVariableDeclarationSource declaration =
+                    node.Declarations[i];
+                if (declaration == null ||
+                    string.IsNullOrEmpty(declaration.Name))
+                {
+                    Fail(
+                        "Invalid Pine variable declaration at canonical line " +
+                        node.CanonicalLine + ".");
+                    return;
+                }
+
+                KingdomQuestPineTokenValue destination;
+                if (!variables.TryPush(
+                        declaration.Name, out destination))
+                {
+                    Fail(
+                        "Native Pine VariableStack push failed for " +
+                        declaration.Name + " at canonical line " +
+                        declaration.CanonicalLine + ".");
+                    return;
+                }
+
+                if (!host.TryCalculateExpression(
+                        declaration.InitializerExpression,
+                        destination))
+                {
+                    // Native has already pushed this entry before invoking the
+                    // expression calculate virtual. Preserve that order rather
+                    // than rolling the stack back on failure.
+                    Fail(
+                        "Unresolved Pine variable initializer at canonical " +
+                        "line " + declaration.CanonicalLine + ": " +
+                        declaration.InitializerExpression);
+                    return;
+                }
+            }
+
+            Pop();
+        }
+
+        private void StepAssignment(
+            KingdomQuestPineNodeSource node)
+        {
+            // StateAssignment::sa_Step (0x004DB110) resolves the LHS Identify
+            // token, finds the newest matching VariableStack entry, calculates
+            // the RHS directly into that existing value token, then pops.
+            string identifier;
+            if (!host.TryResolveIdentifier(
+                    node.AssignmentTarget,
+                    out identifier) ||
+                string.IsNullOrEmpty(identifier))
+            {
+                Fail(
+                    "Unresolved Pine assignment target at canonical line " +
+                    node.CanonicalLine + ": " + node.AssignmentTarget);
+                return;
+            }
+
+            KingdomQuestPineTokenValue destination;
+            if (!variables.TryFind(identifier, out destination))
+            {
+                Fail(
+                    "Pine assignment variable not found at canonical line " +
+                    node.CanonicalLine + ": " + identifier);
+                return;
+            }
+
+            if (!host.TryCalculateExpression(
+                    node.AssignmentExpression,
+                    destination))
+            {
+                Fail(
+                    "Unresolved Pine assignment expression at canonical line " +
+                    node.CanonicalLine + ": " +
+                    node.AssignmentExpression);
+                return;
+            }
+
+            Pop();
         }
 
         private void StepCommand(
