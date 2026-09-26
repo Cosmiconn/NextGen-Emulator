@@ -811,6 +811,27 @@ def main():
         return 1
     print("PASS: KQ UnderHall waitlogin feeds exact Wait == 0 -> QuestFail gate")
 
+    pine_source_lines_by_script = {}
+    current_waitlogin_script = None
+    for raw_line in pine_bundle.splitlines():
+        line = raw_line.strip()
+        if line.startswith("@@ "):
+            current_waitlogin_script = line[3:].strip()
+            pine_source_lines_by_script[current_waitlogin_script] = []
+            continue
+        if current_waitlogin_script is not None and line:
+            pine_source_lines_by_script[current_waitlogin_script].append(line)
+
+    for key in sorted(PINE_SCRIPT_KEYS):
+        lines = pine_source_lines_by_script.get(key, [])
+        for index, line in enumerate(lines):
+            if not line.lower().startswith("waitlogin "):
+                continue
+            start = max(0, index - 3)
+            end = min(len(lines), index + 5)
+            print("INFO: KQ Pine waitlogin context {0}: {1}".format(
+                key, " || ".join(lines[start:end])))
+
     underhall_interrupt_type_counts = Counter()
     for line in pine_command_lines_by_script["KQ/UnderHall"].get(
             "interruptset", []):
