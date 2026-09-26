@@ -1312,11 +1312,40 @@ whole used Pine corpus into named blocks plus explicit Command / If / Infinite /
 named Scope nodes. Both source syntaxes found in the originals are preserved:
 separate `if ...` + `then open`, and GordonMaster's inline
 `if ... then` + `open`. All nine sources parse with their exact locked
-block/node counts. This is intentionally still an execution-source boundary:
-the parser assigns **no gameplay meaning** to commands such as
-`regengroup`, `interruptset`, `questresult`, `reward`, `linkto`
-or `endofkq`. Those host operations are the next layer to bind against the
-native Zone behavior.
+block/node counts.
+
+The next execution layer is now partially source-modeled from direct Zone.exe/
+PDB recovery. `KingdomQuestPineControlRuntime` reproduces the native
+32-frame ProcessStack plus Block / IF / INFINITE / CALL / BREAK behavior,
+including the exact `0x270F` block-exit index used by BREAK. It still delegates
+expressions and Fiesta gameplay commands to a fail-closed host.
+
+Two terminal KQ commands are now projected exactly without activating mutation.
+`ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
+and compares it with the PDB global `index_suc`. A match creates Header 22
+type 18 (`NC_KQ_COMPLETE_CMD`) and calls the player's `CT_KQSuccess`
+title hook; every other valid token follows type 19
+(`NC_KQ_FAIL_CMD`) and `CT_KQFail`. The corresponding source title
+categories are 21 and 22. `ShineEndOfKingdomQuest::sa_Step` at
+`0x004F5FC0` reads the current FieldMap KQ handle, calls
+`WorldManagerSession::wms_EndOfKQPacket(handle)`, then calls
+`FieldMap::fm_ClearObject(0xB0)` before popping its Pine frame.
+`AxialListObjectClear::ali_Work` proves that `0xB0` is an object-type bit
+mask; the emulator deliberately preserves that raw mask rather than guessing
+which emulator classes it should clear.
+
+The used Pine `regengroup` boundary is also executable-source resolved.
+All **243** calls in the nine supplied Pine KQs use exactly two quoted operands;
+they cover **225 unique (source key, group index) pairs across five static
+regen sources**, and every pair resolves to exactly one `MobRegenGroup` plus
+at least one matching `MobRegen` row in the original corpus (for these used
+pairs, exactly one row each). `KingdomQuestPineRegenGroupResolver` models
+that command-to-source projection. Native `ShineRegenGroup::sa_Step` at
+`0x004EE0F0` then reaches
+`PineScriptMobRegenerator::psmr_find` and
+`MobHatchery::mh_ScriptBreed`. Actual MobHatchery object creation,
+regeneration scheduling and kill/rebreed behavior remain the next live layer;
+they are not replaced by the emulator's unrelated persistent Mobspawn model.
 
 
 The same 57 definitions use 18 distinct `KingdomQuestMap.BaseMap` values.
@@ -1393,12 +1422,13 @@ modern source shape: seven fields in `MobRegenGroup` and sixteen fields in
 into the emulator's simple persistent spawn-point table would discard native
 semantics.
 
-`KingdomQuestRegenSourceLoader` now models this source boundary only. It
-preserves the exact 7/16-field rows, the 12-byte key constraint, the 50-entry
-native table boundary, and KingdomQuest -> Instant path order. It deliberately
-does **not** create maps, mobs, groups, timers, or scenario outcomes. Live
-`cc_PlayFilm`/PineScript/Lua execution and `mh_ScriptBreed` behavior remain
-the next runtime layer to correlate and implement.
+`KingdomQuestRegenSourceLoader` preserves the exact 7/16-field rows,
+the 12-byte key constraint, the 50-entry native table boundary, and
+KingdomQuest -> Instant path order. The Pine command layer now resolves used
+`regengroup` calls into those exact group/mob rows, but deliberately does
+**not** create maps, mobs, timers or scenario outcomes. Live
+`mh_ScriptBreed` object/timer behavior, the remaining Pine host commands,
+and the Lua ScenarioBook execution path remain the next runtime layer.
 
 
 CI now derives the 27 ScriptLanguage keys and 18 used BaseMap keys directly
