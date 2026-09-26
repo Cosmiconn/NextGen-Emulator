@@ -1781,11 +1781,31 @@ returns the native fallback mask `1`. `KingdomQuestRewardClassGroup`
 models exactly that bit construction, and the candidate plan can consume an
 explicit native player-class byte through `TryBuildFromNativeClass`.
 
-Candidate selection is therefore source-modeled through class-family masking
-as well, but live execution still requires the native **thread assignment and
-per-thread consumer order** for the Zone CRT stream. The former
-process-wide-owner interpretation is removed. Item construction,
-upgrades/options, inventory mutation and persistence remain separate.
+Candidate selection is therefore source-modeled through class-family masking.
+The TreasureChest call boundary is now recovered far enough to preserve its
+RNG ordering as well. `TreasureChestMaker` stores exact **111-byte
+ItemTotalInformation** entries. Slot 0 is the chest itself and construction
+starts with item-count 1. The KQ reward overload at `0x00595D00` requires
+`count < 8` **before** calling `igc_Getitem`; consequently at most seven
+successfully created reward contents can follow the chest. Capacity-rejected
+later ITEM calls consume no classifier/CardDeck RNG. The candidate plan now
+models that pre-classifier rejection and increments its successful-content
+count only for source-resolved items.
+
+For an accepted ITEM call the recovered native order is
+`igc_Getitem -> ItemDataBox validation -> iti_mkregnum ->
+ItemAttributeClass::iac_itemcreate -> optional RandomOptionTable lookup /
+iac_GetItemOptionStruct / rot_FillOption -> embed child registration number ->
+count++`. The chest ITI holds each child's 8-byte registration number at the
+native `count*8+3` location. `KingdomQuestRewardTreasureChestNative`
+locks this layout, the distinct raw-ITI overload's `count <= 8` guard, and
+the exact call-stage order without constructing guessed item bytes.
+
+Live execution still requires the native **thread assignment and per-thread
+consumer order** for the Zone CRT stream. The remaining TreasureChest-specific
+gap is now narrower: per-item-class `iac_itemcreate` field semantics and the
+optional random-option payload must be recovered before an authoritative ITI
+can be emitted. Inventory mutation and persistence remain separate.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
@@ -1839,9 +1859,11 @@ write, network send or ACK processing. For the supplied source snapshot this
 means the source-backed reward path through classifier candidate choice is
 represented when authoritative native CRT/class-group state is supplied. The
 remaining live-reward blockers are exact native-thread assignment/consumer
-ordering for CRT-backed CardDeck calls, TreasureChest item
-construction/options, the GameDB/item transaction boundary, and exact
-mutation/ACK/scenario-completion timing.
+ordering for CRT-backed CardDeck calls, the KQ-reachable
+`ItemAttributeClass::iac_itemcreate` / random-option field payloads, the
+GameDB/item transaction boundary, and exact mutation/ACK/scenario-completion
+timing. The TreasureChest container layout, seven-content cap and construction
+call order are no longer unresolved.
 
 These packet structures are modeled byte-for-byte, but no GameDB-equivalent
 send/ACK path is activated before those remaining mutation boundaries are
