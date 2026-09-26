@@ -1835,10 +1835,20 @@ All 247 supplied ITEM rewards have `Upgrade=0`, `OptionDegree=0` and
 the optional option-card source path is empty for this supplied reward shape,
 although the native lookup/call boundary remains represented.
 
+The exact reachable native item-class shape is now locked against the original
+ItemInfo/ItemInfoServer corpus. The **791** KQ CardDeck candidate rows split as
+`{0:59, 5:537, 6:118, 7:2, 8:66, 14:9}`; the **95** direct ITEM arguments
+split as `{0:13, 3:5, 4:57, 6:4, 8:4, 10:3, 11:1, 14:8}`. Across the
+deduplicated reachable KQ ITEM space this yields
+`{0:72, 3:5, 4:57, 5:537, 6:120, 7:2, 8:70, 10:3, 11:1, 14:17}`.
+Therefore native weapon class **5** is genuinely reachable, but only through
+the group/CardDeck path; no direct KQ ITEM argument resolves to class 5.
+
 Live authoritative ITI emission still requires the native **thread assignment
 and per-thread consumer order** for CRT/CardDeck work, the remaining normal
-per-class item-create/registration bytes, and the KQ-reachable weapon
-socket-rate stage. Inventory mutation/persistence remains separate.
+per-class item-create/registration bytes, and the class-5 weapon socket-rate
+stage for those group-selected rewards. Inventory mutation/persistence remains
+separate.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
