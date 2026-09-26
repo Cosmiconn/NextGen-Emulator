@@ -11,14 +11,18 @@ namespace NextGen.Zone.Data
     /// </summary>
     public sealed class KingdomQuestUnderHallInterruptDelivery
     {
-        public string ActionBlock { get; private set; }
+        public KingdomQuestPineInterruptSetPlan SelectedPlan
+        {
+            get;
+            private set;
+        }
         public string Argument { get; private set; }
 
         public KingdomQuestUnderHallInterruptDelivery(
-            string actionBlock,
+            KingdomQuestPineInterruptSetPlan selectedPlan,
             string argument)
         {
-            ActionBlock = actionBlock;
+            SelectedPlan = selectedPlan;
             Argument = argument;
         }
     }
@@ -31,6 +35,7 @@ namespace NextGen.Zone.Data
     public interface IKingdomQuestUnderHallInterruptDeliverySource
     {
         bool TryTake(
+            KingdomQuestPineInterruptRegistryState activeInterrupts,
             out KingdomQuestUnderHallInterruptDelivery delivery);
     }
 
@@ -114,6 +119,8 @@ namespace NextGen.Zone.Data
         private readonly KingdomQuestPineScriptDocument document;
         private readonly IKingdomQuestUnderHallInterruptDeliverySource
             interruptDeliverySource;
+        private readonly KingdomQuestPineInterruptRegistryState
+            activeInterrupts;
         private readonly IKingdomQuestUnderHallExternalCommandSink
             externalSink;
 
@@ -122,9 +129,24 @@ namespace NextGen.Zone.Data
             IKingdomQuestUnderHallInterruptDeliverySource
                 interruptDeliverySource,
             IKingdomQuestUnderHallExternalCommandSink externalSink = null)
+            : this(
+                document,
+                interruptDeliverySource,
+                null,
+                externalSink)
+        {
+        }
+
+        public KingdomQuestUnderHallCommandState(
+            KingdomQuestPineScriptDocument document,
+            IKingdomQuestUnderHallInterruptDeliverySource
+                interruptDeliverySource,
+            KingdomQuestPineInterruptRegistryState activeInterrupts,
+            IKingdomQuestUnderHallExternalCommandSink externalSink = null)
         {
             this.document = document;
             this.interruptDeliverySource = interruptDeliverySource;
+            this.activeInterrupts = activeInterrupts;
             this.externalSink = externalSink;
         }
 
@@ -227,21 +249,26 @@ namespace NextGen.Zone.Data
             completed = false;
             if (document == null ||
                 interruptDeliverySource == null ||
+                activeInterrupts == null ||
                 plan.Arguments == null ||
                 plan.Arguments.Count != 2)
                 return false;
 
             KingdomQuestUnderHallInterruptDelivery delivery;
-            if (!interruptDeliverySource.TryTake(out delivery))
+            if (!interruptDeliverySource.TryTake(
+                    activeInterrupts, out delivery))
             {
                 // A wait with no selected native interrupt remains active.
                 return true;
             }
 
             if (delivery == null ||
-                string.IsNullOrEmpty(delivery.ActionBlock) ||
+                delivery.SelectedPlan == null ||
+                !activeInterrupts.ContainsReference(delivery.SelectedPlan) ||
+                string.IsNullOrEmpty(delivery.SelectedPlan.ActionBlock) ||
                 delivery.Argument == null ||
-                !document.Blocks.ContainsKey(delivery.ActionBlock))
+                !document.Blocks.ContainsKey(
+                    delivery.SelectedPlan.ActionBlock))
                 return false;
 
             KingdomQuestPineTokenValue blockValue;
@@ -252,7 +279,8 @@ namespace NextGen.Zone.Data
                 argumentValue == null)
                 return false;
 
-            if (!blockValue.TrySetAscii(delivery.ActionBlock) ||
+            if (!blockValue.TrySetAscii(
+                    delivery.SelectedPlan.ActionBlock) ||
                 !argumentValue.TrySetAscii(delivery.Argument))
                 return false;
 
