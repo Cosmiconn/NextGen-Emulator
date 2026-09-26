@@ -36,6 +36,7 @@ UNDERHALL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommand
 UNDERHALL_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallExternalPlan.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
+UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
 UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
@@ -255,7 +256,8 @@ def main():
                  PINE_LOCAL_COMMAND_STATE, UNDERHALL_COMMAND_SOURCE,
                  UNDERHALL_COMMAND_RUNTIME, UNDERHALL_COMMAND_STATE,
                  UNDERHALL_EXTERNAL_PLAN, UNDERHALL_SOURCE_FLOW,
-                 UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_SOURCE_CATALOG,
+                 UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_INTERRUPT_CANDIDATE,
+                 UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_WAITLOGIN,
@@ -1184,6 +1186,36 @@ def main():
             "Environment.TickCount"):
         if forbidden in underhall_state_text:
             print("FAIL: KQ UnderHall wait state invented an external effect",
+                  forbidden)
+            return 1
+
+    underhall_candidate_text = UNDERHALL_INTERRUPT_CANDIDATE.read_text(
+        encoding="utf-8")
+    for token in (
+        "enum KingdomQuestUnderHallInterruptCandidateResult",
+        "interface IKingdomQuestUnderHallEventPredicateSource",
+        "class KingdomQuestUnderHallInterruptCandidate",
+        "HPLowCount = 5",
+        "PlayerEliminateCount = 19",
+        "SecondIntervalCount = 18",
+        "TimeOutCount = 19",
+        "KingdomQuestUnderHallTimedInterruptDue.Evaluate(",
+        "eventSource.TryEvaluateHPLow(plan, out hpLowDue)",
+        "eventSource.TryEvaluatePlayerEliminate(",
+        "plan.Arguments.Count != 2",
+        "plan.Arguments.Count != 0",
+        "does not iterate/select manager entries",
+        "choose BlastCheck order",
+    ):
+        if token not in underhall_candidate_text:
+            print("FAIL: KQ UnderHall interrupt-candidate boundary changed", token)
+            return 1
+    for forbidden in (
+            "RemoveAt(", ".Clear(", "AdvanceIntervalDeadline(",
+            "MapManager.Instance", "SendPacket(", "Program.DatabaseManager",
+            "System.Random", "DateTime.Now", "Environment.TickCount"):
+        if forbidden in underhall_candidate_text:
+            print("FAIL: KQ UnderHall interrupt candidate invented mutation/order",
                   forbidden)
             return 1
 
