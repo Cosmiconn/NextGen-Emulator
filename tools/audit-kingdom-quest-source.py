@@ -196,6 +196,18 @@ def main():
         print('actual  ', sorted(found))
         return 1
 
+    map_rows = [split_row_fields(row) for row in data_rows(MAP)]
+    elderine_rows = [row for row in map_rows if int(row[0]) == 9]
+    if (len(elderine_rows) != 1 or
+            len(elderine_rows[0]) != 10 or
+            elderine_rows[0][1] != "'Eld'" or
+            elderine_rows[0][2] != "'Elderine'" or
+            int(elderine_rows[0][4]) != 17214 or
+            int(elderine_rows[0][5]) != 13445):
+        print('FAIL: UnderHall Pine linkto Elderine source target changed',
+              elderine_rows)
+        return 1
+
     description_rows = sum(1 for line in DESC.read_text(encoding='utf-8').splitlines()
                            if line.lstrip().startswith("('"))
     counts = (len(data_rows(TEAM)), len(data_rows(VOTE)), len(data_rows(REASONS)), len(data_rows(RATES)), description_rows)
