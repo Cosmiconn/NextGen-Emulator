@@ -1498,6 +1498,17 @@ control flow: `KQ_BossRobo 0.` precedes it and the next condition is exactly
 native meaning or wake predicate of the value written to `Wait`; that part
 remains fail-closed rather than being guessed as a player count.
 
+The eight non-`waitinterrupt` UnderHall families are now source-resolved one
+step further before any gameplay owner can see them.
+`KingdomQuestUnderHallExternalPlanBuilder` converts the **27 occurrences /
+21 distinct forms** into typed immutable plans and correlates the checked-in
+MapInfo/MobInfo identities where source permits it: the Elderine target is
+MapID 9 at exact source coordinates 17214/13445, and mob/summon identifiers
+resolve through the 11-row UnderHall MobInfo catalog. Numeric operands whose
+native meaning is not independently recovered remain explicitly raw rather
+than being renamed as guessed gameplay fields. The external sink receives only
+these resolved plans; it no longer interprets raw Pine strings.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. This is strong source evidence for
 a common entry candidate, but it is not promoted to the native
