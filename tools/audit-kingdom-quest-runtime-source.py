@@ -602,6 +602,70 @@ def main():
         print("FAIL: KQ Pine per-script command key set changed",
               sorted(pine_command_verbs_by_script))
         return 1
+    expected_unresolved_by_script = {
+        "KQ/GordonMaster": {
+            "abstatereset": 2, "abstateset": 3, "broadcast": 9,
+            "chatwin": 7, "doorbuild": 3, "doorclose": 4, "dooropen": 4,
+            "exchange2mob": 1, "invensearch": 3, "itemdrop": 4,
+            "itemerase": 2, "itemowner": 2, "linkto": 2, "mobattr": 4,
+            "mobregen": 2, "npcchat": 20, "npcstand": 2,
+            "questmobkill": 1, "reward": 1, "scriptfile": 1,
+            "suicide": 1, "summonmob": 1, "teleport": 1,
+            "waitinterrupt": 5, "waitlogin": 1, "whoclickme": 3,
+        },
+        "KQ/Honeying": {
+            "broadcast": 8, "chatwin": 2, "doorbuild": 3,
+            "doorclose": 3, "dooropen": 3, "effectobj": 3, "linkto": 2,
+            "mobregen": 1, "npcshout": 5, "questmobkill": 1, "reward": 1,
+            "scriptfile": 1, "summonmob": 5, "vanish": 3,
+            "waitinterrupt": 4, "waitlogin": 1,
+        },
+        "KQ/KQHBat1": {
+            "abstateset": 1, "battlestart": 1, "battlestop": 3,
+            "broadcast": 10, "chatwin": 14, "invidualreward": 2,
+            "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "waitlogin": 1,
+        },
+        "KQ/KQHBat2": {
+            "abstateset": 1, "battlestart": 1, "battlestop": 3,
+            "broadcast": 10, "chatwin": 14, "invidualreward": 2,
+            "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "waitlogin": 1,
+        },
+        "KQ/KQHBat3": {
+            "abstateset": 1, "battlestart": 1, "battlestop": 3,
+            "broadcast": 10, "chatwin": 14, "invidualreward": 2,
+            "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "waitlogin": 1,
+        },
+        "KQ/KQHBat4": {
+            "abstateset": 1, "battlestart": 1, "battlestop": 3,
+            "broadcast": 10, "chatwin": 14, "invidualreward": 2,
+            "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "waitlogin": 1,
+        },
+        "KQ/KQHBat5": {
+            "abstateset": 1, "battlestart": 1, "battlestop": 3,
+            "broadcast": 10, "chatwin": 14, "invidualreward": 2,
+            "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "waitlogin": 1,
+        },
+        "KQ/UnderHall": {
+            "broadcast": 8, "linkto": 2, "mobregen": 1,
+            "questmobkill": 1, "reward": 1, "scriptfile": 1,
+            "summonmob": 12, "waitinterrupt": 19, "waitlogin": 1,
+        },
+        "KQ/UnderHall2": {
+            "broadcast": 12, "chatwin": 4, "linkto": 3, "mobregen": 1,
+            "questmobkill": 2, "reward": 2, "scriptfile": 1,
+            "summonmob": 54, "waitinterrupt": 22, "waitlogin": 1,
+        },
+    }
     for key in sorted(pine_command_verbs_by_script):
         counts = pine_command_verbs_by_script[key]
         unresolved = {
@@ -609,13 +673,11 @@ def main():
             for verb in sorted(unrecovered_pine_verbs)
             if counts[verb]
         }
-        print(
-            "INFO: KQ Pine unresolved verbs {0}: total={1} {2}".format(
-                key,
-                sum(unresolved.values()),
-                ",".join(
-                    "{0}={1}".format(verb, unresolved[verb])
-                    for verb in sorted(unresolved)) or "<none>"))
+        if unresolved != expected_unresolved_by_script[key]:
+            print("FAIL: KQ Pine per-script unresolved verb shape changed",
+                  key, unresolved)
+            return 1
+    print("PASS: KQ Pine per-script unresolved verb matrix is source-locked")
 
     pine_top_blocks = {}
     current_pine_key = None
