@@ -806,6 +806,46 @@ def main():
               "{0}:{1}".format(line_no, line)
               for line_no, line in underhall_external_sequence))
 
+    underhall_external_blocks = []
+    current_top_block = None
+    source_depth = 0
+    for line_no, line in enumerate(underhall_source_lines, 1):
+        lower = line.lower()
+        if lower.startswith("open [") and line.endswith("]"):
+            if source_depth == 0:
+                current_top_block = line[line.index("[") + 1:-1]
+            source_depth += 1
+            continue
+        if lower in ("open", "then open", "else open"):
+            source_depth += 1
+            continue
+        if lower == "close":
+            source_depth -= 1
+            if source_depth < 0:
+                print("FAIL: KQ UnderHall source depth became negative", line_no)
+                return 1
+            if source_depth == 0:
+                current_top_block = None
+            continue
+
+        verb = line.split(None, 1)[0].lower().rstrip(".")
+        if verb in underhall_external_verbs:
+            if source_depth <= 0 or not current_top_block:
+                print("FAIL: KQ UnderHall external command lost top-level block",
+                      line_no, line)
+                return 1
+            underhall_external_blocks.append(
+                (line_no, current_top_block, line))
+
+    if source_depth != 0 or len(underhall_external_blocks) != 26:
+        print("FAIL: KQ UnderHall external block mapping changed",
+              source_depth, underhall_external_blocks)
+        return 1
+    print("INFO: KQ UnderHall external command blocks:",
+          " || ".join(
+              "{0}:{1}:{2}".format(line_no, block, line)
+              for line_no, block, line in underhall_external_blocks))
+
     underhall_waitlogin_context = []
     for index, line in enumerate(underhall_source_lines):
         if line == "waitlogin Wait.":
