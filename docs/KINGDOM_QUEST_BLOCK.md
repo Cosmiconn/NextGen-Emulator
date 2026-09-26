@@ -1410,9 +1410,31 @@ reinterpreted by the generic host. This closes the runtime composition boundary
 without inventing process-wide CRT ownership or a native-handle-to-emulator-ID
 mapping.
 
+The canonical Pine bundle is now audited into an exact **44-verb**
+command inventory. The already-recovered one-step families are composed before
+the generic command host by `KingdomQuestPineUsedCommandRuntime`:
+`regengroup` (243), `interruptset` (225),
+`interruptclear` (65), `endofkq` (19),
+`interrupterase` (14), `timelimit` (14) and
+`questresult` (9), for **589 source command occurrences**. Their actual
+map/packet/title/scenario mutation remains behind explicit tick, regen-source
+and effect-sink interfaces; the dispatcher itself owns no wall clock, map
+manager, packet send or database mutation. A recognized command with a missing
+dependency faults fail-closed instead of falling through to guessed semantics.
+
+All **202** used `pause` commands now execute directly in
+`KingdomQuestPineControlRuntime` as well. The first step builds the recovered
+10-Hz native deadline from the explicit tick source, later steps remain active
+while `deadline >= currentTick`, and the command frame pops only when
+`deadline < currentTick`. The **55** `waitinterrupt` occurrences remain
+separate because they require persistent interrupt-delivery state rather than a
+single command step.
+
 Other system functions and dynamic `#(...)` identifiers still fall through
-to the fail-closed host rather than being guessed. Fiesta gameplay commands
-remain separate from this expression layer.
+to the fail-closed host rather than being guessed. The remaining gameplay
+commands from the exact inventory (including broadcast/chat UI, summon/mob,
+door, item, NPC and link actions) stay outside the executable layer until their
+native side-effect paths are correlated.
 
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
