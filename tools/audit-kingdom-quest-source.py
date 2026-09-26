@@ -45,6 +45,7 @@ WORLD_REWARD_CLASS_GROUP = ROOT / "NextGen.World/Data/KingdomQuestRewardClassGro
 WORLD_REWARD_ITEM_CANDIDATE_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardItemCandidatePlan.cs"
 WORLD_REWARD_TREASURE_CHEST = ROOT / "NextGen.World/Data/KingdomQuestRewardTreasureChestNative.cs"
 WORLD_REWARD_ITEM_ATTRIBUTE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemAttributeNative.cs"
+WORLD_REWARD_CONSTRUCTION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardConstructionPlan.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
@@ -172,7 +173,8 @@ def main():
         WORLD_REWARD_ITEM_GROUP_SOURCE, WORLD_REWARD_ITEM_GROUP_CANDIDATE_SOURCE,
         SHARED_MSVC_CRT_RAND, WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_CLASS_GROUP,
         WORLD_REWARD_ITEM_CANDIDATE_PLAN, WORLD_REWARD_TREASURE_CHEST,
-        WORLD_REWARD_ITEM_ATTRIBUTE, WORLD_REWARD_BOX_PLAN,
+        WORLD_REWARD_ITEM_ATTRIBUTE, WORLD_REWARD_CONSTRUCTION_PLAN,
+        WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
         ZONE_REWARD_ACK_IDENTITY, ZONE_REWARD_NATIVE_TRANSACTION,
         NATIVE_INFO, NATIVE_REWARD,
@@ -831,6 +833,7 @@ def main():
     world_reward_item_candidate_plan = WORLD_REWARD_ITEM_CANDIDATE_PLAN.read_text(encoding='utf-8')
     world_reward_treasure_chest = WORLD_REWARD_TREASURE_CHEST.read_text(encoding='utf-8')
     world_reward_item_attribute = WORLD_REWARD_ITEM_ATTRIBUTE.read_text(encoding='utf-8')
+    world_reward_construction_plan = WORLD_REWARD_CONSTRUCTION_PLAN.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
@@ -1260,6 +1263,33 @@ def main():
     ):
         if forbidden in world_reward_item_attribute:
             print('FAIL: native KQ reward ItemAttribute projection invented mutation/state',
+                  forbidden)
+            return 1
+
+    for token in (
+        'enum KingdomQuestRewardConstructionEntryKind : byte',
+        'class KingdomQuestRewardConstructionEntry',
+        'class KingdomQuestRewardConstructionPlan',
+        'KingdomQuestRewardItemAttributeNative.TryBuild(',
+        'unchecked((byte)candidate.ItemInfo.Class)',
+        'nativeItemClass >= 5 && nativeItemClass <= 8',
+        'weightedGradeSamples[sampleIndex++]',
+        'sampleIndex != weightedGradeSamples.Count',
+        'RequiresBaseItemCreateRegistration',
+        'RequiresWeaponSocketRate',
+        'NativeTreasureChestCapacityRejected',
+        'NativeNoCompatibleCandidate',
+    ):
+        if token not in world_reward_construction_plan:
+            print('FAIL: KQ reward construction composition missing', token)
+            return 1
+    for forbidden in (
+        'new Item(', 'Inventory.', 'ExecuteQuery', 'Program.DatabaseManager',
+        'SendPacket(', 'DateTime.Now', 'System.Random', 'new Random(',
+        'well512_GetRandom(',
+    ):
+        if forbidden in world_reward_construction_plan:
+            print('FAIL: KQ reward construction composition invented mutation/RNG',
                   forbidden)
             return 1
 
