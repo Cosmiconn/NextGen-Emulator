@@ -32,8 +32,14 @@ namespace NextGen.Zone.Data
     /// their surrounding quotation marks, exactly as native String::sa_Load
     /// prepares them before calculation.
     ///
-    /// This deliberately does not evaluate system functions, dynamic '#(...)'
-    /// identifiers, multiply/divide/percent, or comparison operators.
+    /// The exact used @RemoveFirst(variable-name, delimiter) system-function
+    /// form is composed before these generic primitives because its native
+    /// behavior mutates both the destination and the referenced source
+    /// VariableStack token.
+    ///
+    /// Other system functions, dynamic '#(...)' identifiers,
+    /// multiply/divide/percent, and comparison operators remain outside this
+    /// helper.
     /// </summary>
     public static class KingdomQuestPineBasicExpression
     {
@@ -50,6 +56,13 @@ namespace NextGen.Zone.Data
             string source = expression.Trim();
             if (source.Length == 0)
                 return KingdomQuestPineExpressionResolution.Invalid;
+
+            KingdomQuestPineExpressionResolution removeFirst =
+                KingdomQuestPineRemoveFirst.TryCalculateUsed(
+                    source, variables, destination);
+            if (removeFirst !=
+                KingdomQuestPineExpressionResolution.Unsupported)
+                return removeFirst;
 
             if (IsQuotedLiteral(source))
                 return destination.TrySetAscii(
