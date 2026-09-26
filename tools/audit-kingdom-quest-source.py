@@ -1286,7 +1286,7 @@ def main():
     for forbidden in (
         'new Item(', 'Inventory.', 'ExecuteQuery', 'Program.DatabaseManager',
         'SendPacket(', 'DateTime.Now', 'System.Random', 'new Random(',
-        'well512_GetRandom(',
+        '.Next()', 'Well512.', 'well512State',
     ):
         if forbidden in world_reward_construction_plan:
             print('FAIL: KQ reward construction composition invented mutation/RNG',
