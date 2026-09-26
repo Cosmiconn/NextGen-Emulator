@@ -26,6 +26,7 @@ PINE_DISTANCE_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineDistanceExp
 PINE_CONDITION_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineConditionExpression.cs"
 PINE_CHAR_NAME_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineCharNameExpression.cs"
 PINE_USED_EXPRESSION_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedExpressionRuntime.cs"
+PINE_USED_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedCommandRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -237,7 +238,8 @@ def main():
                  PINE_BASIC_EXPRESSION, PINE_REMOVE_FIRST,
                  PINE_RANDOM_EXPRESSION, PINE_DISTANCE_EXPRESSION,
                  PINE_CONDITION_EXPRESSION, PINE_CHAR_NAME_EXPRESSION,
-                 PINE_USED_EXPRESSION_RUNTIME, PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
+                 PINE_USED_EXPRESSION_RUNTIME, PINE_USED_COMMAND_RUNTIME,
+                 PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
@@ -930,6 +932,56 @@ def main():
             print("FAIL: KQ Pine used-expression/control bridge changed", token)
             return 1
 
+    pine_used_command_text = PINE_USED_COMMAND_RUNTIME.read_text(
+        encoding="utf-8")
+    pine_used_command_tokens = (
+        "enum KingdomQuestPineCommandResolution",
+        "interface IKingdomQuestPineNativeTickSource",
+        "interface IKingdomQuestPineRegenDocumentResolver",
+        "interface IKingdomQuestPineUsedCommandSink",
+        "class KingdomQuestPineUsedCommandContext",
+        "class KingdomQuestPineUsedCommandRuntime",
+        "UsedOneStepCommandCount = 589",
+        'case "timelimit":',
+        'case "interruptset":',
+        'case "interrupterase":',
+        'case "interruptclear":',
+        'case "regengroup":',
+        'case "questresult":',
+        'case "endofkq":',
+        "KingdomQuestPineTimingPlan.TryBuildTimeLimit(",
+        "KingdomQuestPineInterruptPlan.TryParseUsedSet(",
+        "KingdomQuestPineInterruptPlan.TryParseErase(",
+        "KingdomQuestPineInterruptPlan.IsInterruptClear(",
+        "KingdomQuestPineRegenGroupResolver.TryParseUsedCommand(",
+        "KingdomQuestPineKqTerminalPlan.TryParseQuestResult(",
+        "KingdomQuestPineKqTerminalPlan.TryParseEndOfKq(",
+        "pause (202) and waitinterrupt (55) are deliberately excluded",
+    )
+    for token in pine_used_command_tokens:
+        if token not in pine_used_command_text:
+            print("FAIL: KQ Pine one-step command dispatcher changed", token)
+            return 1
+    for forbidden in (
+            "DateTime.Now", "Environment.TickCount", "System.Random",
+            "MapManager.Instance", "SendPacket(", "Program.DatabaseManager"):
+        if forbidden in pine_used_command_text:
+            print("FAIL: KQ Pine one-step command dispatcher invented a side effect",
+                  forbidden)
+            return 1
+
+    for token in (
+        "KingdomQuestPineUsedCommandContext commandContext",
+        "KingdomQuestPineUsedCommandRuntime.TryStep(",
+        "KingdomQuestPineCommandResolution.Success",
+        "KingdomQuestPineCommandResolution.Invalid",
+        "Source-proven Pine command dependency failed",
+        "host.TryStepCommand(",
+    ):
+        if token not in pine_control_text:
+            print("FAIL: KQ Pine one-step/control bridge changed", token)
+            return 1
+
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
@@ -1151,6 +1203,7 @@ def main():
     print("PASS: all 26 used Pine IFs map to native comparison modes: numeric ==/!=/</>/<=/>= and token ===/=!=")
     print("PASS: all 10 used Pine @CharName calls preserve u16 native-handle lookup, empty-on-miss, and TName5 length boundary")
     print("PASS: used Pine @Random/@DistanceBetween/@CharName expressions execute before generic host fallback with explicit native dependencies")
+    print("PASS: 589 source-proven one-step Pine commands dispatch before generic host fallback through explicit tick/regen/effect dependencies")
     print("PASS: Pine ScriptInitValue remains a separate cc_PlayFilm token; UnderHall=10 proves it is not a top-level block key")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
