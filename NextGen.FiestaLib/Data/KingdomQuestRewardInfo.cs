@@ -88,8 +88,9 @@ namespace NextGen.FiestaLib.Data
 
         /// <summary>
         /// Reproduces only the recovered per-slot dice predicate. The caller
-        /// supplies exactly 15 native 0..999 samples because RNG ownership is
-        /// Zone-global in the original runtime and must not be invented here.
+        /// supplies exactly 15 native 0..999 samples because the original
+        /// Zone CRT stream is thread-local and authoritative thread assignment /
+        /// consumer ordering must not be invented here.
         /// This does not resolve ShineReward handles or grant rewards.
         /// </summary>
         public IReadOnlyList<KingdomQuestRewardDiceEntry> EvaluateDice(
