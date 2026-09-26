@@ -958,18 +958,16 @@ def main():
           sum("main" in pine_top_blocks[key] for key in PINE_SCRIPT_KEYS),
           "of", len(PINE_SCRIPT_KEYS))
 
-    underhall_interrupt_action_blocks = []
-    for line in underhall_interruptset_forms:
-        match = re.search(r'"([^"]*)"\.\s*    underhall_interruptset_forms = sorted(set(
+    underhall_interruptset_forms = sorted(set(
         pine_command_lines_by_script["KQ/UnderHall"].get(
             "interruptset", [])))
     if not underhall_interruptset_forms:
         print("FAIL: KQ UnderHall interruptset source disappeared")
         return 1
-    print("INFO: KQ UnderHall interruptset forms:",
-          " || ".join(underhall_interruptset_forms))
 
-    pine_init_pairs = set()
+    underhall_interrupt_action_blocks = []
+    for line in underhall_interruptset_forms:
+        action_match = re.search(r'"([^"]*)"\.\s*    pine_init_pairs = set()
     pine_init_non_top_level = set()
     for line in data_rows(KQ_SQL):
         fields = split_row_fields(line)
@@ -1729,16 +1727,15 @@ def main():
 if __name__ == "__main__":
     sys.exit(main())
 , line)
-        if match is None:
-            print("FAIL: UnderHall interruptset action block shape changed", line)
-            return 1
-        # Every supplied UnderHall interruptset uses an empty 16-byte name.
         name_match = re.match(
             r'^interruptset\s+\S+\s+"([^"]*)"\s+', line)
+        if action_match is None:
+            print("FAIL: UnderHall interruptset action block shape changed", line)
+            return 1
         if name_match is None or name_match.group(1) != "":
             print("FAIL: UnderHall interrupt name is no longer empty", line)
             return 1
-        underhall_interrupt_action_blocks.append(match.group(1))
+        underhall_interrupt_action_blocks.append(action_match.group(1))
 
     if any(
             block not in pine_top_blocks["KQ/UnderHall"]
@@ -1749,13 +1746,6 @@ if __name__ == "__main__":
         return 1
     print("PASS: all UnderHall interrupt ActionBlocks resolve to top-level blocks:",
           ", ".join(sorted(set(underhall_interrupt_action_blocks))))
-
-    underhall_interruptset_forms = sorted(set(
-        pine_command_lines_by_script["KQ/UnderHall"].get(
-            "interruptset", [])))
-    if not underhall_interruptset_forms:
-        print("FAIL: KQ UnderHall interruptset source disappeared")
-        return 1
     print("INFO: KQ UnderHall interruptset forms:",
           " || ".join(underhall_interruptset_forms))
 
