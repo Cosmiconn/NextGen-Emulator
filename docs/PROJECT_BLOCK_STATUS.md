@@ -69,7 +69,13 @@ Still required for block completion:
   PineScript/Lua ScenarioBooks and the live scenario-driven
   mob/objective/success/failure flow. The W2Z START lifecycle already preserves
   the native DropFilm -> CloseAllDoors -> PlayFilm(ScriptLanguage,
-  ScriptInitValue) order without inventing an entry-block mapping;
+  ScriptInitValue) order without inventing an entry-block mapping. The smallest
+  Pine slice, UnderHall, now has exact command routing, generic 9/9
+  `waitlogin <variable>` handoff, source/native Sec/TimeOut due-candidate
+  evaluation, authoritative interrupt-delivery handoff, and source-resolved
+  MapInfo/MobInfo plans for its remaining seven external command families.
+  Native event production/side effects and the actual `cc_PlayFilm` entry
+  binding remain fail-closed;
 - exact native-thread assignment/consumer ordering for the thread-local Zone
   CRT rand stream used by CardDeck, plus authoritative completion of the
   remaining ItemTotalInformation construction stages. The live construction
