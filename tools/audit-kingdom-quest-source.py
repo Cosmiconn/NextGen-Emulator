@@ -660,6 +660,10 @@ def main():
         print('FAIL: KQ CardDeck class-compatible candidate shape changed',
               compatibility_shape)
         return 1
+    candidate_native_class_counts = Counter(
+        int(item_info_rows[int(row[1])][4]) for row in candidate_rows)
+    print('INFO: KQ CardDeck candidate native item classes',
+          dict(sorted(candidate_native_class_counts.items())))
     for token in (
         'NativeValidStoreCalls = 5758',
         'NativeDistinctGroups = 789',
