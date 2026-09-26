@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Lock original NA2016 Kingdom Quest script/static-regen source presence."""
 from pathlib import Path
+import base64
 import csv
+import gzip
 import hashlib
 import re
 import sys
+from collections import Counter
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "docs/KINGDOM_QUEST_RUNTIME_SOURCE_MANIFEST.tsv"
@@ -427,6 +430,97 @@ def main():
     if "no Pine command is assigned gameplay" not in pine_source_text:
         print("FAIL: KQ Pine source parser lost execution-boundary guard")
         return 1
+
+    compressed_match = re.search(
+        r'private const string CompressedCanonicalSource\\s*=\\s*"([^"]+)";',
+        pine_source_text)
+    if compressed_match is None:
+        print("FAIL: KQ Pine canonical bundle literal missing")
+        return 1
+    try:
+        pine_bundle = gzip.decompress(
+            base64.b64decode(compressed_match.group(1))).decode("ascii")
+    except (ValueError, OSError, UnicodeDecodeError) as exc:
+        print("FAIL: KQ Pine canonical bundle decode failed", exc)
+        return 1
+    if hashlib.sha256(pine_bundle.encode("ascii")).hexdigest() != (
+            "390c0e948eb035aee62078327cb63d81ddef54aa9e28c38d642d02c86a9f9e57"):
+        print("FAIL: KQ Pine canonical bundle decoded hash changed")
+        return 1
+
+    def is_assignment_line(value):
+        quoted = False
+        depth = 0
+        for i, ch in enumerate(value):
+            if ch == '"':
+                quoted = not quoted
+                continue
+            if quoted:
+                continue
+            if ch == '(':
+                depth += 1
+                continue
+            if ch == ')':
+                if depth > 0:
+                    depth -= 1
+                continue
+            if ch != '=' or depth != 0:
+                continue
+            before = value[i - 1] if i > 0 else ""
+            after = value[i + 1] if i + 1 < len(value) else ""
+            if before in ("=", "!") or after in ("=", "!"):
+                return False
+            return i > 0
+        return False
+
+    pine_command_verbs = Counter()
+    in_var_declaration = False
+    for raw_line in pine_bundle.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("@@ "):
+            continue
+        lower = line.lower()
+
+        if in_var_declaration:
+            if line.endswith("."):
+                in_var_declaration = False
+            continue
+
+        if lower.startswith("var "):
+            if not line.endswith("."):
+                in_var_declaration = True
+            continue
+
+        if (lower == "close" or lower == "open" or
+                lower == "then open" or lower == "else" or
+                lower == "else open" or lower == "infinite" or
+                lower.startswith("open [") or lower.startswith("if ")):
+            continue
+
+        if is_assignment_line(line):
+            continue
+
+        verb = line.split(None, 1)[0].rstrip(".").lower()
+        pine_command_verbs[verb] += 1
+
+    pine_meta_command_counts = [
+        int(value) for value in re.findall(
+            r"new PineMeta\\(\\d+,\\s*\\d+,\\s*(\\d+),",
+            pine_source_text)
+    ]
+    if len(pine_meta_command_counts) != 9:
+        print("FAIL: KQ Pine metadata command-count extraction changed")
+        return 1
+    if sum(pine_command_verbs.values()) != sum(pine_meta_command_counts):
+        print("FAIL: KQ Pine command inventory does not match parsed node count",
+              sum(pine_command_verbs.values()),
+              sum(pine_meta_command_counts))
+        return 1
+
+    pine_command_inventory = ", ".join(
+        f"{verb}={pine_command_verbs[verb]}"
+        for verb in sorted(pine_command_verbs))
+    print("PASS: KQ Pine command verb inventory:", pine_command_inventory)
 
     pine_control_text = PINE_CONTROL_RUNTIME.read_text(encoding="utf-8")
     pine_control_tokens = (
