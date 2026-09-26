@@ -189,8 +189,7 @@ namespace NextGen.Zone.Data
                         ref commands, ref ifs, ref infinites, ref scopes);
 
                 int lines = source.Split(
-                    new[] { '
-' },
+                    new[] { '\n' },
                     StringSplitOptions.RemoveEmptyEntries).Length;
 
                 if (lines != pair.Value.Lines ||
@@ -247,8 +246,7 @@ namespace NextGen.Zone.Data
             string key, string source)
         {
             string[] lines = source.Split(
-                new[] { '
-' },
+                new[] { '\n' },
                 StringSplitOptions.RemoveEmptyEntries);
             int index = 0;
             var blocks =
@@ -454,13 +452,13 @@ namespace NextGen.Zone.Data
             int marker = 0;
             while (marker < bundle.Length)
             {
-                if (!bundle.StartsWith(
-                        "@@ ", marker, StringComparison.Ordinal))
+                if (string.Compare(
+                        bundle, marker, "@@ ", 0, 3,
+                        StringComparison.Ordinal) != 0)
                     throw new InvalidDataException(
                         "Malformed KQ Pine canonical bundle.");
 
-                int keyEnd = bundle.IndexOf('
-', marker);
+                int keyEnd = bundle.IndexOf('\n', marker);
                 if (keyEnd < 0)
                     throw new InvalidDataException(
                         "Malformed KQ Pine bundle key.");
@@ -468,8 +466,7 @@ namespace NextGen.Zone.Data
                 string key = bundle.Substring(
                     marker + 3, keyEnd - marker - 3);
                 int next = bundle.IndexOf(
-                    "
-@@ ", keyEnd, StringComparison.Ordinal);
+                    "\n@@ ", keyEnd, StringComparison.Ordinal);
                 int sourceEnd =
                     next < 0 ? bundle.Length : next + 1;
                 string source = bundle.Substring(
