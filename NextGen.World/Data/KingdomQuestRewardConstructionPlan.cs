@@ -162,7 +162,7 @@ namespace NextGen.World.Data
 
                 if (candidate.ItemInfo == null ||
                     candidate.SourceEntry.SelectedReward == null ||
-                    candidate.SourceEntry.SelectedReward.Reward == null)
+                    candidate.SourceEntry.SelectedReward.SourceReward == null)
                     return false;
 
                 byte nativeItemClass =
@@ -181,7 +181,7 @@ namespace NextGen.World.Data
                 KingdomQuestRewardItemAttributePlan attribute;
                 if (!KingdomQuestRewardItemAttributeNative.TryBuild(
                         nativeItemClass,
-                        candidate.SourceEntry.SelectedReward.Reward,
+                        candidate.SourceEntry.SelectedReward.SourceReward,
                         sample,
                         out attribute))
                     return false;
