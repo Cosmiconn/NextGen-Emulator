@@ -282,8 +282,29 @@ namespace NextGen.Zone.Data
             }
 
             int value;
-            if (!host.TryEvaluateCondition(node.Text, out value))
+            KingdomQuestPineConditionSource condition;
+            if (KingdomQuestPineConditionExpression.TryParse(
+                    node.Text, out condition))
             {
+                var left = new KingdomQuestPineTokenValue();
+                var right = new KingdomQuestPineTokenValue();
+                if (!TryCalculateExpression(
+                        condition.LeftExpression, left) ||
+                    !TryCalculateExpression(
+                        condition.RightExpression, right) ||
+                    !KingdomQuestPineConditionExpression.TryEvaluate(
+                        condition.Operator, left, right, out value))
+                {
+                    Fail(
+                        "Unresolved Pine IF operand at canonical line " +
+                        node.CanonicalLine + ": " + node.Text);
+                    return;
+                }
+            }
+            else if (!host.TryEvaluateCondition(node.Text, out value))
+            {
+                // Keep the existing explicit host escape hatch only for
+                // condition syntax outside the recovered native forms.
                 Fail(
                     "Unresolved Pine IF expression at canonical line " +
                     node.CanonicalLine + ".");

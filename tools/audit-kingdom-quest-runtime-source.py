@@ -20,6 +20,7 @@ PINE_BASIC_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineBasicExpressio
 PINE_REMOVE_FIRST = ROOT / "NextGen.Zone/Data/KingdomQuestPineRemoveFirst.cs"
 PINE_RANDOM_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineRandomExpression.cs"
 PINE_DISTANCE_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineDistanceExpression.cs"
+PINE_CONDITION_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineConditionExpression.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -230,6 +231,7 @@ def main():
                  PINE_CONTROL_RUNTIME, PINE_VARIABLE_STACK,
                  PINE_BASIC_EXPRESSION, PINE_REMOVE_FIRST,
                  PINE_RANDOM_EXPRESSION, PINE_DISTANCE_EXPRESSION,
+                 PINE_CONDITION_EXPRESSION,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
@@ -591,6 +593,51 @@ def main():
                   forbidden)
             return 1
 
+    pine_condition_text = PINE_CONDITION_EXPRESSION.read_text(
+        encoding="utf-8")
+    pine_condition_tokens = (
+        "enum KingdomQuestPineConditionOperator",
+        "class KingdomQuestPineConditionExpression",
+        "UsedConditionCount = 26",
+        "UsedTokenEqualCount = 11",
+        "UsedNumericLessCount = 5",
+        "UsedNumericEqualCount = 4",
+        "UsedNumericGreaterCount = 3",
+        "UsedTokenNotEqualCount = 3",
+        "CompareOperator::sa_Load                    0x004DB1B0",
+        "CompareOperator::co_Equal                  0x004DAA50",
+        "CompareOperator::co_Excremation            0x004DABB0",
+        "CompareOperator::co_NotEqual               0x004DAC50",
+        "Condition::sa_Calculate                    0x004D87A0",
+        'case "===":',
+        'case "=!=":',
+        "NumericEqual = 1",
+        "NumericNotEqual = 2",
+        "NumericLess = 3",
+        "NumericGreater = 4",
+        "NumericLessOrEqual = 5",
+        "NumericGreaterOrEqual = 6",
+        "TokenEqual = 7",
+        "TokenNotEqual = 8",
+        "GetNativeNumberSuffix(",
+        "StringComparison.Ordinal",
+    )
+    for token in pine_condition_tokens:
+        if token not in pine_condition_text:
+            print("FAIL: KQ Pine native condition projection changed", token)
+            return 1
+
+    for token in (
+        "KingdomQuestPineConditionExpression.TryParse(",
+        "condition.LeftExpression",
+        "condition.RightExpression",
+        "KingdomQuestPineConditionExpression.TryEvaluate(",
+        "host.TryEvaluateCondition(node.Text, out value)",
+    ):
+        if token not in pine_control_text:
+            print("FAIL: KQ Pine condition/control bridge changed", token)
+            return 1
+
     pine_terminal_text = PINE_KQ_TERMINAL.read_text(encoding="utf-8")
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
@@ -809,6 +856,7 @@ def main():
     print("PASS: all 7 used @RemoveFirst calls run host-free with native destructive source-list mutation")
     print("PASS: used Pine @Random(0 99) is source-modeled as inclusive MSVC CRT rand modulo without inventing CRT ownership")
     print("PASS: both used Pine @DistanceBetween calls are source-modeled through explicit native-object resolution and exact DirectDistanceTable integer math")
+    print("PASS: all 26 used Pine IFs map to native comparison modes: numeric ==/!=/</>/<=/>= and token ===/=!=")
     print("PASS: Pine questresult/endofkq terminal actions are source-modeled as COMPLETE/FAIL title hooks and Z2W END + fm_ClearObject(0xB0)")
     print("PASS: all 243 used Pine regengroup calls resolve through the source-backed group/MobRegen boundary; 225 unique pairs across 5 sources")
     print("PASS: all 202 used Pine pause and 14 timelimit constants are modeled on the native 10-Hz tick clock with exact deadline semantics")

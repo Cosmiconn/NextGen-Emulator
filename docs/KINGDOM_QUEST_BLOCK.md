@@ -1372,10 +1372,22 @@ scale. `KingdomQuestPineNativeDistance` reproduces this result directly.
 lookup behind an explicit resolver, so no `MapObjectID` equivalence is
 invented.
 
-Other system functions, dynamic `#(...)` identifiers and the remaining
-comparison/function expression semantics still fall through to the fail-closed
-host rather than being guessed. Fiesta gameplay commands remain separate from
-this expression layer.
+Pine IF comparison syntax is now closed from the original parser rather than
+mapped from C-like intuition. `CompareOperator::sa_Load` and its three parser
+helpers at `0x004DB1B0/0x004DAA50/0x004DABB0/0x004DAC50` assign exactly
+eight native modes. `Condition::sa_Calculate` at `0x004D87A0` uses
+`pst_GetNumber` for modes 1..6: `==`, `!=`, `<`, `>`, `<=`,
+`>=`. The Fiesta-specific `===` and `=!=` syntax maps to modes 7/8 and
+compares complete NUL-terminated Pine token text. The supplied nine scripts
+contain **26 IFs**: 11 token `===`, 5 numeric `<`, 4 numeric `==`, 3
+numeric `>`, and 3 token `=!=`. `KingdomQuestPineConditionExpression`
+models all eight modes, and the control runtime now evaluates recovered
+condition syntax itself after calculating both operands; only unknown syntax
+still falls through to the explicit host boundary.
+
+Other system functions and dynamic `#(...)` identifiers still fall through
+to the fail-closed host rather than being guessed. Fiesta gameplay commands
+remain separate from this expression layer.
 
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
