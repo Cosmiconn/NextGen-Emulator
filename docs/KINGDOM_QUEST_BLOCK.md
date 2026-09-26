@@ -1317,8 +1317,35 @@ block/node counts.
 The next execution layer is now partially source-modeled from direct Zone.exe/
 PDB recovery. `KingdomQuestPineControlRuntime` reproduces the native
 32-frame ProcessStack plus Block / IF / INFINITE / CALL / BREAK behavior,
-including the exact `0x270F` block-exit index used by BREAK. It still delegates
-expressions and Fiesta gameplay commands to a fail-closed host.
+including the exact `0x270F` block-exit index used by BREAK.
+
+The used corpus now also preserves Pine's variable statements instead of
+misclassifying their physical source lines as gameplay commands. The nine
+scripts contain exactly **15 native var statements / 98 declarations** and
+**48 assignments**. Zone.exe `VariableStack::vs_Push` at `0x004D6A90`
+admits at most **0x7F = 127 entries**, stores a 0x100-byte identifier token
+next to a 0x100-byte value token (0x200-byte entry stride), while
+`vs_FindVariable` at `0x004D69F0` scans newest-to-oldest. Duplicate names
+therefore shadow older values. `StateVarDeclear::sa_Step` at `0x004DA040`
+per declaration performs identifier -> push -> initializer calculation, and
+`StateAssignment::sa_Step` at `0x004DB110` resolves the LHS, finds the
+existing newest variable, calculates the RHS directly into that value token,
+then pops. `KingdomQuestPineVariableStack` and the control runtime now model
+that ordering without rollback invention.
+
+The host-free expression subset needed by those statements is executable as
+well. Native `Number::sa_Calculate` and `String::sa_Calculate` share
+`0x004D6710` and copy the raw 0x100-byte token unchanged, so quoted Pine
+strings remain quoted token data. Simple identifiers copy the resolved
+VariableStack value. The native `PineScriptToken::operator+` /
+`operator-` paths at `0x004D7390/0x004D74B0` parse the trailing decimal
+suffix, preserve any left-hand prefix, perform 32-bit arithmetic and append
+the result through native `"%d"` formatting. This closes all **98**
+declaration initializers plus literal/direct-copy/simple +/- assignments in the
+used KQ Pine corpus. System functions, dynamic `#(...)` identifiers and the
+remaining comparison/function expression semantics still fall through to the
+fail-closed host rather than being guessed. Fiesta gameplay commands remain
+separate from this expression layer.
 
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
