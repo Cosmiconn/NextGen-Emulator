@@ -12,11 +12,10 @@ namespace NextGen.Zone.Data
         Reward = 5,
         ScriptFile = 6,
         SummonMob = 7,
-        WaitLogin = 8,
     }
 
     /// <summary>
-    /// Mutation-free, source-resolved projection of the eight UnderHall
+    /// Mutation-free, source-resolved projection of the seven UnderHall
     /// command families whose native side effects remain external.
     ///
     /// Fields are deliberately named only where the original source/catalog
@@ -77,8 +76,8 @@ namespace NextGen.Zone.Data
     /// </summary>
     public static class KingdomQuestUnderHallExternalPlanBuilder
     {
-        public const int SourceUsedOccurrenceCount = 27;
-        public const int SourceDistinctFormCount = 21;
+        public const int SourceUsedOccurrenceCount = 26;
+        public const int SourceDistinctFormCount = 20;
 
         public static bool TryBuild(
             KingdomQuestUnderHallCommandSourcePlan source,
@@ -112,8 +111,6 @@ namespace NextGen.Zone.Data
                     return TrySummonMob(source, out plan);
 
                 case KingdomQuestUnderHallCommandKind.WaitLogin:
-                    return TryWaitLogin(source, out plan);
-
                 case KingdomQuestUnderHallCommandKind.WaitInterrupt:
                 default:
                     return false;
@@ -309,20 +306,6 @@ namespace NextGen.Zone.Data
                 0,
                 0,
                 string.Empty);
-            return true;
-        }
-
-        private static bool TryWaitLogin(
-            KingdomQuestUnderHallCommandSourcePlan source,
-            out KingdomQuestUnderHallExternalPlan plan)
-        {
-            plan = null;
-            if (source.Arguments.Count != 1)
-                return false;
-
-            plan = Build(
-                KingdomQuestUnderHallExternalPlanKind.WaitLogin,
-                source.Arguments[0]);
             return true;
         }
 
