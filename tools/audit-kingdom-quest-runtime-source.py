@@ -28,6 +28,7 @@ PINE_CHAR_NAME_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineCharNameEx
 PINE_USED_EXPRESSION_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedExpressionRuntime.cs"
 PINE_USED_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedCommandRuntime.cs"
 PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalCommandState.cs"
+UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandSource.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
@@ -1165,6 +1166,41 @@ def main():
     ):
         if token not in pine_control_text:
             print("FAIL: KQ Pine one-step/control bridge changed", token)
+            return 1
+
+    underhall_command_source_text = UNDERHALL_COMMAND_SOURCE.read_text(
+        encoding="utf-8")
+    for token in (
+        "enum KingdomQuestUnderHallCommandKind : byte",
+        "class KingdomQuestUnderHallCommandSourcePlan",
+        "class KingdomQuestUnderHallCommandSource",
+        "SourceUsedFamilyCount = 9",
+        "BroadcastFormCount = 4",
+        "SummonDistinctFormCount = 11",
+        '"KQReturn5"',
+        '"KQReturn10"',
+        '"KQReturn20"',
+        '"KQReturn30"',
+        '"Eld", "Eld", "17214", "13445"',
+        '"KQ_BossRobo", "KQ_BossRobo"',
+        '"2668", "Daliy_Check", "1"',
+        '"KingdomQuest"',
+        '"KQUnderHall"',
+        '"InterruptBlock", "InterruptArg"',
+        '"Wait"',
+        'string.Equals( t[2].Text, "KQ_SkelWarrior"',
+    ):
+        compact = underhall_command_source_text.replace("\n", " ")
+        if token not in underhall_command_source_text and token not in compact:
+            print("FAIL: UnderHall KQ Pine exact source-form parser changed",
+                  token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "SendPacket(", "Program.DatabaseManager",
+            "new Item(", "Inventory.", "ChangeMap(", "GiveExp("):
+        if forbidden in underhall_command_source_text:
+            print("FAIL: UnderHall KQ Pine source parser invented side effects",
+                  forbidden)
             return 1
 
     pine_local_command_text = PINE_LOCAL_COMMAND_STATE.read_text(
