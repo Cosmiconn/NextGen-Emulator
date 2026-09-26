@@ -35,8 +35,8 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Optional owner for the eight non-waitinterrupt UnderHall command
-    /// families. It receives only source-resolved plans; raw Pine argument
+    /// Optional owner for the seven non-waitinterrupt/non-waitlogin UnderHall
+    /// command families. It receives only source-resolved plans; raw Pine argument
     /// interpretation remains inside the checked source boundary.
     /// </summary>
     public interface IKingdomQuestUnderHallExternalCommandSink
