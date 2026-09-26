@@ -65,9 +65,11 @@ Implemented and CI-locked on the KQ branch:
 
 Still required for block completion:
 
-- a source-equivalent PineScript/Lua ScenarioBook execution runtime
-  (CinemaComplex film/actions) and the live scenario-driven
-  mob/objective/success/failure flow;
+- source-equivalent execution inside `CinemaComplex::cc_PlayFilm` for
+  PineScript/Lua ScenarioBooks and the live scenario-driven
+  mob/objective/success/failure flow. The W2Z START lifecycle already preserves
+  the native DropFilm -> CloseAllDoors -> PlayFilm(ScriptLanguage,
+  ScriptInitValue) order without inventing an entry-block mapping;
 - exact native-thread assignment/consumer ordering for the thread-local Zone
   CRT rand stream used by CardDeck, plus authoritative completion of the
   remaining ItemTotalInformation construction stages. The live construction
