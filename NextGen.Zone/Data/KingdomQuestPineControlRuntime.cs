@@ -350,7 +350,7 @@ namespace NextGen.Zone.Data
                     return;
                 }
 
-                if (!host.TryCalculateExpression(
+                if (!TryCalculateExpression(
                         declaration.InitializerExpression,
                         destination))
                 {
@@ -375,10 +375,12 @@ namespace NextGen.Zone.Data
             // token, finds the newest matching VariableStack entry, calculates
             // the RHS directly into that existing value token, then pops.
             string identifier;
-            if (!host.TryResolveIdentifier(
+            if (!KingdomQuestPineBasicExpression.TrySimpleIdentifier(
+                    node.AssignmentTarget, out identifier) &&
+                (!host.TryResolveIdentifier(
                     node.AssignmentTarget,
                     out identifier) ||
-                string.IsNullOrEmpty(identifier))
+                 string.IsNullOrEmpty(identifier)))
             {
                 Fail(
                     "Unresolved Pine assignment target at canonical line " +
@@ -395,7 +397,7 @@ namespace NextGen.Zone.Data
                 return;
             }
 
-            if (!host.TryCalculateExpression(
+            if (!TryCalculateExpression(
                     node.AssignmentExpression,
                     destination))
             {
@@ -407,6 +409,24 @@ namespace NextGen.Zone.Data
             }
 
             Pop();
+        }
+
+        private bool TryCalculateExpression(
+            string expression,
+            KingdomQuestPineTokenValue destination)
+        {
+            KingdomQuestPineExpressionResolution resolution =
+                KingdomQuestPineBasicExpression.TryCalculate(
+                    expression, variables, destination);
+            if (resolution ==
+                KingdomQuestPineExpressionResolution.Success)
+                return true;
+            if (resolution ==
+                KingdomQuestPineExpressionResolution.Invalid)
+                return false;
+
+            return host.TryCalculateExpression(
+                expression, destination);
         }
 
         private void StepCommand(
