@@ -508,6 +508,13 @@ namespace NextGen.Zone.Data
             Frame frame,
             KingdomQuestPineNodeSource node)
         {
+            string identifier;
+            if (TryUnderHallIdentifierCall(node.Text, out identifier))
+            {
+                StepUnderHallIdentifierCall(frame, node, identifier);
+                return;
+            }
+
             string target;
             if (TryQuotedControl(node.Text, "call", out target))
             {
@@ -535,6 +542,7 @@ namespace NextGen.Zone.Data
                     document.ScriptLanguage,
                     node.Text,
                     node.CanonicalLine,
+                    variables,
                     commandContext == null
                         ? null
                         : commandContext.UnderHallSink,
@@ -644,6 +652,44 @@ namespace NextGen.Zone.Data
             // only after the unsigned deadline < currentTick comparison holds.
             if (frame.PauseDeadlineTick < currentTick)
                 Pop();
+        }
+
+        private void StepUnderHallIdentifierCall(
+            Frame frame,
+            KingdomQuestPineNodeSource node,
+            string identifier)
+        {
+            if (frame.State != 0)
+            {
+                // Preserve the same one-child CALL frame lifecycle once the
+                // dynamically selected child block returns.
+                Pop();
+                return;
+            }
+
+            KingdomQuestPineTokenValue value;
+            if (!variables.TryFind(identifier, out value) ||
+                value == null ||
+                string.IsNullOrEmpty(value.Text))
+            {
+                Fail(
+                    "UnderHall dynamic Pine CALL variable is empty at canonical " +
+                    "line " + node.CanonicalLine + ": " + identifier);
+                return;
+            }
+
+            KingdomQuestPineBlockSource block;
+            if (!document.Blocks.TryGetValue(value.Text, out block) ||
+                block == null)
+            {
+                Fail(
+                    "UnderHall dynamic Pine CALL target not found at canonical " +
+                    "line " + node.CanonicalLine + ": " + value.Text);
+                return;
+            }
+
+            frame.State = 1;
+            PushSequence(block.Name, block.Statements);
         }
 
         private void StepCall(
@@ -771,6 +817,39 @@ namespace NextGen.Zone.Data
             return char.IsWhiteSpace(value[verb.Length]) ||
                 (value.Length == verb.Length + 1 &&
                  value[verb.Length] == '.');
+        }
+
+        private bool TryUnderHallIdentifierCall(
+            string text,
+            out string identifier)
+        {
+            identifier = null;
+            if (!string.Equals(
+                    document.ScriptLanguage,
+                    KingdomQuestUnderHallCommandRuntime.ScriptLanguage,
+                    StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(text))
+                return false;
+
+            string value = text.Trim();
+            if (value.EndsWith(".", StringComparison.Ordinal))
+                value = value.Substring(0, value.Length - 1).TrimEnd();
+
+            const string prefix = "call ";
+            if (!value.StartsWith(
+                    prefix, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            string operand = value.Substring(prefix.Length).Trim();
+            if (!KingdomQuestPineBasicExpression.TrySimpleIdentifier(
+                    operand, out identifier))
+                return false;
+
+            // This is intentionally the one source-locked dynamic CALL form
+            // used by UnderHall after waitinterrupt. Do not generalize unknown
+            // Pine CALL operand forms from it.
+            return string.Equals(
+                identifier, "InterruptBlock", StringComparison.Ordinal);
         }
 
         private static bool TryQuotedControl(
