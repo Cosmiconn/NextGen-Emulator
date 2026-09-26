@@ -18,19 +18,23 @@ namespace NextGen.World.Data
         public ushort RewardHandle { get; private set; }
         public ushort RewardRate { get; private set; }
         public ushort RandomSample { get; private set; }
+        public ShineRewardSourceRow SourceReward { get; private set; }
         public ShineRewardNativeInfo Reward { get; private set; }
 
         internal KingdomQuestResolvedRewardEntry(
             KingdomQuestRewardDiceEntry dice,
+            ShineRewardSourceRow sourceReward,
             ShineRewardNativeInfo reward)
         {
             if (dice == null) throw new ArgumentNullException("dice");
+            if (sourceReward == null) throw new ArgumentNullException("sourceReward");
             if (reward == null) throw new ArgumentNullException("reward");
 
             Slot = dice.Slot;
             RewardHandle = dice.RewardHandle;
             RewardRate = dice.RewardRate;
             RandomSample = dice.RandomSample;
+            SourceReward = sourceReward;
             Reward = reward;
         }
     }
@@ -122,7 +126,7 @@ namespace NextGen.World.Data
                     continue;
 
                 var entry = new KingdomQuestResolvedRewardEntry(
-                    selected, resolved);
+                    selected, sourceReward, resolved);
                 switch (resolved.RewardType)
                 {
                     case ShineRewardType.Item:
