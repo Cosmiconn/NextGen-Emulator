@@ -1398,6 +1398,18 @@ The supplied Pine corpus uses this exact function **10 times**: five
 explicit native-handle→name resolver; it does not equate the handle with an
 emulator `MapObjectID`.
 
+The three source-proven system-function families now compose directly into
+`KingdomQuestPineControlRuntime` through
+`KingdomQuestPineUsedExpressionRuntime`: the exact used `@Random`,
+`@DistanceBetween` and `@CharName` forms are attempted before the
+generic expression host fallback. Their native dependencies remain explicit:
+the caller supplies the shared `MsvcCrtRand` state and the native-object
+coordinate/name resolvers. A recognized used expression with a missing
+dependency is an invalid calculation and faults fail-closed; it is not silently
+reinterpreted by the generic host. This closes the runtime composition boundary
+without inventing process-wide CRT ownership or a native-handle-to-emulator-ID
+mapping.
+
 Other system functions and dynamic `#(...)` identifiers still fall through
 to the fail-closed host rather than being guessed. Fiesta gameplay commands
 remain separate from this expression layer.
