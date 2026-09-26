@@ -43,8 +43,8 @@ namespace NextGen.Zone.Data
     {
         bool TryStep(
             KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
             KingdomQuestPineVariableStack variables,
-            int canonicalLine,
             ref int nativeState,
             out bool completed);
     }
@@ -103,16 +103,22 @@ namespace NextGen.Zone.Data
                     plan, variables, out completed);
 
             KingdomQuestUnderHallExternalPlan externalPlan;
+            KingdomQuestUnderHallExternalSourceSite sourceSite;
             if (!KingdomQuestUnderHallExternalPlanBuilder.TryBuild(
                     plan, out externalPlan) ||
-                externalPlan == null)
+                externalPlan == null ||
+                !KingdomQuestUnderHallSourceFlow.TryResolve(
+                    canonicalLine,
+                    externalPlan.Kind,
+                    out sourceSite) ||
+                sourceSite == null)
                 return false;
 
             return externalSink != null &&
                 externalSink.TryStep(
                     externalPlan,
+                    sourceSite,
                     variables,
-                    canonicalLine,
                     ref nativeState,
                     out completed);
         }
