@@ -959,6 +959,17 @@ def main():
         return 1
     print("PASS: all 9 Pine KQs route one waitlogin target directly into a zero gate")
 
+    for key in sorted(PINE_SCRIPT_KEYS):
+        lines = pine_source_lines_by_script.get(key, [])
+        contexts = []
+        for index, line in enumerate(lines):
+            if not line.lower().startswith("waitinterrupt "):
+                continue
+            following = lines[index + 1] if index + 1 < len(lines) else "<EOF>"
+            contexts.append(line + " -> " + following)
+        print("INFO: KQ Pine waitinterrupt dataflow {0}: {1}".format(
+            key, " || ".join(contexts)))
+
     underhall_interrupt_type_counts = Counter()
     for line in pine_command_lines_by_script["KQ/UnderHall"].get(
             "interruptset", []):
