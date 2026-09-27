@@ -33,6 +33,7 @@ namespace NextGen.KingdomQuestTool
             "KQVoteMajorityRate.shn",
             "KingdomQuestDesc.shn",
             "UseClassTypeInfo.shn",
+            "EnchantSocketRate.shn",
         };
 
         private static int Main(string[] args)
