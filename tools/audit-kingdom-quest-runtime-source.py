@@ -1164,7 +1164,7 @@ def main():
     for forbidden in (
             "MapManager.Instance", "ChangeMap(", "SendPacket(",
             "Program.DatabaseManager", "System.Random", "DateTime.Now",
-            "Environment.TickCount"):
+            "Environment.TickCount", "AnchorMob"):
         if forbidden in underhall_source_flow_text:
             print("FAIL: KQ UnderHall source-flow routing invented a side effect",
                   forbidden)
@@ -1180,6 +1180,9 @@ def main():
         "SourceDistinctFormCount = 20",
         "KingdomQuestUnderHallSourceCatalog.GetElderine()",
         "KingdomQuestUnderHallSourceCatalog.TryGetMob(",
+        "RuntimeHandleIdentifier",
+        "source.Arguments[0]",
+        "source.Arguments[1]",
         "KingdomQuestUnderHallCommandKind.WaitInterrupt",
         "return false;",
         "RawNumeric1",
