@@ -45,6 +45,7 @@ PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
 PINE_INTERRUPT_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptPlan.cs"
+PINE_INTERRUPT_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptRuntime.cs"
 PINE_WAITLOGIN = ROOT / "NextGen.Zone/Data/KingdomQuestPineWaitLogin.cs"
 PINE_WAITINTERRUPT = ROOT / "NextGen.Zone/Data/KingdomQuestPineWaitInterrupt.cs"
 SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
@@ -262,7 +263,8 @@ def main():
                  UNDERHALL_EVENT_PREDICATE_PLAN, UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
-                 PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_WAITLOGIN,
+                 PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
+                 PINE_WAITLOGIN,
                  PINE_WAITINTERRUPT, SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
@@ -1791,7 +1793,6 @@ def main():
         "commandContext.WaitInterruptSource == null",
         "commandContext.InterruptRegistry == null",
         "commandContext.WaitInterruptSource.TryTake(",
-        "commandContext.InterruptRegistry.ContainsReference(",
         "document.Blocks.TryGetValue(",
         "variables.TryFind(blockIdentifier, out blockValue)",
         "variables.TryFind(argumentIdentifier, out argumentValue)",
@@ -1803,6 +1804,54 @@ def main():
     ):
         if token not in pine_control_text:
             print("FAIL: KQ Pine waitinterrupt/control bridge changed", token)
+            return 1
+
+    pine_interrupt_runtime_text = PINE_INTERRUPT_RUNTIME.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineInterruptRuntimeEntry",
+        "RemainingRepeatCount",
+        "NextIntervalDeadlineTick",
+        "HPLowObjectHandle",
+        "HPLowThresholdPermille",
+        "CachedHPLowMaxHp",
+        "interface IKingdomQuestUnderHallNativeInterruptView",
+        "class KingdomQuestUnderHallNativeInterruptDeliverySource",
+        "NativeHpScale = 1000u",
+        "KingdomQuestPineInterruptPlan.IsIntervalDue(",
+        "KingdomQuestPineInterruptPlan.AdvanceIntervalDeadline(",
+        "KingdomQuestPineInterruptPlan.IsTimeLimitExpired(",
+        "activeInterrupts.RuntimeEntries",
+        "entry.RemainingRepeatCount--",
+        "activeInterrupts.RemoveRuntimeEntry(entry)",
+        "entry.CachedHPLowMaxHp = maximumHp",
+        "due = playerCount == 0",
+        "if (!exists)",
+        "string.Empty",
+    ):
+        if token not in pine_interrupt_runtime_text:
+            print("FAIL: native KQ Pine interrupt runtime changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ClientManager.Instance", "Program.Randomizer",
+            "System.Random", "DateTime.Now", "Environment.TickCount",
+            "Program.DatabaseManager", "SendPacket("):
+        if forbidden in pine_interrupt_runtime_text:
+            print("FAIL: native KQ Pine interrupt runtime invented an owner",
+                  forbidden)
+            return 1
+
+    if "commandContext.InterruptRegistry.ContainsReference(" in pine_control_text:
+        print("FAIL: waitinterrupt incorrectly requires fired entry to remain registered")
+        return 1
+    for token in (
+        "KingdomQuestPineUsedCommandRuntime.TryStep(",
+        "commandContext,",
+        "variables,",
+    ):
+        if token not in pine_control_text:
+            print("FAIL: Pine command runtime lost VariableStack registration context",
+                  token)
             return 1
 
     pine_used_command_text = PINE_USED_COMMAND_RUNTIME.read_text(
@@ -2109,13 +2158,19 @@ def main():
         "(int)(deadlineTick - currentTick) <= 0",
         "removes every matching active interrupt",
         "applies ListEraser to",
+        "List<KingdomQuestPineInterruptRuntimeEntry>",
         "bool TryRegister(KingdomQuestPineInterruptSetPlan plan)",
         "entries.Count >=",
         "KingdomQuestPineInterruptPlan.NativeManagerCapacity)",
+        "entries.Add(new KingdomQuestPineInterruptRuntimeEntry(plan))",
+        "public bool TryBindRegistration(",
+        "entries[i].TryBindRegistration(variables)",
+        "internal bool RemoveRuntimeEntry(",
         "public int Erase(byte[] nativeName16)",
         "public void Clear()",
         "public bool ContainsReference(",
-        "object.ReferenceEquals(entries[i], plan)",
+        "object.ReferenceEquals(",
+        "entries[i].SourcePlan, plan)",
     )
     for token in pine_interrupt_tokens:
         if token not in pine_interrupt_text:
