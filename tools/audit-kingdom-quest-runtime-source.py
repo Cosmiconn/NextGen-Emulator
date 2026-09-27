@@ -43,6 +43,7 @@ SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
+PINE_REGEN_RUNTIME_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenRuntimePlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
 PINE_INTERRUPT_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptPlan.cs"
 PINE_INTERRUPT_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptRuntime.cs"
@@ -262,7 +263,7 @@ def main():
                  UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_INTERRUPT_CANDIDATE,
                  UNDERHALL_EVENT_PREDICATE_PLAN, UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
-                 PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
+                 PINE_KQ_TERMINAL, PINE_REGEN_PLAN, PINE_REGEN_RUNTIME_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
                  PINE_WAITLOGIN,
                  PINE_WAITINTERRUPT, SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
@@ -2001,7 +2002,9 @@ def main():
         "interrupts.TryRegister(plan)",
         "interrupts.Erase(nativeName16)",
         "interrupts.Clear()",
-        "externalSink.TryRunRegenGroup(plan)",
+        "KingdomQuestPineRegenRuntimePlanBuilder.TryBuild(",
+        "DataProvider.Instance",
+        "externalSink.TryRunRegenGroup(runtimePlan)",
         "externalSink.TryApplyQuestResult(plan)",
         "externalSink.TryEndKingdomQuest(plan)",
         "Zero matches still means the command itself ran.",
@@ -2109,6 +2112,35 @@ def main():
     for token in pine_regen_tokens:
         if token not in pine_regen_text:
             print("FAIL: KQ Pine regengroup source resolver changed", token)
+            return 1
+
+    pine_regen_runtime_text = PINE_REGEN_RUNTIME_PLAN.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineRegenResolvedMob",
+        "class KingdomQuestPineRegenRuntimePlan",
+        "class KingdomQuestPineRegenRuntimePlanBuilder",
+        "data.MobsByName.TryGetValue(",
+        "data.MobData.TryGetValue(",
+        "serverInfo.ID > ushort.MaxValue",
+        "clientInfo.ID != unchecked((ushort)serverInfo.ID)",
+        "new KingdomQuestPineRegenResolvedMob(",
+        "MobNum = source.MobNum",
+        "KillNum = source.KillNum",
+        "RegStandard = source.RegStandard",
+        "RegDelta4 = source.RegDelta4",
+        "This class still performs no spawn, scheduling, kill tracking or",
+    ):
+        if token not in pine_regen_runtime_text:
+            print("FAIL: KQ Pine regen runtime identity plan changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "FullAddObject(", "new Mob(",
+            "SpawnMob(", "Program.Randomizer", "DateTime.Now",
+            "Environment.TickCount", "SendPacket(", "Program.DatabaseManager"):
+        if forbidden in pine_regen_runtime_text:
+            print("FAIL: KQ Pine regen runtime plan invented live spawn semantics",
+                  forbidden)
             return 1
 
     pine_timing_text = PINE_TIMING_PLAN.read_text(encoding="utf-8")
