@@ -47,6 +47,7 @@ WORLD_REWARD_TREASURE_CHEST = ROOT / "NextGen.World/Data/KingdomQuestRewardTreas
 WORLD_REWARD_ITEM_ATTRIBUTE = ROOT / "NextGen.World/Data/KingdomQuestRewardItemAttributeNative.cs"
 WORLD_REWARD_CONSTRUCTION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardConstructionPlan.cs"
 WORLD_REWARD_NATIVE_ITEM_EMISSION = ROOT / "NextGen.World/Data/KingdomQuestRewardNativeItemEmissionPlan.cs"
+WORLD_REWARD_WEAPON_SOCKET = ROOT / "NextGen.World/Data/KingdomQuestRewardWeaponSocketRateNative.cs"
 WORLD_REWARD_BOX_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardBoxPlan.cs"
 WORLD_REWARD_SCALAR_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardScalarPlan.cs"
 WORLD_REWARD_PREPARATION_PLAN = ROOT / "NextGen.World/Data/KingdomQuestRewardPreparationPlan.cs"
@@ -74,6 +75,7 @@ RAW_SOURCES = {
 SOURCE_MANIFEST_SQL = ROOT / "sql/data/data_kq_source_00_manifest.sql"
 SHINE_REWARD_SQL = ROOT / "sql/data/data_kq_source_60_shinereward.sql"
 SHINE_REWARD_SQL_SHA256 = "9fa4fc1ce2db998cc61f01dc0ef6ba46575a68162efa71c467b9904032c65a88"
+ENCHANT_SOCKET_RATE_SQL = ROOT / "sql/data/data_kq_source_70_enchantsocketrate.sql"
 ITEM_INFO_SQL = ROOT / "sql/data/data_iteminfo.sql"
 ITEM_GROUP_SOURCE_TSV = ROOT / "docs/KINGDOM_QUEST_ITEM_GROUP_SOURCE.tsv"
 
@@ -175,12 +177,13 @@ def main():
         SHARED_MSVC_CRT_RAND, WORLD_NATIVE_ITEM_GROUP_CLASSIFIER, WORLD_REWARD_CLASS_GROUP,
         WORLD_REWARD_ITEM_CANDIDATE_PLAN, WORLD_REWARD_TREASURE_CHEST,
         WORLD_REWARD_ITEM_ATTRIBUTE, WORLD_REWARD_CONSTRUCTION_PLAN,
-        WORLD_REWARD_NATIVE_ITEM_EMISSION, WORLD_REWARD_BOX_PLAN,
+        WORLD_REWARD_NATIVE_ITEM_EMISSION, WORLD_REWARD_WEAPON_SOCKET,
+        WORLD_REWARD_BOX_PLAN,
         WORLD_REWARD_SCALAR_PLAN, WORLD_REWARD_PREPARATION_PLAN,
         ZONE_REWARD_ACK_IDENTITY, ZONE_REWARD_NATIVE_TRANSACTION,
         NATIVE_INFO, NATIVE_REWARD,
         ZONE_CHARACTER, SOURCE_MANIFEST_SQL, SHINE_REWARD_SQL,
-        ITEM_INFO_SQL, ITEM_GROUP_SOURCE_TSV,
+        ENCHANT_SOCKET_RATE_SQL, ITEM_INFO_SQL, ITEM_GROUP_SOURCE_TSV,
     ] + [spec[0] for spec in RAW_SOURCES.values()]
     for path in required_files:
         if not path.is_file():
@@ -243,6 +246,31 @@ def main():
         if token not in manifest_sql:
             print('FAIL: checked-in ShineReward source manifest changed', token)
             return 1
+    for token in (
+        "'EnchantSocketRate', '777b29ac1c42481cc8887f169f1b70bb79467f82506bbf7d670d5a698fc54605', 5, 4",
+        "('EnchantSocketRate', 0, 'ItemGradeType', 11, 4)",
+        "('EnchantSocketRate', 1, 'Socket0', 2, 2)",
+        "('EnchantSocketRate', 2, 'Socket1', 2, 2)",
+        "('EnchantSocketRate', 3, 'Socket2', 2, 2)",
+    ):
+        if token not in manifest_sql:
+            print('FAIL: checked-in EnchantSocketRate source manifest changed', token)
+            return 1
+
+    enchant_socket_sql = ENCHANT_SOCKET_RATE_SQL.read_text(encoding='utf-8')
+    for token in (
+        'sha256=777b29ac1c42481cc8887f169f1b70bb79467f82506bbf7d670d5a698fc54605; records=5; columns=4',
+        '`data_enchantsocketrate`',
+        '(0,0,0,100,100)',
+        '(1,1,0,100,80)',
+        '(2,2,0,100,40)',
+        '(3,5,0,100,20)',
+        '(4,3,0,100,10)',
+    ):
+        if token not in enchant_socket_sql:
+            print('FAIL: checked-in EnchantSocketRate source changed', token)
+            return 1
+
     shine_reward_sql = SHINE_REWARD_SQL.read_text(encoding='utf-8')
     actual_shine_sql_sha = hashlib.sha256(
         shine_reward_sql.encode('utf-8')).hexdigest()
@@ -836,6 +864,7 @@ def main():
     world_reward_item_attribute = WORLD_REWARD_ITEM_ATTRIBUTE.read_text(encoding='utf-8')
     world_reward_construction_plan = WORLD_REWARD_CONSTRUCTION_PLAN.read_text(encoding='utf-8')
     world_reward_native_item_emission = WORLD_REWARD_NATIVE_ITEM_EMISSION.read_text(encoding='utf-8')
+    world_reward_weapon_socket = WORLD_REWARD_WEAPON_SOCKET.read_text(encoding='utf-8')
     world_reward_box_plan = WORLD_REWARD_BOX_PLAN.read_text(encoding='utf-8')
     world_reward_scalar_plan = WORLD_REWARD_SCALAR_PLAN.read_text(encoding='utf-8')
     world_reward_preparation_plan = WORLD_REWARD_PREPARATION_PLAN.read_text(encoding='utf-8')
@@ -1304,7 +1333,6 @@ def main():
 
     for token in (
         'interface IKingdomQuestRewardNativeBaseItemSource',
-        'interface IKingdomQuestRewardNativeWeaponSocketSource',
         'interface IKingdomQuestRewardNativeResidualAttributeSource',
         'class KingdomQuestRewardNativeItemEmissionEntry',
         'class KingdomQuestRewardNativeItemEmissionPlan',
@@ -1318,14 +1346,37 @@ def main():
         'entry.RequiresWeaponSocketRate',
         'entry.ItemAttribute.NativeItemClass != 5',
         'KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate',
-        'weaponSocketSource.TryApplyWeaponSocketRate(',
+        'KingdomQuestRewardWeaponSocketRateNative.TryApplyWeaponReward(',
+        'weaponSocketSampleIndex != weaponSocketSamples.Count',
+        'WeaponSocketSampleCount',
         'never calls legacy emulator inventory',
         'never generates registration numbers',
-        'never chooses RNG',
+        'never owns or seeds RNG',
     ):
         if token not in world_reward_native_item_emission:
             print('FAIL: native KQ reward ITI composition boundary missing',
                   token)
+            return 1
+
+    for token in (
+        'class KingdomQuestEnchantSocketRateSourceRow',
+        'class KingdomQuestRewardWeaponSocketRateNative',
+        '777b29ac1c42481cc8887f169f1b70bb79467f82506bbf7d670d5a698fc54605',
+        'DataChildFunctionAddress = 0x005C7FD0u',
+        'SourceGetterAddress = 0x0064C5C0u',
+        'RandomBoundaryAddress = 0x0063CCC0u',
+        'NativeItemGradeTypeOffset = 0x76',
+        'WeaponSocketCountOffset = 0x43',
+        'item.ItemGradeType',
+        'if (first >= 2)',
+        'TryRoll(',
+        'sampleIndex++',
+        'sample < match.Socket0',
+        'sample < match.Socket1',
+        'missing ItemGradeType row returns 0 without RNG',
+    ):
+        if token not in world_reward_weapon_socket:
+            print('FAIL: native KQ weapon socket-rate model missing', token)
             return 1
     for forbidden in (
         'new Item(', 'Inventory.', 'ExecuteQuery', 'Program.DatabaseManager',
