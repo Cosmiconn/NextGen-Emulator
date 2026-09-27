@@ -76,7 +76,11 @@ Still required for block completion:
   active interrupt registry. Sec/TimeOut due-candidate evaluation, typed source
   plans for the five HPLow and 19 PlayerEliminate predicates, and source-resolved
   MapInfo/MobInfo plans for its remaining seven external command families are
-  also modeled. Direct Zone.exe/PDB recovery now closes the UnderHall interrupt
+  also modeled. The generic 243-call Pine `regengroup` path now resolves its
+  source MobIndex values through both original MobInfo/MobInfoServer projections
+  and requires an exact MobID match before handing a runtime plan to the
+  MobHatchery owner; only actual spawn/scheduling/kill-rebreed behavior remains.
+  Direct Zone.exe/PDB recovery now closes the UnderHall interrupt
   manager itself: registrations append at the native Z/tail, BlastCheck scans
   in registration order and stops at the first fire, RepeatCount/removal and
   Sec deadline advancement are mutable runtime state, HPLow uses the
