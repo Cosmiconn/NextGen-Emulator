@@ -63,7 +63,7 @@ namespace NextGen.Zone.Data
         bool TryMobRegen(
             KingdomQuestUnderHallExternalPlan plan,
             KingdomQuestUnderHallExternalSourceSite sourceSite,
-            KingdomQuestPineVariableStack variables,
+            KingdomQuestPineTokenValue runtimeHandleToken,
             ref int nativeState,
             out bool completed);
 
@@ -91,7 +91,7 @@ namespace NextGen.Zone.Data
         bool TrySummonMob(
             KingdomQuestUnderHallExternalPlan plan,
             KingdomQuestUnderHallExternalSourceSite sourceSite,
-            KingdomQuestPineVariableStack variables,
+            KingdomQuestPineTokenValue runtimeHandleToken,
             ref int nativeState,
             out bool completed);
     }
@@ -212,8 +212,12 @@ namespace NextGen.Zone.Data
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.MobRegen:
+                    KingdomQuestPineTokenValue regenHandleToken;
+                    if (!TryResolveRuntimeHandleToken(
+                            plan, variables, out regenHandleToken))
+                        return false;
                     return externalSink.TryMobRegen(
-                        plan, sourceSite, variables,
+                        plan, sourceSite, regenHandleToken,
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.QuestMobKill:
@@ -232,13 +236,30 @@ namespace NextGen.Zone.Data
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.SummonMob:
+                    KingdomQuestPineTokenValue summonHandleToken;
+                    if (!TryResolveRuntimeHandleToken(
+                            plan, variables, out summonHandleToken))
+                        return false;
                     return externalSink.TrySummonMob(
-                        plan, sourceSite, variables,
+                        plan, sourceSite, summonHandleToken,
                         ref nativeState, out completed);
 
                 default:
                     return false;
             }
+        }
+
+        private static bool TryResolveRuntimeHandleToken(
+            KingdomQuestUnderHallExternalPlan plan,
+            KingdomQuestPineVariableStack variables,
+            out KingdomQuestPineTokenValue token)
+        {
+            token = null;
+            return plan != null &&
+                variables != null &&
+                !string.IsNullOrEmpty(plan.RuntimeHandleIdentifier) &&
+                variables.TryFind(plan.RuntimeHandleIdentifier, out token) &&
+                token != null;
         }
 
         private bool TryStepWaitInterrupt(
