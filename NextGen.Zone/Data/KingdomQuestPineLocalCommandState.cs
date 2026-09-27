@@ -11,7 +11,7 @@ namespace NextGen.Zone.Data
     /// </summary>
     public interface IKingdomQuestPineExternalCommandSink
     {
-        bool TryRunRegenGroup(KingdomQuestPineRegenGroupPlan plan);
+        bool TryRunRegenGroup(KingdomQuestPineRegenRuntimePlan plan);
 
         bool TryApplyQuestResult(KingdomQuestPineQuestResultPlan plan);
 
@@ -108,8 +108,16 @@ namespace NextGen.Zone.Data
 
         public bool TryRunRegenGroup(KingdomQuestPineRegenGroupPlan plan)
         {
-            return externalSink != null &&
-                externalSink.TryRunRegenGroup(plan);
+            KingdomQuestPineRegenRuntimePlan runtimePlan;
+            if (externalSink == null ||
+                !KingdomQuestPineRegenRuntimePlanBuilder.TryBuild(
+                    plan,
+                    DataProvider.Instance,
+                    out runtimePlan) ||
+                runtimePlan == null)
+                return false;
+
+            return externalSink.TryRunRegenGroup(runtimePlan);
         }
 
         public bool TryApplyQuestResult(KingdomQuestPineQuestResultPlan plan)
