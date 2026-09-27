@@ -1351,7 +1351,6 @@ def main():
         'weaponSocketSampleIndex != weaponSocketSamples.Count',
         'WeaponSocketSampleCount',
         'out byte[] itemTotalInformation',
-        'itemTotalInformation.Length !=',
         'byte[] composed = (byte[])nativeItem.Clone()',
     ):
         if token not in world_reward_native_item_emission:
