@@ -6,8 +6,7 @@ CREATE TABLE `data_enchantsocketrate` (
   `ItemGradeType` INT UNSIGNED NOT NULL,
   `Socket0` SMALLINT UNSIGNED NOT NULL,
   `Socket1` SMALLINT UNSIGNED NOT NULL,
-  `Socket2` SMALLINT UNSIGNED NOT NULL,
-  PRIMARY KEY (`__SourceRow`)
+  `Socket2` SMALLINT UNSIGNED NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO `data_enchantsocketrate` (`__SourceRow`,`ItemGradeType`,`Socket0`,`Socket1`,`Socket2`) VALUES
