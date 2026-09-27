@@ -76,8 +76,15 @@ Still required for block completion:
   active interrupt registry. Sec/TimeOut due-candidate evaluation, typed source
   plans for the five HPLow and 19 PlayerEliminate predicates, and source-resolved
   MapInfo/MobInfo plans for its remaining seven external command families are
-  also modeled. HPLow/PlayerEliminate native predicate evaluation plus manager
-  selection/mutation remain external; `InterruptArg` has no consumer in the supplied
+  also modeled. Direct Zone.exe/PDB recovery now closes the UnderHall interrupt
+  manager itself: registrations append at the native Z/tail, BlastCheck scans
+  in registration order and stops at the first fire, RepeatCount/removal and
+  Sec deadline advancement are mutable runtime state, HPLow uses the
+  registration-time runtime object handle and fires for a missing object or
+  `currentHP*1000/maxHP <= threshold`, and PlayerEliminate fires when the
+  native qualifying-player count is zero. The remaining live boundary is the
+  map/object view that supplies those runtime observations together with the
+  seven external command side effects; `InterruptArg` has no consumer in the supplied
   UnderHall source and is no longer a control-flow blocker. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
