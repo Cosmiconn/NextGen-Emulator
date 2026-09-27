@@ -17,17 +17,6 @@ namespace NextGen.World.Data
     }
 
     /// <summary>
-    /// Native owner for the class-5 weapon socket-rate stage. This is invoked
-    /// only for source/model entries already proven to require that stage.
-    /// </summary>
-    public interface IKingdomQuestRewardNativeWeaponSocketSource
-    {
-        bool TryApplyWeaponSocketRate(
-            KingdomQuestRewardConstructionEntry entry,
-            byte[] itemTotalInformation);
-    }
-
-    /// <summary>
     /// Native owner for a recovered reward-specific effect whose exact byte
     /// range is not encoded in the managed projection. At present this is the
     /// class-10 decoration payload clear. It is kept separate rather than
@@ -76,9 +65,12 @@ namespace NextGen.World.Data
     ///   -> residual recovered class effect where required
     ///   -> class-5 weapon socket-rate stage where required.
     ///
-    /// The base/socket/residual implementations stay explicit native
-    /// dependencies. This coordinator never calls legacy emulator inventory
-    /// code, never generates registration numbers, and never chooses RNG.
+    /// Base ITI/registration and the residual decoration effect remain
+    /// explicit native dependencies. Weapon socket-rate selection is now
+    /// source-backed from EnchantSocketRate.shn; the caller supplies the exact
+    /// already-generated WELL512 samples in native consumption order. This
+    /// coordinator never calls legacy emulator inventory code, never generates
+    /// registration numbers, and never owns or seeds RNG.
     /// </summary>
     public sealed class KingdomQuestRewardNativeItemEmissionPlan
     {
@@ -89,30 +81,36 @@ namespace NextGen.World.Data
         }
 
         public int NativeItemCount { get; private set; }
+        public int WeaponSocketSampleCount { get; private set; }
 
         private KingdomQuestRewardNativeItemEmissionPlan(
             List<KingdomQuestRewardNativeItemEmissionEntry> entries,
-            int nativeItemCount)
+            int nativeItemCount,
+            int weaponSocketSampleCount)
         {
             Entries = entries.AsReadOnly();
             NativeItemCount = nativeItemCount;
+            WeaponSocketSampleCount = weaponSocketSampleCount;
         }
 
         public static bool TryBuild(
             KingdomQuestRewardConstructionPlan construction,
             IKingdomQuestRewardNativeBaseItemSource baseItemSource,
             IKingdomQuestRewardNativeResidualAttributeSource residualSource,
-            IKingdomQuestRewardNativeWeaponSocketSource weaponSocketSource,
+            IReadOnlyList<KingdomQuestEnchantSocketRateSourceRow> weaponSocketRates,
+            IReadOnlyList<ushort> weaponSocketSamples,
             out KingdomQuestRewardNativeItemEmissionPlan plan)
         {
             plan = null;
-            if (construction == null || baseItemSource == null)
+            if (construction == null || baseItemSource == null ||
+                weaponSocketRates == null || weaponSocketSamples == null)
                 return false;
 
             var entries =
                 new List<KingdomQuestRewardNativeItemEmissionEntry>(
                     construction.Entries.Count);
             int nativeItemCount = 0;
+            int weaponSocketSampleIndex = 0;
 
             for (int i = 0; i < construction.Entries.Count; i++)
             {
@@ -165,9 +163,12 @@ namespace NextGen.World.Data
                     if (entry.ItemAttribute.NativeItemClass != 5 ||
                         entry.Candidate.Kind !=
                             KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate ||
-                        weaponSocketSource == null ||
-                        !weaponSocketSource.TryApplyWeaponSocketRate(
-                            entry, composed))
+                        !KingdomQuestRewardWeaponSocketRateNative.TryApplyWeaponReward(
+                            entry.Candidate.ItemInfo,
+                            weaponSocketRates,
+                            weaponSocketSamples,
+                            ref weaponSocketSampleIndex,
+                            composed))
                         return false;
                 }
 
@@ -177,8 +178,11 @@ namespace NextGen.World.Data
                 nativeItemCount++;
             }
 
+            if (weaponSocketSampleIndex != weaponSocketSamples.Count)
+                return false;
+
             plan = new KingdomQuestRewardNativeItemEmissionPlan(
-                entries, nativeItemCount);
+                entries, nativeItemCount, weaponSocketSampleIndex);
             return true;
         }
 
