@@ -1951,10 +1951,13 @@ per-class item-create/registration, while only native class **5** carries the
 additional weapon-socket-rate requirement.
 
 Live authoritative ITI emission therefore still requires native **thread
-assignment and per-thread consumer order** for CRT/CardDeck work, the remaining
-normal per-class item-create/registration bytes, and the class-5 weapon
-socket-rate stage for those group-selected rewards. Inventory
-mutation/persistence remains separate.
+assignment and per-thread consumer order** for CRT/CardDeck work plus the
+remaining normal per-class base item-create/registration bytes. The class-5
+weapon socket stage is now source-backed separately:
+`KingdomQuestRewardWeaponSocketRateNative` resolves the exact original
+EnchantSocketRate row by ItemGradeType, performs the recovered one-or-two
+WELL512 roll sequence and writes the final socket count at native ITI offset
+`0x43`. Inventory mutation/persistence remains separate.
 
 The reward row's separate `KQBoxItemIDX` field is now source-resolved as
 well. Of the 64 exact `KingdomQuestRew` rows, 58 carry a nonempty box
@@ -2009,10 +2012,10 @@ The preparation plan still performs no live item creation, character mutation,
 database write or network send. For the supplied source snapshot the remaining
 live-reward blockers are now limited to authoritative native-thread
 assignment/per-thread CRT consumer ordering, completion of the remaining base
-ITI/registration and weapon-socket construction stages, live
-GameDB/InventoryCellLockList integration, and the scenario success trigger that
-starts reward processing. TreasureChest layout/cap/call order,
-reward-specific ItemAttribute writes, scalar mutation timing and ACK
+ITI/registration stage, live GameDB/InventoryCellLockList integration, and the
+native scenario reward-command side effect that starts reward processing.
+TreasureChest layout/cap/call order, reward-specific ItemAttribute writes,
+class-5 weapon socket-rate construction, scalar mutation timing and ACK
 apply/free semantics are no longer unresolved.
 
 The packet/transaction structures are modeled byte-for-byte, but the emulator
