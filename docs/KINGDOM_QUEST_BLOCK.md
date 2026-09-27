@@ -1553,6 +1553,17 @@ native meaning is not independently recovered remain explicitly raw rather
 than being renamed as guessed gameplay fields. The external sink receives only
 these resolved plans; it no longer interprets raw Pine strings.
 
+The later interrupt recovery also closes an important identity distinction in
+those plans. In `mobregen KQ_BossRobo "KQ_BossRobo" ...` and every
+`summonmob KQ_BossRobo "<mob>" <count>`, the unquoted
+`KQ_BossRobo` operand is preserved as the Pine **runtime-handle variable**.
+The quoted token is the MobInfo identity. `KingdomQuestUnderHallExternalPlan`
+therefore carries `RuntimeHandleIdentifier` separately and the command-state
+dispatcher resolves that identifier to the exact Pine token before invoking
+the external owner. MobInfo ID 1068 is never substituted for the runtime
+ShineObject handle captured later by HPLow.
+
+
 Their **top-level block ownership is now source-locked as well**.
 `KingdomQuestUnderHallSourceFlow` accepts each external plan only at its exact
 canonical source site: `scriptfile` is in `main`, `mobregen` in
