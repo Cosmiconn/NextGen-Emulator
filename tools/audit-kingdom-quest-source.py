@@ -261,11 +261,11 @@ def main():
     for token in (
         'sha256=777b29ac1c42481cc8887f169f1b70bb79467f82506bbf7d670d5a698fc54605; records=5; columns=4',
         '`data_enchantsocketrate`',
-        '(0,0,0,100,100)',
-        '(1,1,0,100,80)',
-        '(2,2,0,100,40)',
-        '(3,5,0,100,20)',
-        '(4,3,0,100,10)',
+        '(0, 0, 0, 100, 100)',
+        '(1, 1, 0, 100, 80)',
+        '(2, 2, 0, 100, 40)',
+        '(3, 5, 0, 100, 20)',
+        '(4, 3, 0, 100, 10)',
     ):
         if token not in enchant_socket_sql:
             print('FAIL: checked-in EnchantSocketRate source changed', token)
@@ -1278,7 +1278,8 @@ def main():
         'SkillScrollRewardItemCreateAddress = 0x004C2450u',
         'OptionCardMakeAddress = 0x0064C8A0u',
         'Well512GetRandomAddress = 0x0063CB10u',
-        'WeaponSocketRateAddress = 0x0064C5C0u',
+        'WeaponSocketRateSourceGetterAddress = 0x0064C5C0u',
+        'WeaponSocketRateDataChildFunctionAddress = 0x005C7FD0u',
         '0, 3, 4, 5, 6, 7, 8, 10, 11, 14',
         'reward.RewardType == ShineRewardType.Item',
         'reward.Upgrade == 0',
