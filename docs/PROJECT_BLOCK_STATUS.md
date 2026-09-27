@@ -84,25 +84,21 @@ Still required for block completion:
   longer ambiguous. Native event production/command side effects and the actual
   `cc_PlayFilm` entry binding remain fail-closed;
 - exact native-thread assignment/consumer ordering for the thread-local Zone
-  CRT rand stream used by CardDeck, plus authoritative completion of the
-  remaining ItemTotalInformation construction stages. The live construction
-  composition is now narrowed to normal per-class itemcreate/registration for
-  each successfully selected item and the group/CardDeck-only class-5
-  weapon-socket path.
-  Original-source correlation proves native item class 5 is reached by 537 of
-  the 791 CardDeck candidate rows and by none of the 95 direct ITEM arguments.
-  The optional reward OptionCard path is source-empty for the supplied corpus:
-  all 247 used ITEM rewards have OptionDegree=0 and the original ItemOptions
-  source has no degree-zero cards. Reward-specific ItemAttributeClass writes
-  for all 10 reachable native item classes, TreasureChest 111-byte
-  layout/seven-content cap/call order and the GameDB ACK lock-list transaction
-  order are now source-modeled. `KingdomQuestRewardConstructionPlan` also
-  composes candidate selection into the recovered reward-specific
-  ItemAttributeClass writes with exact WELL512 sample consumption for native
-  classes 5..8, while keeping base registration and class-5 socket work
-  explicit. Live native GameDB/lock-list integration and the native
-  `reward KingdomQuest` command side effect remain; UnderHall's source-side
-  success trigger location is already fixed to `QuestSuc`;
+  CRT rand stream used by CardDeck, authoritative normal per-class
+  ItemTotalInformation base itemcreate/registration, and live native
+  GameDB/InventoryCellLockList integration. Original-source correlation proves
+  native item class 5 is reached by 537 of the 791 CardDeck candidate rows and
+  by none of the 95 direct ITEM arguments. The class-5 weapon-socket stage is
+  now closed separately: the exact five-row EnchantSocketRate source snapshot
+  is exported/loaded and `KingdomQuestRewardWeaponSocketRateNative` models the
+  native one-or-two WELL512 roll path and ITI socket-count write. The optional
+  OptionCard path is source-empty for the supplied corpus. Reward-specific
+  ItemAttributeClass writes for all 10 reachable native item classes,
+  TreasureChest layout/cap/call order, reward request envelope and GameDB ACK
+  lock-list transaction order are source-modeled. Live native GameDB/lock-list
+  integration and the native `reward KingdomQuest` command side effect remain;
+  UnderHall's source-side success trigger location is already fixed to
+  `QuestSuc`;
 
 See `docs/KINGDOM_QUEST_BLOCK.md` for the current evidence and implementation
 boundary. Unknown behavior remains fail-closed rather than inferred.
