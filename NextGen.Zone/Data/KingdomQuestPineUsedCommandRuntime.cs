@@ -73,6 +73,16 @@ namespace NextGen.Zone.Data
             get;
             private set;
         }
+        public IKingdomQuestPineWaitInterruptSource WaitInterruptSource
+        {
+            get;
+            private set;
+        }
+        public KingdomQuestPineInterruptRegistryState InterruptRegistry
+        {
+            get;
+            private set;
+        }
         public uint? CurrentKingdomQuestHandle { get; private set; }
 
         public KingdomQuestPineUsedCommandContext(
@@ -95,13 +105,26 @@ namespace NextGen.Zone.Data
             IKingdomQuestPineUsedCommandSink sink,
             IKingdomQuestUnderHallCommandSink underHallSink,
             uint? currentKingdomQuestHandle,
-            IKingdomQuestPineWaitLoginSource waitLoginSource = null)
+            IKingdomQuestPineWaitLoginSource waitLoginSource = null,
+            IKingdomQuestPineWaitInterruptSource waitInterruptSource = null,
+            KingdomQuestPineInterruptRegistryState interruptRegistry = null)
         {
             TickSource = tickSource;
             RegenResolver = regenResolver;
             Sink = sink;
             UnderHallSink = underHallSink;
             WaitLoginSource = waitLoginSource;
+            WaitInterruptSource = waitInterruptSource;
+
+            InterruptRegistry = interruptRegistry;
+            if (InterruptRegistry == null)
+            {
+                KingdomQuestPineLocalCommandState localState =
+                    sink as KingdomQuestPineLocalCommandState;
+                if (localState != null)
+                    InterruptRegistry = localState.Interrupts;
+            }
+
             CurrentKingdomQuestHandle = currentKingdomQuestHandle;
         }
     }
