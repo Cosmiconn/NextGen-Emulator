@@ -46,6 +46,7 @@ PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
 PINE_INTERRUPT_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptPlan.cs"
 PINE_WAITLOGIN = ROOT / "NextGen.Zone/Data/KingdomQuestPineWaitLogin.cs"
+PINE_WAITINTERRUPT = ROOT / "NextGen.Zone/Data/KingdomQuestPineWaitInterrupt.cs"
 SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
 SINGLE_DATA_PROJECTION = ROOT / "NextGen.FiestaLib/Data/KingdomQuestSingleDataInfo.cs"
 SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
@@ -262,7 +263,7 @@ def main():
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN,
                  PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_WAITLOGIN,
-                 SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
+                 PINE_WAITINTERRUPT, SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
             return 1
@@ -620,7 +621,7 @@ def main():
         "itemdrop", "itemerase", "itemowner", "linkto", "mobattr",
         "mobregen", "npcchat", "npcshout", "npcstand", "questmobkill",
         "revival", "reward", "scriptfile", "sendquestresult", "suicide",
-        "summonmob", "teleport", "vanish", "waitinterrupt",
+        "summonmob", "teleport", "vanish",
         "whoclickme",
     }
     if set(pine_command_verbs_by_script) != PINE_SCRIPT_KEYS:
@@ -636,54 +637,53 @@ def main():
             "mobregen": 2, "npcchat": 20, "npcstand": 2,
             "questmobkill": 1, "reward": 1, "scriptfile": 1,
             "suicide": 1, "summonmob": 1, "teleport": 1,
-            "waitinterrupt": 5, "whoclickme": 3,
+            "whoclickme": 3,
         },
         "KQ/Honeying": {
             "broadcast": 8, "chatwin": 2, "doorbuild": 3,
             "doorclose": 3, "dooropen": 3, "effectobj": 3, "linkto": 2,
             "mobregen": 1, "npcshout": 5, "questmobkill": 1, "reward": 1,
             "scriptfile": 1, "summonmob": 5, "vanish": 3,
-            "waitinterrupt": 4,
         },
         "KQ/KQHBat1": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/KQHBat2": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/KQHBat3": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/KQHBat4": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/KQHBat5": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
+            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/UnderHall": {
             "broadcast": 8, "linkto": 2, "mobregen": 1,
             "questmobkill": 1, "reward": 1, "scriptfile": 1,
-            "summonmob": 12, "waitinterrupt": 19,
+            "summonmob": 12,
         },
         "KQ/UnderHall2": {
             "broadcast": 12, "chatwin": 4, "linkto": 3, "mobregen": 1,
             "questmobkill": 2, "reward": 2, "scriptfile": 1,
-            "summonmob": 54, "waitinterrupt": 22,
+            "summonmob": 54,
         },
     }
     for key in sorted(pine_command_verbs_by_script):
@@ -959,16 +959,24 @@ def main():
         return 1
     print("PASS: all 9 Pine KQs route one waitlogin target directly into a zero gate")
 
+    waitinterrupt_count = 0
     for key in sorted(PINE_SCRIPT_KEYS):
         lines = pine_source_lines_by_script.get(key, [])
-        contexts = []
         for index, line in enumerate(lines):
             if not line.lower().startswith("waitinterrupt "):
                 continue
-            following = lines[index + 1] if index + 1 < len(lines) else "<EOF>"
-            contexts.append(line + " -> " + following)
-        print("INFO: KQ Pine waitinterrupt dataflow {0}: {1}".format(
-            key, " || ".join(contexts)))
+            if (line != 'waitinterrupt InterruptBlock "InterruptArg".' or
+                    index + 1 >= len(lines) or
+                    lines[index + 1] != 'call InterruptBlock.'):
+                print("FAIL: KQ Pine waitinterrupt dataflow changed",
+                      key, lines[index:index + 2])
+                return 1
+            waitinterrupt_count += 1
+    if waitinterrupt_count != 55:
+        print("FAIL: KQ Pine waitinterrupt occurrence count changed",
+              waitinterrupt_count)
+        return 1
+    print("PASS: all 55 Pine waitinterrupt commands feed dynamic call InterruptBlock")
 
     underhall_interrupt_type_counts = Counter()
     for line in pine_command_lines_by_script["KQ/UnderHall"].get(
@@ -1753,6 +1761,50 @@ def main():
             print("FAIL: KQ Pine waitlogin/control bridge changed", token)
             return 1
 
+    pine_waitinterrupt_text = PINE_WAITINTERRUPT.read_text(encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineWaitInterruptDelivery",
+        "interface IKingdomQuestPineWaitInterruptSource",
+        "class KingdomQuestPineWaitInterrupt",
+        "UsedCommandCount = 55",
+        'UsedBlockVariable = "InterruptBlock"',
+        'UsedArgumentVariable = "InterruptArg"',
+        "KingdomQuestPineInterruptPlan.TryParseWaitInterrupt(",
+        "The producer owns BlastCheck ordering",
+    ):
+        if token not in pine_waitinterrupt_text:
+            print("FAIL: KQ Pine waitinterrupt handoff changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ClientManager.Instance", "GetCharacters",
+            "SendPacket(", "Program.DatabaseManager", "System.Random",
+            "DateTime.Now", "Environment.TickCount"):
+        if forbidden in pine_waitinterrupt_text:
+            print("FAIL: KQ Pine waitinterrupt handoff invented event semantics",
+                  forbidden)
+            return 1
+
+    for token in (
+        'IsCommandVerb(node.Text, "waitinterrupt")',
+        "private void StepWaitInterrupt(",
+        "KingdomQuestPineWaitInterrupt.TryParseUsed(",
+        "commandContext.WaitInterruptSource == null",
+        "commandContext.InterruptRegistry == null",
+        "commandContext.WaitInterruptSource.TryTake(",
+        "commandContext.InterruptRegistry.ContainsReference(",
+        "document.Blocks.TryGetValue(",
+        "variables.TryFind(blockIdentifier, out blockValue)",
+        "variables.TryFind(argumentIdentifier, out argumentValue)",
+        "delivery.SelectedPlan.ActionBlock",
+        "TryUsedIdentifierCall(node.Text, out identifier)",
+        "StepIdentifierCall(frame, node, identifier)",
+        'identifier, "InterruptBlock", StringComparison.Ordinal',
+        "Dynamic Pine CALL target not found",
+    ):
+        if token not in pine_control_text:
+            print("FAIL: KQ Pine waitinterrupt/control bridge changed", token)
+            return 1
+
     pine_used_command_text = PINE_USED_COMMAND_RUNTIME.read_text(
         encoding="utf-8")
     pine_used_command_tokens = (
@@ -1762,10 +1814,12 @@ def main():
         "interface IKingdomQuestPineUsedCommandSink",
         "class KingdomQuestPineUsedCommandContext",
         "IKingdomQuestPineWaitLoginSource WaitLoginSource",
+        "IKingdomQuestPineWaitInterruptSource WaitInterruptSource",
+        "KingdomQuestPineInterruptRegistryState InterruptRegistry",
         "IKingdomQuestUnderHallCommandSink UnderHallSink",
         "class KingdomQuestPineUsedCommandRuntime",
         "UsedOneStepCommandCount = 589",
-        "SourceUsedUnrecoveredVerbCount = 33",
+        "SourceUsedUnrecoveredVerbCount = 32",
         "IsSourceUsedUnrecoveredVerb(verb)",
         "? KingdomQuestPineCommandResolution.Invalid",
         'case "timelimit":',
@@ -1803,10 +1857,10 @@ def main():
         "itemdrop", "itemerase", "itemowner", "linkto", "mobattr",
         "mobregen", "npcchat", "npcshout", "npcstand", "questmobkill",
         "revival", "reward", "scriptfile", "sendquestresult", "suicide",
-        "summonmob", "teleport", "vanish", "waitinterrupt",
+        "summonmob", "teleport", "vanish",
         "whoclickme",
     }
-    if len(unrecovered_pine_verbs) != 33:
+    if len(unrecovered_pine_verbs) != 32:
         print("FAIL: internal unrecovered Pine verb audit count changed")
         return 1
     missing_unrecovered = [
@@ -1823,12 +1877,12 @@ def main():
         "KingdomQuestUnderHallCommandRuntime.TryStep(",
         "variables,",
         "commandContext.UnderHallSink",
-        "TryUnderHallIdentifierCall(node.Text, out identifier)",
-        "StepUnderHallIdentifierCall(frame, node, identifier)",
+        "TryUsedIdentifierCall(node.Text, out identifier)",
+        "StepIdentifierCall(frame, node, identifier)",
         'identifier, "InterruptBlock", StringComparison.Ordinal',
         "variables.TryFind(identifier, out value)",
         "document.Blocks.TryGetValue(value.Text, out block)",
-        "UnderHall dynamic Pine CALL target not found",
+        "Dynamic Pine CALL target not found",
         "Exact UnderHall Pine command dependency failed",
         "KingdomQuestPineUsedCommandRuntime.TryStep(",
         "KingdomQuestPineCommandResolution.Success",
