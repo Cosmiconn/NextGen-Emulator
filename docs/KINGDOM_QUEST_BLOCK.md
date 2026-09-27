@@ -1444,24 +1444,26 @@ single command step.
 Other system functions and dynamic `#(...)` identifiers still fall through
 to the fail-closed host rather than being guessed. The exact 44-verb source
 inventory is now guarded more strictly as well: after the seven executable
-one-step families and the separately recovered `call`/`break`/`pause`
-control paths, the remaining **34 source-used command verbs** are recognized
-explicitly as source-used-but-unrecovered. They return an invalid/fail-closed
-resolution before the generic command host can reinterpret them. This includes
-broadcast/chat UI, summon/mob, door, item, NPC, link, `waitinterrupt` and
-`waitlogin` actions. Native side-effect recovery can enable those families
-one at a time without allowing guessed fallback semantics in the meantime.
+one-step families, the separately recovered `call`/`break`/`pause`
+control paths, and the generic nine-script `waitlogin` handoff, the remaining
+**33 source-used command verbs** are recognized explicitly as
+source-used-but-unrecovered. They return an invalid/fail-closed resolution
+before the generic command host can reinterpret them. This includes
+broadcast/chat UI, summon/mob, door, item, NPC, link and generic
+`waitinterrupt` actions. Native side-effect recovery can enable those
+families one at a time without allowing guessed fallback semantics.
 
-The exact unresolved shape is now locked per script as well. `UnderHall`
-needs only **9** unrecovered verb families
-(`broadcast/linkto/mobregen/questmobkill/reward/scriptfile/summonmob/waitinterrupt/waitlogin`);
-`UnderHall2` uses the same core plus `chatwin`. The five Warrior's Code
-scripts `KQHBat1..5` share the same **14** unresolved families and therefore
-form one reusable native-recovery target rather than five independent runtimes.
-`Honeying` currently needs 16 families and `GordonMaster` 26. This
-per-script matrix is derived directly from the hash-locked canonical Pine bundle
-and is CI-guarded, so implementation can close the smallest source-equivalent
-slice first without hiding broader gaps.
+The exact unresolved shape is locked per script as well. After removing the
+now-shared `waitlogin` primitive, `UnderHall` needs **8** unresolved verb
+families
+(`broadcast/linkto/mobregen/questmobkill/reward/scriptfile/summonmob/waitinterrupt`);
+`UnderHall2` uses those same core families plus `chatwin`, for **9**.
+The five Warrior's Code scripts `KQHBat1..5` share **13** unresolved
+families and therefore form one reusable native-recovery target rather than
+five independent runtimes. `Honeying` currently needs **15** families and
+`GordonMaster` **25**. This per-script matrix is derived directly from the
+hash-locked canonical Pine bundle and is CI-guarded, so implementation can
+close the smallest source-equivalent slice first without hiding broader gaps.
 
 The complete UnderHall source slice is now composed into the Pine control
 runtime as well. `KingdomQuestUnderHallCommandRuntime` recognizes exactly the
