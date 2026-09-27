@@ -620,7 +620,7 @@ def main():
         "itemdrop", "itemerase", "itemowner", "linkto", "mobattr",
         "mobregen", "npcchat", "npcshout", "npcstand", "questmobkill",
         "revival", "reward", "scriptfile", "sendquestresult", "suicide",
-        "summonmob", "teleport", "vanish", "waitinterrupt", "waitlogin",
+        "summonmob", "teleport", "vanish", "waitinterrupt",
         "whoclickme",
     }
     if set(pine_command_verbs_by_script) != PINE_SCRIPT_KEYS:
@@ -636,59 +636,54 @@ def main():
             "mobregen": 2, "npcchat": 20, "npcstand": 2,
             "questmobkill": 1, "reward": 1, "scriptfile": 1,
             "suicide": 1, "summonmob": 1, "teleport": 1,
-            "waitinterrupt": 5, "waitlogin": 1, "whoclickme": 3,
+            "waitinterrupt": 5, "whoclickme": 3,
         },
         "KQ/Honeying": {
             "broadcast": 8, "chatwin": 2, "doorbuild": 3,
             "doorclose": 3, "dooropen": 3, "effectobj": 3, "linkto": 2,
             "mobregen": 1, "npcshout": 5, "questmobkill": 1, "reward": 1,
             "scriptfile": 1, "summonmob": 5, "vanish": 3,
-            "waitinterrupt": 4, "waitlogin": 1,
+            "waitinterrupt": 4,
         },
         "KQ/KQHBat1": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
             "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
-            "waitlogin": 1,
         },
         "KQ/KQHBat2": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
             "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
-            "waitlogin": 1,
         },
         "KQ/KQHBat3": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
             "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
-            "waitlogin": 1,
         },
         "KQ/KQHBat4": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
             "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
-            "waitlogin": 1,
         },
         "KQ/KQHBat5": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
             "scriptfile": 3, "sendquestresult": 2, "waitinterrupt": 1,
-            "waitlogin": 1,
         },
         "KQ/UnderHall": {
             "broadcast": 8, "linkto": 2, "mobregen": 1,
             "questmobkill": 1, "reward": 1, "scriptfile": 1,
-            "summonmob": 12, "waitinterrupt": 19, "waitlogin": 1,
+            "summonmob": 12, "waitinterrupt": 19,
         },
         "KQ/UnderHall2": {
             "broadcast": 12, "chatwin": 4, "linkto": 3, "mobregen": 1,
             "questmobkill": 2, "reward": 2, "scriptfile": 1,
-            "summonmob": 54, "waitinterrupt": 22, "waitlogin": 1,
+            "summonmob": 54, "waitinterrupt": 22,
         },
     }
     for key in sorted(pine_command_verbs_by_script):
@@ -1759,7 +1754,7 @@ def main():
         "IKingdomQuestUnderHallCommandSink UnderHallSink",
         "class KingdomQuestPineUsedCommandRuntime",
         "UsedOneStepCommandCount = 589",
-        "SourceUsedUnrecoveredVerbCount = 34",
+        "SourceUsedUnrecoveredVerbCount = 33",
         "IsSourceUsedUnrecoveredVerb(verb)",
         "? KingdomQuestPineCommandResolution.Invalid",
         'case "timelimit":',
@@ -1797,10 +1792,10 @@ def main():
         "itemdrop", "itemerase", "itemowner", "linkto", "mobattr",
         "mobregen", "npcchat", "npcshout", "npcstand", "questmobkill",
         "revival", "reward", "scriptfile", "sendquestresult", "suicide",
-        "summonmob", "teleport", "vanish", "waitinterrupt", "waitlogin",
+        "summonmob", "teleport", "vanish", "waitinterrupt",
         "whoclickme",
     }
-    if len(unrecovered_pine_verbs) != 34:
+    if len(unrecovered_pine_verbs) != 33:
         print("FAIL: internal unrecovered Pine verb audit count changed")
         return 1
     missing_unrecovered = [
