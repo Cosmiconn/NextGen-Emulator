@@ -141,8 +141,7 @@ namespace NextGen.World.Data
                         entry, out nativeItem) ||
                     nativeItem == null ||
                     nativeItem.Length !=
-                        KingdomQuestRewardTreasureChestNative.
-                            ItemTotalInformationBytes)
+                        KingdomQuestRewardTreasureChestNative.ItemTotalInformationBytes)
                     return false;
 
                 // Work on a clone so a rejected later stage cannot mutate the
@@ -165,8 +164,7 @@ namespace NextGen.World.Data
                 {
                     if (entry.ItemAttribute.NativeItemClass != 5 ||
                         entry.Candidate.Kind !=
-                            KingdomQuestRewardItemCandidateKind.
-                                ItemGroupClassifierCandidate ||
+                            KingdomQuestRewardItemCandidateKind.ItemGroupClassifierCandidate ||
                         weaponSocketSource == null ||
                         !weaponSocketSource.TryApplyWeaponSocketRate(
                             entry, composed))
@@ -199,8 +197,7 @@ namespace NextGen.World.Data
             if (attribute == null ||
                 item == null ||
                 item.Length !=
-                    KingdomQuestRewardTreasureChestNative.
-                        ItemTotalInformationBytes)
+                    KingdomQuestRewardTreasureChestNative.ItemTotalInformationBytes)
                 return false;
 
             int offset =
@@ -228,8 +225,7 @@ namespace NextGen.World.Data
 
             if (attribute.ClearsByte0C)
                 item[
-                    KingdomQuestRewardItemAttributeNative.
-                        RewardAuxiliaryByteOffset] = 0;
+                    KingdomQuestRewardItemAttributeNative.RewardAuxiliaryByteOffset] = 0;
 
             return true;
         }
