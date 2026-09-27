@@ -71,12 +71,13 @@ Still required for block completion:
   the native DropFilm -> CloseAllDoors -> PlayFilm(ScriptLanguage,
   ScriptInitValue) order without inventing an entry-block mapping. The smallest
   Pine slice, UnderHall, now has exact command routing, generic 9/9
-  `waitlogin <variable>` handoff, source/native Sec/TimeOut due-candidate
-  evaluation, active-registry-bound interrupt delivery, typed source plans for
-  the five HPLow and 19 PlayerEliminate predicates, and source-resolved
-  MapInfo/MobInfo plans for its remaining seven external command families.
-  HPLow/PlayerEliminate native predicate evaluation plus manager selection/
-  mutation remain external; `InterruptArg` has no consumer in the supplied
+  `waitlogin <variable>` handoff and a generic **55/55** `waitinterrupt
+  InterruptBlock "InterruptArg". -> call InterruptBlock.` handoff tied to the
+  active interrupt registry. Sec/TimeOut due-candidate evaluation, typed source
+  plans for the five HPLow and 19 PlayerEliminate predicates, and source-resolved
+  MapInfo/MobInfo plans for its remaining seven external command families are
+  also modeled. HPLow/PlayerEliminate native predicate evaluation plus manager
+  selection/mutation remain external; `InterruptArg` has no consumer in the supplied
   UnderHall source and is no longer a control-flow blocker. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
