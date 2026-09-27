@@ -38,6 +38,8 @@ namespace NextGen.World.Data
         public bool HasKingdomQuestUseClassSource { get; private set; }
         public IReadOnlyList<ShineRewardSourceRow> KingdomQuestShineRewards { get; private set; }
         public bool HasKingdomQuestShineRewardSource { get; private set; }
+        public IReadOnlyList<KingdomQuestEnchantSocketRateSourceRow> KingdomQuestEnchantSocketRates { get; private set; }
+        public bool HasKingdomQuestEnchantSocketRateSource { get; private set; }
 
 		public DataProvider()
 		{
@@ -70,6 +72,9 @@ namespace NextGen.World.Data
             HasKingdomQuestUseClassSource = false;
             KingdomQuestShineRewards = new List<ShineRewardSourceRow>().AsReadOnly();
             HasKingdomQuestShineRewardSource = false;
+            KingdomQuestEnchantSocketRates =
+                new List<KingdomQuestEnchantSocketRateSourceRow>().AsReadOnly();
+            HasKingdomQuestEnchantSocketRateSource = false;
 
             using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
             {
@@ -155,6 +160,16 @@ namespace NextGen.World.Data
                 HasKingdomQuestShineRewardSource = true;
             }
 
+            KingdomQuestSourceManifestInfo socketRateSource;
+            if (KingdomQuestSourceManifest.TryGetValue(
+                    "EnchantSocketRate", out socketRateSource) &&
+                KingdomQuestSourceSnapshot.Matches(socketRateSource) &&
+                ValidateKingdomQuestSourceTables(new[] { "EnchantSocketRate" }))
+            {
+                LoadKingdomQuestEnchantSocketRateSourceRows();
+                HasKingdomQuestEnchantSocketRateSource = true;
+            }
+
             Log.WriteLine(LogLevel.Info,
                 "Loaded KQ metadata: {0} maps, {1} descriptions, {2} teams, {3} vote flags, {4} vote reasons, {5} vote thresholds; main source={6}.",
                 KingdomQuestMaps.Count, KingdomQuestDescriptions.Count, KingdomQuestTeams.Count,
@@ -169,6 +184,10 @@ namespace NextGen.World.Data
                 "Loaded KQ ShineReward source: {0} rows; source={1}.",
                 KingdomQuestShineRewards.Count,
                 HasKingdomQuestShineRewardSource ? "complete" : "absent/incomplete");
+            Log.WriteLine(LogLevel.Info,
+                "Loaded KQ EnchantSocketRate source: {0} rows; source={1}.",
+                KingdomQuestEnchantSocketRates.Count,
+                HasKingdomQuestEnchantSocketRateSource ? "complete" : "absent/incomplete");
         }
 
         private void LoadKingdomQuestSourceManifest()
@@ -337,6 +356,22 @@ namespace NextGen.World.Data
             }
 
             KingdomQuestShineRewards = rows.AsReadOnly();
+        }
+
+        private void LoadKingdomQuestEnchantSocketRateSourceRows()
+        {
+            var rows = new List<KingdomQuestEnchantSocketRateSourceRow>();
+            using (DatabaseClient dbClient = Program.DatabaseManager.GetClient())
+            {
+                DataTable data = dbClient.ReadDataTable(string.Format(
+                    "USE `{0}`; SELECT * FROM `data_enchantsocketrate` ORDER BY `__SourceRow`; USE `{1}`",
+                    Settings.Instance.zoneMysqlDatabase,
+                    Settings.Instance.WorldMysqlDatabase));
+                foreach (DataRow row in data.Rows)
+                    rows.Add(KingdomQuestEnchantSocketRateSourceRow.Load(row));
+            }
+
+            KingdomQuestEnchantSocketRates = rows.AsReadOnly();
         }
 
         private bool ValidateKingdomQuestSourceTables(IEnumerable<string> sourceNames)
