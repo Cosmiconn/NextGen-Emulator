@@ -121,7 +121,11 @@ namespace NextGen.World.Data
         public const uint SkillScrollRewardItemCreateAddress = 0x004C2450u;
         public const uint OptionCardMakeAddress = 0x0064C8A0u;
         public const uint Well512GetRandomAddress = 0x0063CB10u;
-        public const uint WeaponSocketRateAddress = 0x0064C5C0u;
+        // 0x0064C5C0 only returns the global
+        // EnchantSocketRateTable::EnchantSocketRateDataChild pointer. The
+        // actual socket-count operation is that object's vfunc0 at 0x005C7FD0.
+        public const uint WeaponSocketRateSourceGetterAddress = 0x0064C5C0u;
+        public const uint WeaponSocketRateDataChildFunctionAddress = 0x005C7FD0u;
 
         private static readonly byte[] ReachableClasses =
         {
