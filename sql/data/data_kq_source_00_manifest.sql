@@ -155,3 +155,10 @@ INSERT INTO `data_kq_source_columns` VALUES
   ('ShineReward', 13, 'Undefined 8', 21, 2),
   ('ShineReward', 14, 'OptionDegree', 2, 2),
   ('ShineReward', 15, 'TitleDegree', 3, 4);
+
+INSERT INTO `data_kq_source_manifest` VALUES ('EnchantSocketRate', '777b29ac1c42481cc8887f169f1b70bb79467f82506bbf7d670d5a698fc54605', 5, 4);
+INSERT INTO `data_kq_source_columns` VALUES
+  ('EnchantSocketRate', 0, 'ItemGradeType', 11, 4),
+  ('EnchantSocketRate', 1, 'Socket0', 2, 2),
+  ('EnchantSocketRate', 2, 'Socket1', 2, 2),
+  ('EnchantSocketRate', 3, 'Socket2', 2, 2);
