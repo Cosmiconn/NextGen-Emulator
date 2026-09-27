@@ -159,6 +159,19 @@ namespace NextGen.Zone.Data
             KingdomQuestPineUsedCommandContext context,
             out bool completed)
         {
+            return TryStep(
+                commandText,
+                context,
+                null,
+                out completed);
+        }
+
+        public static KingdomQuestPineCommandResolution TryStep(
+            string commandText,
+            KingdomQuestPineUsedCommandContext context,
+            KingdomQuestPineVariableStack variables,
+            out bool completed)
+        {
             completed = false;
             string verb = GetVerb(commandText);
             if (verb.Length == 0)
@@ -170,7 +183,7 @@ namespace NextGen.Zone.Data
                     return StepTimeLimit(commandText, context, out completed);
 
                 case "interruptset":
-                    return StepInterruptSet(commandText, context, out completed);
+                    return StepInterruptSet(commandText, context, variables, out completed);
 
                 case "interrupterase":
                     return StepInterruptErase(commandText, context, out completed);
@@ -273,6 +286,7 @@ namespace NextGen.Zone.Data
         private static KingdomQuestPineCommandResolution StepInterruptSet(
             string commandText,
             KingdomQuestPineUsedCommandContext context,
+            KingdomQuestPineVariableStack variables,
             out bool completed)
         {
             completed = false;
@@ -288,6 +302,18 @@ namespace NextGen.Zone.Data
                     commandText, currentTick, out plan) ||
                 !context.Sink.TryRegisterInterrupt(plan))
                 return KingdomQuestPineCommandResolution.Invalid;
+
+            // Native ShineInterruptSet evaluates HPLow operands at
+            // registration time. Preserve that snapshot when this command
+            // context exposes the active manager registry.
+            if (context.InterruptRegistry != null &&
+                variables != null &&
+                !context.InterruptRegistry.TryBindRegistration(
+                    plan, variables))
+            {
+                context.InterruptRegistry.RemoveReference(plan);
+                return KingdomQuestPineCommandResolution.Invalid;
+            }
 
             completed = true;
             return KingdomQuestPineCommandResolution.Success;

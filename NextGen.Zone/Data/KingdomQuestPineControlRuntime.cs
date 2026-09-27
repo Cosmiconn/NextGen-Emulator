@@ -581,6 +581,7 @@ namespace NextGen.Zone.Data
                 KingdomQuestPineUsedCommandRuntime.TryStep(
                     node.Text,
                     commandContext,
+                    variables,
                     out completed);
             if (commandResolution ==
                 KingdomQuestPineCommandResolution.Success)
@@ -655,8 +656,6 @@ namespace NextGen.Zone.Data
 
             if (delivery == null ||
                 delivery.SelectedPlan == null ||
-                !commandContext.InterruptRegistry.ContainsReference(
-                    delivery.SelectedPlan) ||
                 string.IsNullOrEmpty(delivery.SelectedPlan.ActionBlock) ||
                 delivery.Argument == null)
             {

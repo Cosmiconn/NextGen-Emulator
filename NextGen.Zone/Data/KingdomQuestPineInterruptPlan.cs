@@ -448,10 +448,22 @@ namespace NextGen.Zone.Data
     /// </summary>
     public sealed class KingdomQuestPineInterruptRegistryState
     {
-        private readonly List<KingdomQuestPineInterruptSetPlan> entries =
-            new List<KingdomQuestPineInterruptSetPlan>();
+        private readonly List<KingdomQuestPineInterruptRuntimeEntry> entries =
+            new List<KingdomQuestPineInterruptRuntimeEntry>();
 
         public IReadOnlyList<KingdomQuestPineInterruptSetPlan> Entries
+        {
+            get
+            {
+                return entries
+                    .Select(entry => entry.SourcePlan)
+                    .ToList()
+                    .AsReadOnly();
+            }
+        }
+
+        public IReadOnlyList<KingdomQuestPineInterruptRuntimeEntry>
+            RuntimeEntries
         {
             get { return entries.AsReadOnly(); }
         }
@@ -463,8 +475,53 @@ namespace NextGen.Zone.Data
                     KingdomQuestPineInterruptPlan.NativeManagerCapacity)
                 return false;
 
-            entries.Add(plan);
+            // Native sim_Alloc uses List::l_AllocZ, so List.Add preserves the
+            // proven registration/traversal order.
+            entries.Add(new KingdomQuestPineInterruptRuntimeEntry(plan));
             return true;
+        }
+
+        public bool TryBindRegistration(
+            KingdomQuestPineInterruptSetPlan plan,
+            KingdomQuestPineVariableStack variables)
+        {
+            if (plan == null)
+                return false;
+
+            for (int i = entries.Count - 1; i >= 0; i--)
+            {
+                if (!object.ReferenceEquals(
+                        entries[i].SourcePlan, plan))
+                    continue;
+
+                return entries[i].TryBindRegistration(variables);
+            }
+
+            return false;
+        }
+
+        public bool RemoveReference(
+            KingdomQuestPineInterruptSetPlan plan)
+        {
+            if (plan == null)
+                return false;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (!object.ReferenceEquals(
+                        entries[i].SourcePlan, plan))
+                    continue;
+
+                entries.RemoveAt(i);
+                return true;
+            }
+            return false;
+        }
+
+        internal bool RemoveRuntimeEntry(
+            KingdomQuestPineInterruptRuntimeEntry entry)
+        {
+            return entry != null && entries.Remove(entry);
         }
 
         public int Erase(byte[] nativeName16)
@@ -478,7 +535,7 @@ namespace NextGen.Zone.Data
             for (int i = entries.Count - 1; i >= 0; i--)
             {
                 if (!SameName16(
-                        entries[i].NativeEraseName16,
+                        entries[i].SourcePlan.NativeEraseName16,
                         nativeName16))
                     continue;
 
@@ -502,7 +559,8 @@ namespace NextGen.Zone.Data
 
             for (int i = 0; i < entries.Count; i++)
             {
-                if (object.ReferenceEquals(entries[i], plan))
+                if (object.ReferenceEquals(
+                        entries[i].SourcePlan, plan))
                     return true;
             }
             return false;
@@ -522,4 +580,5 @@ namespace NextGen.Zone.Data
             return true;
         }
     }
+
 }
