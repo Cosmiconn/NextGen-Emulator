@@ -1437,55 +1437,58 @@ All **202** used `pause` commands now execute directly in
 `KingdomQuestPineControlRuntime` as well. The first step builds the recovered
 10-Hz native deadline from the explicit tick source, later steps remain active
 while `deadline >= currentTick`, and the command frame pops only when
-`deadline < currentTick`. The **55** `waitinterrupt` occurrences remain
-separate because they require persistent interrupt-delivery state rather than a
-single command step.
+`deadline < currentTick`. The **55** `waitinterrupt` commands are now
+handled as a shared multi-step control primitive: all 55 use exactly
+`waitinterrupt InterruptBlock "InterruptArg".` followed immediately by
+`call InterruptBlock.`. `KingdomQuestPineWaitInterrupt` validates that
+shape, requires the selected plan to still belong to the same active
+`KingdomQuestPineInterruptRegistryState`, copies only that plan's
+source-backed ActionBlock and the provider's opaque argument into the two Pine
+variables, then lets the following dynamic CALL resolve the chosen block. The
+provider still owns native BlastCheck/event selection and ordering.
 
 Other system functions and dynamic `#(...)` identifiers still fall through
 to the fail-closed host rather than being guessed. The exact 44-verb source
 inventory is now guarded more strictly as well: after the seven executable
 one-step families, the separately recovered `call`/`break`/`pause`
-control paths, and the generic nine-script `waitlogin` handoff, the remaining
-**33 source-used command verbs** are recognized explicitly as
+control paths, and the shared `waitlogin`/`waitinterrupt` handoffs, the
+remaining **32 source-used command verbs** are recognized explicitly as
 source-used-but-unrecovered. They return an invalid/fail-closed resolution
 before the generic command host can reinterpret them. This includes
-broadcast/chat UI, summon/mob, door, item, NPC, link and generic
-`waitinterrupt` actions. Native side-effect recovery can enable those
-families one at a time without allowing guessed fallback semantics.
+broadcast/chat UI, summon/mob, door, item, NPC and link actions. Native
+side-effect recovery can enable those families one at a time without allowing
+guessed fallback semantics.
 
 The exact unresolved shape is locked per script as well. After removing the
-now-shared `waitlogin` primitive, `UnderHall` needs **8** unresolved verb
-families
-(`broadcast/linkto/mobregen/questmobkill/reward/scriptfile/summonmob/waitinterrupt`);
-`UnderHall2` uses those same core families plus `chatwin`, for **9**.
-The five Warrior's Code scripts `KQHBat1..5` share **13** unresolved
+shared wait primitives, `UnderHall` needs **7** unresolved verb families
+(`broadcast/linkto/mobregen/questmobkill/reward/scriptfile/summonmob`);
+`UnderHall2` uses those same core families plus `chatwin`, for **8**.
+The five Warrior's Code scripts `KQHBat1..5` share **12** unresolved
 families and therefore form one reusable native-recovery target rather than
-five independent runtimes. `Honeying` currently needs **15** families and
-`GordonMaster` **25**. This per-script matrix is derived directly from the
+five independent runtimes. `Honeying` currently needs **14** families and
+`GordonMaster` **24**. This per-script matrix is derived directly from the
 hash-locked canonical Pine bundle and is CI-guarded, so implementation can
 close the smallest source-equivalent slice first without hiding broader gaps.
 
-The complete UnderHall source slice is now composed into the Pine control
-runtime as well. `KingdomQuestUnderHallCommandRuntime` recognizes exactly the
-nine families and **46 source occurrences / 22 distinct source forms** locked by
-the canonical bundle, parses each through
-`KingdomQuestUnderHallCommandSource`, and forwards only the validated plan to
-an explicit `IKingdomQuestUnderHallCommandSink`. The native Pine command-frame
-state and VariableStack are explicit dependencies. A changed UnderHall form or
-a missing side-effect owner is Invalid/fail-closed before the generic host.
+The complete UnderHall source slice is source-locked as well.
+`KingdomQuestUnderHallCommandRuntime` still recognizes the original nine
+families and **46 source occurrences / 22 distinct source forms**, but the
+shared control runtime now intercepts `waitlogin` and `waitinterrupt`
+before the UnderHall-specific sink. The remaining seven external families are
+parsed through `KingdomQuestUnderHallCommandSource` and forwarded only as
+validated, source-routed plans to `IKingdomQuestUnderHallCommandSink`.
+A changed UnderHall form or missing native side-effect owner remains
+Invalid/fail-closed before the generic host.
 
-The canonical UnderHall source also closes one previously hidden control-flow
-edge. It declares `InterruptBlock=""` and `InterruptArg=""`, contains
-**19** exact `waitinterrupt InterruptBlock "InterruptArg".` statements, and
-each is immediately followed by `call InterruptBlock.`. Its 61
-`interruptset` registrations use only **HPLow=5, PlayerEliminate=19,
-Sec=18, TimeOut=19**; every final ActionBlock token resolves to a real
-UnderHall top-level block. The delivery handoff is now tied to the same
+UnderHall's interrupt dataflow is now a specialization of that shared
+primitive. It declares `InterruptBlock=""` and `InterruptArg=""`, contains
+**19** of the 55 exact wait/call pairs, and its 61 `interruptset`
+registrations use only **HPLow=5, PlayerEliminate=19, Sec=18, TimeOut=19**;
+every final ActionBlock resolves to a real UnderHall top-level block. The
+generic delivery handoff is tied to the same
 `KingdomQuestPineInterruptRegistryState` owned by the local Pine command
 state: the external selector must return an actually registered plan by object
-identity, and the delivered `InterruptBlock` is copied only from that plan's
-source-backed `ActionBlock`. Free-form action-block delivery is no longer
-accepted.
+identity. Free-form action-block delivery is not accepted.
 
 The two timing predicates inside that boundary are source/native bounded.
 `KingdomQuestUnderHallTimedInterruptDue` evaluates the **18 Sec** and
