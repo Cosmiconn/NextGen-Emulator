@@ -1487,21 +1487,44 @@ registrations use only **HPLow=5, PlayerEliminate=19, Sec=18, TimeOut=19**;
 every final ActionBlock resolves to a real UnderHall top-level block. The
 generic delivery handoff is tied to the same
 `KingdomQuestPineInterruptRegistryState` owned by the local Pine command
-state: the external selector must return an actually registered plan by object
-identity. Free-form action-block delivery is not accepted.
+state. Direct native recovery corrects an earlier guard here: a firing
+`sib_BlastCheck` decrements RepeatCount and may remove its own list entry
+**before** returning the selected ActionBlock, so `waitinterrupt` must not
+require the selected plan to remain registered after delivery.
 
-The two timing predicates inside that boundary are source/native bounded.
-`KingdomQuestUnderHallTimedInterruptDue` evaluates the **18 Sec** and
-**19 TimeOut** registrations with the recovered native tick/deadline rules.
-For the remaining event predicates the exact UnderHall source shapes are now
-typed before reaching any native provider: all five HPLow registrations target
-source MobID **1068 / KQ_BossRobo** with raw operands
-**800/600/400/200/100** mapping exactly to `Summon1..5`, while all
-**19 PlayerEliminate** registrations map to `QuestFail`.
-`KingdomQuestUnderHallInterruptCandidate` composes those explicit predicate
-providers with the recovered timing candidates, but still does **not** choose
-manager/BlastCheck order or invent the HPLow/PlayerEliminate comparison
-semantics. All 61 registrations have exact `RepeatCount=1`.
+The complete UnderHall manager/predicate behavior is now source-modeled from
+the original Zone.exe/PDB:
+
+- `ScriptInterruptManager::sim_Alloc` (`0x00509B10`) allocates through
+  `List::l_AllocZ` (`0x005D08C0`), so registrations append at the Z/tail;
+- `sim_InterruptBlast` (`0x0050C100`) walks from the A/head side and returns
+  on the **first** `sib_BlastCheck` that fires: first registered due entry
+  wins;
+- `ScriptInterruptInterval::sib_BlastCheck` (`0x0050AB90`) advances the
+  next deadline from the prior deadline before RepeatCount decrement/removal;
+- `ScriptInterruptHPLow::sib_BlastCheck` (`0x0050ACA0`) resolves the
+  **runtime object handle** stored at registration, fires immediately when the
+  object no longer exists, otherwise caches MaxHP and fires inclusively when
+  `currentHP * 1000 / maxHP <= threshold`;
+- `ScriptInterruptPlayerEleminate::sib_BlastCheck` (`0x0050A860`) scans
+  the current map with `AxialListMobCounter::ala_SearchPly` and fires exactly
+  when its qualifying-player counter is zero.
+
+`ShineInterruptSet::sa_Step` routes HPLow through the helper using
+`si_HPLow`: it evaluates the first source operand at registration and stores
+its low WORD as the runtime ShineObject handle, evaluates the second operand as
+the DWORD threshold, and initializes cached MaxHP to zero. Therefore the five
+UnderHall source forms still correlate to MobInfo **1068 / KQ_BossRobo** as
+the spawned type, but **1068 is not substituted for the runtime handle**.
+`KingdomQuestPineInterruptRuntimeEntry` snapshots the Pine variable value at
+`interruptset` time and keeps mutable RepeatCount, interval deadline and
+HPLow MaxHP cache. All 61 UnderHall registrations have exact `RepeatCount=1`.
+
+The only remaining event-side live dependency is an explicit map/object view
+that resolves the captured runtime handle to HP/MaxHP and supplies the native
+qualifying-player count; comparison, selection order and manager mutation are
+no longer unresolved.
+
 
 `InterruptArg` itself is no longer a control-flow blocker for this supplied
 script: the canonical source contains exactly one declaration and the 19
