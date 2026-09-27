@@ -152,7 +152,7 @@ namespace NextGen.Zone.Data
     public static class KingdomQuestPineUsedCommandRuntime
     {
         public const int UsedOneStepCommandCount = 589;
-        public const int SourceUsedUnrecoveredVerbCount = 33;
+        public const int SourceUsedUnrecoveredVerbCount = 32;
 
         public static KingdomQuestPineCommandResolution TryStep(
             string commandText,
@@ -239,7 +239,6 @@ namespace NextGen.Zone.Data
                 case "summonmob":
                 case "teleport":
                 case "vanish":
-                case "waitinterrupt":
                 case "whoclickme":
                     return true;
 
