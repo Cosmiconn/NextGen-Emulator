@@ -2055,27 +2055,9 @@ def main():
             return 1
 
     expected_used_lua_keys = {
-        key for key, row in scenario_by_key.items()
-        if row["kind"] == "lua" and key in {
-            "KQ/AntiHenis/AntiHenis",
-            "KQ/EmperorSlime/EmperorSlime",
-            "KQ/GoldHill/GoldHill",
-            "KQ/HMiniDragon/HMiniDragon",
-            "KQ/KDArena/KDArena1",
-            "KQ/KDArena/KDArena2",
-            "KQ/KDArena/KDArena3",
-            "KQ/KDArena/KDArena4",
-            "KQ/KDArena/KDArena5",
-            "KQ/KDArena/KDArena6",
-            "KQ/KDFargels/KDFargels",
-            "KQ/KDMine/KDMine",
-            "KQ/KDSpring/KDSpring",
-            "KQ/KingSlime/KingSlime",
-            "KQ/Kingkong/Kingkong",
-            "KQ/LegendOfBijou/LegendOfBijou",
-            "KQ/MaraPirate/MaraPirate",
-            "KQ/MiniDragon/MiniDragon",
-        }
+        key for key in scripts
+        if key in scenario_by_key and
+        scenario_by_key[key]["backend"] == "lua"
     }
     if len(expected_used_lua_keys) != 18:
         print("FAIL: KQ used Lua key source set changed",
@@ -2083,7 +2065,10 @@ def main():
         return 1
     for key in sorted(expected_used_lua_keys):
         row = scenario_by_key[key]
-        for token in (key, row["path"], row["sha256"]):
+        for token in (
+                key,
+                row["archive_path"],
+                row["file_sha256"]):
             if token not in lua_scenario_scope_text:
                 print("FAIL: KQ used Lua source identity missing", key, token)
                 return 1
