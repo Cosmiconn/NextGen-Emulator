@@ -1300,6 +1300,17 @@ without pretending to execute a script. What remains unimplemented is the
 later ScenarioBook/PineScript/Lua **execution** path driven by
 `CinemaComplex::cc_PlayFilm`, not the source-backed MAKE lookup itself.
 
+The Lua execution scope is now narrowed to the supplied KQ definitions rather
+than the whole shelf. `KingdomQuestLuaScenarioScope` contains exactly the
+**18** Lua ScriptLanguage keys referenced by `KingdomQuest.shn`, with each
+original `LuaScript/<key>.lua` archive path and SHA-256 locked against
+`KINGDOM_QUEST_SCENARIOBOOK_SOURCE.tsv`. The other five Lua books present in
+the 23-row shelf are not activated merely because they exist. The accompanying
+`IKingdomQuestLuaScenarioHost` is intentionally an execution boundary only:
+it does not substitute the community Lua function catalog and it does not map
+`ScriptInitValue` to an inferred Lua entry function. Exact original API
+registration / entry semantics remain required before live Lua execution.
+
 The first execution-side source layer is now represented for all **nine**
 Pine-backed KQs used by the supplied definitions. The original `.ps` bytes
 were reduced only by removing comments/blank lines and normalizing executable
