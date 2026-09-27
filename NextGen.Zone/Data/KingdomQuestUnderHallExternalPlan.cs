@@ -28,7 +28,7 @@ namespace NextGen.Zone.Data
         public string SourceToken { get; private set; }
 
         public KingdomQuestUnderHallMapSourceRef Map { get; private set; }
-        public KingdomQuestUnderHallMobSourceRef AnchorMob { get; private set; }
+        public string RuntimeHandleIdentifier { get; private set; }
         public KingdomQuestUnderHallMobSourceRef Mob { get; private set; }
 
         public int Count { get; private set; }
@@ -43,7 +43,7 @@ namespace NextGen.Zone.Data
             KingdomQuestUnderHallExternalPlanKind kind,
             string sourceToken,
             KingdomQuestUnderHallMapSourceRef map,
-            KingdomQuestUnderHallMobSourceRef anchorMob,
+            string runtimeHandleIdentifier,
             KingdomQuestUnderHallMobSourceRef mob,
             int count,
             int x,
@@ -55,7 +55,7 @@ namespace NextGen.Zone.Data
             Kind = kind;
             SourceToken = sourceToken ?? string.Empty;
             Map = map;
-            AnchorMob = anchorMob;
+            RuntimeHandleIdentifier = runtimeHandleIdentifier ?? string.Empty;
             Mob = mob;
             Count = count;
             X = x;
@@ -185,11 +185,8 @@ namespace NextGen.Zone.Data
 
             KingdomQuestUnderHallMobSourceRef mob;
             if (!KingdomQuestUnderHallSourceCatalog.TryGetMob(
-                    source.Arguments[0], out mob) ||
-                mob == null ||
-                !string.Equals(
-                    source.Arguments[1], mob.InxName,
-                    StringComparison.Ordinal))
+                    source.Arguments[1], out mob) ||
+                mob == null)
                 return false;
 
             int x;
@@ -206,7 +203,7 @@ namespace NextGen.Zone.Data
                 KingdomQuestUnderHallExternalPlanKind.MobRegen,
                 source.Arguments[1],
                 null,
-                mob,
+                source.Arguments[0],
                 mob,
                 0,
                 x,
@@ -282,14 +279,10 @@ namespace NextGen.Zone.Data
             if (source.Arguments.Count != 3)
                 return false;
 
-            KingdomQuestUnderHallMobSourceRef anchor;
             KingdomQuestUnderHallMobSourceRef mob;
             int count;
             if (!KingdomQuestUnderHallSourceCatalog.TryGetMob(
-                    source.Arguments[0], out anchor) ||
-                !KingdomQuestUnderHallSourceCatalog.TryGetMob(
                     source.Arguments[1], out mob) ||
-                anchor == null ||
                 mob == null ||
                 !TryInt(source.Arguments[2], out count))
                 return false;
@@ -298,7 +291,7 @@ namespace NextGen.Zone.Data
                 KingdomQuestUnderHallExternalPlanKind.SummonMob,
                 source.Arguments[1],
                 null,
-                anchor,
+                source.Arguments[0],
                 mob,
                 count,
                 0,
