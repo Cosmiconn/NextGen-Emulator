@@ -509,9 +509,9 @@ namespace NextGen.Zone.Data
             KingdomQuestPineNodeSource node)
         {
             string identifier;
-            if (TryUnderHallIdentifierCall(node.Text, out identifier))
+            if (TryUsedIdentifierCall(node.Text, out identifier))
             {
-                StepUnderHallIdentifierCall(frame, node, identifier);
+                StepIdentifierCall(frame, node, identifier);
                 return;
             }
 
@@ -538,6 +538,12 @@ namespace NextGen.Zone.Data
             if (IsCommandVerb(node.Text, "waitlogin"))
             {
                 StepWaitLogin(frame, node);
+                return;
+            }
+
+            if (IsCommandVerb(node.Text, "waitinterrupt"))
+            {
+                StepWaitInterrupt(frame, node);
                 return;
             }
 
@@ -608,6 +614,88 @@ namespace NextGen.Zone.Data
             frame.State = state;
             if (completed)
                 Pop();
+        }
+
+        private void StepWaitInterrupt(
+            Frame frame,
+            KingdomQuestPineNodeSource node)
+        {
+            string blockIdentifier;
+            string argumentIdentifier;
+            if (!KingdomQuestPineWaitInterrupt.TryParseUsed(
+                    node.Text,
+                    out blockIdentifier,
+                    out argumentIdentifier))
+            {
+                Fail(
+                    "Invalid source-used Pine waitinterrupt at canonical line " +
+                    node.CanonicalLine + ": " + node.Text);
+                return;
+            }
+
+            if (commandContext == null ||
+                commandContext.WaitInterruptSource == null ||
+                commandContext.InterruptRegistry == null)
+            {
+                Fail(
+                    "Native Pine waitinterrupt source/registry missing at " +
+                    "canonical line " + node.CanonicalLine + ".");
+                return;
+            }
+
+            KingdomQuestPineWaitInterruptDelivery delivery;
+            if (!commandContext.WaitInterruptSource.TryTake(
+                    commandContext.InterruptRegistry,
+                    out delivery))
+            {
+                // Native wait remains active until ScriptInterruptManager
+                // selects one registered interrupt.
+                return;
+            }
+
+            if (delivery == null ||
+                delivery.SelectedPlan == null ||
+                !commandContext.InterruptRegistry.ContainsReference(
+                    delivery.SelectedPlan) ||
+                string.IsNullOrEmpty(delivery.SelectedPlan.ActionBlock) ||
+                delivery.Argument == null)
+            {
+                Fail(
+                    "Invalid native Pine waitinterrupt delivery at canonical " +
+                    "line " + node.CanonicalLine + ".");
+                return;
+            }
+
+            KingdomQuestPineBlockSource actionBlock;
+            if (!document.Blocks.TryGetValue(
+                    delivery.SelectedPlan.ActionBlock,
+                    out actionBlock) ||
+                actionBlock == null)
+            {
+                Fail(
+                    "Pine waitinterrupt action block not found at canonical " +
+                    "line " + node.CanonicalLine + ": " +
+                    delivery.SelectedPlan.ActionBlock);
+                return;
+            }
+
+            KingdomQuestPineTokenValue blockValue;
+            KingdomQuestPineTokenValue argumentValue;
+            if (!variables.TryFind(blockIdentifier, out blockValue) ||
+                !variables.TryFind(argumentIdentifier, out argumentValue) ||
+                blockValue == null ||
+                argumentValue == null ||
+                !blockValue.TrySetAscii(
+                    delivery.SelectedPlan.ActionBlock) ||
+                !argumentValue.TrySetAscii(delivery.Argument))
+            {
+                Fail(
+                    "Pine waitinterrupt target-variable handoff failed at " +
+                    "canonical line " + node.CanonicalLine + ".");
+                return;
+            }
+
+            Pop();
         }
 
         private void StepWaitLogin(
@@ -713,7 +801,7 @@ namespace NextGen.Zone.Data
                 Pop();
         }
 
-        private void StepUnderHallIdentifierCall(
+        private void StepIdentifierCall(
             Frame frame,
             KingdomQuestPineNodeSource node,
             string identifier)
@@ -732,7 +820,7 @@ namespace NextGen.Zone.Data
                 string.IsNullOrEmpty(value.Text))
             {
                 Fail(
-                    "UnderHall dynamic Pine CALL variable is empty at canonical " +
+                    "Dynamic Pine CALL variable is empty at canonical " +
                     "line " + node.CanonicalLine + ": " + identifier);
                 return;
             }
@@ -742,7 +830,7 @@ namespace NextGen.Zone.Data
                 block == null)
             {
                 Fail(
-                    "UnderHall dynamic Pine CALL target not found at canonical " +
+                    "Dynamic Pine CALL target not found at canonical " +
                     "line " + node.CanonicalLine + ": " + value.Text);
                 return;
             }
@@ -878,16 +966,12 @@ namespace NextGen.Zone.Data
                  value[verb.Length] == '.');
         }
 
-        private bool TryUnderHallIdentifierCall(
+        private bool TryUsedIdentifierCall(
             string text,
             out string identifier)
         {
             identifier = null;
-            if (!string.Equals(
-                    document.ScriptLanguage,
-                    KingdomQuestUnderHallCommandRuntime.ScriptLanguage,
-                    StringComparison.Ordinal) ||
-                string.IsNullOrWhiteSpace(text))
+            if (string.IsNullOrWhiteSpace(text))
                 return false;
 
             string value = text.Trim();
@@ -904,9 +988,9 @@ namespace NextGen.Zone.Data
                     operand, out identifier))
                 return false;
 
-            // This is intentionally the one source-locked dynamic CALL form
-            // used by UnderHall after waitinterrupt. Do not generalize unknown
-            // Pine CALL operand forms from it.
+            // CI proves this exact dynamic CALL operand follows every one of
+            // the 55 waitinterrupt commands in all nine supplied Pine KQs.
+            // Other unquoted Pine CALL operands remain unsupported.
             return string.Equals(
                 identifier, "InterruptBlock", StringComparison.Ordinal);
         }
