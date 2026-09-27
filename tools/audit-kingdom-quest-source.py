@@ -1350,9 +1350,9 @@ def main():
         'KingdomQuestRewardWeaponSocketRateNative.TryApplyWeaponReward(',
         'weaponSocketSampleIndex != weaponSocketSamples.Count',
         'WeaponSocketSampleCount',
-        'never calls legacy emulator inventory',
-        'never generates registration numbers',
-        'never owns or seeds RNG',
+        'out byte[] itemTotalInformation',
+        'itemTotalInformation.Length !=',
+        'byte[] composed = (byte[])nativeItem.Clone()',
     ):
         if token not in world_reward_native_item_emission:
             print('FAIL: native KQ reward ITI composition boundary missing',
