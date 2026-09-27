@@ -44,6 +44,7 @@ ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_REGEN_RUNTIME_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenRuntimePlan.cs"
+PINE_REGEN_NATIVE_LAYOUT = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenNativeLayout.cs"
 PINE_TIMING_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineTimingPlan.cs"
 PINE_INTERRUPT_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptPlan.cs"
 PINE_INTERRUPT_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptRuntime.cs"
@@ -264,7 +265,7 @@ def main():
                  UNDERHALL_EVENT_PREDICATE_PLAN, UNDERHALL_SOURCE_CATALOG,
                  SCENARIO_START_PLAN, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN, PINE_REGEN_RUNTIME_PLAN,
-                 PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
+                 PINE_REGEN_NATIVE_LAYOUT, PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
                  PINE_WAITLOGIN,
                  PINE_WAITINTERRUPT, SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
@@ -2140,6 +2141,39 @@ def main():
             "Environment.TickCount", "SendPacket(", "Program.DatabaseManager"):
         if forbidden in pine_regen_runtime_text:
             print("FAIL: KQ Pine regen runtime plan invented live spawn semantics",
+                  forbidden)
+            return 1
+
+    pine_regen_native_layout_text = PINE_REGEN_NATIVE_LAYOUT.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineRegenNativeLayout",
+        "source.MobNum",
+        "source.KillNum",
+        "source.RegStandard",
+        "source.RegMin",
+        "source.RegMax",
+        "source.RegDelta0",
+        "source.RegSec0",
+        "source.RegDelta1",
+        "source.RegSec1",
+        "source.RegDelta2",
+        "source.RegSec2",
+        "source.RegDelta3",
+        "source.RegSec3",
+        "source.RegDelta4",
+        "TimeDistribution = (int[])timeDistribution.Clone()",
+        "does not interpret timedist",
+    ):
+        if token not in pine_regen_native_layout_text:
+            print("FAIL: KQ Pine native regen row layout changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "new Mob(", "FullAddObject(", "SpawnMob(",
+            "Program.Randomizer", "System.Random", "DateTime.Now",
+            "Environment.TickCount", "SendPacket(", "Program.DatabaseManager"):
+        if forbidden in pine_regen_native_layout_text:
+            print("FAIL: KQ Pine native regen row layout invented runtime behavior",
                   forbidden)
             return 1
 
