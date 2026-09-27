@@ -15,6 +15,7 @@ namespace NextGen.FiestaLib.Data
 		public byte Level { get; private set; }
 		public ItemType Type { get; private set; }
 		public ItemClass Class { get; private set; }
+		public uint ItemGradeType { get; private set; }
 		public byte UpgradeLimit { get; private set; }
 		public Job Jobs { get; private set; }
 		public ushort MinMagic { get; private set; }
@@ -47,6 +48,7 @@ namespace NextGen.FiestaLib.Data
 				Level = GetDataTypes.GetByte(row["demandlv"]),
 				Type = (ItemType)GetDataTypes.GetByte(row["type"]),
 				Class = (ItemClass)GetDataTypes.GetByte(row["class"]),
+				ItemGradeType = GetDataTypes.GetUint(row["ItemGradeType"]),
 				UpgradeLimit = (byte)GetDataTypes.GetByte(row["uplimit"]),
 				Jobs = UnpackWhoEquip(GetDataTypes.GetUint(row["whoequip"])),
 				TwoHand = GetDataTypes.GetBool(row["TwoHand"]),
