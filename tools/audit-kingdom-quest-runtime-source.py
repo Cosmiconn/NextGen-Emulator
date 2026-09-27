@@ -40,6 +40,7 @@ UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallI
 UNDERHALL_EVENT_PREDICATE_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallEventPredicatePlan.cs"
 UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
+LUA_SCENARIO_SCOPE = ROOT / "NextGen.Zone/Data/KingdomQuestLuaScenarioScope.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
@@ -263,7 +264,7 @@ def main():
                  UNDERHALL_EXTERNAL_PLAN, UNDERHALL_SOURCE_FLOW,
                  UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_INTERRUPT_CANDIDATE,
                  UNDERHALL_EVENT_PREDICATE_PLAN, UNDERHALL_SOURCE_CATALOG,
-                 SCENARIO_START_PLAN, ZONE_RUNTIME,
+                 SCENARIO_START_PLAN, LUA_SCENARIO_SCOPE, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN, PINE_REGEN_RUNTIME_PLAN,
                  PINE_REGEN_NATIVE_LAYOUT, PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
                  PINE_WAITLOGIN,
@@ -2039,6 +2040,61 @@ def main():
             return 1
 
     scenario_start_text = SCENARIO_START_PLAN.read_text(encoding="utf-8")
+    lua_scenario_scope_text = LUA_SCENARIO_SCOPE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestLuaScenarioSource",
+        "class KingdomQuestLuaScenarioScope",
+        "UsedLuaScriptLanguageCount = 18",
+        "interface IKingdomQuestLuaScenarioHost",
+        "this interface does not substitute the community scripting API",
+        "infer a script entry function from ScriptInitValue",
+    ):
+        if token not in lua_scenario_scope_text:
+            print("FAIL: KQ Lua source/runtime scope changed", token)
+            return 1
+
+    expected_used_lua_keys = {
+        key for key, row in scenario_by_key.items()
+        if row["kind"] == "lua" and key in {
+            "KQ/AntiHenis/AntiHenis",
+            "KQ/EmperorSlime/EmperorSlime",
+            "KQ/GoldHill/GoldHill",
+            "KQ/HMiniDragon/HMiniDragon",
+            "KQ/KDArena/KDArena1",
+            "KQ/KDArena/KDArena2",
+            "KQ/KDArena/KDArena3",
+            "KQ/KDArena/KDArena4",
+            "KQ/KDArena/KDArena5",
+            "KQ/KDArena/KDArena6",
+            "KQ/KDFargels/KDFargels",
+            "KQ/KDMine/KDMine",
+            "KQ/KDSpring/KDSpring",
+            "KQ/KingSlime/KingSlime",
+            "KQ/Kingkong/Kingkong",
+            "KQ/LegendOfBijou/LegendOfBijou",
+            "KQ/MaraPirate/MaraPirate",
+            "KQ/MiniDragon/MiniDragon",
+        }
+    }
+    if len(expected_used_lua_keys) != 18:
+        print("FAIL: KQ used Lua key source set changed",
+              sorted(expected_used_lua_keys))
+        return 1
+    for key in sorted(expected_used_lua_keys):
+        row = scenario_by_key[key]
+        for token in (key, row["path"], row["sha256"]):
+            if token not in lua_scenario_scope_text:
+                print("FAIL: KQ used Lua source identity missing", key, token)
+                return 1
+    for forbidden in (
+            "MoonSharp", "NLua", "KeraLua", "lua_register",
+            "cEndOfKingdomQuest", "cMobRegen", "cSetAbstate"):
+        if forbidden in lua_scenario_scope_text:
+            print("FAIL: KQ Lua source scope invented API/runtime semantics",
+                  forbidden)
+            return 1
+
     zone_runtime_text = ZONE_RUNTIME.read_text(encoding="utf-8")
     for token in (
         "enum KingdomQuestScenarioStartAction : byte",
