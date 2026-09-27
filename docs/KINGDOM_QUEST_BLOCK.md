@@ -1602,7 +1602,12 @@ they cover **225 unique (source key, group index) pairs across five static
 regen sources**, and every pair resolves to exactly one `MobRegenGroup` plus
 at least one matching `MobRegen` row in the original corpus (for these used
 pairs, exactly one row each). `KingdomQuestPineRegenGroupResolver` models
-that command-to-source projection. Native `ShineRegenGroup::sa_Step` at
+that command-to-source projection. `KingdomQuestPineRegenRuntimePlanBuilder`
+now resolves every source `MobIndex` one step further against both original
+`MobInfo` and `MobInfoServer` projections and requires both tables to agree
+on the exact numeric MobID before the plan can reach an external owner. All
+original MobNum/KillNum/RegStandard/RegMin/RegMax/RegDelta*/RegSec* values and
+group geometry are preserved unchanged. Native `ShineRegenGroup::sa_Step` at
 `0x004EE0F0` then reaches
 `PineScriptMobRegenerator::psmr_find` and
 `MobHatchery::mh_ScriptBreed`. Actual MobHatchery object creation,
