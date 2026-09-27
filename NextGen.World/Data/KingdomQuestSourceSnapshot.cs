@@ -55,6 +55,10 @@ namespace NextGen.World.Data
                     "ShineReward", "data_shinereward",
                     "09acc18d24877fc5dfa9ab431d8dd45561e36ffd48b518cbdf05ddd1810a325f",
                     435, 16) },
+                { "EnchantSocketRate", new ExpectedSource(
+                    "EnchantSocketRate", "data_enchantsocketrate",
+                    "777b29ac1c42481cc8887f169f1b70bb79467f82506bbf7d670d5a698fc54605",
+                    5, 4) },
             };
 
         public static IReadOnlyDictionary<string, ExpectedSource> Sources
