@@ -2071,7 +2071,7 @@ def main():
         for token in (
                 key,
                 row["archive_path"],
-                row["file_sha256"]):
+                row["sha256"]):
             if token not in lua_scenario_scope_text:
                 print("FAIL: KQ used Lua source identity missing", key, token)
                 return 1
