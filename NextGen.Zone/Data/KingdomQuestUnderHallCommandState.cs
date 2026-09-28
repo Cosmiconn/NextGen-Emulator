@@ -40,7 +40,7 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Optional owner for the seven non-waitinterrupt/non-waitlogin UnderHall
+    /// Optional owner for the six gameplay-side-effect UnderHall
     /// command families. It receives only source-resolved plans; raw Pine argument
     /// interpretation remains inside the checked source boundary.
     /// </summary>
@@ -75,13 +75,6 @@ namespace NextGen.Zone.Data
             out bool completed);
 
         bool TryReward(
-            KingdomQuestUnderHallExternalPlan plan,
-            KingdomQuestUnderHallExternalSourceSite sourceSite,
-            KingdomQuestPineVariableStack variables,
-            ref int nativeState,
-            out bool completed);
-
-        bool TryScriptFile(
             KingdomQuestUnderHallExternalPlan plan,
             KingdomQuestUnderHallExternalSourceSite sourceSite,
             KingdomQuestPineVariableStack variables,
@@ -227,11 +220,6 @@ namespace NextGen.Zone.Data
 
                 case KingdomQuestUnderHallExternalPlanKind.Reward:
                     return externalSink.TryReward(
-                        plan, sourceSite, variables,
-                        ref nativeState, out completed);
-
-                case KingdomQuestUnderHallExternalPlanKind.ScriptFile:
-                    return externalSink.TryScriptFile(
                         plan, sourceSite, variables,
                         ref nativeState, out completed);
 
