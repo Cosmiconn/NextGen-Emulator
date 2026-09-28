@@ -197,6 +197,7 @@ namespace NextGen.Zone.Data
                 case "regengroup":
                     return StepRegenGroup(commandText, context, out completed);
 
+                case "scriptfile":
                     return StepScriptFile(commandText, context, out completed);
 
                 case "questresult":
@@ -251,7 +252,6 @@ namespace NextGen.Zone.Data
                 case "questmobkill":
                 case "revival":
                 case "reward":
-                case "scriptfile":
                 case "sendquestresult":
                 case "suicide":
                 case "summonmob":
