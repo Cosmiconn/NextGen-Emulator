@@ -148,7 +148,7 @@ def main():
         "SH22Type.KingdomQuestFailed",
         "packet.Length == NativeWireSize",
         "does not select players, invoke",
-        "does not send the packet",
+        "or send the packet.",
     ], "native KQ COMPLETE/FAIL empty result wire"):
         return 1
     if "packet.Write" in pine_terminal:
