@@ -21,7 +21,7 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Exact top-level block ownership of all 26 external KQ/UnderHall command
+    /// Exact top-level block ownership of all 25 external KQ/UnderHall command
     /// occurrences in the canonical hash-locked Pine source.
     ///
     /// This is source routing only. It does not assign native semantics to a
@@ -33,15 +33,13 @@ namespace NextGen.Zone.Data
         public const string MainBlock = "main";
         public const string SuccessBlock = "QuestSuc";
         public const string FailureBlock = "QuestFail";
-        public const int ExternalOccurrenceCount = 26;
+        public const int ExternalOccurrenceCount = 25;
         public const int SuccessRewardOccurrenceCount = 1;
         public const int FailureRewardOccurrenceCount = 0;
 
         private static readonly Dictionary<int, KingdomQuestUnderHallExternalSourceSite>
             Sites = new Dictionary<int, KingdomQuestUnderHallExternalSourceSite>
         {
-            { 12, Site(12, MainBlock, KingdomQuestUnderHallExternalPlanKind.ScriptFile) },
-
             { 339, Site(339, "Nineteenth", KingdomQuestUnderHallExternalPlanKind.MobRegen) },
 
             { 355, Site(355, "Summon1", KingdomQuestUnderHallExternalPlanKind.SummonMob) },
