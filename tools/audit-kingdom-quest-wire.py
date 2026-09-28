@@ -31,6 +31,7 @@ PACKET_HELPER = ROOT / "NextGen.World/Handlers/PacketHelper.cs"
 ADMISSION = ROOT / "NextGen.World/Data/KingdomQuestAdmissionCoordinator.cs"
 INTER_HEADER = ROOT / "NextGen.InterLib/Networking/InterHeader.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
+PINE_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 SCENARIOBOOK_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioBookShelfSource.cs"
 ZONE_CHARACTER = ROOT / "NextGen.Zone/Game/ZoneCharacter.cs"
 RECONNECT_SERVICE = ROOT / "NextGen.World/Data/KingdomQuestReconnectService.cs"
@@ -47,7 +48,7 @@ def require(text, tokens, label):
     return True
 
 def main():
-    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, VOTE_STATE, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, SCENARIOBOOK_SOURCE, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6, WORLD_SCHEDULER]
+    files = [CENUM, SENUM, PROTO, INFO, CHAR_SAVE_LOCATION, HANDLER, SERVER_PROTO, STATE, DEFINITIONS, JOIN_LIST_REPLY, PARTICIPANTS, WORLD_CLIENT, SESSION_COORDINATOR, MAKE_ACK_REGISTRY, WORLD_INTER, WORLD_ZONE_CONNECTION, ZONE_INTER, CHARACTER, READ_METHODS, WORLD_SCHEMA, MEMBERSHIP, VOTE_STATE, IDENTITY, PACKET_HELPER, ADMISSION, INTER_HEADER, ZONE_RUNTIME, PINE_TERMINAL, SCENARIOBOOK_SOURCE, ZONE_CHARACTER, RECONNECT_SERVICE, WORLD_HANDLER4, CLIENT_TRANSFER, ZONE_HANDLER6, WORLD_SCHEDULER]
     missing = [str(p) for p in files if not p.is_file()]
     if missing:
         print("FAIL: KQ audit files missing:", missing)
@@ -80,6 +81,7 @@ def main():
     admission = ADMISSION.read_text(encoding="utf-8")
     inter_header = INTER_HEADER.read_text(encoding="utf-8")
     zone_runtime = ZONE_RUNTIME.read_text(encoding="utf-8")
+    pine_terminal = PINE_TERMINAL.read_text(encoding="utf-8")
     scenario_book_source = SCENARIOBOOK_SOURCE.read_text(encoding="utf-8")
     zone_character = ZONE_CHARACTER.read_text(encoding="utf-8")
     reconnect_service = RECONNECT_SERVICE.read_text(encoding="utf-8")
@@ -108,6 +110,7 @@ def main():
         "KingdomQuestJoinCancelAck = 8",
         "KingdomQuestScheduleAck = 10",
         "KingdomQuestNotify = 11",
+        "KingdomQuestComplete = 18",
         "KingdomQuestFailed = 19",
         "KingdomQuestRestDeadNum = 24",
         "KingdomQuestEntryResponseAck = 26",
@@ -135,6 +138,21 @@ def main():
         "KingdomQuestTeamTypeCmd = 58",
         "KingdomQuestPlayerDisjoin = 59",
     ], "native SH22 KQ names"):
+        return 1
+
+    if not require(pine_terminal, [
+        "class KingdomQuestPineQuestResultWire",
+        "NativeWireSize = 2",
+        "new Packet(packetType)",
+        "SH22Type.KingdomQuestComplete",
+        "SH22Type.KingdomQuestFailed",
+        "packet.Length == NativeWireSize",
+        "does not select players, invoke",
+        "does not send the packet",
+    ], "native KQ COMPLETE/FAIL empty result wire"):
+        return 1
+    if "packet.Write" in pine_terminal:
+        print("FAIL: KQ COMPLETE/FAIL result wire gained a payload write")
         return 1
 
     if not require(info, [

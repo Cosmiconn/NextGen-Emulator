@@ -1,4 +1,6 @@
 using System;
+using NextGen.FiestaLib;
+using NextGen.FiestaLib.Networking;
 
 namespace NextGen.Zone.Data
 {
@@ -53,6 +55,60 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
+    /// Exact NC_KQ_COMPLETE_CMD / NC_KQ_FAIL_CMD wire projection.
+    ///
+    /// AxialListKQEnd is constructed only from Header 0x16 + Type 0x12/0x13
+    /// and writes no body before ali_Work sends it to each selected player.
+    /// The supplied Lost Mini Dragon fail capture independently confirms that
+    /// NC_KQ_FAIL_CMD is exactly the two-byte opcode with an empty payload.
+    ///
+    /// This helper builds that packet only. It does not select players, invoke
+    /// CT_KQSuccess/CT_KQFail or send the packet.
+    /// </summary>
+    public static class KingdomQuestPineQuestResultWire
+    {
+        public const int NativeWireSize = 2;
+
+        public static bool TryCreate(
+            KingdomQuestPineQuestResultPlan plan,
+            out Packet packet)
+        {
+            packet = null;
+            if (plan == null ||
+                plan.PacketHeader != KingdomQuestPineQuestResultPlan.NativeHeader)
+                return false;
+
+            SH22Type packetType;
+            if (plan.Kind == KingdomQuestPineQuestResultKind.Success)
+            {
+                if (plan.PacketType !=
+                    KingdomQuestPineQuestResultPlan.NativeCompleteType)
+                    return false;
+                packetType = SH22Type.KingdomQuestComplete;
+            }
+            else if (plan.Kind == KingdomQuestPineQuestResultKind.Fail)
+            {
+                if (plan.PacketType !=
+                    KingdomQuestPineQuestResultPlan.NativeFailType)
+                    return false;
+                packetType = SH22Type.KingdomQuestFailed;
+            }
+            else
+            {
+                return false;
+            }
+
+            packet = new Packet(packetType);
+            if (packet.Length == NativeWireSize)
+                return true;
+
+            packet.Dispose();
+            packet = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Mutation-free projection of
     /// PineEventScriptNode::ShineEndOfKingdomQuest::sa_Step.
     ///
@@ -83,8 +139,10 @@ namespace NextGen.Zone.Data
 
     /// <summary>
     /// Exact terminal KQ command projection for the source-modeled Pine
-    /// control runtime. This layer only decodes commands into native actions;
-    /// it sends no packets, clears no map objects and mutates no title state.
+    /// control runtime. This layer decodes commands into native actions; the
+    /// separate result-wire helper can build the proven empty COMPLETE/FAIL
+    /// packet, but nothing here sends packets, clears map objects or mutates
+    /// title state.
     /// </summary>
     public static class KingdomQuestPineKqTerminalPlan
     {

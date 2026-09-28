@@ -2196,6 +2196,10 @@ def main():
     pine_terminal_tokens = (
         "class KingdomQuestPineKqTerminalPlan",
         "class KingdomQuestPineQuestResultPlan",
+        "class KingdomQuestPineQuestResultWire",
+        "NativeWireSize = 2",
+        "SH22Type.KingdomQuestComplete",
+        "SH22Type.KingdomQuestFailed",
         "class KingdomQuestPineEndPlan",
         "NativeHeader = 0x16",
         "NativeCompleteType = 0x12",
@@ -2208,7 +2212,8 @@ def main():
         "NC_KQ_FAIL_CMD branch",
         "WorldManagerSession::wms_EndOfKQPacket(handle)",
         "FieldMap::fm_ClearObject(0xB0)",
-        "it sends no packets, clears no map objects and mutates no title state",
+        "nothing here sends packets, clears map objects or mutates",
+        "does not select players, invoke",
     )
     for token in pine_terminal_tokens:
         if token not in pine_terminal_text:

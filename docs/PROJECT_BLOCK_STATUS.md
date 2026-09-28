@@ -104,8 +104,11 @@ Still required for block completion:
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command, so the scenario-to-reward source trigger location is no
-  longer ambiguous. Native event production/command side effects, the live Pine
-  film tick/host wiring and the separate Lua backend execution remain
+  longer ambiguous. The `questresult` COMPLETE/FAIL client wire is also
+  closed as an exact empty Header-22 type 18/19 packet; player audience,
+  CT_KQSuccess/CT_KQFail title mutation and actual send remain in the live
+  side-effect layer. Native event production/command side effects, the live
+  Pine film tick/host wiring and the separate Lua backend execution remain
   fail-closed; the Pine `cc_PlayFilm` entry binding itself is no longer
   unresolved;
 - exact native-thread assignment/consumer ordering for the thread-local Zone

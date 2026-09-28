@@ -1452,8 +1452,9 @@ while `deadline >= currentTick`, and the command frame pops only when
 handled as a shared multi-step control primitive: all 55 use exactly
 `waitinterrupt InterruptBlock "InterruptArg".` followed immediately by
 `call InterruptBlock.`. `KingdomQuestPineWaitInterrupt` validates that
-shape, requires the selected plan to still belong to the same active
-`KingdomQuestPineInterruptRegistryState`, copies only that plan's
+shape, uses the same active `KingdomQuestPineInterruptRegistryState` as its
+producer; the selected entry may already have been removed by native
+BlastCheck. It copies only that plan's
 source-backed ActionBlock and the provider's opaque argument into the two Pine
 variables, then lets the following dynamic CALL resolve the chosen block. The
 provider still owns native BlastCheck/event selection and ordering.
@@ -1607,13 +1608,18 @@ the root script is stepped. Therefore `ScriptInitValue` is Pine initialization
 data, not a block selector. `KingdomQuestPineScenarioRuntime` models this
 exact `main` + `InitFlag` start boundary.
 
-Two terminal KQ commands are now projected exactly without activating mutation.
-`ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
-and compares it with the PDB global `index_suc`. A match creates Header 22
-type 18 (`NC_KQ_COMPLETE_CMD`) and calls the player's `CT_KQSuccess`
-title hook; every other valid token follows type 19
+Two terminal KQ commands are now projected exactly without activating gameplay
+mutation. `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its
+single token and compares it with the PDB global `index_suc`. A match creates
+Header 22 type 18 (`NC_KQ_COMPLETE_CMD`) and calls the player's
+`CT_KQSuccess` title hook; every other valid token follows type 19
 (`NC_KQ_FAIL_CMD`) and `CT_KQFail`. The corresponding source title
-categories are 21 and 22. `ShineEndOfKingdomQuest::sa_Step` at
+categories are 21 and 22. The result packet itself is now wire-closed:
+`SH22Type.KingdomQuestComplete=18` and `KingdomQuestFailed=19`, and
+`KingdomQuestPineQuestResultWire` builds exactly the two-byte opcode with no
+payload. The supplied Lost Mini Dragon fail capture independently confirms the
+empty type-19 packet. Player selection, title-hook mutation and actual send
+remain outside this mutation-free boundary. `ShineEndOfKingdomQuest::sa_Step` at
 `0x004F5FC0` reads the current FieldMap KQ handle, calls
 `WorldManagerSession::wms_EndOfKQPacket(handle)`, then calls
 `FieldMap::fm_ClearObject(0xB0)` before popping its Pine frame.

@@ -376,6 +376,9 @@ namespace NextGen.FiestaLib
         KingdomQuestJoinCancelAck = 8,
         KingdomQuestScheduleAck = 10,
         KingdomQuestNotify = 11,
+        // Zone.exe/PDB NC_KQ_COMPLETE_CMD, emitted by Pine questresult suc.
+        KingdomQuestComplete = 18,
+        // Zone.exe/PDB NC_KQ_FAIL_CMD; empty payload also confirmed by PCAP.
         KingdomQuestFailed = 19,
         KingdomQuestRestDeadNum = 24,
         KingdomQuestEntryResponseAck = 26,
