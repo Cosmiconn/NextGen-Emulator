@@ -10,12 +10,11 @@ namespace NextGen.Zone.Data
         MobRegen = 3,
         QuestMobKill = 4,
         Reward = 5,
-        ScriptFile = 6,
         SummonMob = 7,
     }
 
     /// <summary>
-    /// Mutation-free, source-resolved projection of the seven UnderHall
+    /// Mutation-free, source-resolved projection of the six UnderHall
     /// command families whose native side effects remain external.
     ///
     /// Fields are deliberately named only where the original source/catalog
@@ -76,8 +75,8 @@ namespace NextGen.Zone.Data
     /// </summary>
     public static class KingdomQuestUnderHallExternalPlanBuilder
     {
-        public const int SourceUsedOccurrenceCount = 26;
-        public const int SourceDistinctFormCount = 20;
+        public const int SourceUsedOccurrenceCount = 25;
+        public const int SourceDistinctFormCount = 19;
 
         public static bool TryBuild(
             KingdomQuestUnderHallCommandSourcePlan source,
@@ -103,9 +102,6 @@ namespace NextGen.Zone.Data
 
                 case KingdomQuestUnderHallCommandKind.Reward:
                     return TryReward(source, out plan);
-
-                case KingdomQuestUnderHallCommandKind.ScriptFile:
-                    return TryScriptFile(source, out plan);
 
                 case KingdomQuestUnderHallCommandKind.SummonMob:
                     return TrySummonMob(source, out plan);
@@ -253,20 +249,6 @@ namespace NextGen.Zone.Data
 
             plan = Build(
                 KingdomQuestUnderHallExternalPlanKind.Reward,
-                source.Arguments[0]);
-            return true;
-        }
-
-        private static bool TryScriptFile(
-            KingdomQuestUnderHallCommandSourcePlan source,
-            out KingdomQuestUnderHallExternalPlan plan)
-        {
-            plan = null;
-            if (source.Arguments.Count != 1)
-                return false;
-
-            plan = Build(
-                KingdomQuestUnderHallExternalPlanKind.ScriptFile,
                 source.Arguments[0]);
             return true;
         }
