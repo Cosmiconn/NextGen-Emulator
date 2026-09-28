@@ -1823,6 +1823,11 @@ def main():
         "HPLowThresholdPermille",
         "CachedHPLowMaxHp",
         "interface IKingdomQuestUnderHallNativeInterruptView",
+        "interface IKingdomQuestPineNativeObjectHealthResolver",
+        "interface IKingdomQuestUnderHallQualifyingPlayerCountSource",
+        "class KingdomQuestUnderHallNativeInterruptView",
+        "objectHealthResolver.TryResolveObjectHealth(",
+        "qualifyingPlayerCountSource.TryGetQualifyingPlayerCount(",
         "class KingdomQuestUnderHallNativeInterruptDeliverySource",
         "NativeHpScale = 1000u",
         "KingdomQuestPineInterruptPlan.IsIntervalDue(",
@@ -1842,7 +1847,7 @@ def main():
     for forbidden in (
             "MapManager.Instance", "ClientManager.Instance", "Program.Randomizer",
             "System.Random", "DateTime.Now", "Environment.TickCount",
-            "Program.DatabaseManager", "SendPacket("):
+            "Program.DatabaseManager", "SendPacket(", "MapObjectID"):
         if forbidden in pine_interrupt_runtime_text:
             print("FAIL: native KQ Pine interrupt runtime invented an owner",
                   forbidden)

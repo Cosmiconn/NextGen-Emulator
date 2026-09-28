@@ -80,7 +80,7 @@ Still required for block completion:
   InterruptBlock "InterruptArg". -> call InterruptBlock.` handoff tied to the
   active interrupt registry. Sec/TimeOut due-candidate evaluation, typed source
   plans for the five HPLow and 19 PlayerEliminate predicates, and source-resolved
-  MapInfo/MobInfo plans for its remaining seven external command families are
+  MapInfo/MobInfo plans for its remaining six external command families are
   also modeled. The generic 243-call Pine `regengroup` path now resolves its
   source MobIndex values through both original MobInfo/MobInfoServer projections
   and requires an exact MobID match before handing a runtime plan to the
@@ -91,10 +91,13 @@ Still required for block completion:
   Sec deadline advancement are mutable runtime state, HPLow uses the
   registration-time runtime object handle and fires for a missing object or
   `currentHP*1000/maxHP <= threshold`, and PlayerEliminate fires when the
-  native qualifying-player count is zero. The remaining live boundary is the
-  map/object view that supplies those runtime observations together with the
-  seven external command side effects; `InterruptArg` has no consumer in the supplied
-  UnderHall source and is no longer a control-flow blocker. Their exact
+  native qualifying-player count is zero. The observation boundary is now
+  split explicitly into a native ShineObject-handle health resolver and the
+  native qualifying-player-count source; neither may equate the native handle
+  with an emulator MapObjectID or invent the ala_SearchPly filter. Supplying
+  those live observations plus the six external command side effects remains
+  open; `InterruptArg` has no consumer in the supplied UnderHall source and is
+  no longer a control-flow blocker. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command, so the scenario-to-reward source trigger location is no

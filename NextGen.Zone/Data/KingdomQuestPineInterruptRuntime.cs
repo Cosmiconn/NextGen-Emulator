@@ -101,6 +101,80 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
+    /// Explicit ShineObjectManager::som_GetObject health boundary.
+    /// The native WORD handle is deliberately not identified with any emulator
+    /// object identifier. true with exists=false represents the native object
+    /// lookup miss; false means the resolver itself cannot authoritatively
+    /// answer the observation.
+    /// </summary>
+    public interface IKingdomQuestPineNativeObjectHealthResolver
+    {
+        bool TryResolveObjectHealth(
+            ushort nativeObjectHandle,
+            out bool exists,
+            out uint currentHp,
+            out uint maximumHp);
+    }
+
+    /// <summary>
+    /// Explicit AxialListMobCounter::ala_SearchPly result boundary used by the
+    /// native PlayerEliminate BlastCheck. The exact qualifying-player filter
+    /// remains owned by the native-correlated provider.
+    /// </summary>
+    public interface IKingdomQuestUnderHallQualifyingPlayerCountSource
+    {
+        bool TryGetQualifyingPlayerCount(out int playerCount);
+    }
+
+    /// <summary>
+    /// Composes the two independently recovered native observation boundaries
+    /// required by UnderHall interrupts. It intentionally performs no map
+    /// lookup, player enumeration or handle translation of its own.
+    /// </summary>
+    public sealed class KingdomQuestUnderHallNativeInterruptView :
+        IKingdomQuestUnderHallNativeInterruptView
+    {
+        private readonly IKingdomQuestPineNativeObjectHealthResolver
+            objectHealthResolver;
+        private readonly IKingdomQuestUnderHallQualifyingPlayerCountSource
+            qualifyingPlayerCountSource;
+
+        public KingdomQuestUnderHallNativeInterruptView(
+            IKingdomQuestPineNativeObjectHealthResolver objectHealthResolver,
+            IKingdomQuestUnderHallQualifyingPlayerCountSource
+                qualifyingPlayerCountSource)
+        {
+            this.objectHealthResolver = objectHealthResolver;
+            this.qualifyingPlayerCountSource = qualifyingPlayerCountSource;
+        }
+
+        public bool TryGetObjectHealth(
+            ushort runtimeHandle,
+            out bool exists,
+            out uint currentHp,
+            out uint maximumHp)
+        {
+            exists = false;
+            currentHp = 0;
+            maximumHp = 0;
+            return objectHealthResolver != null &&
+                objectHealthResolver.TryResolveObjectHealth(
+                    runtimeHandle,
+                    out exists,
+                    out currentHp,
+                    out maximumHp);
+        }
+
+        public bool TryGetQualifyingPlayerCount(out int playerCount)
+        {
+            playerCount = 0;
+            return qualifyingPlayerCountSource != null &&
+                qualifyingPlayerCountSource.TryGetQualifyingPlayerCount(
+                    out playerCount);
+        }
+    }
+
+    /// <summary>
     /// Source-equivalent ScriptInterruptManager selector for the four
     /// interrupt kinds used by KQ/UnderHall.
     ///

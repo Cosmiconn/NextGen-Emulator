@@ -1428,7 +1428,7 @@ the generic command host by `KingdomQuestPineUsedCommandRuntime`:
 `regengroup` (243), `interruptset` (225),
 `interruptclear` (65), `endofkq` (19),
 `interrupterase` (14), `timelimit` (14) and
-`questresult` (9), for **589 source command occurrences**. Their actual
+`questresult` (9) plus `scriptfile` (19), for **608 source command occurrences**. Their actual
 map/packet/title/scenario mutation remains behind explicit tick, regen-source
 and effect-sink interfaces; the dispatcher itself owns no wall clock, map
 manager, packet send or database mutation. A recognized command with a missing
@@ -1460,10 +1460,10 @@ provider still owns native BlastCheck/event selection and ordering.
 
 Other system functions and dynamic `#(...)` identifiers still fall through
 to the fail-closed host rather than being guessed. The exact 44-verb source
-inventory is now guarded more strictly as well: after the seven executable
+inventory is now guarded more strictly as well: after the eight executable
 one-step families, the separately recovered `call`/`break`/`pause`
 control paths, and the shared `waitlogin`/`waitinterrupt` handoffs, the
-remaining **32 source-used command verbs** are recognized explicitly as
+remaining **31 source-used command verbs** are recognized explicitly as
 source-used-but-unrecovered. They return an invalid/fail-closed resolution
 before the generic command host can reinterpret them. This includes
 broadcast/chat UI, summon/mob, door, item, NPC and link actions. Native
@@ -1471,21 +1471,21 @@ side-effect recovery can enable those families one at a time without allowing
 guessed fallback semantics.
 
 The exact unresolved shape is locked per script as well. After removing the
-shared wait primitives, `UnderHall` needs **7** unresolved verb families
-(`broadcast/linkto/mobregen/questmobkill/reward/scriptfile/summonmob`);
-`UnderHall2` uses those same core families plus `chatwin`, for **8**.
-The five Warrior's Code scripts `KQHBat1..5` share **12** unresolved
+shared wait primitives, `UnderHall` needs **6** unresolved verb families
+(`broadcast/linkto/mobregen/questmobkill/reward/summonmob`);
+`UnderHall2` uses those same core families plus `chatwin`, for **7**.
+The five Warrior's Code scripts `KQHBat1..5` share **11** unresolved
 families and therefore form one reusable native-recovery target rather than
-five independent runtimes. `Honeying` currently needs **14** families and
-`GordonMaster` **24**. This per-script matrix is derived directly from the
+five independent runtimes. `Honeying` currently needs **13** families and
+`GordonMaster` **23**. This per-script matrix is derived directly from the
 hash-locked canonical Pine bundle and is CI-guarded, so implementation can
 close the smallest source-equivalent slice first without hiding broader gaps.
 
 The complete UnderHall source slice is source-locked as well.
-`KingdomQuestUnderHallCommandRuntime` still recognizes the original nine
-families and **46 source occurrences / 22 distinct source forms**, but the
+`KingdomQuestUnderHallCommandRuntime` now recognizes the remaining eight
+UnderHall-special families and **45 source occurrences / 21 distinct source forms**, but the
 shared control runtime now intercepts `waitlogin` and `waitinterrupt`
-before the UnderHall-specific sink. The remaining seven external families are
+before the UnderHall-specific sink. The remaining six external families are
 parsed through `KingdomQuestUnderHallCommandSource` and forwarded only as
 validated, source-routed plans to `IKingdomQuestUnderHallCommandSink`.
 A changed UnderHall form or missing native side-effect owner remains
@@ -1531,10 +1531,12 @@ the spawned type, but **1068 is not substituted for the runtime handle**.
 `interruptset` time and keeps mutable RepeatCount, interval deadline and
 HPLow MaxHP cache. All 61 UnderHall registrations have exact `RepeatCount=1`.
 
-The only remaining event-side live dependency is an explicit map/object view
-that resolves the captured runtime handle to HP/MaxHP and supplies the native
-qualifying-player count; comparison, selection order and manager mutation are
-no longer unresolved.
+The remaining event-side live dependency is now split into two explicit native
+providers: ShineObject-handle -> HP/MaxHP resolution and the
+AxialListMobCounter::ala_SearchPly qualifying-player count. The runtime composes
+those providers without mapping a native handle to an emulator MapObjectID or
+inventing the still-unrecovered player qualification filter; comparison,
+selection order and manager mutation are no longer unresolved.
 
 
 `InterruptArg` itself is no longer a control-flow blocker for this supplied
@@ -1553,10 +1555,10 @@ target-variable/frame-state handoff generically. The injected
 `IKingdomQuestPineWaitLoginSource` still owns the native value, wake predicate
 and timing, so no player-count interpretation is invented.
 
-The remaining seven non-`waitinterrupt`/non-`waitlogin` UnderHall families
+The remaining six non-`waitinterrupt`/non-`waitlogin` UnderHall families
 are source-resolved one step further before any gameplay owner can see them.
-`KingdomQuestUnderHallExternalPlanBuilder` converts the **26 occurrences /
-20 distinct forms** into typed immutable plans and correlates the checked-in
+`KingdomQuestUnderHallExternalPlanBuilder` converts the **25 occurrences /
+19 distinct forms** into typed immutable plans and correlates the checked-in
 MapInfo/MobInfo identities where source permits it: the Elderine target is
 MapID 9 at exact source coordinates 17214/13445, and mob/summon identifiers
 resolve through the 11-row UnderHall MobInfo catalog. Numeric operands whose
@@ -1577,9 +1579,11 @@ ShineObject handle captured later by HPLow.
 
 Their **top-level block ownership is now source-locked as well**.
 `KingdomQuestUnderHallSourceFlow` accepts each external plan only at its exact
-canonical source site: `scriptfile` is in `main`, `mobregen` in
-`Nineteenth`, the eleven summon calls in `Summon1..5`, and the return paths
-in `QuestSuc` / `QuestFail`. Most importantly, UnderHall has exactly one
+canonical source site: `mobregen` is in `Nineteenth`, the eleven summon calls
+are in `Summon1..5`, and the return paths
+in `QuestSuc` / `QuestFail`. The former `scriptfile` site is no longer an
+external UnderHall side effect: it is executed by the generic, native-recovered
+Pine one-step runtime. Most importantly, UnderHall has exactly one
 `reward KingdomQuest.` occurrence and it is canonical line 378 inside
 `QuestSuc`; `QuestFail` has **zero** reward occurrences. Both success and
 failure perform their own broadcast/link return sequence. This closes the
