@@ -652,39 +652,45 @@ def main():
             "broadcast": 8, "chatwin": 2, "doorbuild": 3,
             "doorclose": 3, "dooropen": 3, "effectobj": 3, "linkto": 2,
             "mobregen": 1, "npcshout": 5, "questmobkill": 1, "reward": 1,
+            "summonmob": 5, "vanish": 3,
         },
         "KQ/KQHBat1": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "sendquestresult": 2,
         },
         "KQ/KQHBat2": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "sendquestresult": 2,
         },
         "KQ/KQHBat3": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "sendquestresult": 2,
         },
         "KQ/KQHBat4": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "sendquestresult": 2,
         },
         "KQ/KQHBat5": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
+            "sendquestresult": 2,
         },
         "KQ/UnderHall": {
             "broadcast": 8, "linkto": 2, "mobregen": 1,
-            "summonmob": 12,
+            "questmobkill": 1, "reward": 1, "summonmob": 12,
         },
         "KQ/UnderHall2": {
             "broadcast": 12, "chatwin": 4, "linkto": 3, "mobregen": 1,
-            "summonmob": 54,
+            "questmobkill": 2, "reward": 2, "summonmob": 54,
         },
     }
 
