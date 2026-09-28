@@ -39,6 +39,7 @@ namespace NextGen.Zone.Data
         private readonly KingdomQuestPineInterruptRegistryState interrupts;
         private readonly IKingdomQuestPineExternalCommandSink externalSink;
         private KingdomQuestPineTimeLimitPlan timeLimit;
+        private KingdomQuestPineScriptFileSource currentScriptFile;
 
         public KingdomQuestPineInterruptRegistryState Interrupts
         {
@@ -48,6 +49,11 @@ namespace NextGen.Zone.Data
         public KingdomQuestPineTimeLimitPlan TimeLimit
         {
             get { return timeLimit; }
+        }
+
+        public KingdomQuestPineScriptFileSource CurrentScriptFile
+        {
+            get { return currentScriptFile; }
         }
 
         public KingdomQuestPineLocalCommandState(
@@ -103,6 +109,27 @@ namespace NextGen.Zone.Data
         public bool TryClearInterrupts()
         {
             interrupts.Clear();
+            return true;
+        }
+
+        public bool TrySetScriptFile(
+            KingdomQuestPineScriptFilePlan plan)
+        {
+            if (plan == null)
+                return false;
+
+            if (plan.ClearsCurrentScript)
+            {
+                if (plan.Source != null)
+                    return false;
+                currentScriptFile = null;
+                return true;
+            }
+
+            if (plan.Source == null)
+                return false;
+
+            currentScriptFile = plan.Source;
             return true;
         }
 
