@@ -644,6 +644,7 @@ def main():
             "exchange2mob": 1, "invensearch": 3, "itemdrop": 4,
             "itemerase": 2, "itemowner": 2, "linkto": 2, "mobattr": 4,
             "mobregen": 2, "npcchat": 20, "npcstand": 2,
+            "questmobkill": 1, "reward": 1,
             "suicide": 1, "summonmob": 1, "teleport": 1,
             "whoclickme": 3,
         },
