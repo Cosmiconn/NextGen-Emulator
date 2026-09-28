@@ -1623,9 +1623,13 @@ remain outside this mutation-free boundary. `ShineEndOfKingdomQuest::sa_Step` at
 `0x004F5FC0` reads the current FieldMap KQ handle, calls
 `WorldManagerSession::wms_EndOfKQPacket(handle)`, then calls
 `FieldMap::fm_ClearObject(0xB0)` before popping its Pine frame.
-`AxialListObjectClear::ali_Work` proves that `0xB0` is an object-type bit
-mask; the emulator deliberately preserves that raw mask rather than guessing
-which emulator classes it should clear.
+`KingdomQuestPineEndRuntime` now encodes that exact END-before-clear order
+behind separate World-sender and FieldMap-clear owner interfaces and refuses to
+run unless both are supplied. `AxialListObjectClear::ali_Work` proves that
+`0xB0` is an object-type bit mask; the emulator deliberately preserves that
+raw mask rather than guessing which emulator classes it should clear. The
+actual 0xB0-to-emulator-object-class mapping remains UNRESOLVED, so this does
+not yet activate `endofkq` from the live scenario.
 
 The used Pine `regengroup` boundary is also executable-source resolved.
 All **243** calls in the nine supplied Pine KQs use exactly two quoted operands;

@@ -138,6 +138,58 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
+    /// Native owner boundary for WorldManagerSession::wms_EndOfKQPacket.
+    /// The concrete Zone transport already exists separately; this interface
+    /// keeps terminal ordering testable without sending during source audits.
+    /// </summary>
+    public interface IKingdomQuestPineEndWorldSender
+    {
+        void SendKingdomQuestEnd(uint handle);
+    }
+
+    /// <summary>
+    /// Native owner boundary for FieldMap::fm_ClearObject. The raw 0xB0 mask is
+    /// passed through unchanged; no emulator object-class mapping is inferred.
+    /// </summary>
+    public interface IKingdomQuestPineEndFieldMapClearOwner
+    {
+        void ClearObjects(uint nativeObjectTypeMask);
+    }
+
+    /// <summary>
+    /// Exact side-effect ordering of ShineEndOfKingdomQuest::sa_Step at
+    /// Zone.exe 0x004F5FC0.
+    ///
+    /// Native sends NC_KQ_Z2W_END_CMD for the current KQ handle first, then
+    /// calls FieldMap::fm_ClearObject(0xB0), and only afterwards returns so the
+    /// Pine frame can pop. Both owners must therefore be present before either
+    /// action is attempted. This runtime does not reinterpret the clear mask.
+    /// </summary>
+    public static class KingdomQuestPineEndRuntime
+    {
+        public const uint NativeStepAddress = 0x004F5FC0u;
+
+        public static bool TryExecute(
+            KingdomQuestPineEndPlan plan,
+            IKingdomQuestPineEndWorldSender worldSender,
+            IKingdomQuestPineEndFieldMapClearOwner fieldMapClearOwner)
+        {
+            if (plan == null ||
+                worldSender == null ||
+                fieldMapClearOwner == null ||
+                plan.Handle ==
+                    KingdomQuestPineEndPlan.NativeNoKingdomQuestHandle ||
+                plan.ClearObjectTypeMask !=
+                    KingdomQuestPineEndPlan.NativeClearObjectTypeMask)
+                return false;
+
+            worldSender.SendKingdomQuestEnd(plan.Handle);
+            fieldMapClearOwner.ClearObjects(plan.ClearObjectTypeMask);
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Exact terminal KQ command projection for the source-modeled Pine
     /// control runtime. This layer decodes commands into native actions; the
     /// separate result-wire helper can build the proven empty COMPLETE/FAIL

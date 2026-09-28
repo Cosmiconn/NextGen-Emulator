@@ -107,8 +107,11 @@ Still required for block completion:
   longer ambiguous. The `questresult` COMPLETE/FAIL client wire is also
   closed as an exact empty Header-22 type 18/19 packet; player audience,
   CT_KQSuccess/CT_KQFail title mutation and actual send remain in the live
-  side-effect layer. Native event production/command side effects, the live
-  Pine film tick/host wiring and the separate Lua backend execution remain
+  side-effect layer. The `endofkq` terminal order is now executable-source
+  modeled as Z2W END followed by FieldMap clear mask 0xB0 behind two explicit
+  owners; the raw mask is not mapped to emulator object classes yet, so live
+  activation remains fail-closed. Native event production/command side effects,
+  the live Pine film tick/host wiring and the separate Lua backend execution remain
   fail-closed; the Pine `cc_PlayFilm` entry binding itself is no longer
   unresolved;
 - exact native-thread assignment/consumer ordering for the thread-local Zone

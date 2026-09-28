@@ -2208,6 +2208,13 @@ def main():
         "NativeFailTitleCategory = 22",
         "NativeNoKingdomQuestHandle = 0xFFFFFFFFu",
         "NativeClearObjectTypeMask = 0xB0u",
+        "interface IKingdomQuestPineEndWorldSender",
+        "interface IKingdomQuestPineEndFieldMapClearOwner",
+        "class KingdomQuestPineEndRuntime",
+        "NativeStepAddress = 0x004F5FC0u",
+        "worldSender.SendKingdomQuestEnd(plan.Handle)",
+        "fieldMapClearOwner.ClearObjects(plan.ClearObjectTypeMask)",
+        "Both owners must therefore be present before either",
         "index_suc",
         "NC_KQ_FAIL_CMD branch",
         "WorldManagerSession::wms_EndOfKQPacket(handle)",
@@ -2218,6 +2225,21 @@ def main():
     for token in pine_terminal_tokens:
         if token not in pine_terminal_text:
             print("FAIL: KQ Pine terminal command projection changed", token)
+            return 1
+
+    end_send = pine_terminal_text.find(
+        "worldSender.SendKingdomQuestEnd(plan.Handle)")
+    end_clear = pine_terminal_text.find(
+        "fieldMapClearOwner.ClearObjects(plan.ClearObjectTypeMask)")
+    if not (0 <= end_send < end_clear):
+        print("FAIL: KQ endofkq native END/clear ordering changed")
+        return 1
+    for forbidden in (
+            "MapManager.Instance", "MapObjectID",
+            "InterHandler.SendKingdomQuestEnd("):
+        if forbidden in pine_terminal_text:
+            print("FAIL: KQ terminal runtime bypassed explicit native owner",
+                  forbidden)
             return 1
 
     pine_regen_text = PINE_REGEN_PLAN.read_text(encoding="utf-8")
