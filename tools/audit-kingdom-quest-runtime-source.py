@@ -2048,7 +2048,10 @@ def main():
         "UsedLuaScriptLanguageCount = 18",
         "interface IKingdomQuestLuaScenarioHost",
         "this interface does not substitute the community scripting API",
-        "infer a script entry function from ScriptInitValue",
+        "public static bool TryGet(",
+        "bool TryStart(",
+        "KingdomQuestLuaScenarioSource source",
+        "string scriptInitValue",
     ):
         if token not in lua_scenario_scope_text:
             print("FAIL: KQ Lua source/runtime scope changed", token)
