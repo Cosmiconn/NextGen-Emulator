@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace NextGen.Zone.Data
 {
     /// <summary>
-    /// Explicit side-effect boundary for the nine exact unrecovered command
+    /// Explicit side-effect boundary for the eight exact UnderHall-special command
     /// families used by KQ/UnderHall.
     ///
     /// The caller owns native behavior and persistent command-frame state.
@@ -36,9 +36,9 @@ namespace NextGen.Zone.Data
     public static class KingdomQuestUnderHallCommandRuntime
     {
         public const string ScriptLanguage = "KQ/UnderHall";
-        public const int SourceUsedFamilyCount = 9;
-        public const int SourceUsedOccurrenceCount = 46;
-        public const int SourceDistinctFormCount = 22;
+        public const int SourceUsedFamilyCount = 8;
+        public const int SourceUsedOccurrenceCount = 45;
+        public const int SourceDistinctFormCount = 21;
 
         private static readonly HashSet<string> SourceUsedVerbs =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -48,7 +48,6 @@ namespace NextGen.Zone.Data
                 "mobregen",
                 "questmobkill",
                 "reward",
-                "scriptfile",
                 "summonmob",
                 "waitinterrupt",
                 "waitlogin",
