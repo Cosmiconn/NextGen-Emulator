@@ -47,6 +47,8 @@ namespace NextGen.Zone.Data
 
         bool TryClearInterrupts();
 
+        bool TrySetScriptFile(KingdomQuestPineScriptFilePlan plan);
+
         bool TryRunRegenGroup(KingdomQuestPineRegenGroupPlan plan);
 
         bool TryApplyQuestResult(KingdomQuestPineQuestResultPlan plan);
@@ -140,9 +142,10 @@ namespace NextGen.Zone.Data
     ///   endofkq          19
     ///   interrupterase   14
     ///   timelimit        14
+    ///   scriptfile       19
     ///   questresult       9
     ///   --------------------
-    ///   total           589
+    ///   total           608
     ///
     /// pause (202) and waitinterrupt (55) are deliberately excluded because
     /// they remain active across multiple frame steps and require persistent
@@ -151,8 +154,8 @@ namespace NextGen.Zone.Data
     /// </summary>
     public static class KingdomQuestPineUsedCommandRuntime
     {
-        public const int UsedOneStepCommandCount = 589;
-        public const int SourceUsedUnrecoveredVerbCount = 32;
+        public const int UsedOneStepCommandCount = 608;
+        public const int SourceUsedUnrecoveredVerbCount = 31;
 
         public static KingdomQuestPineCommandResolution TryStep(
             string commandText,
@@ -193,6 +196,8 @@ namespace NextGen.Zone.Data
 
                 case "regengroup":
                     return StepRegenGroup(commandText, context, out completed);
+
+                    return StepScriptFile(commandText, context, out completed);
 
                 case "questresult":
                     return StepQuestResult(commandText, context, out completed);
@@ -375,6 +380,24 @@ namespace NextGen.Zone.Data
                 !KingdomQuestPineRegenGroupResolver.TryBuild(
                     document, groupIndex, out plan) ||
                 !context.Sink.TryRunRegenGroup(plan))
+                return KingdomQuestPineCommandResolution.Invalid;
+
+            completed = true;
+            return KingdomQuestPineCommandResolution.Success;
+        }
+
+        private static KingdomQuestPineCommandResolution StepScriptFile(
+            string commandText,
+            KingdomQuestPineUsedCommandContext context,
+            out bool completed)
+        {
+            completed = false;
+            KingdomQuestPineScriptFilePlan plan;
+            if (context == null ||
+                context.Sink == null ||
+                !KingdomQuestPineScriptFile.TryParseUsed(
+                    commandText, out plan) ||
+                !context.Sink.TrySetScriptFile(plan))
                 return KingdomQuestPineCommandResolution.Invalid;
 
             completed = true;
