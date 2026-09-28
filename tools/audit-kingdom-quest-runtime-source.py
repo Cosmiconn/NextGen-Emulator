@@ -1230,7 +1230,8 @@ def main():
         "externalSink.TryQuestMobKill(",
         "externalSink.TryReward(",
         "externalSink.TrySummonMob(",
-        "generic Pine control runtime owns all 9/9 waitlogin",
+        "waitlogin and waitinterrupt are intentionally absent",
+        "55/55 waitinterrupt sites",
         "performs no interrupt delivery",
     ):
         if token not in underhall_state_text:
