@@ -1587,11 +1587,18 @@ UnderHall **scenario-to-reward source trigger location** without claiming the
 still-unrecovered native side effect of `ShineReward::sa_Step`.
 
 Across all nine supplied Pine KQs the only common top-level block is
-`main`, and all **9/9** scripts contain it. This is strong source evidence for
-a common entry candidate, but it is not promoted to the native
-`CinemaComplex::cc_PlayFilm` entry rule: `ScriptInitValue` remains opaque
-and the emulator still does not start `main` until that native binding is
-independently recovered.
+`main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
+closes the native entry rule rather than relying on that corpus coincidence.
+`PineEventScriptNode::Script::sa_Step` at **0x004D8100** copies the literal
+`main`, resolves that named block and pushes it on the ProcessStack. In
+`Movie::Theater::t_PlayFilm` at **0x005081F0**, the Pine branch first calls
+`ProcessStack::ps_Ready` at **0x004D6B40**, then pushes the literal
+VariableStack name `InitFlag` through **0x004D6BD0 -> vs_Push 0x004D6A90**.
+If that push succeeds, it copies exactly **0x40 DWORDs / 0x100 bytes** from the
+supplied `ScriptInitValue` PineScriptToken into the new value token before
+the root script is stepped. Therefore `ScriptInitValue` is Pine initialization
+data, not a block selector. `KingdomQuestPineScenarioRuntime` models this
+exact `main` + `InitFlag` start boundary.
 
 Two terminal KQ commands are now projected exactly without activating mutation.
 `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its single token
@@ -1673,20 +1680,19 @@ native KQ map slots. For every populated map it obtains the KQ element's
 `ScriptInitValue` tokens. MAKE created those two `PineScriptToken` values
 from the corresponding fields of `PROTO_KQ_INFO`.
 
-The Zone lifecycle now preserves that recovered START boundary explicitly in
+The Zone lifecycle preserves that recovered START boundary explicitly in
 `KingdomQuestScenarioStartPlan`. W2Z START records the native action order
 **DropFilm -> CloseAllDoors -> PlayFilm(ScriptLanguage, ScriptInitValue)** in
 the KQ runtime state and carries it unchanged through later disjoin/end state
-updates. This does not execute a film or choose a Pine block.
+updates. The Pine backend start is now separately executable-source modeled by
+`KingdomQuestPineScenarioRuntime`: it enters `main` and creates `InitFlag`
+from the exact supplied init token before any Pine step.
 
-The meaning of the second `cc_PlayFilm` token remains deliberately
-**UNRESOLVED** beyond that call boundary. The canonical Pine corpus disproves a
-tempting shortcut: `KQ/UnderHall` is started with
-`ScriptInitValue="10"`, but `10` is not a top-level block name in that
-source. Therefore the emulator does not reinterpret `ScriptInitValue` as an
-entry-block key, does not pick a default block, and does not substitute a Lua
-entrypoint. The runtime-source audit locks this counterexample so that the
-disproven mapping cannot be reintroduced.
+The earlier `ScriptInitValue` entry-block ambiguity is therefore closed for
+Pine. The canonical `KQ/UnderHall` value `"10"` remains a useful regression
+guard because native assigns it to `InitFlag`; it is never interpreted as a
+block name. Lua remains a separate backend: the recovered Pine rule is not
+reused to infer a Lua entry function or API semantics.
 
 Static regen is reached later and lazily by the running scenario. The recovered
 PineScript `regengroup` node follows this exact path:
