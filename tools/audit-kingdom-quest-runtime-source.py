@@ -40,6 +40,7 @@ UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallI
 UNDERHALL_EVENT_PREDICATE_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallEventPredicatePlan.cs"
 UNDERHALL_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceCatalog.cs"
 SCENARIO_START_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestScenarioStartPlan.cs"
+PINE_SCENARIO_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineScenarioRuntime.cs"
 LUA_SCENARIO_SCOPE = ROOT / "NextGen.Zone/Data/KingdomQuestLuaScenarioScope.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
@@ -264,7 +265,8 @@ def main():
                  UNDERHALL_EXTERNAL_PLAN, UNDERHALL_SOURCE_FLOW,
                  UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_INTERRUPT_CANDIDATE,
                  UNDERHALL_EVENT_PREDICATE_PLAN, UNDERHALL_SOURCE_CATALOG,
-                 SCENARIO_START_PLAN, LUA_SCENARIO_SCOPE, ZONE_RUNTIME,
+                 SCENARIO_START_PLAN, PINE_SCENARIO_RUNTIME,
+                 LUA_SCENARIO_SCOPE, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN, PINE_REGEN_RUNTIME_PLAN,
                  PINE_REGEN_NATIVE_LAYOUT, PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
                  PINE_WAITLOGIN,
@@ -2093,7 +2095,9 @@ def main():
         "definition.ScriptLanguage",
         "definition.ScriptInitValue",
         "ContainsSourceBackedScenarioBook(",
-        "exposes no entry-block mapping",
+        'literal top-level block "main"',
+        'VariableStack token "InitFlag"',
+        "complete 0x100-byte ScriptInitValue token",
     ):
         if token not in scenario_start_text:
             print("FAIL: KQ native scenario start plan changed", token)
@@ -2103,6 +2107,38 @@ def main():
             "SendPacket(", "Program.DatabaseManager"):
         if forbidden in scenario_start_text:
             print("FAIL: KQ scenario start plan invented execution", forbidden)
+            return 1
+
+    pine_scenario_runtime_text = PINE_SCENARIO_RUNTIME.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineScenarioRuntime",
+        'NativeEntryBlockName = "main"',
+        'NativeInitVariableName = "InitFlag"',
+        "NativeInitTokenBytes = 0x100",
+        "NativeScriptStepAddress = 0x004D8100u",
+        "NativeTheaterPlayFilmAddress = 0x005081F0u",
+        "NativeProcessStackReadyAddress = 0x004D6B40u",
+        "NativeProcessStackPushVariableAddress = 0x004D6BD0u",
+        "NativeVariableStackPushAddress = 0x004D6A90u",
+        "document.Blocks.TryGetValue(",
+        "NativeEntryBlockName, out main",
+        "KingdomQuestPineControlRuntime.TryCreate(",
+        "runtime.Variables.TryPush(",
+        "NativeInitVariableName, out initValue",
+        "initValue.TrySetAscii(startPlan.ScriptInitValue)",
+    ):
+        if token not in pine_scenario_runtime_text:
+            print("FAIL: native KQ Pine film entry changed", token)
+            return 1
+    for forbidden in (
+            "ScriptInitValue == NativeEntryBlockName",
+            "MapManager.Instance", "SendPacket(",
+            "Program.DatabaseManager", "System.Random",
+            "DateTime.Now", "Environment.TickCount"):
+        if forbidden in pine_scenario_runtime_text:
+            print("FAIL: native KQ Pine film entry invented runtime semantics",
+                  forbidden)
             return 1
 
     for token in (
