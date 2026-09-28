@@ -1120,9 +1120,9 @@ def main():
         "interface IKingdomQuestUnderHallCommandSink",
         "class KingdomQuestUnderHallCommandRuntime",
         'ScriptLanguage = "KQ/UnderHall"',
-        "SourceUsedFamilyCount = 8",
-        "SourceUsedOccurrenceCount = 45",
-        "SourceDistinctFormCount = 21",
+        "SourceUsedFamilyCount = 6",
+        "SourceUsedOccurrenceCount = 25",
+        "SourceDistinctFormCount = 19",
         "KingdomQuestUnderHallCommandSource.TryParse(",
         "KingdomQuestPineVariableStack variables",
         "ref int nativeState",
@@ -1133,9 +1133,18 @@ def main():
             print("FAIL: KQ UnderHall command runtime composition changed",
                   token)
             return 1
-    for verb in expected_underhall_forms:
+    underhall_runtime_verbs = {
+        "broadcast", "linkto", "mobregen",
+        "questmobkill", "reward", "summonmob",
+    }
+    for verb in sorted(underhall_runtime_verbs):
         if ('"' + verb + '"') not in underhall_runtime_text:
-            print("FAIL: KQ UnderHall runtime lost source-used verb", verb)
+            print("FAIL: KQ UnderHall runtime lost external verb", verb)
+            return 1
+    for shared_verb in ("scriptfile", "waitinterrupt", "waitlogin"):
+        if ('"' + shared_verb + '",') in underhall_runtime_text:
+            print("FAIL: KQ UnderHall runtime duplicated shared Pine verb",
+                  shared_verb)
             return 1
     for forbidden in (
             "MapManager.Instance", "ChangeMap(", "SendPacket(",
@@ -1205,12 +1214,9 @@ def main():
     underhall_state_text = UNDERHALL_COMMAND_STATE.read_text(
         encoding="utf-8")
     for token in (
-        "class KingdomQuestUnderHallInterruptDelivery",
-        "interface IKingdomQuestUnderHallInterruptDeliverySource",
         "interface IKingdomQuestUnderHallExternalCommandSink",
         "class KingdomQuestUnderHallCommandState",
         "IKingdomQuestUnderHallCommandSink",
-        "KingdomQuestUnderHallCommandKind.WaitInterrupt",
         "KingdomQuestUnderHallExternalPlanBuilder.TryBuild(",
         "KingdomQuestUnderHallSourceFlow.TryResolve(",
         "KingdomQuestUnderHallExternalSourceSite sourceSite",
@@ -1224,29 +1230,24 @@ def main():
         "externalSink.TryQuestMobKill(",
         "externalSink.TryReward(",
         "externalSink.TrySummonMob(",
-        "KingdomQuestPineInterruptRegistryState activeInterrupts",
-        "interruptDeliverySource.TryTake(",
-        "activeInterrupts, out delivery",
-        "activeInterrupts.ContainsReference(delivery.SelectedPlan)",
-        "document.Blocks.ContainsKey(",
-        "delivery.SelectedPlan.ActionBlock",
-        "variables.TryFind(plan.Arguments[0], out blockValue)",
-        "variables.TryFind(plan.Arguments[1], out argumentValue)",
-        "blockValue.TrySetAscii(",
-        "argumentValue.TrySetAscii(delivery.Argument)",
-        "A wait with no selected native interrupt remains active.",
-        "does not evaluate",
-        "choose BlastCheck ordering",
+        "generic Pine control runtime owns all 9/9 waitlogin",
+        "performs no interrupt delivery",
     ):
         if token not in underhall_state_text:
-            print("FAIL: KQ UnderHall interrupt-delivery state changed", token)
+            print("FAIL: KQ UnderHall external command state changed", token)
             return 1
     for forbidden in (
+            "KingdomQuestUnderHallInterruptDelivery",
+            "IKingdomQuestUnderHallInterruptDeliverySource",
+            "KingdomQuestUnderHallCommandKind.WaitInterrupt",
+            "TryStepWaitInterrupt(",
+            "ContainsReference(",
+            "document.Blocks",
             "MapManager.Instance", "ChangeMap(", "SendPacket(",
             "Program.DatabaseManager", "System.Random", "DateTime.Now",
             "Environment.TickCount"):
         if forbidden in underhall_state_text:
-            print("FAIL: KQ UnderHall wait state invented an external effect",
+            print("FAIL: KQ UnderHall state duplicated shared/runtime semantics",
                   forbidden)
             return 1
 
@@ -2036,8 +2037,7 @@ def main():
         "interface IKingdomQuestPineExternalCommandSink",
         "class KingdomQuestPineLocalCommandState",
         "CreateUnderHallCommandState(",
-        "interruptDeliverySource,",
-        "interrupts,",
+        "new KingdomQuestUnderHallCommandState(externalSink)",
         "IKingdomQuestPineUsedCommandSink",
         "KingdomQuestPineInterruptRegistryState interrupts",
         "KingdomQuestPineTimeLimitPlan timeLimit",

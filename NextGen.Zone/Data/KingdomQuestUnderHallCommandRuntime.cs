@@ -4,12 +4,14 @@ using System.Collections.Generic;
 namespace NextGen.Zone.Data
 {
     /// <summary>
-    /// Explicit side-effect boundary for the eight exact UnderHall-special command
-    /// families used by KQ/UnderHall.
+    /// Explicit side-effect boundary for the six exact UnderHall-special
+    /// gameplay command families that remain outside the shared Pine runtime.
     ///
-    /// The caller owns native behavior and persistent command-frame state.
-    /// This interface deliberately does not define map/mob/reward/login/
-    /// interrupt semantics. Returning false is fail-closed.
+    /// scriptfile is owned by KingdomQuestPineUsedCommandRuntime, while
+    /// waitlogin and waitinterrupt are owned by KingdomQuestPineControlRuntime.
+    /// Keeping those shared primitives out of this dispatcher prevents a second
+    /// UnderHall-only implementation from diverging from the recovered native
+    /// behavior.
     /// </summary>
     public interface IKingdomQuestUnderHallCommandSink
     {
@@ -22,23 +24,22 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Runtime composition boundary for the exact KQ/UnderHall source forms.
+    /// Runtime composition boundary for the six remaining KQ/UnderHall
+    /// side-effect command families.
     ///
     /// All source syntax is validated by KingdomQuestUnderHallCommandSource
-    /// before a side-effect owner is invoked. A source-used UnderHall verb with
-    /// a non-canonical form is Invalid rather than Unsupported, preventing a
-    /// generic host from silently reinterpreting changed script syntax.
-    ///
-    /// The sink receives the Pine command frame's persistent state by ref, so
-    /// multi-step native commands such as waitinterrupt/waitlogin can remain
-    /// active without the dispatcher inventing their completion predicates.
+    /// before a side-effect owner is invoked. A source-used UnderHall external
+    /// verb with a non-canonical form is Invalid rather than Unsupported,
+    /// preventing a generic host from silently reinterpreting changed script
+    /// syntax. Shared Pine primitives are deliberately Unsupported here so the
+    /// generic runtime remains their single owner.
     /// </summary>
     public static class KingdomQuestUnderHallCommandRuntime
     {
         public const string ScriptLanguage = "KQ/UnderHall";
-        public const int SourceUsedFamilyCount = 8;
-        public const int SourceUsedOccurrenceCount = 45;
-        public const int SourceDistinctFormCount = 21;
+        public const int SourceUsedFamilyCount = 6;
+        public const int SourceUsedOccurrenceCount = 25;
+        public const int SourceDistinctFormCount = 19;
 
         private static readonly HashSet<string> SourceUsedVerbs =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -49,8 +50,6 @@ namespace NextGen.Zone.Data
                 "questmobkill",
                 "reward",
                 "summonmob",
-                "waitinterrupt",
-                "waitlogin",
             };
 
         public static KingdomQuestPineCommandResolution TryStep(

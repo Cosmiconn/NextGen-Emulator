@@ -1482,14 +1482,17 @@ hash-locked canonical Pine bundle and is CI-guarded, so implementation can
 close the smallest source-equivalent slice first without hiding broader gaps.
 
 The complete UnderHall source slice is source-locked as well.
-`KingdomQuestUnderHallCommandRuntime` now recognizes the remaining eight
-UnderHall-special families and **45 source occurrences / 21 distinct source forms**, but the
-shared control runtime now intercepts `waitlogin` and `waitinterrupt`
-before the UnderHall-specific sink. The remaining six external families are
-parsed through `KingdomQuestUnderHallCommandSource` and forwarded only as
-validated, source-routed plans to `IKingdomQuestUnderHallCommandSink`.
-A changed UnderHall form or missing native side-effect owner remains
-Invalid/fail-closed before the generic host.
+`KingdomQuestUnderHallCommandRuntime` now owns **only the six remaining
+external families / 25 source occurrences / 19 distinct source forms**.
+`scriptfile` is owned by the generic one-step runtime, and the shared control
+runtime owns `waitlogin` / `waitinterrupt` for the complete nine-script
+corpus. The obsolete UnderHall-only wait-delivery path has been removed, so a
+fired interrupt cannot accidentally be rejected by the old, native-invalid
+"must still be registered" check after BlastCheck removal. The six external
+families are parsed through `KingdomQuestUnderHallCommandSource` and
+forwarded only as validated, source-routed plans to
+`IKingdomQuestUnderHallCommandSink`. A changed UnderHall form or missing
+native side-effect owner remains Invalid/fail-closed before the generic host.
 
 UnderHall's interrupt dataflow is now a specialization of that shared
 primitive. It declares `InterruptBlock=""` and `InterruptArg=""`, contains

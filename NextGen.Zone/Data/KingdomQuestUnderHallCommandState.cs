@@ -3,45 +3,8 @@ using System;
 namespace NextGen.Zone.Data
 {
     /// <summary>
-    /// Already-selected interrupt result delivered to a waiting Pine command.
-    ///
-    /// This object does not decide which interrupt fires. The producer owns the
-    /// native BlastCheck ordering/predicate semantics and supplies the exact
-    /// ActionBlock plus argument text.
-    /// </summary>
-    public sealed class KingdomQuestUnderHallInterruptDelivery
-    {
-        public KingdomQuestPineInterruptSetPlan SelectedPlan
-        {
-            get;
-            private set;
-        }
-        public string Argument { get; private set; }
-
-        public KingdomQuestUnderHallInterruptDelivery(
-            KingdomQuestPineInterruptSetPlan selectedPlan,
-            string argument)
-        {
-            SelectedPlan = selectedPlan;
-            Argument = argument;
-        }
-    }
-
-    /// <summary>
-    /// Explicit boundary for native ScriptInterruptManager delivery ordering.
-    /// false means no selected interrupt is currently available; it does not
-    /// mean a synthetic timeout or failure.
-    /// </summary>
-    public interface IKingdomQuestUnderHallInterruptDeliverySource
-    {
-        bool TryTake(
-            KingdomQuestPineInterruptRegistryState activeInterrupts,
-            out KingdomQuestUnderHallInterruptDelivery delivery);
-    }
-
-    /// <summary>
-    /// Optional owner for the six gameplay-side-effect UnderHall
-    /// command families. It receives only source-resolved plans; raw Pine argument
+    /// Optional owner for the six gameplay-side-effect UnderHall command
+    /// families. It receives only source-resolved plans; raw Pine argument
     /// interpretation remains inside the checked source boundary.
     /// </summary>
     public interface IKingdomQuestUnderHallExternalCommandSink
@@ -90,56 +53,27 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Source-equivalent UnderHall command state for the one dataflow that is
-    /// proven by the canonical Pine source:
+    /// Source-routed state for the six remaining UnderHall external commands.
     ///
-    ///   InterruptBlock ""
-    ///   InterruptArg   ""
-    ///   waitinterrupt InterruptBlock "InterruptArg".
-    ///   call InterruptBlock.
+    /// waitlogin and waitinterrupt are intentionally absent: the generic Pine
+    /// control runtime owns all 9/9 waitlogin and 55/55 waitinterrupt sites,
+    /// including native BlastCheck selection/removal semantics. scriptfile is
+    /// likewise owned by the generic one-step runtime.
     ///
-    /// All 19 occurrences have that exact adjacent pair, and every ActionBlock
-    /// stored by UnderHall interruptset is a top-level block in the same script.
-    ///
-    /// The class therefore applies only an already-authoritatively-selected
-    /// interrupt delivery to those two variables. It does not evaluate
-    /// PlayerEliminate/HPLow/Sec/TimeOut, choose BlastCheck ordering, poll game
-    /// objects, or synthesize an interrupt.
+    /// This class therefore performs no interrupt delivery, player polling or
+    /// script-file state mutation. It only resolves exact UnderHall source
+    /// sites and forwards the typed external plan to the native side-effect
+    /// owner.
     /// </summary>
     public sealed class KingdomQuestUnderHallCommandState :
         IKingdomQuestUnderHallCommandSink
     {
-        private readonly KingdomQuestPineScriptDocument document;
-        private readonly IKingdomQuestUnderHallInterruptDeliverySource
-            interruptDeliverySource;
-        private readonly KingdomQuestPineInterruptRegistryState
-            activeInterrupts;
         private readonly IKingdomQuestUnderHallExternalCommandSink
             externalSink;
 
         public KingdomQuestUnderHallCommandState(
-            KingdomQuestPineScriptDocument document,
-            IKingdomQuestUnderHallInterruptDeliverySource
-                interruptDeliverySource,
-            IKingdomQuestUnderHallExternalCommandSink externalSink = null)
-            : this(
-                document,
-                interruptDeliverySource,
-                null,
-                externalSink)
-        {
-        }
-
-        public KingdomQuestUnderHallCommandState(
-            KingdomQuestPineScriptDocument document,
-            IKingdomQuestUnderHallInterruptDeliverySource
-                interruptDeliverySource,
-            KingdomQuestPineInterruptRegistryState activeInterrupts,
             IKingdomQuestUnderHallExternalCommandSink externalSink = null)
         {
-            this.document = document;
-            this.interruptDeliverySource = interruptDeliverySource;
-            this.activeInterrupts = activeInterrupts;
             this.externalSink = externalSink;
         }
 
@@ -153,11 +87,6 @@ namespace NextGen.Zone.Data
             completed = false;
             if (plan == null || variables == null)
                 return false;
-
-            if (plan.Kind ==
-                KingdomQuestUnderHallCommandKind.WaitInterrupt)
-                return TryStepWaitInterrupt(
-                    plan, variables, out completed);
 
             KingdomQuestUnderHallExternalPlan externalPlan;
             KingdomQuestUnderHallExternalSourceSite sourceSite;
@@ -248,53 +177,6 @@ namespace NextGen.Zone.Data
                 !string.IsNullOrEmpty(plan.RuntimeHandleIdentifier) &&
                 variables.TryFind(plan.RuntimeHandleIdentifier, out token) &&
                 token != null;
-        }
-
-        private bool TryStepWaitInterrupt(
-            KingdomQuestUnderHallCommandSourcePlan plan,
-            KingdomQuestPineVariableStack variables,
-            out bool completed)
-        {
-            completed = false;
-            if (document == null ||
-                interruptDeliverySource == null ||
-                activeInterrupts == null ||
-                plan.Arguments == null ||
-                plan.Arguments.Count != 2)
-                return false;
-
-            KingdomQuestUnderHallInterruptDelivery delivery;
-            if (!interruptDeliverySource.TryTake(
-                    activeInterrupts, out delivery))
-            {
-                // A wait with no selected native interrupt remains active.
-                return true;
-            }
-
-            if (delivery == null ||
-                delivery.SelectedPlan == null ||
-                !activeInterrupts.ContainsReference(delivery.SelectedPlan) ||
-                string.IsNullOrEmpty(delivery.SelectedPlan.ActionBlock) ||
-                delivery.Argument == null ||
-                !document.Blocks.ContainsKey(
-                    delivery.SelectedPlan.ActionBlock))
-                return false;
-
-            KingdomQuestPineTokenValue blockValue;
-            KingdomQuestPineTokenValue argumentValue;
-            if (!variables.TryFind(plan.Arguments[0], out blockValue) ||
-                !variables.TryFind(plan.Arguments[1], out argumentValue) ||
-                blockValue == null ||
-                argumentValue == null)
-                return false;
-
-            if (!blockValue.TrySetAscii(
-                    delivery.SelectedPlan.ActionBlock) ||
-                !argumentValue.TrySetAscii(delivery.Argument))
-                return false;
-
-            completed = true;
-            return true;
         }
     }
 }

@@ -78,7 +78,10 @@ Still required for block completion:
   routing, generic 9/9
   `waitlogin <variable>` handoff and a generic **55/55** `waitinterrupt
   InterruptBlock "InterruptArg". -> call InterruptBlock.` handoff tied to the
-  active interrupt registry. Sec/TimeOut due-candidate evaluation, typed source
+  active interrupt registry. Those shared waits now have a single runtime owner;
+  the obsolete UnderHall-only delivery path and its stale post-BlastCheck
+  registration requirement have been removed. Sec/TimeOut due-candidate
+  evaluation, typed source
   plans for the five HPLow and 19 PlayerEliminate predicates, and source-resolved
   MapInfo/MobInfo plans for its remaining six external command families are
   also modeled. The generic 243-call Pine `regengroup` path now resolves its
