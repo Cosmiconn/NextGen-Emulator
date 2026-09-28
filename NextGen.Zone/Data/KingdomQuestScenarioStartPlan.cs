@@ -22,7 +22,7 @@ namespace NextGen.Zone.Data
     ///
     /// Direct Zone.exe recovery now closes the Pine interpretation without
     /// changing this backend-neutral start envelope: Pine
-    /// PineEventScriptNode::Script::sa_Step enters literal block "main", while
+    /// PineEventScriptNode::Script::sa_Step enters literal top-level block "main", while
     /// Theater::t_PlayFilm pushes VariableStack token "InitFlag" and copies the
     /// complete 0x100-byte ScriptInitValue token into it before script stepping.
     /// Lua keeps ScriptInitValue behind its separate native host boundary.
