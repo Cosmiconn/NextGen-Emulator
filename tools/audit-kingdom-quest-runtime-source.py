@@ -52,6 +52,7 @@ PINE_INTERRUPT_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptPlan.cs
 PINE_INTERRUPT_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineInterruptRuntime.cs"
 PINE_WAITLOGIN = ROOT / "NextGen.Zone/Data/KingdomQuestPineWaitLogin.cs"
 PINE_WAITINTERRUPT = ROOT / "NextGen.Zone/Data/KingdomQuestPineWaitInterrupt.cs"
+PINE_SCRIPTFILE = ROOT / "NextGen.Zone/Data/KingdomQuestPineScriptFile.cs"
 SINGLE_DATA_SOURCE = ROOT / "docs/KINGDOM_QUEST_SINGLEDATA_SOURCE.tsv"
 SINGLE_DATA_PROJECTION = ROOT / "NextGen.FiestaLib/Data/KingdomQuestSingleDataInfo.cs"
 SCENARIOBOOK_ROWS_SHA256 = "eb63221fb015069f2d5099b12074ef13564cb473adccceae1163ed2bcaf78195"
@@ -270,7 +271,8 @@ def main():
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN, PINE_REGEN_RUNTIME_PLAN,
                  PINE_REGEN_NATIVE_LAYOUT, PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
                  PINE_WAITLOGIN,
-                 PINE_WAITINTERRUPT, SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
+                 PINE_WAITINTERRUPT, PINE_SCRIPTFILE,
+                 SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
         if not path.is_file():
             print("FAIL: missing", path)
             return 1
@@ -627,7 +629,7 @@ def main():
         "effectobj", "exchange2mob", "invensearch", "invidualreward",
         "itemdrop", "itemerase", "itemowner", "linkto", "mobattr",
         "mobregen", "npcchat", "npcshout", "npcstand", "questmobkill",
-        "revival", "reward", "scriptfile", "sendquestresult", "suicide",
+        "revival", "reward", "sendquestresult", "suicide",
         "summonmob", "teleport", "vanish",
         "whoclickme",
     }
@@ -642,7 +644,6 @@ def main():
             "exchange2mob": 1, "invensearch": 3, "itemdrop": 4,
             "itemerase": 2, "itemowner": 2, "linkto": 2, "mobattr": 4,
             "mobregen": 2, "npcchat": 20, "npcstand": 2,
-            "questmobkill": 1, "reward": 1, "scriptfile": 1,
             "suicide": 1, "summonmob": 1, "teleport": 1,
             "whoclickme": 3,
         },
@@ -650,49 +651,42 @@ def main():
             "broadcast": 8, "chatwin": 2, "doorbuild": 3,
             "doorclose": 3, "dooropen": 3, "effectobj": 3, "linkto": 2,
             "mobregen": 1, "npcshout": 5, "questmobkill": 1, "reward": 1,
-            "scriptfile": 1, "summonmob": 5, "vanish": 3,
         },
         "KQ/KQHBat1": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/KQHBat2": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/KQHBat3": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/KQHBat4": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/KQHBat5": {
             "abstateset": 1, "battlestart": 1, "battlestop": 3,
             "broadcast": 10, "chatwin": 14, "invidualreward": 2,
             "itemdrop": 1, "itemerase": 4, "linkto": 2, "revival": 1,
-            "scriptfile": 3, "sendquestresult": 2,
         },
         "KQ/UnderHall": {
             "broadcast": 8, "linkto": 2, "mobregen": 1,
-            "questmobkill": 1, "reward": 1, "scriptfile": 1,
             "summonmob": 12,
         },
         "KQ/UnderHall2": {
             "broadcast": 12, "chatwin": 4, "linkto": 3, "mobregen": 1,
-            "questmobkill": 2, "reward": 2, "scriptfile": 1,
             "summonmob": 54,
         },
     }
+
     for key in sorted(pine_command_verbs_by_script):
         counts = pine_command_verbs_by_script[key]
         unresolved = {
@@ -724,9 +718,6 @@ def main():
         },
         "reward": {
             'reward KingdomQuest.',
-        },
-        "scriptfile": {
-            'scriptfile "KQUnderHall".',
         },
         "summonmob": {
             'summonmob KQ_BossRobo "KQ_DesertWolf" 3.',
@@ -809,14 +800,14 @@ def main():
 
     underhall_external_verbs = {
         "broadcast", "linkto", "mobregen", "questmobkill",
-        "reward", "scriptfile", "summonmob",
+        "reward", "summonmob",
     }
     underhall_external_sequence = []
     for index, line in enumerate(underhall_source_lines):
         verb = line.split(None, 1)[0].lower().rstrip(".")
         if verb in underhall_external_verbs:
             underhall_external_sequence.append((index + 1, line))
-    if len(underhall_external_sequence) != 26:
+    if len(underhall_external_sequence) != 25:
         print("FAIL: KQ UnderHall external command occurrence count changed",
               underhall_external_sequence)
         return 1
@@ -1155,7 +1146,7 @@ def main():
         "class KingdomQuestUnderHallSourceFlow",
         'SuccessBlock = "QuestSuc"',
         'FailureBlock = "QuestFail"',
-        "ExternalOccurrenceCount = 26",
+        "ExternalOccurrenceCount = 25",
         "SuccessRewardOccurrenceCount = 1",
         "FailureRewardOccurrenceCount = 0",
         "{ 378, Site(378, SuccessBlock, KingdomQuestUnderHallExternalPlanKind.Reward) }",
@@ -1181,8 +1172,8 @@ def main():
         "enum KingdomQuestUnderHallExternalPlanKind",
         "class KingdomQuestUnderHallExternalPlan",
         "class KingdomQuestUnderHallExternalPlanBuilder",
-        "SourceUsedOccurrenceCount = 26",
-        "SourceDistinctFormCount = 20",
+        "SourceUsedOccurrenceCount = 25",
+        "SourceDistinctFormCount = 19",
         "KingdomQuestUnderHallSourceCatalog.GetElderine()",
         "KingdomQuestUnderHallSourceCatalog.TryGetMob(",
         "RuntimeHandleIdentifier",
@@ -1226,7 +1217,6 @@ def main():
         "variables.TryFind(plan.RuntimeHandleIdentifier, out token)",
         "externalSink.TryQuestMobKill(",
         "externalSink.TryReward(",
-        "externalSink.TryScriptFile(",
         "externalSink.TrySummonMob(",
         "KingdomQuestPineInterruptRegistryState activeInterrupts",
         "interruptDeliverySource.TryTake(",
@@ -1865,6 +1855,41 @@ def main():
                   token)
             return 1
 
+    pine_scriptfile_text = PINE_SCRIPTFILE.read_text(encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineScriptFileSource",
+        "class KingdomQuestPineScriptFilePlan",
+        "class KingdomQuestPineScriptFile",
+        "UsedCommandCount = 19",
+        "UsedClearCount = 5",
+        "UsedSourceCount = 9",
+        "NativeKqScriptManagerCapacity = 64",
+        "NativeStepAddress = 0x004EBDE0u",
+        "NativeManagerLookupAddress = 0x0064CE70u",
+        "NativeProcessStackScriptOffset = 0x10130u",
+        '"KQGordonMaster"',
+        '"KQHoneying"',
+        '"KQHBat1"',
+        '"KQHBat2"',
+        '"KQHBat3"',
+        '"KQHBat4"',
+        '"KQHBat5"',
+        '"KQUnderHall"',
+        '"KQUnderHall2"',
+        "ClearsCurrentScript = clearsCurrentScript",
+        "Sources.TryGetValue(key, out source)",
+    ):
+        if token not in pine_scriptfile_text:
+            print("FAIL: native KQ Pine scriptfile source/runtime changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "SendPacket(", "Program.DatabaseManager",
+            "System.Random", "DateTime.Now", "Environment.TickCount"):
+        if forbidden in pine_scriptfile_text:
+            print("FAIL: native KQ Pine scriptfile model invented side effects",
+                  forbidden)
+            return 1
+
     pine_used_command_text = PINE_USED_COMMAND_RUNTIME.read_text(
         encoding="utf-8")
     pine_used_command_tokens = (
@@ -1878,8 +1903,8 @@ def main():
         "KingdomQuestPineInterruptRegistryState InterruptRegistry",
         "IKingdomQuestUnderHallCommandSink UnderHallSink",
         "class KingdomQuestPineUsedCommandRuntime",
-        "UsedOneStepCommandCount = 589",
-        "SourceUsedUnrecoveredVerbCount = 32",
+        "UsedOneStepCommandCount = 608",
+        "SourceUsedUnrecoveredVerbCount = 31",
         "IsSourceUsedUnrecoveredVerb(verb)",
         "? KingdomQuestPineCommandResolution.Invalid",
         'case "timelimit":',
@@ -1887,6 +1912,7 @@ def main():
         'case "interrupterase":',
         'case "interruptclear":',
         'case "regengroup":',
+        'case "scriptfile":',
         'case "questresult":',
         'case "endofkq":',
         "KingdomQuestPineTimingPlan.TryBuildTimeLimit(",
@@ -1894,6 +1920,8 @@ def main():
         "KingdomQuestPineInterruptPlan.TryParseErase(",
         "KingdomQuestPineInterruptPlan.IsInterruptClear(",
         "KingdomQuestPineRegenGroupResolver.TryParseUsedCommand(",
+        "KingdomQuestPineScriptFile.TryParseUsed(",
+        "context.Sink.TrySetScriptFile(plan)",
         "KingdomQuestPineKqTerminalPlan.TryParseQuestResult(",
         "KingdomQuestPineKqTerminalPlan.TryParseEndOfKq(",
         "pause (202) and waitinterrupt (55) are deliberately excluded",
@@ -1916,11 +1944,11 @@ def main():
         "effectobj", "exchange2mob", "invensearch", "invidualreward",
         "itemdrop", "itemerase", "itemowner", "linkto", "mobattr",
         "mobregen", "npcchat", "npcshout", "npcstand", "questmobkill",
-        "revival", "reward", "scriptfile", "sendquestresult", "suicide",
+        "revival", "reward", "sendquestresult", "suicide",
         "summonmob", "teleport", "vanish",
         "whoclickme",
     }
-    if len(unrecovered_pine_verbs) != 32:
+    if len(unrecovered_pine_verbs) != 31:
         print("FAIL: internal unrecovered Pine verb audit count changed")
         return 1
     missing_unrecovered = [
