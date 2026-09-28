@@ -69,8 +69,13 @@ Still required for block completion:
   PineScript/Lua ScenarioBooks and the live scenario-driven
   mob/objective/success/failure flow. The W2Z START lifecycle already preserves
   the native DropFilm -> CloseAllDoors -> PlayFilm(ScriptLanguage,
-  ScriptInitValue) order without inventing an entry-block mapping. The smallest
-  Pine slice, UnderHall, now has exact command routing, generic 9/9
+  ScriptInitValue) order. Direct Zone.exe recovery now closes the Pine film
+  entry rule as well: PineEventScriptNode::Script enters literal top-level
+  block `main`, while Theater::t_PlayFilm pushes `InitFlag` into the native
+  VariableStack and copies the complete 0x100-byte ScriptInitValue token before
+  the first script step. `KingdomQuestPineScenarioRuntime` models that exact
+  entry/init boundary. The smallest Pine slice, UnderHall, now has exact command
+  routing, generic 9/9
   `waitlogin <variable>` handoff and a generic **55/55** `waitinterrupt
   InterruptBlock "InterruptArg". -> call InterruptBlock.` handoff tied to the
   active interrupt registry. Sec/TimeOut due-candidate evaluation, typed source
@@ -93,8 +98,10 @@ Still required for block completion:
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command, so the scenario-to-reward source trigger location is no
-  longer ambiguous. Native event production/command side effects and the actual
-  `cc_PlayFilm` entry binding remain fail-closed;
+  longer ambiguous. Native event production/command side effects, the live Pine
+  film tick/host wiring and the separate Lua backend execution remain
+  fail-closed; the Pine `cc_PlayFilm` entry binding itself is no longer
+  unresolved;
 - exact native-thread assignment/consumer ordering for the thread-local Zone
   CRT rand stream used by CardDeck, authoritative normal per-class
   ItemTotalInformation base itemcreate/registration, and live native
