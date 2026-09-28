@@ -20,9 +20,12 @@ namespace NextGen.Zone.Data
     /// map doors, then calls cc_PlayFilm with the stored ScriptLanguage and
     /// ScriptInitValue tokens.
     ///
-    /// ScriptInitValue remains opaque. The supplied UnderHall counterexample
-    /// proves it is not a Pine top-level block key, so this plan deliberately
-    /// exposes no entry-block mapping or default block selection.
+    /// Direct Zone.exe recovery now closes the Pine interpretation without
+    /// changing this backend-neutral start envelope: Pine
+    /// PineEventScriptNode::Script::sa_Step enters literal block "main", while
+    /// Theater::t_PlayFilm pushes VariableStack token "InitFlag" and copies the
+    /// complete 0x100-byte ScriptInitValue token into it before script stepping.
+    /// Lua keeps ScriptInitValue behind its separate native host boundary.
     /// </summary>
     public sealed class KingdomQuestScenarioStartPlan
     {
