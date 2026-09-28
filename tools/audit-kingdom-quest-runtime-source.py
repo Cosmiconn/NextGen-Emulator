@@ -854,7 +854,7 @@ def main():
             underhall_external_blocks.append(
                 (line_no, current_top_block, line))
 
-    if source_depth != 0 or len(underhall_external_blocks) != 26:
+    if source_depth != 0 or len(underhall_external_blocks) != 25:
         print("FAIL: KQ UnderHall external block mapping changed",
               source_depth, underhall_external_blocks)
         return 1
@@ -864,7 +864,6 @@ def main():
               for line_no, block, line in underhall_external_blocks))
 
     expected_underhall_external_blocks = [
-        (12, "main", 'scriptfile "KQUnderHall".'),
         (339, "Nineteenth", 'mobregen KQ_BossRobo "KQ_BossRobo" 2300 2500 90 1000 "Normal".'),
         (355, "Summon1", 'summonmob KQ_BossRobo "KQ_DesertWolf" 3.'),
         (356, "Summon1", 'summonmob KQ_BossRobo "KQ_GiantMushRoom" 2.'),
