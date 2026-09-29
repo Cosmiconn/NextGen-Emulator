@@ -1732,6 +1732,12 @@ plan, rechecks MobInfo against both live DataProvider projections, and snapshots
 the complete 0x100-byte Pine runtime-handle token for regen/summon. No map
 transfer, MobHatchery spawn, scheduling or handle interpretation is performed.
 
+UnderHall now terminates at those exact same three plan types as well. Its
+script-specific builder still enforces the original Elderine return sites,
+KQ_BossRobo regen operands and all 12 summon line/block/mob/count identities,
+but no duplicate UnderHall-only Link/Regen/Summon plan class remains. The
+native mutation owner can therefore be implemented once for both scripts.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
 closes the native entry rule rather than relying on that corpus coincidence.

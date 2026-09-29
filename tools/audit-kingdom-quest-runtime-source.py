@@ -1835,10 +1835,10 @@ def main():
     underhall_owner_plans_text = UNDERHALL_OWNER_PLANS.read_text(
         encoding="utf-8")
     for token in (
-        "class KingdomQuestUnderHallLinkToOwnerPlan",
-        "class KingdomQuestUnderHallMobRegenOwnerPlan",
-        "class KingdomQuestUnderHallSummonMobOwnerPlan",
         "class KingdomQuestUnderHallOwnerPlanBuilder",
+        "KingdomQuestPineLinkToOwnerPlan",
+        "KingdomQuestPineMobRegenOwnerPlan",
+        "KingdomQuestPineSummonMobOwnerPlan",
         "LinkToOccurrenceCount = 2",
         "MobRegenOccurrenceCount = 1",
         "SummonMobOccurrenceCount = 12",
@@ -1866,10 +1866,14 @@ def main():
         "data.MobData.TryGetValue(",
         "clientInfo.ID == source.MobId",
         "serverInfo.ID == source.MobId",
+        "source.Mob.MobId,",
+        "source.Mob.InxName,",
+        "source.Mob.DisplayName,",
         "source.RawNumeric1,",
         "source.RawNumeric2,",
         "source.RawText1);",
-        "native link/spawn/regen mutation",
+        "same script-neutral",
+        "No map transfer",
     ):
         if token not in underhall_owner_plans_text:
             print("FAIL: KQ UnderHall owner-plan boundary changed", token)
@@ -1897,10 +1901,10 @@ def main():
         "KingdomQuestUnderHallBroadcastNativePlan broadcastPlan",
         "externalSink.TryBroadcast(",
         "KingdomQuestUnderHallOwnerPlanBuilder.TryBuildLinkTo(",
-        "KingdomQuestUnderHallLinkToOwnerPlan linkToPlan",
+        "KingdomQuestPineLinkToOwnerPlan linkToPlan",
         "externalSink.TryLinkTo(",
         "KingdomQuestUnderHallOwnerPlanBuilder.TryBuildMobRegen(",
-        "KingdomQuestUnderHallMobRegenOwnerPlan mobRegenPlan",
+        "KingdomQuestPineMobRegenOwnerPlan mobRegenPlan",
         "externalSink.TryMobRegen(",
         "TryResolveRuntimeHandleToken(",
         "plan.RuntimeHandleIdentifier",
@@ -1914,7 +1918,7 @@ def main():
         "KingdomQuestUnderHallRewardNativePlan rewardPlan",
         "externalSink.TryReward(",
         "KingdomQuestUnderHallOwnerPlanBuilder.TryBuildSummonMob(",
-        "KingdomQuestUnderHallSummonMobOwnerPlan summonMobPlan",
+        "KingdomQuestPineSummonMobOwnerPlan summonMobPlan",
         "externalSink.TrySummonMob(",
         "waitlogin and waitinterrupt are intentionally absent",
         "55/55 waitinterrupt sites",

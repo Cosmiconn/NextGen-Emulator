@@ -16,13 +16,13 @@ namespace NextGen.Zone.Data
             out bool completed);
 
         bool TryLinkTo(
-            KingdomQuestUnderHallLinkToOwnerPlan plan,
+            KingdomQuestPineLinkToOwnerPlan plan,
             KingdomQuestPineVariableStack variables,
             ref int nativeState,
             out bool completed);
 
         bool TryMobRegen(
-            KingdomQuestUnderHallMobRegenOwnerPlan plan,
+            KingdomQuestPineMobRegenOwnerPlan plan,
             ref int nativeState,
             out bool completed);
 
@@ -39,7 +39,7 @@ namespace NextGen.Zone.Data
             out bool completed);
 
         bool TrySummonMob(
-            KingdomQuestUnderHallSummonMobOwnerPlan plan,
+            KingdomQuestPineSummonMobOwnerPlan plan,
             ref int nativeState,
             out bool completed);
     }
@@ -57,7 +57,8 @@ namespace NextGen.Zone.Data
     /// sites and forwards only the strongest recovered plan available to the
     /// native side-effect owner. All six UnderHall families therefore cross
     /// this boundary only as immutable native/source-resolved owner plans;
-    /// no external owner receives raw Pine operands.
+    /// linkto/mobregen/summonmob use the same script-neutral plan types as
+    /// UnderHall2. No external owner receives raw Pine operands.
     /// </summary>
     public sealed class KingdomQuestUnderHallCommandState :
         IKingdomQuestUnderHallCommandSink
@@ -131,7 +132,7 @@ namespace NextGen.Zone.Data
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.LinkTo:
-                    KingdomQuestUnderHallLinkToOwnerPlan linkToPlan;
+                    KingdomQuestPineLinkToOwnerPlan linkToPlan;
                     if (!KingdomQuestUnderHallOwnerPlanBuilder.TryBuildLinkTo(
                             plan, sourceSite, out linkToPlan) ||
                         linkToPlan == null)
@@ -145,7 +146,7 @@ namespace NextGen.Zone.Data
                     if (!TryResolveRuntimeHandleToken(
                             plan, variables, out regenHandleToken))
                         return false;
-                    KingdomQuestUnderHallMobRegenOwnerPlan mobRegenPlan;
+                    KingdomQuestPineMobRegenOwnerPlan mobRegenPlan;
                     if (!KingdomQuestUnderHallOwnerPlanBuilder.TryBuildMobRegen(
                             plan,
                             sourceSite,
@@ -191,7 +192,7 @@ namespace NextGen.Zone.Data
                     if (!TryResolveRuntimeHandleToken(
                             plan, variables, out summonHandleToken))
                         return false;
-                    KingdomQuestUnderHallSummonMobOwnerPlan summonMobPlan;
+                    KingdomQuestPineSummonMobOwnerPlan summonMobPlan;
                     if (!KingdomQuestUnderHallOwnerPlanBuilder.TryBuildSummonMob(
                             plan,
                             sourceSite,

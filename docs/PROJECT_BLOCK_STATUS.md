@@ -112,8 +112,10 @@ Still required for block completion:
   guessed. The UnderHall dispatcher now passes **all six** external families
   as immutable native/source-resolved owner plans—not raw Pine operands.
   Broadcast, questmobkill and reward have the stronger native semantics above;
-  linkto, mobregen and summonmob are source-site/data/0x100-byte-handle locked
-  but their actual native mutation remains UNRESOLVED. The reward route also
+  linkto, mobregen and summonmob now use the same script-neutral owner-plan
+  types as UnderHall2 while retaining their exact UnderHall site/data checks
+  and 0x100-byte handle snapshots. Their actual native mutation remains
+  UNRESOLVED. The reward route also
   requires the current KQ Handle and a matching live KQElement definition
   before crossing that boundary. `InterruptArg`
   has no consumer in the supplied UnderHall source
