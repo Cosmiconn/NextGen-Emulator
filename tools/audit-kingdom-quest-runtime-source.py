@@ -1279,7 +1279,7 @@ def main():
         "NativeNoticeType = (byte)SH8Type.GmNotice",
         'ScriptFileKey = "KQUnderHall"',
         'ScriptFilePath = "Script/KQUnderHall.txt"',
-        'ScriptFileSha256 = "9b6dff7ca269bf43437fcb2aa0e34eb46610d35a75c6de6b1478a56c3cfed4c0"',
+        '"9b6dff7ca269bf43437fcb2aa0e34eb46610d35a75c6de6b1478a56c3cfed4c0"',
         '"KQReturn30", "Move to Elderine in 30 seconds."',
         '"KQReturn20", "Move to Elderine in 20 seconds."',
         '"KQReturn10", "Move to Elderine in 10 seconds."',
