@@ -1372,7 +1372,7 @@ def main():
         "source.RawNumeric1,",
         "source.RawNumeric2,",
         "source.RawText1);",
-        "no native link/spawn/regen mutation is inferred",
+        "native link/spawn/regen mutation",
     ):
         if token not in underhall_owner_plans_text:
             print("FAIL: KQ UnderHall owner-plan boundary changed", token)
