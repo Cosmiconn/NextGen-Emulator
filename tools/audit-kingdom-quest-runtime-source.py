@@ -2239,7 +2239,7 @@ def main():
         "ClearResultObjects = 2",
         "GetNativeMapOrder()",
         "NativeNoKingdomQuestHandle = 0xFFFFFFFFu",
-        "NativeClearObjectTypeMask = 0xB0u",
+        "KingdomQuestPineNativeObjectClear.EndOfKqMask",
         "interface IKingdomQuestPineEndWorldSender",
         "interface IKingdomQuestPineEndFieldMapClearOwner",
         "class KingdomQuestPineEndRuntime",
