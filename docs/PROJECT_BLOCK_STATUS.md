@@ -120,8 +120,13 @@ Still required for block completion:
   and is no longer a control-flow blocker. UnderHall2 is now source-inventoried
   one layer further as well: all **74** occurrences of the same six families
   are exact-line/block/text locked (12 broadcast, 3 linkto, 1 mobregen,
-  2 questmobkill, 2 reward, 54 summonmob), ready for the next runtime slice
-  without treating source presence as live semantics. Their exact
+  2 questmobkill, 2 reward, 54 summonmob) and projected into typed immutable
+  plans through a reusable six-family Pine syntax parser. Both used maps
+  (Eld=9/Urg=17), all 13 referenced MobInfo identities and every per-line
+  summon/link literal are source-locked; importantly, Uruga's MapInfo regen
+  point 6293/5477 is not conflated with the script link target 5835/6397.
+  No UnderHall2 side effect is marked live merely from this source presence.
+  Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command. Direct Zone.exe/PDB recovery now also closes that

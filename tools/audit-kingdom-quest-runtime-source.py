@@ -29,6 +29,7 @@ PINE_CONDITION_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineConditionE
 PINE_CHAR_NAME_EXPRESSION = ROOT / "NextGen.Zone/Data/KingdomQuestPineCharNameExpression.cs"
 PINE_USED_EXPRESSION_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedExpressionRuntime.cs"
 PINE_USED_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedCommandRuntime.cs"
+PINE_KQ_EXTERNAL_SYNTAX = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqExternalSyntax.cs"
 PINE_LOCAL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestPineLocalCommandState.cs"
 UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandSource.cs"
 UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandRuntime.cs"
@@ -40,6 +41,8 @@ UNDERHALL_REWARD_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallRewardN
 UNDERHALL_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallOwnerPlans.cs"
 UNDERHALL2_EXTERNAL_SOURCE = ROOT / "docs/KINGDOM_QUEST_UNDERHALL2_EXTERNAL_SOURCE.tsv"
 UNDERHALL2_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2SourceFlow.cs"
+UNDERHALL2_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2SourceCatalog.cs"
+UNDERHALL2_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2ExternalPlan.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1047,6 +1050,238 @@ def main():
                   expected_site)
             return 1
     print("PASS: KQ UnderHall2 C# source flow contains all 74 exact sites")
+
+    pine_external_syntax_text = PINE_KQ_EXTERNAL_SYNTAX.read_text(
+        encoding="utf-8")
+    for token in (
+        "enum KingdomQuestPineKqExternalKind : byte",
+        "class KingdomQuestPineKqExternalArgument",
+        "class KingdomQuestPineKqExternalSyntaxPlan",
+        "class KingdomQuestPineKqExternalSyntax",
+        "FamilyCount = 6",
+        'case "broadcast":',
+        'case "linkto":',
+        'case "mobregen":',
+        'case "questmobkill":',
+        'case "reward":',
+        'case "summonmob":',
+        "tokens.RemoveAt(0)",
+        "assigns no map/mob/reward/link",
+    ):
+        if token not in pine_external_syntax_text:
+            print("FAIL: shared KQ external syntax parser changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "DataProvider.Instance", "ChangeMap(",
+            "SendPacket(", "Program.DatabaseManager", "System.Random"):
+        if forbidden in pine_external_syntax_text:
+            print("FAIL: shared KQ external syntax parser invented semantics",
+                  forbidden)
+            return 1
+
+    underhall2_catalog_text = UNDERHALL2_SOURCE_CATALOG.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHall2SourceCatalog",
+        "CorrelatedMapCount = 2",
+        "CorrelatedMobCount = 13",
+        "ElderineMapId = 9",
+        "UrugaMapId = 17",
+        '"Eld", "Elderine"',
+        '"Urg", "Uruga"',
+        "17214, 13445",
+        "6293, 5477",
+        "not equated",
+        '"KQ_GB_Spider", "Great Spider"',
+        '"KQ_M_Spider", "Mini Spider"',
+        '"Daliy_Check", "Kingdom Quest Clear "',
+    ):
+        if token not in underhall2_catalog_text:
+            print("FAIL: KQ UnderHall2 source catalog changed", token)
+            return 1
+
+    underhall2_mapinfo_rows = {}
+    for row in data_rows(MAP_INFO_SQL):
+        fields = split_row_fields(row)
+        if len(fields) != 10:
+            print("FAIL: MapInfo source row width changed")
+            return 1
+        underhall2_mapinfo_rows[int(fields[0])] = fields
+    expected_underhall2_maps = {
+        9: ("Eld", "Elderine", 17214, 13445, "Eld"),
+        17: ("Urg", "Uruga", 6293, 5477, "Urg"),
+    }
+    for map_id, expected in expected_underhall2_maps.items():
+        fields = underhall2_mapinfo_rows.get(map_id)
+        if (fields is None or
+                unquote_sql(fields[1]) != expected[0] or
+                unquote_sql(fields[2]) != expected[1] or
+                int(fields[4]) != expected[2] or
+                int(fields[5]) != expected[3] or
+                unquote_sql(fields[7]) != expected[4]):
+            print("FAIL: UnderHall2 MapInfo source correlation changed",
+                  map_id, fields)
+            return 1
+
+    expected_underhall2_mobs = {
+        "KQ_GB_Spider": (1158, "Great Spider"),
+        "KQ_M_Spider": (1159, "Mini Spider"),
+        "KQ_U_Spider01": (1130, "Fighter Spider"),
+        "KQ_U_Spider02": (1131, "Violent Spider"),
+        "KQ_U_Spider03": (1132, "Speedy Spider"),
+        "KQ_U_Spider04": (1137, "Fierce Spider"),
+        "KQ_U_Spider05": (1134, "Cannibal Spider"),
+        "KQ_U_AMageBook": (1133, "Archmage Book"),
+        "KQ_U_Lvivi": (1135, "Lightning Vivi"),
+        "KQ_U_Greenky": (1136, "Merciless Greenky"),
+        "KQ_U_TombRaider": (1139, "Madness Grave Robber"),
+        "KQ_U_Uspider": (1140, "Ultra Spider"),
+        "Daliy_Check": (50000, "Kingdom Quest Clear "),
+    }
+    underhall2_mobinfo_by_inx = {}
+    for row in data_rows(MOB_INFO_SQL):
+        fields = split_row_fields(row)
+        if len(fields) != 15:
+            print("FAIL: MobInfo source row width changed")
+            return 1
+        underhall2_mobinfo_by_inx[unquote_sql(fields[1])] = fields
+    for inx_name, expected in expected_underhall2_mobs.items():
+        fields = underhall2_mobinfo_by_inx.get(inx_name)
+        if (fields is None or int(fields[0]) != expected[0] or
+                unquote_sql(fields[2]) != expected[1]):
+            print("FAIL: UnderHall2 MobInfo source correlation changed",
+                  inx_name, fields)
+            return 1
+        for token in (
+                str(expected[0]), '"' + inx_name + '"',
+                '"' + expected[1] + '"'):
+            if token not in underhall2_catalog_text:
+                print("FAIL: UnderHall2 source catalog lost MobInfo row",
+                      inx_name, token)
+                return 1
+
+    underhall2_plan_text = UNDERHALL2_EXTERNAL_PLAN.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHall2ExternalPlan",
+        "class KingdomQuestUnderHall2ExternalPlanBuilder",
+        "SourceUsedOccurrenceCount = 74",
+        "BroadcastOccurrenceCount = 12",
+        "LinkToOccurrenceCount = 3",
+        "MobRegenOccurrenceCount = 1",
+        "QuestMobKillOccurrenceCount = 2",
+        "RewardOccurrenceCount = 2",
+        "SummonMobOccurrenceCount = 54",
+        'RuntimeHandleIdentifier = "KQ_GB_Spider"',
+        "MobRegenCanonicalLine = 402",
+        'MobRegenBlock = "TwelveTwo"',
+        "KingdomQuestPineKqExternalSyntax.TryParse(",
+        "KingdomQuestUnderHall2SourceFlow.TryResolve(",
+        "KingdomQuestUnderHall2SourceCatalog.TryGetMap(",
+        "KingdomQuestUnderHall2SourceCatalog.TryGetMob(",
+        "sourceSite.CanonicalLine == 544",
+        "sourceSite.CanonicalLine == 560",
+        "sourceSite.CanonicalLine == 543",
+        "sourceSite.CanonicalLine == 559",
+        "questId != 2668",
+        'source.Arguments[1].Text, "Daliy_Check"',
+        "mob.MobId != 50000",
+        "count != 1",
+        "mob.MobId != 1158",
+        "x != 2350",
+        "y != 2550",
+        "raw1 != 90",
+        "raw2 != 1000",
+        '"Normal"',
+    ):
+        if token not in underhall2_plan_text:
+            print("FAIL: KQ UnderHall2 external plan projection changed",
+                  token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "System.Random", "DateTime.Now",
+            "Environment.TickCount", "MobHatchery"):
+        if forbidden in underhall2_plan_text:
+            print("FAIL: KQ UnderHall2 external plan invented a side effect",
+                  forbidden)
+            return 1
+
+    expected_link_plan_entries = (
+        ('{ 553, new LinkExpectation(', '"QuestSuc", "Eld", 17214, 13445)'),
+        ('{ 571, new LinkExpectation(', '"QuestSuc2", "Urg", 5835, 6397)'),
+        ('{ 585, new LinkExpectation(', '"QuestFail", "Urg", 5835, 6397)'),
+    )
+    for left, right in expected_link_plan_entries:
+        left_index = underhall2_plan_text.find(left)
+        if left_index < 0 or right not in underhall2_plan_text[left_index:left_index + 180]:
+            print("FAIL: KQ UnderHall2 link expectation changed",
+                  left, right)
+            return 1
+
+    expected_summon_plan_entries = (
+        ('{ 424, new SummonExpectation(', '"Summon1", "KQ_M_Spider", 5)'),
+        ('{ 426, new SummonExpectation(', '"Summon1", "KQ_M_Spider", 5)'),
+        ('{ 428, new SummonExpectation(', '"Summon1", "KQ_M_Spider", 5)'),
+        ('{ 430, new SummonExpectation(', '"Summon1", "KQ_U_Spider01", 2)'),
+        ('{ 433, new SummonExpectation(', '"Summon2", "KQ_M_Spider", 5)'),
+        ('{ 435, new SummonExpectation(', '"Summon2", "KQ_M_Spider", 6)'),
+        ('{ 437, new SummonExpectation(', '"Summon2", "KQ_M_Spider", 7)'),
+        ('{ 439, new SummonExpectation(', '"Summon2", "KQ_U_Spider02", 2)'),
+        ('{ 442, new SummonExpectation(', '"Summon3", "KQ_M_Spider", 6)'),
+        ('{ 444, new SummonExpectation(', '"Summon3", "KQ_M_Spider", 6)'),
+        ('{ 446, new SummonExpectation(', '"Summon3", "KQ_M_Spider", 6)'),
+        ('{ 448, new SummonExpectation(', '"Summon3", "KQ_U_Spider03", 2)'),
+        ('{ 451, new SummonExpectation(', '"Summon4", "KQ_M_Spider", 4)'),
+        ('{ 453, new SummonExpectation(', '"Summon4", "KQ_M_Spider", 5)'),
+        ('{ 455, new SummonExpectation(', '"Summon4", "KQ_M_Spider", 6)'),
+        ('{ 457, new SummonExpectation(', '"Summon4", "KQ_M_Spider", 7)'),
+        ('{ 459, new SummonExpectation(', '"Summon4", "KQ_U_Spider04", 2)'),
+        ('{ 462, new SummonExpectation(', '"Summon5", "KQ_M_Spider", 5)'),
+        ('{ 464, new SummonExpectation(', '"Summon5", "KQ_M_Spider", 5)'),
+        ('{ 466, new SummonExpectation(', '"Summon5", "KQ_M_Spider", 5)'),
+        ('{ 468, new SummonExpectation(', '"Summon5", "KQ_M_Spider", 5)'),
+        ('{ 470, new SummonExpectation(', '"Summon5", "KQ_M_Spider", 5)'),
+        ('{ 472, new SummonExpectation(', '"Summon5", "KQ_U_Spider05", 2)'),
+        ('{ 475, new SummonExpectation(', '"Summon6", "KQ_M_Spider", 6)'),
+        ('{ 477, new SummonExpectation(', '"Summon6", "KQ_M_Spider", 6)'),
+        ('{ 479, new SummonExpectation(', '"Summon6", "KQ_M_Spider", 6)'),
+        ('{ 481, new SummonExpectation(', '"Summon6", "KQ_M_Spider", 6)'),
+        ('{ 483, new SummonExpectation(', '"Summon6", "KQ_M_Spider", 6)'),
+        ('{ 485, new SummonExpectation(', '"Summon6", "KQ_U_AMageBook", 2)'),
+        ('{ 488, new SummonExpectation(', '"Summon7", "KQ_M_Spider", 7)'),
+        ('{ 490, new SummonExpectation(', '"Summon7", "KQ_M_Spider", 7)'),
+        ('{ 492, new SummonExpectation(', '"Summon7", "KQ_M_Spider", 7)'),
+        ('{ 494, new SummonExpectation(', '"Summon7", "KQ_M_Spider", 7)'),
+        ('{ 496, new SummonExpectation(', '"Summon7", "KQ_M_Spider", 7)'),
+        ('{ 498, new SummonExpectation(', '"Summon7", "KQ_U_Lvivi", 2)'),
+        ('{ 501, new SummonExpectation(', '"Summon8", "KQ_M_Spider", 8)'),
+        ('{ 503, new SummonExpectation(', '"Summon8", "KQ_M_Spider", 8)'),
+        ('{ 505, new SummonExpectation(', '"Summon8", "KQ_M_Spider", 8)'),
+        ('{ 507, new SummonExpectation(', '"Summon8", "KQ_M_Spider", 8)'),
+        ('{ 509, new SummonExpectation(', '"Summon8", "KQ_M_Spider", 8)'),
+        ('{ 511, new SummonExpectation(', '"Summon8", "KQ_U_Greenky", 2)'),
+        ('{ 514, new SummonExpectation(', '"Summon9", "KQ_M_Spider", 7)'),
+        ('{ 516, new SummonExpectation(', '"Summon9", "KQ_M_Spider", 7)'),
+        ('{ 518, new SummonExpectation(', '"Summon9", "KQ_M_Spider", 7)'),
+        ('{ 520, new SummonExpectation(', '"Summon9", "KQ_M_Spider", 7)'),
+        ('{ 522, new SummonExpectation(', '"Summon9", "KQ_M_Spider", 7)'),
+        ('{ 524, new SummonExpectation(', '"Summon9", "KQ_M_Spider", 7)'),
+        ('{ 526, new SummonExpectation(', '"Summon9", "KQ_U_TombRaider", 2)'),
+        ('{ 529, new SummonExpectation(', '"Summon10", "KQ_M_Spider", 9)'),
+        ('{ 531, new SummonExpectation(', '"Summon10", "KQ_M_Spider", 9)'),
+        ('{ 533, new SummonExpectation(', '"Summon10", "KQ_M_Spider", 9)'),
+        ('{ 535, new SummonExpectation(', '"Summon10", "KQ_M_Spider", 9)'),
+        ('{ 537, new SummonExpectation(', '"Summon10", "KQ_M_Spider", 9)'),
+        ('{ 539, new SummonExpectation(', '"Summon10", "KQ_U_Uspider", 2)'),
+    )
+    for left, right in expected_summon_plan_entries:
+        left_index = underhall2_plan_text.find(left)
+        if left_index < 0 or right not in underhall2_plan_text[left_index:left_index + 180]:
+            print("FAIL: KQ UnderHall2 summon expectation changed",
+                  left, right)
+            return 1
+    print("PASS: KQ UnderHall2 typed plans cover all 74 source-locked sites")
 
     waitlogin_targets = {}
     for key in sorted(PINE_SCRIPT_KEYS):

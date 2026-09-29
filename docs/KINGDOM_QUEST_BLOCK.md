@@ -1689,9 +1689,18 @@ families shared with UnderHall: **12 broadcast, 3 linkto, 1 mobregen,
 2 questmobkill, 2 reward and 54 summonmob**. Every occurrence is locked by
 canonical line, top-level block and exact command text in
 `docs/KINGDOM_QUEST_UNDERHALL2_EXTERNAL_SOURCE.tsv`; the matching
-`KingdomQuestUnderHall2SourceFlow` routes all 74 line/kind pairs. This is
-source ownership only, not a claim that UnderHall2 already executes those
-side effects.
+`KingdomQuestUnderHall2SourceFlow` routes all 74 line/kind pairs.
+
+That inventory is now typed rather than text-only. The reusable
+`KingdomQuestPineKqExternalSyntax` parser recognizes the six shared command
+shapes without assigning gameplay meaning. `KingdomQuestUnderHall2SourceCatalog`
+locks both used MapInfo rows (Eld=9, Urg=17) and all 13 referenced MobInfo
+identities, including Daliy_Check=50000. The Uruga MapInfo regen point
+6293/5477 is kept distinct from the script's explicit return coordinates
+5835/6397. `KingdomQuestUnderHall2ExternalPlanBuilder` then projects all 74
+canonical sites into immutable typed plans and exact per-line summon/link
+expectations. This is still mutation-free: no transfer, spawn, quest, reward or
+notice side effect is activated yet.
 
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
