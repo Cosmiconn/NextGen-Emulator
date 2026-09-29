@@ -44,6 +44,7 @@ UNDERHALL2_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2SourceF
 UNDERHALL2_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2SourceCatalog.cs"
 UNDERHALL2_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2ExternalPlan.cs"
 UNDERHALL2_COMMON_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommonNative.cs"
+UNDERHALL2_BROADCAST_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2BroadcastNative.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -58,6 +59,7 @@ PINE_NATIVE_OBJECT_CLEAR = ROOT / "NextGen.Zone/Data/KingdomQuestPineNativeObjec
 PINE_KQ_TITLE_HOOK = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTitleHookNative.cs"
 PINE_KQ_REWARD_COMMAND = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqRewardCommandNative.cs"
 PINE_USED_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedQuestMobKillNative.cs"
+PINE_BROADCAST_ALL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineBroadcastAllNative.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_REGEN_RUNTIME_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenRuntimePlan.cs"
 PINE_REGEN_NATIVE_LAYOUT = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenNativeLayout.cs"
@@ -1316,6 +1318,37 @@ def main():
             return 1
     print("PASS: KQ UnderHall2 reward/questmobkill reuse shared native primitives")
 
+    underhall2_broadcast_native_text = UNDERHALL2_BROADCAST_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHall2BroadcastNativePlan",
+        "class KingdomQuestUnderHall2BroadcastNative",
+        "SourceUsedOccurrenceCount = 12",
+        "SourceDistinctKeyCount = 4",
+        'ScriptFileKey = "KQUnderHall2"',
+        'ScriptFilePath = "Script/KQUnderHall2.txt"',
+        '"b03c9f342468385992790621a1fa0f78e4e237790f23fd9e0dbfee33ed067b16"',
+        "KingdomQuestPineBroadcastAllNative.IsAllTarget(",
+        "BroadcastLines.Contains(source.CanonicalLine)",
+        "MessageKeys.Contains(source.SourceToken)",
+        "KingdomQuestPineScriptFile.TryGetSource(",
+        "MessageTextResolved = false",
+        "does not borrow UnderHall",
+    ):
+        if token not in underhall2_broadcast_native_text:
+            print("FAIL: KQ UnderHall2 broadcast native wrapper changed",
+                  token)
+            return 1
+    for forbidden in (
+            "Move to Elderine in", "Move to Uruga in",
+            "SendAdminNotice(", "SendPacket(", "Map.Broadcast(",
+            "packet.WriteByte(", "packet.WriteString("):
+        if forbidden in underhall2_broadcast_native_text:
+            print("FAIL: KQ UnderHall2 broadcast wrapper guessed live text/wire",
+                  forbidden)
+            return 1
+    print("PASS: KQ UnderHall2 broadcast reuses native audience without guessing text")
+
     waitlogin_targets = {}
     for key in sorted(PINE_SCRIPT_KEYS):
         lines = pine_source_lines_by_script.get(key, [])
@@ -1661,6 +1694,31 @@ def main():
               daliy_check)
         return 1
 
+    pine_broadcast_all_text = PINE_BROADCAST_ALL_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineBroadcastAllNative",
+        'NativeAllTarget = "all"',
+        "NoticeVtableOffset = 0x784",
+        "NativeNoticeHeader = 0x08",
+        "NativeNoticeType = (byte)SH8Type.GmNotice",
+        "NoticeCategoryByteResolved = false",
+        "IsAllTarget(",
+        "No packet is",
+    ):
+        if token not in pine_broadcast_all_text:
+            print("FAIL: shared KQ broadcast-all native metadata changed",
+                  token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "Map.Objects", "GetCharacters",
+            "SendAdminNotice(", "SendPacket(", "Map.Broadcast(",
+            "packet.WriteByte(", "packet.WriteString("):
+        if forbidden in pine_broadcast_all_text:
+            print("FAIL: shared KQ broadcast-all metadata went live",
+                  forbidden)
+            return 1
+
     underhall_broadcast_text = UNDERHALL_BROADCAST_NATIVE.read_text(
         encoding="utf-8")
     for token in (
@@ -1668,10 +1726,11 @@ def main():
         "class KingdomQuestUnderHallBroadcastNative",
         "SourceUsedOccurrenceCount = 8",
         "SourceDistinctKeyCount = 4",
-        'NativeAllTarget = "all"',
-        "NoticeVtableOffset = 0x784",
-        "NativeNoticeHeader = 0x08",
-        "NativeNoticeType = (byte)SH8Type.GmNotice",
+        "KingdomQuestPineBroadcastAllNative.NativeAllTarget",
+        "KingdomQuestPineBroadcastAllNative.NoticeVtableOffset",
+        "KingdomQuestPineBroadcastAllNative.NativeNoticeHeader",
+        "KingdomQuestPineBroadcastAllNative.NativeNoticeType",
+        "KingdomQuestPineBroadcastAllNative.NoticeCategoryByteResolved",
         'ScriptFileKey = "KQUnderHall"',
         'ScriptFilePath = "Script/KQUnderHall.txt"',
         '"9b6dff7ca269bf43437fcb2aa0e34eb46610d35a75c6de6b1478a56c3cfed4c0"',
@@ -1684,19 +1743,10 @@ def main():
         "sourceSite.Kind != KingdomQuestUnderHallExternalPlanKind.Broadcast",
         "BroadcastLines.Contains(sourceSite.CanonicalLine)",
         "MessageByScriptKey.TryGetValue(source.SourceToken, out message)",
-        "NoticeCategoryByteResolved = false",
     ):
         if token not in underhall_broadcast_text:
             print("FAIL: KQ UnderHall native broadcast projection changed",
                   token)
-            return 1
-    for forbidden in (
-            "MapManager.Instance", "Map.Objects", "GetCharacters",
-            "SendAdminNotice(", "SendPacket(", "Map.Broadcast(",
-            "packet.WriteByte(", "packet.WriteString("):
-        if forbidden in underhall_broadcast_text:
-            print("FAIL: KQ UnderHall broadcast projection went live",
-                  forbidden)
             return 1
 
     underhall_reward_native_text = UNDERHALL_REWARD_NATIVE.read_text(

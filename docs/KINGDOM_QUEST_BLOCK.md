@@ -1712,6 +1712,16 @@ lines 544/560 wrap the shared questmobkill plan through
 `KingdomQuestUnderHall2CommonNative`. Source-site ownership remains distinct;
 no player enumeration, CQuestZone mutation or reward persistence is activated.
 
+The native `broadcast all` audience is shared now as well.
+`KingdomQuestPineBroadcastAllNative` owns the common
+so_AllInMap -> AxialListWall -> player notice-vtable +0x784 metadata and
+Header-8/type-17 opcode family. UnderHall keeps its four source-recovered
+message strings. UnderHall2's 12 sites instead bind only the exact
+`KQUnderHall2` script-file path/hash and four `KQReturn*` keys through
+`KingdomQuestUnderHall2BroadcastNative`; their actual string-table values are
+still UNRESOLVED in the checked-in source projection. The wrapper therefore
+does not borrow UnderHall's Elderine text and does not synthesize a packet.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
 closes the native entry rule rather than relying on that corpus coincidence.

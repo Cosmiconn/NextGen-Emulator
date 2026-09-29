@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using NextGen.FiestaLib;
 
 namespace NextGen.Zone.Data
 {
@@ -45,11 +44,16 @@ namespace NextGen.Zone.Data
     {
         public const int SourceUsedOccurrenceCount = 8;
         public const int SourceDistinctKeyCount = 4;
-        public const string NativeAllTarget = "all";
-        public const int NoticeVtableOffset = 0x784;
-        public const byte NativeNoticeHeader = 0x08;
-        public const byte NativeNoticeType = (byte)SH8Type.GmNotice;
-        public const bool NoticeCategoryByteResolved = false;
+        public const string NativeAllTarget =
+            KingdomQuestPineBroadcastAllNative.NativeAllTarget;
+        public const int NoticeVtableOffset =
+            KingdomQuestPineBroadcastAllNative.NoticeVtableOffset;
+        public const byte NativeNoticeHeader =
+            KingdomQuestPineBroadcastAllNative.NativeNoticeHeader;
+        public const byte NativeNoticeType =
+            KingdomQuestPineBroadcastAllNative.NativeNoticeType;
+        public const bool NoticeCategoryByteResolved =
+            KingdomQuestPineBroadcastAllNative.NoticeCategoryByteResolved;
 
         public const string ScriptFileKey = "KQUnderHall";
         public const string ScriptFilePath = "Script/KQUnderHall.txt";

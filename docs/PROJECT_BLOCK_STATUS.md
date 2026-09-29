@@ -129,8 +129,11 @@ Still required for block completion:
   The two reward sites and two questmobkill sites now reuse the already
   recovered shared native primitives rather than duplicating UnderHall logic:
   reward binds to the current KQElement plan, and questmobkill shares the exact
-  2668/Daliy_Check/50000/repeat-one native projection. These wrappers remain
-  mutation-free and source-site-specific. Their exact
+  2668/Daliy_Check/50000/repeat-one native projection. The 12 UnderHall2
+  broadcast sites now also reuse the shared native all-map notice audience and
+  Header-8/type-17 metadata, while keeping their KQUnderHall2 message text
+  explicitly UNRESOLVED rather than borrowing UnderHall's strings. These
+  wrappers remain mutation-free and source-site-specific. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command. Direct Zone.exe/PDB recovery now also closes that
