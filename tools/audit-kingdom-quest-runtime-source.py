@@ -34,6 +34,7 @@ UNDERHALL_COMMAND_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallComman
 UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandRuntime.cs"
 UNDERHALL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandState.cs"
 UNDERHALL_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallExternalPlan.cs"
+UNDERHALL_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallQuestMobKillNative.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1213,6 +1214,56 @@ def main():
             print("FAIL: KQ UnderHall external plan invented a side effect",
                   forbidden)
             return 1
+
+    underhall_quest_mob_kill_text = UNDERHALL_QUEST_MOB_KILL_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHallQuestMobKillNativePlan",
+        "class KingdomQuestUnderHallQuestMobKillNative",
+        "ShineQuestMobKillStepAddress = 0x004F8270u",
+        "AxialListNearScanObjectTypeCtorAddress = 0x004C1B40u",
+        "QuestPlayerScriptMobKillAddress = 0x005C0B40u",
+        "QuestPlayerScriptMobKillAllAddress = 0x005C0CF0u",
+        "NativePlayerObjectType =",
+        "(byte)KingdomQuestPineNativeObjectType.Player",
+        "NativePlayerScanFlag = 0",
+        "IsEmptyVtableOffset = 0x300",
+        "GetQuestZoneVtableOffset = 0x808",
+        "UnderHallQuestId = 2668",
+        'UnderHallMobIndex = "Daliy_Check"',
+        "UnderHallMobId = 50000",
+        "UnderHallRepeatOperand = 1",
+        "source.Kind !=",
+        "KingdomQuestUnderHallExternalPlanKind.QuestMobKill",
+        "source.RawNumeric1 != UnderHallQuestId",
+        "source.Count != UnderHallRepeatOperand",
+        "data.MobsByName.TryGetValue(",
+        "data.MobData.TryGetValue(",
+        "clientInfo.ID != UnderHallMobId",
+        "serverInfo.ID != UnderHallMobId",
+        "selectedPlayerCount < plan.RepeatOperand",
+        "does not enumerate map players",
+        "does not mutate CQuestZone",
+    ):
+        if token not in underhall_quest_mob_kill_text:
+            print("FAIL: KQ UnderHall native questmobkill projection changed",
+                  token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "Map.Objects", "GetCharacters",
+            "ZoneCharacter", "QuestPlayer_ScriptMobKill(",
+            "Program.DatabaseManager", "ExecuteQuery(", "SendPacket("):
+        if forbidden in underhall_quest_mob_kill_text:
+            print("FAIL: KQ UnderHall questmobkill projection went live",
+                  forbidden)
+            return 1
+
+    daliy_check = mobinfo_by_inx.get("Daliy_Check")
+    if (daliy_check is None or int(daliy_check[0]) != 50000 or
+            unquote_sql(daliy_check[2]) != "Kingdom Quest Clear "):
+        print("FAIL: KQ UnderHall Daliy_Check source correlation changed",
+              daliy_check)
+        return 1
 
     underhall_state_text = UNDERHALL_COMMAND_STATE.read_text(
         encoding="utf-8")

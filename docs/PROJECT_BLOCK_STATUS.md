@@ -99,8 +99,14 @@ Still required for block completion:
   native qualifying-player-count source; neither may equate the native handle
   with an emulator MapObjectID or invent the ala_SearchPly filter. Supplying
   those live observations plus the six external command side effects remains
-  open; `InterruptArg` has no consumer in the supplied UnderHall source and is
-  no longer a control-flow blocker. Their exact
+  open at the concrete owner layer, but two of those command semantics are now
+  independently native-closed before live mutation: `reward KingdomQuest`
+  has its KQ contribution/DemandMobKill gate and no-reward wire, while
+  `questmobkill 2668 "Daliy_Check" 1.` is fixed to a Player-type-2 scan,
+  non-empty CQuestZone targets and the direct
+  `QuestPlayer_ScriptMobKill(2668, 50000)` call with an effective repeat
+  limit of one. `InterruptArg` has no consumer in the supplied UnderHall source
+  and is no longer a control-flow blocker. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command. Direct Zone.exe/PDB recovery now also closes that

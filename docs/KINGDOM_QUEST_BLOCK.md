@@ -1614,6 +1614,25 @@ wire without enumerating emulator map objects or executing the downstream
 GameDB reward transaction. The live contribution/target adapters and native
 reward persistence remain separate owners.
 
+The immediately following UnderHall command
+`questmobkill 2668 "Daliy_Check" 1.` is now native-recovered as well.
+`ShineQuestMobkill::sa_Step` at `0x004F8270` resolves operand 1 to
+QuestID **2668**, resolves `Daliy_Check` through the native mob data box
+(source MobID **50000**, "Kingdom Quest Clear "), and reads the third operand
+as the repeat bound **1**. It constructs
+`AxialListNearScanObjectType(2, 0)`: native object type 2 is Player and the
+zero flag disables the optional extra scan predicate. For every selected
+non-empty player (`so_IsEmpty`, vtable +0x300) with a CQuestZone
+(`so_ply_GetQuestZone`, +0x808), native uses
+`min(selectedPlayerCount, repeatOperand)` as the per-player repeat limit.
+Because UnderHall's literal is 1, this is exactly one call whenever at least
+one player was selected. QuestID 2668 is not 0xFFFF, so the call is the direct
+`CQuestZone::QuestPlayer_ScriptMobKill(2668, 50000)` path at
+`0x005C0B40`, not the `_All` variant at `0x005C0CF0`.
+`KingdomQuestUnderHallQuestMobKillNative` models these identities and loop
+bounds without enumerating map players or mutating CQuestZone; the concrete
+live player/quest adapter remains separate.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
 closes the native entry rule rather than relying on that corpus coincidence.
