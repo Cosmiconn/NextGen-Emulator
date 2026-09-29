@@ -2167,6 +2167,19 @@ def main():
         "runtime.Variables.TryPush(",
         "NativeInitVariableName, out initValue",
         "initValue.TrySetAscii(startPlan.ScriptInitValue)",
+        "class KingdomQuestZonePineFilmSession",
+        "class KingdomQuestZonePineFilmBridge",
+        "TryCreateStartedSession(",
+        "KingdomQuestZoneRuntimeRegistry.TryGet(handle, out state)",
+        "state.State != KingdomQuestZoneLifecycleState.Started",
+        "state.ScenarioStartPlan.GetNativeOrder()",
+        "KingdomQuestScenarioStartAction.DropCurrentFilm",
+        "KingdomQuestScenarioStartAction.CloseAllDoors",
+        "KingdomQuestScenarioStartAction.PlayFilm",
+        "commandContext.CurrentKingdomQuestHandle.Value != handle",
+        "KingdomQuestPineScriptSource.TryGet(",
+        "KingdomQuestPineScenarioRuntime.TryCreate(",
+        "return Runtime.Step();",
     ):
         if token not in pine_scenario_runtime_text:
             print("FAIL: native KQ Pine film entry changed", token)
@@ -2175,7 +2188,8 @@ def main():
             "ScriptInitValue == NativeEntryBlockName",
             "MapManager.Instance", "SendPacket(",
             "Program.DatabaseManager", "System.Random",
-            "DateTime.Now", "Environment.TickCount"):
+            "DateTime.Now", "Environment.TickCount",
+            "KingdomQuestLuaScenarioScope", "new MsvcCrtRand("):
         if forbidden in pine_scenario_runtime_text:
             print("FAIL: native KQ Pine film entry invented runtime semantics",
                   forbidden)

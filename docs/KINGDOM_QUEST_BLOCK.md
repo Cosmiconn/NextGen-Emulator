@@ -1709,6 +1709,14 @@ the KQ runtime state and carries it unchanged through later disjoin/end state
 updates. The Pine backend start is now separately executable-source modeled by
 `KingdomQuestPineScenarioRuntime`: it enters `main` and creates `InitFlag`
 from the exact supplied init token before any Pine step.
+`KingdomQuestZonePineFilmBridge` now connects that factory to an actual
+**Started** Zone KQ state: it revalidates the three-action native start order,
+resolves only the hash-locked Pine source for that ScriptLanguage, rejects a
+mismatched explicit KQ handle in the command context, and returns a
+`KingdomQuestZonePineFilmSession`. Each session `Step()` performs exactly
+one native-style Pine top-frame step. Scheduler cadence and every unresolved
+host/map/reward dependency remain external and fail-closed; Lua ScenarioBooks
+are explicitly not treated as Pine fallbacks.
 
 The earlier `ScriptInitValue` entry-block ambiguity is therefore closed for
 Pine. The canonical `KQ/UnderHall` value `"10"` remains a useful regression

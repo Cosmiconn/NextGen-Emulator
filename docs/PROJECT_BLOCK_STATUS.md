@@ -112,9 +112,13 @@ Still required for block completion:
   terminal order is now executable-source
   modeled as Z2W END followed by FieldMap clear mask 0xB0 behind two explicit
   owners; the raw mask is not mapped to emulator object classes yet, so live
-  activation remains fail-closed. Native event production/command side effects,
-  the live Pine film tick/host wiring and the separate Lua backend execution remain
-  fail-closed; the Pine `cc_PlayFilm` entry binding itself is no longer
+  activation remains fail-closed. A Started Zone KQ can now be bound to a real
+  `KingdomQuestZonePineFilmSession` through the exact stored
+  DropFilm -> CloseAllDoors -> PlayFilm envelope, and each explicit session
+  `Step()` advances one native-style Pine top-frame step. The remaining live
+  gap is the authoritative CinemaComplex scheduling/host ownership plus native
+  event/command side effects; the separate Lua backend execution also remains
+  fail-closed. The Pine `cc_PlayFilm` entry binding itself is no longer
   unresolved;
 - exact native-thread assignment/consumer ordering for the thread-local Zone
   CRT rand stream used by CardDeck, authoritative normal per-class

@@ -79,4 +79,122 @@ namespace NextGen.Zone.Data
             return true;
         }
     }
+
+    /// <summary>
+    /// One Pine film bound to an already-started live Zone KQ instance.
+    ///
+    /// The session owns only the Pine ProcessStack/VariableStack runtime and
+    /// immutable Zone identity captured at creation. It does not choose the
+    /// scheduler cadence or create any gameplay dependency.
+    /// </summary>
+    public sealed class KingdomQuestZonePineFilmSession
+    {
+        public uint Handle { get; private set; }
+        public ushort MapID { get; private set; }
+        public short MapInstance { get; private set; }
+        public string ScriptLanguage { get; private set; }
+        public KingdomQuestPineControlRuntime Runtime { get; private set; }
+
+        public KingdomQuestPineRuntimeStatus Status
+        {
+            get { return Runtime.Status; }
+        }
+
+        public string Fault
+        {
+            get { return Runtime.Fault; }
+        }
+
+        internal KingdomQuestZonePineFilmSession(
+            KingdomQuestZoneRuntimeState state,
+            KingdomQuestPineControlRuntime runtime)
+        {
+            Handle = state.Handle;
+            MapID = state.MapID;
+            MapInstance = state.MapInstance;
+            ScriptLanguage = state.ScenarioStartPlan.ScriptLanguage;
+            Runtime = runtime;
+        }
+
+        /// <summary>
+        /// Executes exactly one native-style Pine top-frame step.
+        /// Scheduling frequency remains an external CinemaComplex owner
+        /// dependency rather than an invented timer in this session.
+        /// </summary>
+        public KingdomQuestPineRuntimeStatus Step()
+        {
+            return Runtime.Step();
+        }
+    }
+
+    /// <summary>
+    /// Bridges the represented W2Z START state to the already-recovered Pine
+    /// side of CinemaComplex::cc_PlayFilm.
+    ///
+    /// Only an instance that is currently Started and carries the exact native
+    /// DropFilm -> CloseAllDoors -> PlayFilm start envelope may create a
+    /// session. The ScriptLanguage must resolve in the hash-locked nine-script
+    /// Pine corpus; Lua books are not treated as Pine fallbacks.
+    ///
+    /// Host, expression and command dependencies remain caller-owned. A
+    /// supplied CurrentKingdomQuestHandle may not disagree with the live Zone
+    /// handle. Missing later command dependencies therefore still fault closed
+    /// when the Pine runtime reaches them.
+    /// </summary>
+    public static class KingdomQuestZonePineFilmBridge
+    {
+        public static bool TryCreateStartedSession(
+            uint handle,
+            IKingdomQuestPineRuntimeHost host,
+            KingdomQuestPineUsedExpressionContext expressionContext,
+            KingdomQuestPineUsedCommandContext commandContext,
+            out KingdomQuestZonePineFilmSession session)
+        {
+            session = null;
+
+            KingdomQuestZoneRuntimeState state;
+            if (host == null ||
+                !KingdomQuestZoneRuntimeRegistry.TryGet(handle, out state) ||
+                state == null ||
+                state.State != KingdomQuestZoneLifecycleState.Started ||
+                state.ScenarioStartPlan == null)
+                return false;
+
+            var nativeOrder = state.ScenarioStartPlan.GetNativeOrder();
+            if (nativeOrder == null ||
+                nativeOrder.Count != 3 ||
+                nativeOrder[0] !=
+                    KingdomQuestScenarioStartAction.DropCurrentFilm ||
+                nativeOrder[1] !=
+                    KingdomQuestScenarioStartAction.CloseAllDoors ||
+                nativeOrder[2] !=
+                    KingdomQuestScenarioStartAction.PlayFilm)
+                return false;
+
+            if (commandContext != null &&
+                commandContext.CurrentKingdomQuestHandle.HasValue &&
+                commandContext.CurrentKingdomQuestHandle.Value != handle)
+                return false;
+
+            KingdomQuestPineScriptDocument document;
+            if (!KingdomQuestPineScriptSource.TryGet(
+                    state.ScenarioStartPlan.ScriptLanguage, out document) ||
+                document == null)
+                return false;
+
+            KingdomQuestPineControlRuntime runtime;
+            if (!KingdomQuestPineScenarioRuntime.TryCreate(
+                    document,
+                    state.ScenarioStartPlan,
+                    host,
+                    expressionContext,
+                    commandContext,
+                    out runtime) ||
+                runtime == null)
+                return false;
+
+            session = new KingdomQuestZonePineFilmSession(state, runtime);
+            return true;
+        }
+    }
 }
