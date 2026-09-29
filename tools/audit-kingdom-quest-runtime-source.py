@@ -1243,7 +1243,7 @@ def main():
         "serverInfo.ID != UnderHallMobId",
         "selectedPlayerCount < plan.RepeatOperand",
         "does not enumerate map players",
-        "or mutate CQuestZone",
+        "mutate CQuestZone.",
     ):
         if token not in underhall_quest_mob_kill_text:
             print("FAIL: KQ UnderHall native questmobkill projection changed",
