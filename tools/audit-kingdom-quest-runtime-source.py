@@ -38,6 +38,8 @@ UNDERHALL_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHal
 UNDERHALL_BROADCAST_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallBroadcastNative.cs"
 UNDERHALL_REWARD_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallRewardNative.cs"
 UNDERHALL_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallOwnerPlans.cs"
+UNDERHALL2_EXTERNAL_SOURCE = ROOT / "docs/KINGDOM_QUEST_UNDERHALL2_EXTERNAL_SOURCE.tsv"
+UNDERHALL2_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2SourceFlow.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -985,6 +987,66 @@ def main():
               "{0}:{1}:{2}".format(line_no, block, line)
               for line_no, block, line in underhall2_external_blocks))
     print("PASS: KQ UnderHall2 six-family occurrence count is source-locked at 74")
+
+    underhall2_source_rows = []
+    with UNDERHALL2_EXTERNAL_SOURCE.open(
+            "r", encoding="utf-8", newline="") as source_file:
+        data_lines = [
+            row for row in source_file.read().splitlines()
+            if row and not row.startswith("#")
+        ]
+    source_reader = csv.DictReader(data_lines, delimiter="\t")
+    for row in source_reader:
+        underhall2_source_rows.append((
+            int(row["CanonicalLine"]),
+            row["TopLevelBlock"],
+            row["CommandText"],
+        ))
+    if underhall2_source_rows != underhall2_external_blocks:
+        print("FAIL: KQ UnderHall2 exact six-family source map changed",
+              underhall2_source_rows, underhall2_external_blocks)
+        return 1
+    print("PASS: KQ UnderHall2 exact 74-site source map is TSV-locked")
+
+    underhall2_flow_text = UNDERHALL2_SOURCE_FLOW.read_text(encoding="utf-8")
+    for token in (
+        "enum KingdomQuestUnderHall2ExternalKind : byte",
+        "class KingdomQuestUnderHall2ExternalSourceSite",
+        "class KingdomQuestUnderHall2SourceFlow",
+        'ScriptLanguage = "KQ/UnderHall2"',
+        "ExternalOccurrenceCount = 74",
+        "BroadcastOccurrenceCount = 12",
+        "LinkToOccurrenceCount = 3",
+        "MobRegenOccurrenceCount = 1",
+        "QuestMobKillOccurrenceCount = 2",
+        "RewardOccurrenceCount = 2",
+        "SummonMobOccurrenceCount = 54",
+        "candidate.Kind != kind",
+        "new Dictionary<int, KingdomQuestUnderHall2ExternalSourceSite>(Sites)",
+    ):
+        if token not in underhall2_flow_text:
+            print("FAIL: KQ UnderHall2 source-flow projection changed", token)
+            return 1
+    for canonical_line, block_name, command_text in underhall2_external_blocks:
+        verb = command_text.split(None, 1)[0].lower()
+        kind = {
+            "broadcast": "Broadcast",
+            "linkto": "LinkTo",
+            "mobregen": "MobRegen",
+            "questmobkill": "QuestMobKill",
+            "reward": "Reward",
+            "summonmob": "SummonMob",
+        }[verb]
+        expected_site = (
+            '{ ' + str(canonical_line) + ', Site(' + str(canonical_line) +
+            ', "' + block_name + '", KingdomQuestUnderHall2ExternalKind.' +
+            kind + ') },'
+        )
+        if expected_site not in underhall2_flow_text:
+            print("FAIL: KQ UnderHall2 C# source flow lost exact site",
+                  expected_site)
+            return 1
+    print("PASS: KQ UnderHall2 C# source flow contains all 74 exact sites")
 
     waitlogin_targets = {}
     for key in sorted(PINE_SCRIPT_KEYS):

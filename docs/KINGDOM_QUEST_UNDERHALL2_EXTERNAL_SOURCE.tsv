@@ -1,0 +1,78 @@
+# ScriptLanguage	KQ/UnderHall2
+# CanonicalScriptSha256	818c228f2f05d7c1fbba2a14aaa128df0c607eaa44b30ecfa0a2d53189674c7a
+# Semantics	Exact six-family source occurrence routing only; no gameplay side-effect semantics inferred
+CanonicalLine	TopLevelBlock	Kind	CommandText
+402	TwelveTwo	MobRegen	mobregen KQ_GB_Spider "KQ_GB_Spider" 2350 2550 90 1000 "Normal".
+424	Summon1	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider"   5.
+426	Summon1	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider"   5.
+428	Summon1	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider"   5.
+430	Summon1	SummonMob	summonmob KQ_GB_Spider "KQ_U_Spider01"  2.
+433	Summon2	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 5.
+435	Summon2	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+437	Summon2	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+439	Summon2	SummonMob	summonmob KQ_GB_Spider "KQ_U_Spider02"  2.
+442	Summon3	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+444	Summon3	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+446	Summon3	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+448	Summon3	SummonMob	summonmob KQ_GB_Spider "KQ_U_Spider03"  2.
+451	Summon4	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 4.
+453	Summon4	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 5.
+455	Summon4	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+457	Summon4	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+459	Summon4	SummonMob	summonmob KQ_GB_Spider "KQ_U_Spider04"  2.
+462	Summon5	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 5.
+464	Summon5	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 5.
+466	Summon5	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 5.
+468	Summon5	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 5.
+470	Summon5	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 5.
+472	Summon5	SummonMob	summonmob KQ_GB_Spider "KQ_U_Spider05"  2.
+475	Summon6	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+477	Summon6	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+479	Summon6	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+481	Summon6	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+483	Summon6	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 6.
+485	Summon6	SummonMob	summonmob KQ_GB_Spider "KQ_U_AMageBook"  2.
+488	Summon7	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+490	Summon7	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+492	Summon7	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+494	Summon7	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+496	Summon7	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+498	Summon7	SummonMob	summonmob KQ_GB_Spider "KQ_U_Lvivi"  2.
+501	Summon8	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 8.
+503	Summon8	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 8.
+505	Summon8	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 8.
+507	Summon8	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 8.
+509	Summon8	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 8.
+511	Summon8	SummonMob	summonmob KQ_GB_Spider "KQ_U_Greenky"  2.
+514	Summon9	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+516	Summon9	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+518	Summon9	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+520	Summon9	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+522	Summon9	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+524	Summon9	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 7.
+526	Summon9	SummonMob	summonmob KQ_GB_Spider "KQ_U_TombRaider" 2.
+529	Summon10	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 9.
+531	Summon10	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 9.
+533	Summon10	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 9.
+535	Summon10	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 9.
+537	Summon10	SummonMob	summonmob KQ_GB_Spider "KQ_M_Spider" 9.
+539	Summon10	SummonMob	summonmob KQ_GB_Spider "KQ_U_Uspider"  2.
+543	QuestSuc	Reward	reward KingdomQuest.
+544	QuestSuc	QuestMobKill	questmobkill 2668 "Daliy_Check" 1.
+545	QuestSuc	Broadcast	broadcast all "KQReturn30".
+547	QuestSuc	Broadcast	broadcast all "KQReturn20".
+549	QuestSuc	Broadcast	broadcast all "KQReturn10".
+551	QuestSuc	Broadcast	broadcast all "KQReturn5".
+553	QuestSuc	LinkTo	linkto all "Eld" "Eld" 17214 13445.
+559	QuestSuc2	Reward	reward KingdomQuest.
+560	QuestSuc2	QuestMobKill	questmobkill 2668 "Daliy_Check" 1.
+563	QuestSuc2	Broadcast	broadcast all "KQReturn30".
+565	QuestSuc2	Broadcast	broadcast all "KQReturn20".
+567	QuestSuc2	Broadcast	broadcast all "KQReturn10".
+569	QuestSuc2	Broadcast	broadcast all "KQReturn5".
+571	QuestSuc2	LinkTo	linkto all "Urg" "Urg" 5835 6397.
+577	QuestFail	Broadcast	broadcast all "KQReturn30".
+579	QuestFail	Broadcast	broadcast all "KQReturn20".
+581	QuestFail	Broadcast	broadcast all "KQReturn10".
+583	QuestFail	Broadcast	broadcast all "KQReturn5".
+585	QuestFail	LinkTo	linkto all "Urg" "Urg" 5835 6397.

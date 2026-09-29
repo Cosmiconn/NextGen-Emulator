@@ -117,7 +117,11 @@ Still required for block completion:
   requires the current KQ Handle and a matching live KQElement definition
   before crossing that boundary. `InterruptArg`
   has no consumer in the supplied UnderHall source
-  and is no longer a control-flow blocker. Their exact
+  and is no longer a control-flow blocker. UnderHall2 is now source-inventoried
+  one layer further as well: all **74** occurrences of the same six families
+  are exact-line/block/text locked (12 broadcast, 3 linkto, 1 mobregen,
+  2 questmobkill, 2 reward, 54 summonmob), ready for the next runtime slice
+  without treating source presence as live semantics. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command. Direct Zone.exe/PDB recovery now also closes that

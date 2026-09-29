@@ -1683,6 +1683,16 @@ virtual dispatch, source-key/message mapping and opcode family while leaving
 that category byte explicitly unresolved; it does not reuse the legacy
 `Handler8.SendAdminNotice` helper or synthesize a packet.
 
+UnderHall2 has now entered the same source-first closure path. Its canonical
+hash-locked source contains exactly **74** occurrences of the six command
+families shared with UnderHall: **12 broadcast, 3 linkto, 1 mobregen,
+2 questmobkill, 2 reward and 54 summonmob**. Every occurrence is locked by
+canonical line, top-level block and exact command text in
+`docs/KINGDOM_QUEST_UNDERHALL2_EXTERNAL_SOURCE.tsv`; the matching
+`KingdomQuestUnderHall2SourceFlow` routes all 74 line/kind pairs. This is
+source ownership only, not a claim that UnderHall2 already executes those
+side effects.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
 closes the native entry rule rather than relying on that corpus coincidence.
