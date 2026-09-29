@@ -1369,9 +1369,9 @@ def main():
         "data.MobData.TryGetValue(",
         "clientInfo.ID == source.MobId",
         "serverInfo.ID == source.MobId",
-        "RawNumeric1 = source.RawNumeric1",
-        "RawNumeric2 = source.RawNumeric2",
-        "RawText1 = source.RawText1",
+        "source.RawNumeric1,",
+        "source.RawNumeric2,",
+        "source.RawText1);",
         "no native link/spawn/regen mutation is inferred",
     ):
         if token not in underhall_owner_plans_text:
