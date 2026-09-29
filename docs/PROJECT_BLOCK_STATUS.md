@@ -109,10 +109,13 @@ Still required for block completion:
   current-map `so_AllInMap -> AxialListWall -> so_ply_Notice` dispatch plus
   the four original KQUnderHall message strings. Header 8/type 17 is known,
   while the native notice category byte remains UNRESOLVED and no packet is
-  guessed. The UnderHall dispatcher now passes native broadcast,
-  questmobkill and reward plans—not raw Pine operands—to external owners; the
-  reward route also requires the current KQ Handle and a matching live
-  KQElement definition before crossing that boundary. `InterruptArg`
+  guessed. The UnderHall dispatcher now passes **all six** external families
+  as immutable native/source-resolved owner plans—not raw Pine operands.
+  Broadcast, questmobkill and reward have the stronger native semantics above;
+  linkto, mobregen and summonmob are source-site/data/0x100-byte-handle locked
+  but their actual native mutation remains UNRESOLVED. The reward route also
+  requires the current KQ Handle and a matching live KQElement definition
+  before crossing that boundary. `InterruptArg`
   has no consumer in the supplied UnderHall source
   and is no longer a control-flow blocker. Their exact
   top-level source sites are also locked: UnderHall's sole

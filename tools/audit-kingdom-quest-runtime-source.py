@@ -37,6 +37,7 @@ UNDERHALL_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallExterna
 UNDERHALL_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallQuestMobKillNative.cs"
 UNDERHALL_BROADCAST_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallBroadcastNative.cs"
 UNDERHALL_REWARD_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallRewardNative.cs"
+UNDERHALL_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallOwnerPlans.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1334,6 +1335,57 @@ def main():
             print("FAIL: KQ UnderHall reward wrapper went live", forbidden)
             return 1
 
+    underhall_owner_plans_text = UNDERHALL_OWNER_PLANS.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHallLinkToOwnerPlan",
+        "class KingdomQuestUnderHallMobRegenOwnerPlan",
+        "class KingdomQuestUnderHallSummonMobOwnerPlan",
+        "class KingdomQuestUnderHallOwnerPlanBuilder",
+        "LinkToOccurrenceCount = 2",
+        "MobRegenOccurrenceCount = 1",
+        "SummonMobOccurrenceCount = 12",
+        "RuntimeHandleIdentifier = \"KQ_BossRobo\"",
+        "MobRegenCanonicalLine = 339",
+        'MobRegenBlock = "Nineteenth"',
+        "MobRegenX = 2300",
+        "MobRegenY = 2500",
+        "MobRegenRawNumeric1 = 90",
+        "MobRegenRawNumeric2 = 1000",
+        'MobRegenRawText1 = "Normal"',
+        "KingdomQuestUnderHallSourceCatalog.ElderineMapId",
+        "sourceSite.CanonicalLine == 388",
+        "sourceSite.CanonicalLine == 402",
+        "source.Map.RegenX != 17214",
+        "source.Map.RegenY != 13445",
+        "TryExpectedSummon(",
+        "case 355:",
+        'mobIndex = "KQ_DesertWolf"',
+        "case 374:",
+        'mobIndex = "KQ_FireViVi"',
+        "runtimeHandleToken.SnapshotNativeBytes()",
+        "KingdomQuestPineTokenValue.NativeByteCapacity",
+        "data.MobsByName.TryGetValue(",
+        "data.MobData.TryGetValue(",
+        "clientInfo.ID != source.Mob.MobId",
+        "serverInfo.ID != source.Mob.MobId",
+        "RawNumeric1 = source.RawNumeric1",
+        "RawNumeric2 = source.RawNumeric2",
+        "RawText1 = source.RawText1",
+        "no native link/spawn/regen mutation is inferred",
+    ):
+        if token not in underhall_owner_plans_text:
+            print("FAIL: KQ UnderHall owner-plan boundary changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "new Mob(", "FullAddObject(", "SpawnMob(",
+            "Program.DatabaseManager", "ExecuteQuery(", "System.Random"):
+        if forbidden in underhall_owner_plans_text:
+            print("FAIL: KQ UnderHall owner plan invented live semantics",
+                  forbidden)
+            return 1
+
     underhall_state_text = UNDERHALL_COMMAND_STATE.read_text(
         encoding="utf-8")
     for token in (
@@ -1347,7 +1399,11 @@ def main():
         "KingdomQuestUnderHallBroadcastNative.TryBuild(",
         "KingdomQuestUnderHallBroadcastNativePlan broadcastPlan",
         "externalSink.TryBroadcast(",
+        "KingdomQuestUnderHallOwnerPlanBuilder.TryBuildLinkTo(",
+        "KingdomQuestUnderHallLinkToOwnerPlan linkToPlan",
         "externalSink.TryLinkTo(",
+        "KingdomQuestUnderHallOwnerPlanBuilder.TryBuildMobRegen(",
+        "KingdomQuestUnderHallMobRegenOwnerPlan mobRegenPlan",
         "externalSink.TryMobRegen(",
         "TryResolveRuntimeHandleToken(",
         "plan.RuntimeHandleIdentifier",
@@ -1360,6 +1416,8 @@ def main():
         "currentKingdomQuestHandle.Value",
         "KingdomQuestUnderHallRewardNativePlan rewardPlan",
         "externalSink.TryReward(",
+        "KingdomQuestUnderHallOwnerPlanBuilder.TryBuildSummonMob(",
+        "KingdomQuestUnderHallSummonMobOwnerPlan summonMobPlan",
         "externalSink.TrySummonMob(",
         "waitlogin and waitinterrupt are intentionally absent",
         "55/55 waitinterrupt sites",

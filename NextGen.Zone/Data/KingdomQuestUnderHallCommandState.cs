@@ -16,16 +16,13 @@ namespace NextGen.Zone.Data
             out bool completed);
 
         bool TryLinkTo(
-            KingdomQuestUnderHallExternalPlan plan,
-            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestUnderHallLinkToOwnerPlan plan,
             KingdomQuestPineVariableStack variables,
             ref int nativeState,
             out bool completed);
 
         bool TryMobRegen(
-            KingdomQuestUnderHallExternalPlan plan,
-            KingdomQuestUnderHallExternalSourceSite sourceSite,
-            KingdomQuestPineTokenValue runtimeHandleToken,
+            KingdomQuestUnderHallMobRegenOwnerPlan plan,
             ref int nativeState,
             out bool completed);
 
@@ -42,9 +39,7 @@ namespace NextGen.Zone.Data
             out bool completed);
 
         bool TrySummonMob(
-            KingdomQuestUnderHallExternalPlan plan,
-            KingdomQuestUnderHallExternalSourceSite sourceSite,
-            KingdomQuestPineTokenValue runtimeHandleToken,
+            KingdomQuestUnderHallSummonMobOwnerPlan plan,
             ref int nativeState,
             out bool completed);
     }
@@ -60,8 +55,9 @@ namespace NextGen.Zone.Data
     /// This class therefore performs no interrupt delivery, player polling or
     /// script-file state mutation. It only resolves exact UnderHall source
     /// sites and forwards only the strongest recovered plan available to the
-    /// native side-effect owner. Broadcast, questmobkill and reward therefore
-    /// never expose their raw Pine operands beyond this boundary.
+    /// native side-effect owner. All six UnderHall families therefore cross
+    /// this boundary only as immutable native/source-resolved owner plans;
+    /// no external owner receives raw Pine operands.
     /// </summary>
     public sealed class KingdomQuestUnderHallCommandState :
         IKingdomQuestUnderHallCommandSink
@@ -135,8 +131,13 @@ namespace NextGen.Zone.Data
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.LinkTo:
+                    KingdomQuestUnderHallLinkToOwnerPlan linkToPlan;
+                    if (!KingdomQuestUnderHallOwnerPlanBuilder.TryBuildLinkTo(
+                            plan, sourceSite, out linkToPlan) ||
+                        linkToPlan == null)
+                        return false;
                     return externalSink.TryLinkTo(
-                        plan, sourceSite, variables,
+                        linkToPlan, variables,
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.MobRegen:
@@ -144,8 +145,17 @@ namespace NextGen.Zone.Data
                     if (!TryResolveRuntimeHandleToken(
                             plan, variables, out regenHandleToken))
                         return false;
+                    KingdomQuestUnderHallMobRegenOwnerPlan mobRegenPlan;
+                    if (!KingdomQuestUnderHallOwnerPlanBuilder.TryBuildMobRegen(
+                            plan,
+                            sourceSite,
+                            regenHandleToken,
+                            DataProvider.Instance,
+                            out mobRegenPlan) ||
+                        mobRegenPlan == null)
+                        return false;
                     return externalSink.TryMobRegen(
-                        plan, sourceSite, regenHandleToken,
+                        mobRegenPlan,
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.QuestMobKill:
@@ -181,8 +191,17 @@ namespace NextGen.Zone.Data
                     if (!TryResolveRuntimeHandleToken(
                             plan, variables, out summonHandleToken))
                         return false;
+                    KingdomQuestUnderHallSummonMobOwnerPlan summonMobPlan;
+                    if (!KingdomQuestUnderHallOwnerPlanBuilder.TryBuildSummonMob(
+                            plan,
+                            sourceSite,
+                            summonHandleToken,
+                            DataProvider.Instance,
+                            out summonMobPlan) ||
+                        summonMobPlan == null)
+                        return false;
                     return externalSink.TrySummonMob(
-                        plan, sourceSite, summonHandleToken,
+                        summonMobPlan,
                         ref nativeState, out completed);
 
                 default:

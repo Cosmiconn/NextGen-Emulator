@@ -1580,6 +1580,24 @@ dispatcher resolves that identifier to the exact Pine token before invoking
 the external owner. MobInfo ID 1068 is never substituted for the runtime
 ShineObject handle captured later by HPLow.
 
+- `linkto`: only canonical QuestSuc/QuestFail lines **388/402**, target
+  `all`, Elderine MapID **9**, aliases `Eld`/`Eld`, coordinates
+  **17214/13445**;
+- `mobregen`: only canonical `Nineteenth` line **339**,
+  `KQ_BossRobo` / MobID **1068**, coordinates **2300/2500**, raw numeric
+  operands **90/1000** and raw text `Normal`;
+- `summonmob`: only the exact **12** canonical Summon1..5 sites, with each
+  source MobInfo identity and count locked to that line.
+
+For mobregen/summonmob the resolved VariableStack value is copied as the full
+**0x100-byte PineScriptToken** into the immutable owner plan; it is not parsed
+as an emulator MapObjectID. MobInfo and MobInfoServer must also agree on the
+numeric MobID before the plan crosses the boundary. Thus all six UnderHall
+external families now reach external code only through fixed plans. This does
+**not** claim native `linkto`, mob creation, spawn scheduling or handle
+semantics: no native link/spawn/regen mutation is inferred until Zone.exe/PDB
+can be inspected again.
+
 
 Their **top-level block ownership is now source-locked as well**.
 `KingdomQuestUnderHallSourceFlow` accepts each external plan only at its exact
