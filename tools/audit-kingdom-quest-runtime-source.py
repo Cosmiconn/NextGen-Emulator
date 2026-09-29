@@ -2385,7 +2385,7 @@ def main():
         "definition.RewardIndex",
         "mobKillContribution < plan.DemandMobKill",
         "does not enumerate emulator map objects",
-        "does not execute the downstream GameDB reward transaction",
+        "or execute the downstream GameDB reward transaction",
     ):
         if token not in pine_kq_reward_command_text:
             print("FAIL: KQ native reward-command projection changed", token)
