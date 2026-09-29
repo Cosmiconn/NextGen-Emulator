@@ -45,6 +45,7 @@ UNDERHALL2_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2Sour
 UNDERHALL2_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2ExternalPlan.cs"
 UNDERHALL2_COMMON_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommonNative.cs"
 UNDERHALL2_BROADCAST_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2BroadcastNative.cs"
+UNDERHALL2_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2OwnerPlans.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -60,6 +61,7 @@ PINE_KQ_TITLE_HOOK = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTitleHookNative
 PINE_KQ_REWARD_COMMAND = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqRewardCommandNative.cs"
 PINE_USED_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedQuestMobKillNative.cs"
 PINE_BROADCAST_ALL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineBroadcastAllNative.cs"
+PINE_EXTERNAL_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestPineExternalOwnerPlans.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_REGEN_RUNTIME_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenRuntimePlan.cs"
 PINE_REGEN_NATIVE_LAYOUT = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenNativeLayout.cs"
@@ -1348,6 +1350,64 @@ def main():
                   forbidden)
             return 1
     print("PASS: KQ UnderHall2 broadcast reuses native audience without guessing text")
+
+    pine_external_owner_text = PINE_EXTERNAL_OWNER_PLANS.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineLinkToOwnerPlan",
+        "class KingdomQuestPineMobRegenOwnerPlan",
+        "class KingdomQuestPineSummonMobOwnerPlan",
+        "SnapshotRuntimeHandleNativeBytes()",
+        "runtimeHandleToken.SnapshotNativeBytes()",
+        "MobDisplayName",
+    ):
+        if token not in pine_external_owner_text:
+            print("FAIL: shared KQ external owner plan shape changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "MobHatchery", "Program.DatabaseManager", "System.Random"):
+        if forbidden in pine_external_owner_text:
+            print("FAIL: shared KQ owner plan invented a side effect",
+                  forbidden)
+            return 1
+
+    underhall2_owner_text = UNDERHALL2_OWNER_PLANS.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHall2OwnerPlanBuilder",
+        "LinkToOccurrenceCount = 3",
+        "MobRegenOccurrenceCount = 1",
+        "SummonMobOccurrenceCount = 54",
+        "KingdomQuestPineLinkToOwnerPlan",
+        "KingdomQuestPineMobRegenOwnerPlan",
+        "KingdomQuestPineSummonMobOwnerPlan",
+        "KingdomQuestUnderHall2ExternalPlanBuilder.MobRegenCanonicalLine",
+        "KingdomQuestUnderHall2ExternalPlanBuilder.MobRegenBlock",
+        "KingdomQuestUnderHall2ExternalPlanBuilder",
+        ".RuntimeHandleIdentifier",
+        "runtimeHandleToken.SnapshotNativeBytes().Length",
+        "KingdomQuestPineTokenValue.NativeByteCapacity",
+        "data.MobsByName.TryGetValue(",
+        "data.MobData.TryGetValue(",
+        "KingdomQuestUnderHall2SourceFlow.TryResolve(",
+        "line == 553",
+        "line == 571",
+        "line == 585",
+        "does not transfer a player",
+        "interpret the runtime handle",
+    ):
+        if token not in underhall2_owner_text:
+            print("FAIL: KQ UnderHall2 owner-plan boundary changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "MobHatchery", "Program.DatabaseManager", "ExecuteQuery(",
+            "System.Random", "Environment.TickCount"):
+        if forbidden in underhall2_owner_text:
+            print("FAIL: KQ UnderHall2 owner plan went live", forbidden)
+            return 1
+    print("PASS: KQ UnderHall2 link/regen/summon stop at shared fail-closed owner plans")
 
     waitlogin_targets = {}
     for key in sorted(PINE_SCRIPT_KEYS):

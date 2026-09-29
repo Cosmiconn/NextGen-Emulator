@@ -1722,6 +1722,16 @@ message strings. UnderHall2's 12 sites instead bind only the exact
 still UNRESOLVED in the checked-in source projection. The wrapper therefore
 does not borrow UnderHall's Elderine text and does not synthesize a packet.
 
+The remaining three UnderHall2 shared families now stop at the same explicit
+fail-closed owner boundary rather than growing script-specific mutation code.
+`KingdomQuestPineLinkToOwnerPlan`,
+`KingdomQuestPineMobRegenOwnerPlan` and
+`KingdomQuestPineSummonMobOwnerPlan` are script-neutral immutable carriers.
+`KingdomQuestUnderHall2OwnerPlanBuilder` validates the exact typed source
+plan, rechecks MobInfo against both live DataProvider projections, and snapshots
+the complete 0x100-byte Pine runtime-handle token for regen/summon. No map
+transfer, MobHatchery spawn, scheduling or handle interpretation is performed.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
 closes the native entry rule rather than relying on that corpus coincidence.

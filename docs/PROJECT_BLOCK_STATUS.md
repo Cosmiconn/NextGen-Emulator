@@ -132,7 +132,11 @@ Still required for block completion:
   2668/Daliy_Check/50000/repeat-one native projection. The 12 UnderHall2
   broadcast sites now also reuse the shared native all-map notice audience and
   Header-8/type-17 metadata, while keeping their KQUnderHall2 message text
-  explicitly UNRESOLVED rather than borrowing UnderHall's strings. These
+  explicitly UNRESOLVED rather than borrowing UnderHall's strings. Linkto,
+  mobregen and summonmob now also terminate at shared immutable owner-plan
+  types; regen/summon snapshot the full 0x100-byte Pine runtime token and
+  revalidate MobInfo through both runtime data projections. No transfer,
+  spawning, regen scheduling or handle interpretation is activated. These
   wrappers remain mutation-free and source-site-specific. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
