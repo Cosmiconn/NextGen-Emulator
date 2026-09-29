@@ -9,17 +9,23 @@ namespace NextGen.Zone.Data
     /// </summary>
     public sealed class KingdomQuestUnderHallQuestMobKillNativePlan
     {
+        public int CanonicalLine { get; private set; }
+        public string TopLevelBlock { get; private set; }
         public ushort QuestId { get; private set; }
         public string MobIndex { get; private set; }
         public ushort MobId { get; private set; }
         public int RepeatOperand { get; private set; }
 
         internal KingdomQuestUnderHallQuestMobKillNativePlan(
+            int canonicalLine,
+            string topLevelBlock,
             ushort questId,
             string mobIndex,
             ushort mobId,
             int repeatOperand)
         {
+            CanonicalLine = canonicalLine;
+            TopLevelBlock = topLevelBlock ?? string.Empty;
             QuestId = questId;
             MobIndex = mobIndex ?? string.Empty;
             MobId = mobId;
@@ -61,6 +67,7 @@ namespace NextGen.Zone.Data
         public const int GetQuestZoneVtableOffset = 0x808;
 
         public const ushort AllQuestId = 0xFFFF;
+        public const int UnderHallCanonicalLine = 379;
         public const ushort UnderHallQuestId = 2668;
         public const string UnderHallMobIndex = "Daliy_Check";
         public const ushort UnderHallMobId = 50000;
@@ -68,13 +75,22 @@ namespace NextGen.Zone.Data
 
         public static bool TryBuild(
             KingdomQuestUnderHallExternalPlan source,
+            KingdomQuestUnderHallExternalSourceSite sourceSite,
             DataProvider data,
             out KingdomQuestUnderHallQuestMobKillNativePlan plan)
         {
             plan = null;
             if (source == null ||
+                sourceSite == null ||
                 source.Kind !=
                     KingdomQuestUnderHallExternalPlanKind.QuestMobKill ||
+                sourceSite.Kind !=
+                    KingdomQuestUnderHallExternalPlanKind.QuestMobKill ||
+                sourceSite.CanonicalLine != UnderHallCanonicalLine ||
+                !string.Equals(
+                    sourceSite.TopLevelBlock,
+                    KingdomQuestUnderHallSourceFlow.SuccessBlock,
+                    StringComparison.Ordinal) ||
                 source.RawNumeric1 != UnderHallQuestId ||
                 source.Count != UnderHallRepeatOperand ||
                 !string.Equals(
@@ -100,6 +116,8 @@ namespace NextGen.Zone.Data
                 return false;
 
             plan = new KingdomQuestUnderHallQuestMobKillNativePlan(
+                sourceSite.CanonicalLine,
+                sourceSite.TopLevelBlock,
                 UnderHallQuestId,
                 UnderHallMobIndex,
                 UnderHallMobId,

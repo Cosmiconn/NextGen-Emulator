@@ -10,8 +10,7 @@ namespace NextGen.Zone.Data
     public interface IKingdomQuestUnderHallExternalCommandSink
     {
         bool TryBroadcast(
-            KingdomQuestUnderHallExternalPlan plan,
-            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestUnderHallBroadcastNativePlan plan,
             KingdomQuestPineVariableStack variables,
             ref int nativeState,
             out bool completed);
@@ -31,8 +30,7 @@ namespace NextGen.Zone.Data
             out bool completed);
 
         bool TryQuestMobKill(
-            KingdomQuestUnderHallExternalPlan plan,
-            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestUnderHallQuestMobKillNativePlan plan,
             KingdomQuestPineVariableStack variables,
             ref int nativeState,
             out bool completed);
@@ -62,8 +60,9 @@ namespace NextGen.Zone.Data
     ///
     /// This class therefore performs no interrupt delivery, player polling or
     /// script-file state mutation. It only resolves exact UnderHall source
-    /// sites and forwards the typed external plan to the native side-effect
-    /// owner.
+    /// sites and forwards only the strongest recovered plan available to the
+    /// native side-effect owner. Broadcast and questmobkill therefore never
+    /// expose their raw Pine operands beyond this boundary.
     /// </summary>
     public sealed class KingdomQuestUnderHallCommandState :
         IKingdomQuestUnderHallCommandSink
@@ -124,8 +123,13 @@ namespace NextGen.Zone.Data
             switch (plan.Kind)
             {
                 case KingdomQuestUnderHallExternalPlanKind.Broadcast:
+                    KingdomQuestUnderHallBroadcastNativePlan broadcastPlan;
+                    if (!KingdomQuestUnderHallBroadcastNative.TryBuild(
+                            plan, sourceSite, out broadcastPlan) ||
+                        broadcastPlan == null)
+                        return false;
                     return externalSink.TryBroadcast(
-                        plan, sourceSite, variables,
+                        broadcastPlan, variables,
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.LinkTo:
@@ -143,8 +147,17 @@ namespace NextGen.Zone.Data
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.QuestMobKill:
+                    KingdomQuestUnderHallQuestMobKillNativePlan
+                        questMobKillPlan;
+                    if (!KingdomQuestUnderHallQuestMobKillNative.TryBuild(
+                            plan,
+                            sourceSite,
+                            DataProvider.Instance,
+                            out questMobKillPlan) ||
+                        questMobKillPlan == null)
+                        return false;
                     return externalSink.TryQuestMobKill(
-                        plan, sourceSite, variables,
+                        questMobKillPlan, variables,
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.Reward:

@@ -109,7 +109,9 @@ Still required for block completion:
   current-map `so_AllInMap -> AxialListWall -> so_ply_Notice` dispatch plus
   the four original KQUnderHall message strings. Header 8/type 17 is known,
   while the native notice category byte remains UNRESOLVED and no packet is
-  guessed. `InterruptArg` has no consumer in the supplied UnderHall source
+  guessed. The UnderHall dispatcher now passes native broadcast and
+  questmobkill plans—not raw Pine operands—to external owners. `InterruptArg`
+  has no consumer in the supplied UnderHall source
   and is no longer a control-flow blocker. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has

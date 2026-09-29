@@ -1630,8 +1630,10 @@ one player was selected. QuestID 2668 is not 0xFFFF, so the call is the direct
 `CQuestZone::QuestPlayer_ScriptMobKill(2668, 50000)` path at
 `0x005C0B40`, not the `_All` variant at `0x005C0CF0`.
 `KingdomQuestUnderHallQuestMobKillNative` models these identities and loop
-bounds without enumerating map players or mutating CQuestZone; the concrete
-live player/quest adapter remains separate.
+bounds without enumerating map players or mutating CQuestZone. The UnderHall
+dispatcher also requires the exact canonical QuestSuc line 379 and source/data
+plan before the command reaches an external owner; the concrete live
+player/quest adapter remains separate.
 
 The eight UnderHall `broadcast all "<key>".` calls are now closed through
 the next native/source boundary too. Direct Zone.exe/PDB recovery shows the
@@ -1650,7 +1652,9 @@ resolves the four used keys exactly to:
 - `KQReturn5` -> `Move to Elderine in 5 seconds.`
 
 The downstream player notice is Header 8 / type 17
-(`SH8Type.GmNotice`), consistent with the supplied fail capture. The native
+(`SH8Type.GmNotice`), consistent with the supplied fail capture. The UnderHall
+dispatcher now validates this native broadcast plan before crossing the
+external-owner boundary, so no live sink sees a raw `KQReturn*` key. The native
 body has an additional category byte before its string length, but the exact
 value set by this KQ call path is not yet independently recovered.
 `KingdomQuestUnderHallBroadcastNative` therefore locks the audience,
