@@ -44,6 +44,8 @@ PINE_SCENARIO_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestPineScenarioRuntim
 LUA_SCENARIO_SCOPE = ROOT / "NextGen.Zone/Data/KingdomQuestLuaScenarioScope.cs"
 ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
+PINE_NATIVE_OBJECT_CLEAR = ROOT / "NextGen.Zone/Data/KingdomQuestPineNativeObjectClear.cs"
+PINE_KQ_TITLE_HOOK = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTitleHookNative.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_REGEN_RUNTIME_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenRuntimePlan.cs"
 PINE_REGEN_NATIVE_LAYOUT = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenNativeLayout.cs"
@@ -2229,6 +2231,13 @@ def main():
         "NativeFailType = 0x13",
         "NativeSuccessTitleCategory = 21",
         "NativeFailTitleCategory = 22",
+        "NativeAudienceObjectType =",
+        "(byte)KingdomQuestPineNativeObjectType.Player",
+        "NativePostResultClearObjectTypeMask =",
+        "KingdomQuestPineNativeObjectClear.QuestResultMask",
+        "VisitCurrentFieldMapPlayers = 1",
+        "ClearResultObjects = 2",
+        "GetNativeMapOrder()",
         "NativeNoKingdomQuestHandle = 0xFFFFFFFFu",
         "NativeClearObjectTypeMask = 0xB0u",
         "interface IKingdomQuestPineEndWorldSender",
@@ -2242,6 +2251,8 @@ def main():
         "NC_KQ_FAIL_CMD branch",
         "WorldManagerSession::wms_EndOfKQPacket(handle)",
         "FieldMap::fm_ClearObject(0xB0)",
+        "FieldMap::fm_ClearObject(0x1B0)",
+        "so_ObjectType == 2",
         "nothing here sends packets, clears map objects or mutates",
         "does not select players, invoke",
     )
@@ -2274,6 +2285,77 @@ def main():
             "InterHandler.SendKingdomQuestEnd("):
         if forbidden in pine_terminal_text:
             print("FAIL: KQ terminal runtime bypassed explicit native owner",
+                  forbidden)
+            return 1
+
+    pine_object_clear_text = PINE_NATIVE_OBJECT_CLEAR.read_text(
+        encoding="utf-8")
+    for token in (
+        "enum KingdomQuestPineNativeObjectType : byte",
+        "AxialFlag = 0",
+        "DropItem = 1",
+        "Player = 2",
+        "MiniHouse = 3",
+        "Npc = 4",
+        "Mob = 5",
+        "MagicField = 6",
+        "Door = 7",
+        "Bandit = 8",
+        "EffectObject = 9",
+        "Servant = 10",
+        "Mover = 11",
+        "Pet = 12",
+        "FieldMapClearObjectAddress = 0x00495A10u",
+        "AxialListObjectClearWorkAddress = 0x00495940u",
+        "ObjectTypeVtableOffset = 0x4D0",
+        "RetrateFromMapVtableOffset = 0x3F4",
+        "EndOfKqMask = 0x000000B0u",
+        "QuestResultMask = 0x000001B0u",
+        "BuildMask(EndOfKqTypes) == EndOfKqMask",
+        "BuildMask(QuestResultTypes) == QuestResultMask",
+        "does not translate that into an emulator",
+    ):
+        if token not in pine_object_clear_text:
+            print("FAIL: KQ native object-clear projection changed", token)
+            return 1
+    for forbidden in (
+            "Map.RemoveObject", "MapManager.Instance", "MapObjectID",
+            "FullRemoveObject", "Objects.Remove"):
+        if forbidden in pine_object_clear_text:
+            print("FAIL: KQ native object-clear projection guessed live removal",
+                  forbidden)
+            return 1
+
+    pine_kq_title_text = PINE_KQ_TITLE_HOOK.read_text(encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineKqTitleHookNativePlan",
+        "CharacterTitleZonePlayerOffset = 0x29638",
+        "CommonCategoryEvaluateAddress = 0x005CB5F0u",
+        "SuccessWrapperAddress = 0x0055AE10u",
+        "SuccessHookAddress = 0x005CBFB0u",
+        "SuccessCounterLowOffset = 0x5E8",
+        "SuccessCounterHighOffset = 0x5EC",
+        "SuccessDirtyOffset = 0x5F0",
+        "SuccessCategory = 21u",
+        "FailWrapperAddress = 0x0055AE30u",
+        "FailHookAddress = 0x005CBFD0u",
+        "FailCounterLowOffset = 0x5F8",
+        "FailCounterHighOffset = 0x5FC",
+        "FailDirtyOffset = 0x600",
+        "FailCategory = 22u",
+        "NativeCounterIncrement = 1UL",
+        "NativeDirtyValue = 1u",
+        "does not represent these native 64-bit counters/dirty fields",
+    ):
+        if token not in pine_kq_title_text:
+            print("FAIL: KQ native title-hook projection changed", token)
+            return 1
+    for forbidden in (
+            "AdvanceTitleTier", "MobKillTitleTier", "PvPKillTitleTier",
+            "FameCountTitleTier", "TotalTitlesEarned", "GiveExp(",
+            "Program.DatabaseManager", "ExecuteQuery("):
+        if forbidden in pine_kq_title_text:
+            print("FAIL: KQ title-hook projection substituted emulator title state",
                   forbidden)
             return 1
 

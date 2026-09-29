@@ -1608,33 +1608,49 @@ the root script is stepped. Therefore `ScriptInitValue` is Pine initialization
 data, not a block selector. `KingdomQuestPineScenarioRuntime` models this
 exact `main` + `InitFlag` start boundary.
 
-Two terminal KQ commands are now projected exactly without activating gameplay
-mutation. `ShineQuestResult::sa_Step` at `0x004EF450` lower-cases its
-single token and compares it with the PDB global `index_suc`. A match creates
-Header 22 type 18 (`NC_KQ_COMPLETE_CMD`) and calls the player's
-`CT_KQSuccess` title hook; every other valid token follows type 19
-(`NC_KQ_FAIL_CMD`) and `CT_KQFail`. The corresponding source title
-categories are 21 and 22. The result packet itself is now wire-closed:
-`SH22Type.KingdomQuestComplete=18` and `KingdomQuestFailed=19`, and
-`KingdomQuestPineQuestResultWire` builds exactly the two-byte opcode with no
-payload. The supplied Lost Mini Dragon fail capture independently confirms the
-empty type-19 packet. `KingdomQuestPineQuestResultRuntime` now closes the
-native **per-selected-player** order as well: it validates the two-byte wire,
-calls the distinct CT_KQSuccess or CT_KQFail owner first, then sends that exact
-wire. It deliberately accepts only an already-selected target; the
-AxialListKQEnd audience-selection rule and concrete native title-hook adapter
-remain live-runtime dependencies and are not inferred from current map
-membership. `ShineEndOfKingdomQuest::sa_Step` at
-`0x004F5FC0` reads the current FieldMap KQ handle, calls
-`WorldManagerSession::wms_EndOfKQPacket(handle)`, then calls
-`FieldMap::fm_ClearObject(0xB0)` before popping its Pine frame.
-`KingdomQuestPineEndRuntime` now encodes that exact END-before-clear order
-behind separate World-sender and FieldMap-clear owner interfaces and refuses to
-run unless both are supplied. `AxialListObjectClear::ali_Work` proves that
-`0xB0` is an object-type bit mask; the emulator deliberately preserves that
-raw mask rather than guessing which emulator classes it should clear. The
-actual 0xB0-to-emulator-object-class mapping remains UNRESOLVED, so this does
-not yet activate `endofkq` from the live scenario.
+Two terminal KQ commands are now projected exactly without substituting old
+emulator gameplay paths. `ShineQuestResult::sa_Step` at `0x004EF450`
+lower-cases its single token and compares it with the PDB global `index_suc`.
+A match constructs Header 22 type 18 (`NC_KQ_COMPLETE_CMD`); every other
+valid token constructs type 19 (`NC_KQ_FAIL_CMD`). The two-byte empty wire is
+closed by EXE/PDB plus the supplied Lost Mini Dragon fail capture.
+
+Direct Zone.exe recovery now closes the result audience and post-result cleanup
+too. `AxialListKQEnd::ali_Work` at `0x00429E00` is called by the current
+FieldMap object-list walker and acts only when `so_ObjectType == 2`, i.e.
+**ShinePlayer**. For each selected player it invokes
+`so_ply_KQSuccess`/ `so_ply_KQFail` first and sends the already-built result
+packet second. After that traversal `ShineQuestResult::sa_Step` calls
+`FieldMap::fm_ClearObject(0x1B0)` before popping the Pine frame.
+`KingdomQuestPineQuestResultPlan` now preserves this exact map-level order.
+
+The original object type mask is no longer ambiguous. Vtable recovery gives
+AxialFlag=0, DropItem=1, Player=2, MiniHouse=3, NPC=4, Mob=5,
+MagicField=6, Door=7, Bandit=8, EffectObject=9, Servant=10, Mover=11 and
+Pet=12. `AxialListObjectClear::ali_Work` at `0x00495940` calls
+`so_ObjectType` through vtable +0x4D0, tests `1 << type`, and calls
+`so_RetrateFromMap` through +0x3F4 for selected types. Therefore
+**0x1B0 = NPC|Mob|Door|Bandit** and the `endofkq` mask
+**0xB0 = NPC|Mob|Door**. Native mobile/door clear implementations set retreat
+state, so the emulator must not replace this with an immediate collection
+delete.
+
+The KQ title hook itself is source-projected separately rather than routed
+through `ZoneCharacter.AdvanceTitleTier`. ShinePlayer wrappers
+`0x0055AE10/0x0055AE30` reach CharacterTitleZone at player offset
+`0x29638`; `CT_KQSuccess` at `0x005CBFB0` increments the qword at
+`+0x5E8/+0x5EC`, sets dirty dword `+0x5F0=1`, then evaluates category 21.
+`CT_KQFail` at `0x005CBFD0` does the same at
+`+0x5F8/+0x5FC`, dirty `+0x600=1`, category 22, through common evaluator
+`0x005CB5F0`. Concrete persistence/adaptation of this native title state is
+still a live boundary.
+
+`ShineEndOfKingdomQuest::sa_Step` at `0x004F5FC0` reads the current
+FieldMap KQ handle, calls `WorldManagerSession::wms_EndOfKQPacket(handle)`,
+then calls `FieldMap::fm_ClearObject(0xB0)` before popping its Pine frame.
+`KingdomQuestPineEndRuntime` already preserves that END-before-clear order;
+the remaining live work is a native-equivalent retreat owner, not mask
+interpretation.
 
 The used Pine `regengroup` boundary is also executable-source resolved.
 All **243** calls in the nine supplied Pine KQs use exactly two quoted operands;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NextGen.FiestaLib;
 using NextGen.FiestaLib.Networking;
 
@@ -23,6 +24,12 @@ namespace NextGen.Zone.Data
     /// CharacterTitleData source categories line up with the native hooks:
     /// 21 = KQ success, 22 = KQ fail.
     /// </summary>
+    public enum KingdomQuestPineQuestResultMapStep : byte
+    {
+        VisitCurrentFieldMapPlayers = 1,
+        ClearResultObjects = 2,
+    }
+
     public sealed class KingdomQuestPineQuestResultPlan
     {
         public const byte NativeHeader = 0x16;
@@ -30,11 +37,28 @@ namespace NextGen.Zone.Data
         public const byte NativeFailType = 0x13;
         public const uint NativeSuccessTitleCategory = 21;
         public const uint NativeFailTitleCategory = 22;
+        public const byte NativeAudienceObjectType =
+            (byte)KingdomQuestPineNativeObjectType.Player;
+        public const uint NativePostResultClearObjectTypeMask =
+            KingdomQuestPineNativeObjectClear.QuestResultMask;
+
+        private static readonly KingdomQuestPineQuestResultMapStep[]
+            NativeMapOrder =
+        {
+            KingdomQuestPineQuestResultMapStep.VisitCurrentFieldMapPlayers,
+            KingdomQuestPineQuestResultMapStep.ClearResultObjects,
+        };
 
         public KingdomQuestPineQuestResultKind Kind { get; private set; }
         public byte PacketHeader { get; private set; }
         public byte PacketType { get; private set; }
         public uint TitleCategoryType { get; private set; }
+
+        public IReadOnlyList<KingdomQuestPineQuestResultMapStep>
+            GetNativeMapOrder()
+        {
+            return Array.AsReadOnly(NativeMapOrder);
+        }
 
         internal KingdomQuestPineQuestResultPlan(
             KingdomQuestPineQuestResultKind kind)
@@ -63,7 +87,9 @@ namespace NextGen.Zone.Data
     /// NC_KQ_FAIL_CMD is exactly the two-byte opcode with an empty payload.
     ///
     /// This helper builds that packet only. It does not select players, invoke
-    /// CT_KQSuccess/CT_KQFail or send the packet.
+    /// CT_KQSuccess/CT_KQFail or send the packet. After the native
+    /// AxialListKQEnd traversal, ShineQuestResult::sa_Step calls
+    /// FieldMap::fm_ClearObject(0x1B0) before popping its Pine frame.
     /// </summary>
     public static class KingdomQuestPineQuestResultWire
     {
@@ -135,8 +161,10 @@ namespace NextGen.Zone.Data
     /// <summary>
     /// Native per-selected-player boundary reached by AxialListKQEnd::ali_Work.
     ///
-    /// Audience selection is deliberately external. The target represents one
-    /// player already selected by the native list walker. Success and failure
+    /// AxialListKQEnd::ali_Work is now recovered exactly: the current
+    /// FieldMap object walker calls this callback for every object, and the
+    /// callback acts only when so_ObjectType == 2 (ShinePlayer). The target
+    /// represents one player already selected by that native filter. Success and failure
     /// keep their distinct CT_KQSuccess / CT_KQFail hooks rather than being
     /// collapsed into the emulator's generic title-progress helper.
     /// </summary>
@@ -215,15 +243,17 @@ namespace NextGen.Zone.Data
     /// WorldManagerSession::wms_EndOfKQPacket(handle), then invokes
     /// FieldMap::fm_ClearObject(0xB0) before popping the Pine frame.
     ///
-    /// AxialListObjectClear::ali_Work proves 0xB0 is an object-class bit mask:
-    /// it computes (1 << objectType) and invokes the object's clear virtual
-    /// only when that bit is set. The emulator does not reinterpret those bits
-    /// here.
+    /// AxialListObjectClear::ali_Work proves 0xB0 is the native object-type
+    /// bit mask for NPC(4) | Mob(5) | Door(7). The callback computes
+    /// (1 << so_ObjectType) and invokes so_RetrateFromMap only on selected
+    /// objects. The live owner must preserve that retreat behavior rather than
+    /// replacing it with an immediate emulator collection delete.
     /// </summary>
     public sealed class KingdomQuestPineEndPlan
     {
         public const uint NativeNoKingdomQuestHandle = 0xFFFFFFFFu;
-        public const uint NativeClearObjectTypeMask = 0xB0u;
+        public const uint NativeClearObjectTypeMask =
+            KingdomQuestPineNativeObjectClear.EndOfKqMask;
 
         public uint Handle { get; private set; }
         public uint ClearObjectTypeMask { get; private set; }

@@ -105,14 +105,17 @@ Still required for block completion:
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command, so the scenario-to-reward source trigger location is no
   longer ambiguous. The `questresult` COMPLETE/FAIL client wire is also
-  closed as an exact empty Header-22 type 18/19 packet. Its per-selected-player
-  execution order is also modeled as CT_KQSuccess/CT_KQFail first, then send of
-  that exact wire, behind an explicit target interface; audience selection and
-  concrete native title-hook adapters remain live dependencies. The `endofkq`
-  terminal order is now executable-source
-  modeled as Z2W END followed by FieldMap clear mask 0xB0 behind two explicit
-  owners; the raw mask is not mapped to emulator object classes yet, so live
-  activation remains fail-closed. A Started Zone KQ can now be bound to a real
+  closed as an exact empty Header-22 type 18/19 packet. Direct Zone.exe
+  recovery now also closes the audience and cleanup semantics:
+  AxialListKQEnd visits current-FieldMap objects but acts only on native
+  ShinePlayer type 2, performs CT_KQSuccess/CT_KQFail before the send, and
+  ShineQuestResult then clears native mask 0x1B0. The object-type vtables close
+  0x1B0 as NPC|Mob|Door|Bandit and the `endofkq` 0xB0 mask as
+  NPC|Mob|Door. CT_KQSuccess/Fail native qword counters, dirty writes and
+  category 21/22 evaluator calls are now projected explicitly; concrete native
+  title-state persistence and so_RetrateFromMap-compatible live owners remain.
+  The `endofkq` terminal order remains Z2W END followed by that exact
+  FieldMap clear behind explicit owners. A Started Zone KQ can now be bound to a real
   `KingdomQuestZonePineFilmSession` through the exact stored
   DropFilm -> CloseAllDoors -> PlayFilm envelope, and each explicit session
   `Step()` advances one native-style Pine top-frame step. The remaining live
