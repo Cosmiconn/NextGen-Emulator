@@ -554,6 +554,9 @@ namespace NextGen.Zone.Data
                     document.ScriptLanguage,
                     node.Text,
                     node.CanonicalLine,
+                    commandContext == null
+                        ? (uint?)null
+                        : commandContext.CurrentKingdomQuestHandle,
                     variables,
                     commandContext == null
                         ? null

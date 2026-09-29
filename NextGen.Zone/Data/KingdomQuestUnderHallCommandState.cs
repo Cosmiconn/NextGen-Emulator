@@ -36,8 +36,7 @@ namespace NextGen.Zone.Data
             out bool completed);
 
         bool TryReward(
-            KingdomQuestUnderHallExternalPlan plan,
-            KingdomQuestUnderHallExternalSourceSite sourceSite,
+            KingdomQuestUnderHallRewardNativePlan plan,
             KingdomQuestPineVariableStack variables,
             ref int nativeState,
             out bool completed);
@@ -61,8 +60,8 @@ namespace NextGen.Zone.Data
     /// This class therefore performs no interrupt delivery, player polling or
     /// script-file state mutation. It only resolves exact UnderHall source
     /// sites and forwards only the strongest recovered plan available to the
-    /// native side-effect owner. Broadcast and questmobkill therefore never
-    /// expose their raw Pine operands beyond this boundary.
+    /// native side-effect owner. Broadcast, questmobkill and reward therefore
+    /// never expose their raw Pine operands beyond this boundary.
     /// </summary>
     public sealed class KingdomQuestUnderHallCommandState :
         IKingdomQuestUnderHallCommandSink
@@ -80,6 +79,7 @@ namespace NextGen.Zone.Data
             KingdomQuestUnderHallCommandSourcePlan plan,
             KingdomQuestPineVariableStack variables,
             int canonicalLine,
+            uint? currentKingdomQuestHandle,
             ref int nativeState,
             out bool completed)
         {
@@ -103,6 +103,7 @@ namespace NextGen.Zone.Data
                 externalPlan,
                 sourceSite,
                 variables,
+                currentKingdomQuestHandle,
                 ref nativeState,
                 out completed);
         }
@@ -111,6 +112,7 @@ namespace NextGen.Zone.Data
             KingdomQuestUnderHallExternalPlan plan,
             KingdomQuestUnderHallExternalSourceSite sourceSite,
             KingdomQuestPineVariableStack variables,
+            uint? currentKingdomQuestHandle,
             ref int nativeState,
             out bool completed)
         {
@@ -161,8 +163,17 @@ namespace NextGen.Zone.Data
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.Reward:
+                    KingdomQuestUnderHallRewardNativePlan rewardPlan;
+                    if (!currentKingdomQuestHandle.HasValue ||
+                        !KingdomQuestUnderHallRewardNative.TryBuild(
+                            plan,
+                            sourceSite,
+                            currentKingdomQuestHandle.Value,
+                            out rewardPlan) ||
+                        rewardPlan == null)
+                        return false;
                     return externalSink.TryReward(
-                        plan, sourceSite, variables,
+                        rewardPlan, variables,
                         ref nativeState, out completed);
 
                 case KingdomQuestUnderHallExternalPlanKind.SummonMob:

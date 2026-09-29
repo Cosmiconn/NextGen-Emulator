@@ -1611,8 +1611,11 @@ the same KQElement; lower contribution invokes virtual
 that error path emits exactly a four-byte packet (two-byte opcode + u16 error).
 `KingdomQuestPineKqRewardCommandNative` now projects this exact gate and
 wire without enumerating emulator map objects or executing the downstream
-GameDB reward transaction. The live contribution/target adapters and native
-reward persistence remain separate owners.
+GameDB reward transaction. The UnderHall dispatcher now requires the current Pine KQ Handle and wraps
+this command in `KingdomQuestUnderHallRewardNativePlan` before the external
+owner boundary, so the raw `KingdomQuest` operand cannot be reinterpreted
+downstream. The live contribution/target adapters and native reward persistence
+remain separate owners.
 
 The immediately following UnderHall command
 `questmobkill 2668 "Daliy_Check" 1.` is now native-recovered as well.

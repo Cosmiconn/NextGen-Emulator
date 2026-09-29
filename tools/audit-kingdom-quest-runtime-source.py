@@ -36,6 +36,7 @@ UNDERHALL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommand
 UNDERHALL_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallExternalPlan.cs"
 UNDERHALL_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallQuestMobKillNative.cs"
 UNDERHALL_BROADCAST_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallBroadcastNative.cs"
+UNDERHALL_REWARD_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallRewardNative.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1129,6 +1130,7 @@ def main():
         "SourceUsedOccurrenceCount = 25",
         "SourceDistinctFormCount = 19",
         "KingdomQuestUnderHallCommandSource.TryParse(",
+        "uint? currentKingdomQuestHandle",
         "KingdomQuestPineVariableStack variables",
         "ref int nativeState",
         "out bool completed",
@@ -1308,6 +1310,30 @@ def main():
                   forbidden)
             return 1
 
+    underhall_reward_native_text = UNDERHALL_REWARD_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHallRewardNativePlan",
+        "class KingdomQuestUnderHallRewardNative",
+        "UnderHallCanonicalLine = 378",
+        'NativeRewardToken = "KingdomQuest"',
+        "KingdomQuestUnderHallSourceFlow.SuccessBlock",
+        "KingdomQuestPineKqRewardCommandNative.TryBuild(",
+        "sourceSite.CanonicalLine != UnderHallCanonicalLine",
+        "source.SourceToken",
+        "RewardCommand = rewardCommand",
+    ):
+        if token not in underhall_reward_native_text:
+            print("FAIL: KQ UnderHall native reward wrapper changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "Map.Objects", "GetCharacters",
+            "Program.DatabaseManager", "ExecuteQuery(", "SendPacket(",
+            "GiveExp(", "Inventory."):
+        if forbidden in underhall_reward_native_text:
+            print("FAIL: KQ UnderHall reward wrapper went live", forbidden)
+            return 1
+
     underhall_state_text = UNDERHALL_COMMAND_STATE.read_text(
         encoding="utf-8")
     for token in (
@@ -1330,6 +1356,9 @@ def main():
         "DataProvider.Instance",
         "KingdomQuestUnderHallQuestMobKillNativePlan",
         "externalSink.TryQuestMobKill(",
+        "KingdomQuestUnderHallRewardNative.TryBuild(",
+        "currentKingdomQuestHandle.Value",
+        "KingdomQuestUnderHallRewardNativePlan rewardPlan",
         "externalSink.TryReward(",
         "externalSink.TrySummonMob(",
         "waitlogin and waitinterrupt are intentionally absent",

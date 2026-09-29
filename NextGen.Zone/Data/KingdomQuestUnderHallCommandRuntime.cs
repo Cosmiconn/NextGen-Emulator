@@ -19,6 +19,7 @@ namespace NextGen.Zone.Data
             KingdomQuestUnderHallCommandSourcePlan plan,
             KingdomQuestPineVariableStack variables,
             int canonicalLine,
+            uint? currentKingdomQuestHandle,
             ref int nativeState,
             out bool completed);
     }
@@ -56,6 +57,7 @@ namespace NextGen.Zone.Data
             string scriptLanguage,
             string commandText,
             int canonicalLine,
+            uint? currentKingdomQuestHandle,
             KingdomQuestPineVariableStack variables,
             IKingdomQuestUnderHallCommandSink sink,
             ref int nativeState,
@@ -84,6 +86,7 @@ namespace NextGen.Zone.Data
                     plan,
                     variables,
                     canonicalLine,
+                    currentKingdomQuestHandle,
                     ref nativeState,
                     out completed))
                 return KingdomQuestPineCommandResolution.Invalid;
