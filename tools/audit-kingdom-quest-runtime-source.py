@@ -1872,7 +1872,7 @@ def main():
         "source.RawNumeric1,",
         "source.RawNumeric2,",
         "source.RawText1);",
-        "same script-neutral",
+        "script-neutral and shared",
         "No map transfer",
     ):
         if token not in underhall_owner_plans_text:
