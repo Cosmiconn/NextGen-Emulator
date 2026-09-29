@@ -99,13 +99,17 @@ Still required for block completion:
   native qualifying-player-count source; neither may equate the native handle
   with an emulator MapObjectID or invent the ala_SearchPly filter. Supplying
   those live observations plus the six external command side effects remains
-  open at the concrete owner layer, but two of those command semantics are now
-  independently native-closed before live mutation: `reward KingdomQuest`
-  has its KQ contribution/DemandMobKill gate and no-reward wire, while
+  open at the concrete owner layer, but three of those command semantics are
+  now independently native-closed before live mutation: `reward KingdomQuest`
+  has its KQ contribution/DemandMobKill gate and no-reward wire;
   `questmobkill 2668 "Daliy_Check" 1.` is fixed to a Player-type-2 scan,
   non-empty CQuestZone targets and the direct
   `QuestPlayer_ScriptMobKill(2668, 50000)` call with an effective repeat
-  limit of one. `InterruptArg` has no consumer in the supplied UnderHall source
+  limit of one; and all eight UnderHall `broadcast all` sites are fixed to
+  current-map `so_AllInMap -> AxialListWall -> so_ply_Notice` dispatch plus
+  the four original KQUnderHall message strings. Header 8/type 17 is known,
+  while the native notice category byte remains UNRESOLVED and no packet is
+  guessed. `InterruptArg` has no consumer in the supplied UnderHall source
   and is no longer a control-flow blocker. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has

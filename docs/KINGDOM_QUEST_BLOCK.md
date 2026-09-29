@@ -1633,6 +1633,31 @@ one player was selected. QuestID 2668 is not 0xFFFF, so the call is the direct
 bounds without enumerating map players or mutating CQuestZone; the concrete
 live player/quest adapter remains separate.
 
+The eight UnderHall `broadcast all "<key>".` calls are now closed through
+the next native/source boundary too. Direct Zone.exe/PDB recovery shows the
+`all` branch of `ShineBroadcast::sa_Step` constructing an
+`AxialListWall` for the resolved message and traversing the current map
+through `ShineObject::so_AllInMap`. `AxialListWall::ali_Work` dispatches
+the notice virtual at vtable `+0x784`; the ShinePlayer override is
+`so_ply_Notice`. The original, already hash-locked
+`Script/KQUnderHall.txt` (SHA-256
+`9b6dff7ca269bf43437fcb2aa0e34eb46610d35a75c6de6b1478a56c3cfed4c0`)
+resolves the four used keys exactly to:
+
+- `KQReturn30` -> `Move to Elderine in 30 seconds.`
+- `KQReturn20` -> `Move to Elderine in 20 seconds.`
+- `KQReturn10` -> `Move to Elderine in 10 seconds.`
+- `KQReturn5` -> `Move to Elderine in 5 seconds.`
+
+The downstream player notice is Header 8 / type 17
+(`SH8Type.GmNotice`), consistent with the supplied fail capture. The native
+body has an additional category byte before its string length, but the exact
+value set by this KQ call path is not yet independently recovered.
+`KingdomQuestUnderHallBroadcastNative` therefore locks the audience,
+virtual dispatch, source-key/message mapping and opcode family while leaving
+that category byte explicitly unresolved; it does not reuse the legacy
+`Handler8.SendAdminNotice` helper or synthesize a packet.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
 closes the native entry rule rather than relying on that corpus coincidence.

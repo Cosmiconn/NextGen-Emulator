@@ -35,6 +35,7 @@ UNDERHALL_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallComma
 UNDERHALL_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallCommandState.cs"
 UNDERHALL_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallExternalPlan.cs"
 UNDERHALL_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallQuestMobKillNative.cs"
+UNDERHALL_BROADCAST_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallBroadcastNative.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1264,6 +1265,44 @@ def main():
         print("FAIL: KQ UnderHall Daliy_Check source correlation changed",
               daliy_check)
         return 1
+
+    underhall_broadcast_text = UNDERHALL_BROADCAST_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHallBroadcastNativePlan",
+        "class KingdomQuestUnderHallBroadcastNative",
+        "SourceUsedOccurrenceCount = 8",
+        "SourceDistinctKeyCount = 4",
+        'NativeAllTarget = "all"',
+        "NoticeVtableOffset = 0x784",
+        "NativeNoticeHeader = 0x08",
+        "NativeNoticeType = (byte)SH8Type.GmNotice",
+        'ScriptFileKey = "KQUnderHall"',
+        'ScriptFilePath = "Script/KQUnderHall.txt"',
+        'ScriptFileSha256 = "9b6dff7ca269bf43437fcb2aa0e34eb46610d35a75c6de6b1478a56c3cfed4c0"',
+        '"KQReturn30", "Move to Elderine in 30 seconds."',
+        '"KQReturn20", "Move to Elderine in 20 seconds."',
+        '"KQReturn10", "Move to Elderine in 10 seconds."',
+        '"KQReturn5", "Move to Elderine in 5 seconds."',
+        "KingdomQuestPineScriptFile.TryGetSource(",
+        "source.Kind != KingdomQuestUnderHallExternalPlanKind.Broadcast",
+        "sourceSite.Kind != KingdomQuestUnderHallExternalPlanKind.Broadcast",
+        "BroadcastLines.Contains(sourceSite.CanonicalLine)",
+        "MessageByScriptKey.TryGetValue(source.SourceToken, out message)",
+        "NoticeCategoryByteResolved = false",
+    ):
+        if token not in underhall_broadcast_text:
+            print("FAIL: KQ UnderHall native broadcast projection changed",
+                  token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "Map.Objects", "GetCharacters",
+            "SendAdminNotice(", "SendPacket(", "Map.Broadcast(",
+            "packet.WriteByte(", "packet.WriteString("):
+        if forbidden in underhall_broadcast_text:
+            print("FAIL: KQ UnderHall broadcast projection went live",
+                  forbidden)
+            return 1
 
     underhall_state_text = UNDERHALL_COMMAND_STATE.read_text(
         encoding="utf-8")
