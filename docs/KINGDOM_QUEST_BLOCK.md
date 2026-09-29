@@ -1590,9 +1590,29 @@ external UnderHall side effect: it is executed by the generic, native-recovered
 Pine one-step runtime. Most importantly, UnderHall has exactly one
 `reward KingdomQuest.` occurrence and it is canonical line 378 inside
 `QuestSuc`; `QuestFail` has **zero** reward occurrences. Both success and
-failure perform their own broadcast/link return sequence. This closes the
-UnderHall **scenario-to-reward source trigger location** without claiming the
-still-unrecovered native side effect of `ShineReward::sa_Step`.
+failure perform their own broadcast/link return sequence. The UnderHall
+**scenario-to-reward source trigger location** is therefore fixed independently
+of the reward implementation.
+
+Direct Zone.exe/PDB recovery now closes the command-side semantics of
+`reward KingdomQuest` as well. `ShineReward::sa_Step` at
+`0x004EF650` obtains the current FieldMap KQ handle, constructs
+`AxialListKQReward(handle)` and traverses the current map. The iterator
+constructor resolves that handle through `KingdomQuestContainer::kqc_SearchHandle`;
+the embedded `PROTO_KQ_INFO` begins at KQElement `+0x04`, so the words
+read at `+0x97` / `+0x99` are exactly `RewardIndex` /
+`DemandMobKill`. For every traversed ShineObject,
+`KQContributeList::kqcl_GetMobKill` keys the contribution lookup with the
+KQ Handle and virtual `so_GetCharRegistNumber` (+0x344). Contribution
+`>= DemandMobKill` invokes virtual `so_ply_KQRewardStruct` (+0x76C) with
+the same KQElement; lower contribution invokes virtual
+`so_SendErrorCode` (+0x308) with Header 22, PDB type
+`NC_KQ_NOREWARD_CMD=0x23`, error `0x1104`. The player implementation of
+that error path emits exactly a four-byte packet (two-byte opcode + u16 error).
+`KingdomQuestPineKqRewardCommandNative` now projects this exact gate and
+wire without enumerating emulator map objects or executing the downstream
+GameDB reward transaction. The live contribution/target adapters and native
+reward persistence remain separate owners.
 
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now

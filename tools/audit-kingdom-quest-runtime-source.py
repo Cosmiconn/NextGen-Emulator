@@ -46,6 +46,7 @@ ZONE_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestZoneRuntime.cs"
 PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_NATIVE_OBJECT_CLEAR = ROOT / "NextGen.Zone/Data/KingdomQuestPineNativeObjectClear.cs"
 PINE_KQ_TITLE_HOOK = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTitleHookNative.cs"
+PINE_KQ_REWARD_COMMAND = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqRewardCommandNative.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_REGEN_RUNTIME_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenRuntimePlan.cs"
 PINE_REGEN_NATIVE_LAYOUT = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenNativeLayout.cs"
@@ -2356,6 +2357,45 @@ def main():
             "Program.DatabaseManager", "ExecuteQuery("):
         if forbidden in pine_kq_title_text:
             print("FAIL: KQ title-hook projection substituted emulator title state",
+                  forbidden)
+            return 1
+
+    pine_kq_reward_command_text = PINE_KQ_REWARD_COMMAND.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineKqRewardCommandPlan",
+        "class KingdomQuestPineKqRewardCommandNative",
+        "ShineRewardStepAddress = 0x004EF650u",
+        "AxialListKqRewardCtorAddress = 0x00428410u",
+        "AxialListKqRewardWorkAddress = 0x00428490u",
+        "KqContributeGetMobKillAddress = 0x00499D80u",
+        "KqElementProtocolInfoOffset = 0x04",
+        "KqElementRewardIndexOffset = 0x97",
+        "KqElementDemandMobKillOffset = 0x99",
+        "GetCharRegistNumberVtableOffset = 0x344",
+        "SendErrorCodeVtableOffset = 0x308",
+        "KqRewardStructVtableOffset = 0x76C",
+        "NativeNoRewardHeader = 0x16",
+        "NativeNoRewardType = 0x23",
+        "NativeNoRewardError = 0x1104",
+        "NativeNoRewardWireSize = 4",
+        "SH22Type.KingdomQuestNoReward",
+        "packet.WriteUShort(NativeNoRewardError)",
+        "definition.DemandMobKill",
+        "definition.RewardIndex",
+        "mobKillContribution < plan.DemandMobKill",
+        "does not enumerate emulator map objects",
+        "does not execute the downstream GameDB reward transaction",
+    ):
+        if token not in pine_kq_reward_command_text:
+            print("FAIL: KQ native reward-command projection changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "Map.Objects", "GetCharacters",
+            "ZoneCharacter", "Inventory.", "Program.DatabaseManager",
+            "ExecuteQuery(", "GiveExp(", "System.Random"):
+        if forbidden in pine_kq_reward_command_text:
+            print("FAIL: KQ reward-command projection invented live mutation",
                   forbidden)
             return 1
 

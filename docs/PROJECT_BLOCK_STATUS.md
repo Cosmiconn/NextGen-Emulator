@@ -103,8 +103,15 @@ Still required for block completion:
   no longer a control-flow blocker. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
-  no reward command, so the scenario-to-reward source trigger location is no
-  longer ambiguous. The `questresult` COMPLETE/FAIL client wire is also
+  no reward command. Direct Zone.exe/PDB recovery now also closes that
+  command's native contribution gate: the current KQ Handle resolves the
+  KQElement, per-object KQ mob-kill contribution is compared against the
+  native `DemandMobKill` word, eligible objects dispatch
+  `so_ply_KQRewardStruct`, and lower contribution dispatches exact
+  `NC_KQ_NOREWARD_CMD` (Header 22/type 35) with u16 error `0x1104`.
+  The four-byte no-reward wire and RewardIndex/DemandMobKill KQElement offsets
+  are CI-locked; live contribution/target adapters plus downstream GameDB
+  persistence remain open. The `questresult` COMPLETE/FAIL client wire is also
   closed as an exact empty Header-22 type 18/19 packet. Direct Zone.exe
   recovery now also closes the audience and cleanup semantics:
   AxialListKQEnd visits current-FieldMap objects but acts only on native

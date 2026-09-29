@@ -387,6 +387,8 @@ namespace NextGen.FiestaLib
         KingdomQuestListDeleteAck = 30,
         KingdomQuestListUpdateAck = 31,
         KingdomQuestMobKillNumber = 34,
+        // Zone.pdb NC_KQ_NOREWARD_CMD. ShineReward sends u16 error 0x1104.
+        KingdomQuestNoReward = 35,
         KingdomQuestJoiningAlarm = 36,
         KingdomQuestJoiningAlarmEnd = 37,
         KingdomQuestJoiningAlarmList = 38,

@@ -119,6 +119,7 @@ def main():
         "KingdomQuestListDeleteAck = 30",
         "KingdomQuestListUpdateAck = 31",
         "KingdomQuestMobKillNumber = 34",
+        "KingdomQuestNoReward = 35",
         "KingdomQuestJoiningAlarm = 36",
         "KingdomQuestJoiningAlarmEnd = 37",
         "KingdomQuestJoiningAlarmList = 38",
