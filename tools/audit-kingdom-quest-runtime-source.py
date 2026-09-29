@@ -2255,8 +2255,9 @@ def main():
         print("FAIL: KQ endofkq native END/clear ordering changed")
         return 1
     for forbidden in (
-            "MapManager.Instance", "MapObjectID", "ZoneCharacter",
-            "GetCharacters", "InterHandler.SendKingdomQuestEnd("):
+            "MapManager.Instance", "MapObjectID", "ZoneCharacter.",
+            "Map.Objects", "Map.Broadcast(", "GetCharacters",
+            "InterHandler.SendKingdomQuestEnd("):
         if forbidden in pine_terminal_text:
             print("FAIL: KQ terminal runtime bypassed explicit native owner",
                   forbidden)
