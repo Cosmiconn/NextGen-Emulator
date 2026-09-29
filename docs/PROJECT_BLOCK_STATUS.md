@@ -126,7 +126,11 @@ Still required for block completion:
   summon/link literal are source-locked; importantly, Uruga's MapInfo regen
   point 6293/5477 is not conflated with the script link target 5835/6397.
   No UnderHall2 side effect is marked live merely from this source presence.
-  Their exact
+  The two reward sites and two questmobkill sites now reuse the already
+  recovered shared native primitives rather than duplicating UnderHall logic:
+  reward binds to the current KQElement plan, and questmobkill shares the exact
+  2668/Daliy_Check/50000/repeat-one native projection. These wrappers remain
+  mutation-free and source-site-specific. Their exact
   top-level source sites are also locked: UnderHall's sole
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command. Direct Zone.exe/PDB recovery now also closes that

@@ -43,6 +43,7 @@ UNDERHALL2_EXTERNAL_SOURCE = ROOT / "docs/KINGDOM_QUEST_UNDERHALL2_EXTERNAL_SOUR
 UNDERHALL2_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2SourceFlow.cs"
 UNDERHALL2_SOURCE_CATALOG = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2SourceCatalog.cs"
 UNDERHALL2_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2ExternalPlan.cs"
+UNDERHALL2_COMMON_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommonNative.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -56,6 +57,7 @@ PINE_KQ_TERMINAL = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTerminalPlan.cs"
 PINE_NATIVE_OBJECT_CLEAR = ROOT / "NextGen.Zone/Data/KingdomQuestPineNativeObjectClear.cs"
 PINE_KQ_TITLE_HOOK = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTitleHookNative.cs"
 PINE_KQ_REWARD_COMMAND = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqRewardCommandNative.cs"
+PINE_USED_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedQuestMobKillNative.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_REGEN_RUNTIME_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenRuntimePlan.cs"
 PINE_REGEN_NATIVE_LAYOUT = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenNativeLayout.cs"
@@ -1283,6 +1285,37 @@ def main():
             return 1
     print("PASS: KQ UnderHall2 typed plans cover all 74 source-locked sites")
 
+    underhall2_common_native_text = UNDERHALL2_COMMON_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHall2RewardNativePlan",
+        "class KingdomQuestUnderHall2QuestMobKillNativePlan",
+        "class KingdomQuestUnderHall2CommonNative",
+        "RewardOccurrenceCount = 2",
+        "QuestMobKillOccurrenceCount = 2",
+        "KingdomQuestPineKqRewardCommandNative.TryBuild(",
+        "KingdomQuestPineUsedQuestMobKillNative.TryBuild(",
+        "source.CanonicalLine",
+        "source.TopLevelBlock",
+        "line == 543",
+        "line == 559",
+        "line == 544",
+        "line == 560",
+        '"QuestSuc2"',
+    ):
+        if token not in underhall2_common_native_text:
+            print("FAIL: KQ UnderHall2 shared native wrapper changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "Map.Objects", "GetCharacters",
+            "Program.DatabaseManager", "ExecuteQuery(", "SendPacket(",
+            "QuestPlayer_ScriptMobKill(", "GiveExp(", "Inventory."):
+        if forbidden in underhall2_common_native_text:
+            print("FAIL: KQ UnderHall2 shared native wrapper went live",
+                  forbidden)
+            return 1
+    print("PASS: KQ UnderHall2 reward/questmobkill reuse shared native primitives")
+
     waitlogin_targets = {}
     for key in sorted(PINE_SCRIPT_KEYS):
         lines = pine_source_lines_by_script.get(key, [])
@@ -1564,51 +1597,61 @@ def main():
                   forbidden)
             return 1
 
-    underhall_quest_mob_kill_text = UNDERHALL_QUEST_MOB_KILL_NATIVE.read_text(
+    pine_used_quest_mob_kill_text = PINE_USED_QUEST_MOB_KILL_NATIVE.read_text(
         encoding="utf-8")
     for token in (
-        "class KingdomQuestUnderHallQuestMobKillNativePlan",
-        "class KingdomQuestUnderHallQuestMobKillNative",
+        "class KingdomQuestPineUsedQuestMobKillNativePlan",
+        "class KingdomQuestPineUsedQuestMobKillNative",
         "ShineQuestMobKillStepAddress = 0x004F8270u",
         "AxialListNearScanObjectTypeCtorAddress = 0x004C1B40u",
         "QuestPlayerScriptMobKillAddress = 0x005C0B40u",
         "QuestPlayerScriptMobKillAllAddress = 0x005C0CF0u",
-        "NativePlayerObjectType =",
         "(byte)KingdomQuestPineNativeObjectType.Player",
         "NativePlayerScanFlag = 0",
         "IsEmptyVtableOffset = 0x300",
         "GetQuestZoneVtableOffset = 0x808",
-        "UnderHallQuestId = 2668",
-        'UnderHallMobIndex = "Daliy_Check"',
-        "UnderHallMobId = 50000",
-        "UnderHallRepeatOperand = 1",
-        "source.Kind !=",
-        "KingdomQuestUnderHallExternalPlanKind.QuestMobKill",
-        "UnderHallCanonicalLine = 379",
-        "sourceSite.CanonicalLine != UnderHallCanonicalLine",
-        "sourceSite.TopLevelBlock",
-        "KingdomQuestUnderHallSourceFlow.SuccessBlock",
-        "source.RawNumeric1 != UnderHallQuestId",
-        "source.Count != UnderHallRepeatOperand",
+        "UsedQuestId = 2668",
+        'UsedMobIndex = "Daliy_Check"',
+        "UsedMobId = 50000",
+        "UsedRepeatOperand = 1",
         "data.MobsByName.TryGetValue(",
         "data.MobData.TryGetValue(",
-        "clientInfo.ID != UnderHallMobId",
-        "serverInfo.ID != UnderHallMobId",
-        "selectedPlayerCount < plan.RepeatOperand",
-        "does not enumerate map players",
-        "mutate CQuestZone.",
+        "clientInfo.ID != UsedMobId",
+        "serverInfo.ID != UsedMobId",
+        "selectedPlayerCount < repeatOperand",
+        "performs no player enumeration",
+        "no CQuestZone mutation",
     ):
-        if token not in underhall_quest_mob_kill_text:
-            print("FAIL: KQ UnderHall native questmobkill projection changed",
+        if token not in pine_used_quest_mob_kill_text:
+            print("FAIL: shared source-used KQ questmobkill primitive changed",
                   token)
             return 1
     for forbidden in (
             "MapManager.Instance", "Map.Objects", "GetCharacters",
             "ZoneCharacter", "QuestPlayer_ScriptMobKill(",
             "Program.DatabaseManager", "ExecuteQuery(", "SendPacket("):
-        if forbidden in underhall_quest_mob_kill_text:
-            print("FAIL: KQ UnderHall questmobkill projection went live",
+        if forbidden in pine_used_quest_mob_kill_text:
+            print("FAIL: shared KQ questmobkill primitive went live",
                   forbidden)
+            return 1
+
+    underhall_quest_mob_kill_text = UNDERHALL_QUEST_MOB_KILL_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHallQuestMobKillNativePlan",
+        "class KingdomQuestUnderHallQuestMobKillNative",
+        "UnderHallCanonicalLine = 379",
+        "KingdomQuestUnderHallSourceFlow.SuccessBlock",
+        "source.RawNumeric1 != UnderHallQuestId",
+        "source.Count != UnderHallRepeatOperand",
+        "KingdomQuestPineUsedQuestMobKillNative.TryBuild(",
+        "KingdomQuestPineUsedQuestMobKillNative.TryGetEffectiveRepeatCount(",
+        "KingdomQuestPineUsedQuestMobKillNative",
+        ".UsesDirectQuestVariant(plan.QuestId)",
+    ):
+        if token not in underhall_quest_mob_kill_text:
+            print("FAIL: KQ UnderHall questmobkill source wrapper changed",
+                  token)
             return 1
 
     daliy_check = mobinfo_by_inx.get("Daliy_Check")

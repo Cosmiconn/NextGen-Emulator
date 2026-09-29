@@ -1702,6 +1702,16 @@ canonical sites into immutable typed plans and exact per-line summon/link
 expectations. This is still mutation-free: no transfer, spawn, quest, reward or
 notice side effect is activated yet.
 
+The first Native-semantic reuse is now explicit instead of duplicated.
+`KingdomQuestPineUsedQuestMobKillNative` owns the common source-used
+`questmobkill 2668 "Daliy_Check" 1` identities, Player scan/vtable metadata,
+MobInfo 50000 validation and repeat bound for both UnderHall and UnderHall2.
+The original UnderHall wrapper now delegates to that shared primitive.
+UnderHall2 lines 543/559 wrap the existing native KQ reward-command plan, while
+lines 544/560 wrap the shared questmobkill plan through
+`KingdomQuestUnderHall2CommonNative`. Source-site ownership remains distinct;
+no player enumeration, CQuestZone mutation or reward persistence is activated.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
 closes the native entry rule rather than relying on that corpus coincidence.

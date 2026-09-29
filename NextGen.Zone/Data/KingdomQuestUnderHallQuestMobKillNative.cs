@@ -55,23 +55,15 @@ namespace NextGen.Zone.Data
     /// </summary>
     public static class KingdomQuestUnderHallQuestMobKillNative
     {
-        public const uint ShineQuestMobKillStepAddress = 0x004F8270u;
-        public const uint AxialListNearScanObjectTypeCtorAddress = 0x004C1B40u;
-        public const uint QuestPlayerScriptMobKillAddress = 0x005C0B40u;
-        public const uint QuestPlayerScriptMobKillAllAddress = 0x005C0CF0u;
-
-        public const byte NativePlayerObjectType =
-            (byte)KingdomQuestPineNativeObjectType.Player;
-        public const byte NativePlayerScanFlag = 0;
-        public const int IsEmptyVtableOffset = 0x300;
-        public const int GetQuestZoneVtableOffset = 0x808;
-
-        public const ushort AllQuestId = 0xFFFF;
         public const int UnderHallCanonicalLine = 379;
-        public const ushort UnderHallQuestId = 2668;
-        public const string UnderHallMobIndex = "Daliy_Check";
-        public const ushort UnderHallMobId = 50000;
-        public const int UnderHallRepeatOperand = 1;
+        public const ushort UnderHallQuestId =
+            KingdomQuestPineUsedQuestMobKillNative.UsedQuestId;
+        public const string UnderHallMobIndex =
+            KingdomQuestPineUsedQuestMobKillNative.UsedMobIndex;
+        public const ushort UnderHallMobId =
+            KingdomQuestPineUsedQuestMobKillNative.UsedMobId;
+        public const int UnderHallRepeatOperand =
+            KingdomQuestPineUsedQuestMobKillNative.UsedRepeatOperand;
 
         public static bool TryBuild(
             KingdomQuestUnderHallExternalPlan source,
@@ -102,26 +94,23 @@ namespace NextGen.Zone.Data
                 data.MobData == null)
                 return false;
 
-            MobInfo clientInfo;
-            MobInfoServer serverInfo;
-            if (!data.MobsByName.TryGetValue(
-                    UnderHallMobIndex, out clientInfo) ||
-                clientInfo == null ||
-                !data.MobData.TryGetValue(
-                    UnderHallMobIndex, out serverInfo) ||
-                serverInfo == null ||
-                clientInfo.ID != UnderHallMobId ||
-                serverInfo.ID != UnderHallMobId ||
-                clientInfo.ID != unchecked((ushort)serverInfo.ID))
+            KingdomQuestPineUsedQuestMobKillNativePlan nativePlan;
+            if (!KingdomQuestPineUsedQuestMobKillNative.TryBuild(
+                    source.RawNumeric1,
+                    source.SourceToken,
+                    source.Count,
+                    data,
+                    out nativePlan) ||
+                nativePlan == null)
                 return false;
 
             plan = new KingdomQuestUnderHallQuestMobKillNativePlan(
                 sourceSite.CanonicalLine,
                 sourceSite.TopLevelBlock,
-                UnderHallQuestId,
-                UnderHallMobIndex,
-                UnderHallMobId,
-                UnderHallRepeatOperand);
+                nativePlan.QuestId,
+                nativePlan.MobIndex,
+                nativePlan.MobId,
+                nativePlan.RepeatOperand);
             return true;
         }
 
@@ -135,24 +124,20 @@ namespace NextGen.Zone.Data
             out int effectiveRepeatCount)
         {
             effectiveRepeatCount = 0;
-            if (plan == null ||
-                plan.RepeatOperand != UnderHallRepeatOperand ||
-                selectedPlayerCount < 0)
-                return false;
-
-            effectiveRepeatCount =
-                selectedPlayerCount < plan.RepeatOperand
-                    ? selectedPlayerCount
-                    : plan.RepeatOperand;
-            return true;
+            return plan != null &&
+                KingdomQuestPineUsedQuestMobKillNative
+                    .TryGetEffectiveRepeatCount(
+                        plan.RepeatOperand,
+                        selectedPlayerCount,
+                        out effectiveRepeatCount);
         }
 
         public static bool UsesDirectQuestVariant(
             KingdomQuestUnderHallQuestMobKillNativePlan plan)
         {
             return plan != null &&
-                plan.QuestId != AllQuestId &&
-                plan.QuestId == UnderHallQuestId;
+                KingdomQuestPineUsedQuestMobKillNative
+                    .UsesDirectQuestVariant(plan.QuestId);
         }
     }
 }
