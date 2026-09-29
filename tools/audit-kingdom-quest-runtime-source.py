@@ -1184,7 +1184,7 @@ def main():
         "sourceSite.CanonicalLine == 543",
         "sourceSite.CanonicalLine == 559",
         "questId != 2668",
-        'source.Arguments[1].Text, "Daliy_Check"',
+        '"Daliy_Check"',
         "mob.MobId != 50000",
         "count != 1",
         "mob.MobId != 1158",
