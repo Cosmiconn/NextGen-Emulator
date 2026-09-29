@@ -1645,9 +1645,9 @@ def main():
         "source.RawNumeric1 != UnderHallQuestId",
         "source.Count != UnderHallRepeatOperand",
         "KingdomQuestPineUsedQuestMobKillNative.TryBuild(",
-        "KingdomQuestPineUsedQuestMobKillNative.TryGetEffectiveRepeatCount(",
+        "TryGetEffectiveRepeatCount(",
         "KingdomQuestPineUsedQuestMobKillNative",
-        ".UsesDirectQuestVariant(plan.QuestId)",
+        "UsesDirectQuestVariant(plan.QuestId)",
     ):
         if token not in underhall_quest_mob_kill_text:
             print("FAIL: KQ UnderHall questmobkill source wrapper changed",
