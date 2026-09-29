@@ -147,6 +147,9 @@ def main():
         "SH22Type.KingdomQuestComplete",
         "SH22Type.KingdomQuestFailed",
         "packet.Length == NativeWireSize",
+        "TryCreateBytes(",
+        "packet.ToNormalArray()",
+        "bytes.Length != NativeWireSize",
         "does not select players, invoke",
         "or send the packet.",
     ], "native KQ COMPLETE/FAIL empty result wire"):

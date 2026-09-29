@@ -1618,8 +1618,13 @@ categories are 21 and 22. The result packet itself is now wire-closed:
 `SH22Type.KingdomQuestComplete=18` and `KingdomQuestFailed=19`, and
 `KingdomQuestPineQuestResultWire` builds exactly the two-byte opcode with no
 payload. The supplied Lost Mini Dragon fail capture independently confirms the
-empty type-19 packet. Player selection, title-hook mutation and actual send
-remain outside this mutation-free boundary. `ShineEndOfKingdomQuest::sa_Step` at
+empty type-19 packet. `KingdomQuestPineQuestResultRuntime` now closes the
+native **per-selected-player** order as well: it validates the two-byte wire,
+calls the distinct CT_KQSuccess or CT_KQFail owner first, then sends that exact
+wire. It deliberately accepts only an already-selected target; the
+AxialListKQEnd audience-selection rule and concrete native title-hook adapter
+remain live-runtime dependencies and are not inferred from current map
+membership. `ShineEndOfKingdomQuest::sa_Step` at
 `0x004F5FC0` reads the current FieldMap KQ handle, calls
 `WorldManagerSession::wms_EndOfKQPacket(handle)`, then calls
 `FieldMap::fm_ClearObject(0xB0)` before popping its Pine frame.

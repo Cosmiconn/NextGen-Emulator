@@ -105,9 +105,11 @@ Still required for block completion:
   `reward KingdomQuest` occurs only in `QuestSuc` while `QuestFail` has
   no reward command, so the scenario-to-reward source trigger location is no
   longer ambiguous. The `questresult` COMPLETE/FAIL client wire is also
-  closed as an exact empty Header-22 type 18/19 packet; player audience,
-  CT_KQSuccess/CT_KQFail title mutation and actual send remain in the live
-  side-effect layer. The `endofkq` terminal order is now executable-source
+  closed as an exact empty Header-22 type 18/19 packet. Its per-selected-player
+  execution order is also modeled as CT_KQSuccess/CT_KQFail first, then send of
+  that exact wire, behind an explicit target interface; audience selection and
+  concrete native title-hook adapters remain live dependencies. The `endofkq`
+  terminal order is now executable-source
   modeled as Z2W END followed by FieldMap clear mask 0xB0 behind two explicit
   owners; the raw mask is not mapped to emulator object classes yet, so live
   activation remains fail-closed. Native event production/command side effects,

@@ -106,6 +106,104 @@ namespace NextGen.Zone.Data
             packet = null;
             return false;
         }
+
+        public static bool TryCreateBytes(
+            KingdomQuestPineQuestResultPlan plan,
+            out byte[] nativeWire)
+        {
+            nativeWire = null;
+            Packet packet;
+            if (!TryCreate(plan, out packet) || packet == null)
+                return false;
+
+            try
+            {
+                byte[] bytes = packet.ToNormalArray();
+                if (bytes == null || bytes.Length != NativeWireSize)
+                    return false;
+
+                nativeWire = bytes;
+                return true;
+            }
+            finally
+            {
+                packet.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Native per-selected-player boundary reached by AxialListKQEnd::ali_Work.
+    ///
+    /// Audience selection is deliberately external. The target represents one
+    /// player already selected by the native list walker. Success and failure
+    /// keep their distinct CT_KQSuccess / CT_KQFail hooks rather than being
+    /// collapsed into the emulator's generic title-progress helper.
+    /// </summary>
+    public interface IKingdomQuestPineQuestResultTarget
+    {
+        bool TryApplyKingdomQuestSuccessTitleHook();
+
+        bool TryApplyKingdomQuestFailTitleHook();
+
+        bool TrySendKingdomQuestResult(byte[] nativeWire);
+    }
+
+    /// <summary>
+    /// Exact per-selected-player ordering inside AxialListKQEnd::ali_Work.
+    ///
+    /// The two-byte COMPLETE/FAIL wire is validated before mutation. Native
+    /// then invokes the matching CT_KQSuccess / CT_KQFail hook for that player
+    /// and sends the already-built Header-22 result. This runtime intentionally
+    /// does not decide which players belong to the AxialList audience and does
+    /// not substitute ZoneCharacter title helpers for the native hooks.
+    /// </summary>
+    public static class KingdomQuestPineQuestResultRuntime
+    {
+        public const uint NativeStepAddress = 0x004EF450u;
+
+        public static bool TryExecuteSelectedTarget(
+            KingdomQuestPineQuestResultPlan plan,
+            IKingdomQuestPineQuestResultTarget target)
+        {
+            if (plan == null || target == null)
+                return false;
+
+            byte[] nativeWire;
+            if (!KingdomQuestPineQuestResultWire.TryCreateBytes(
+                    plan, out nativeWire) ||
+                nativeWire == null ||
+                nativeWire.Length !=
+                    KingdomQuestPineQuestResultWire.NativeWireSize)
+                return false;
+
+            bool titleApplied;
+            if (plan.Kind == KingdomQuestPineQuestResultKind.Success)
+            {
+                if (plan.TitleCategoryType !=
+                    KingdomQuestPineQuestResultPlan.NativeSuccessTitleCategory)
+                    return false;
+                titleApplied =
+                    target.TryApplyKingdomQuestSuccessTitleHook();
+            }
+            else if (plan.Kind == KingdomQuestPineQuestResultKind.Fail)
+            {
+                if (plan.TitleCategoryType !=
+                    KingdomQuestPineQuestResultPlan.NativeFailTitleCategory)
+                    return false;
+                titleApplied =
+                    target.TryApplyKingdomQuestFailTitleHook();
+            }
+            else
+            {
+                return false;
+            }
+
+            if (!titleApplied)
+                return false;
+
+            return target.TrySendKingdomQuestResult(nativeWire);
+        }
     }
 
     /// <summary>

@@ -2198,6 +2198,15 @@ def main():
         "class KingdomQuestPineQuestResultPlan",
         "class KingdomQuestPineQuestResultWire",
         "NativeWireSize = 2",
+        "TryCreateBytes(",
+        "packet.ToNormalArray()",
+        "interface IKingdomQuestPineQuestResultTarget",
+        "TryApplyKingdomQuestSuccessTitleHook()",
+        "TryApplyKingdomQuestFailTitleHook()",
+        "TrySendKingdomQuestResult(byte[] nativeWire)",
+        "class KingdomQuestPineQuestResultRuntime",
+        "TryExecuteSelectedTarget(",
+        "NativeStepAddress = 0x004EF450u",
         "SH22Type.KingdomQuestComplete",
         "SH22Type.KingdomQuestFailed",
         "class KingdomQuestPineEndPlan",
@@ -2227,6 +2236,17 @@ def main():
             print("FAIL: KQ Pine terminal command projection changed", token)
             return 1
 
+    result_success_hook = pine_terminal_text.find(
+        "target.TryApplyKingdomQuestSuccessTitleHook()")
+    result_fail_hook = pine_terminal_text.find(
+        "target.TryApplyKingdomQuestFailTitleHook()")
+    result_send = pine_terminal_text.find(
+        "target.TrySendKingdomQuestResult(nativeWire)")
+    if not (0 <= result_success_hook < result_send and
+            0 <= result_fail_hook < result_send):
+        print("FAIL: KQ questresult native title-hook/send ordering changed")
+        return 1
+
     end_send = pine_terminal_text.find(
         "worldSender.SendKingdomQuestEnd(plan.Handle)")
     end_clear = pine_terminal_text.find(
@@ -2235,8 +2255,8 @@ def main():
         print("FAIL: KQ endofkq native END/clear ordering changed")
         return 1
     for forbidden in (
-            "MapManager.Instance", "MapObjectID",
-            "InterHandler.SendKingdomQuestEnd("):
+            "MapManager.Instance", "MapObjectID", "ZoneCharacter",
+            "GetCharacters", "InterHandler.SendKingdomQuestEnd("):
         if forbidden in pine_terminal_text:
             print("FAIL: KQ terminal runtime bypassed explicit native owner",
                   forbidden)
