@@ -938,6 +938,54 @@ def main():
         if current_waitlogin_script is not None and line:
             pine_source_lines_by_script[current_waitlogin_script].append(line)
 
+    underhall2_external_verbs = {
+        "broadcast", "linkto", "mobregen", "questmobkill",
+        "reward", "summonmob",
+    }
+    underhall2_external_blocks = []
+    underhall2_top_block = None
+    underhall2_depth = 0
+    for line_no, line in enumerate(
+            pine_source_lines_by_script.get("KQ/UnderHall2", []), 1):
+        lower = line.lower()
+        if lower.startswith("open [") and line.endswith("]"):
+            if underhall2_depth == 0:
+                underhall2_top_block = line[line.index("[") + 1:-1]
+            underhall2_depth += 1
+            continue
+        if lower in ("open", "then open", "else open"):
+            underhall2_depth += 1
+            continue
+        if lower == "close":
+            underhall2_depth -= 1
+            if underhall2_depth < 0:
+                print("FAIL: KQ UnderHall2 source depth became negative",
+                      line_no)
+                return 1
+            if underhall2_depth == 0:
+                underhall2_top_block = None
+            continue
+
+        verb = line.split(None, 1)[0].lower().rstrip(".")
+        if verb in underhall2_external_verbs:
+            if underhall2_depth <= 0 or not underhall2_top_block:
+                print("FAIL: KQ UnderHall2 external command lost top-level block",
+                      line_no, line)
+                return 1
+            underhall2_external_blocks.append(
+                (line_no, underhall2_top_block, line))
+
+    if underhall2_depth != 0 or len(underhall2_external_blocks) != 74:
+        print("FAIL: KQ UnderHall2 six-family source inventory changed",
+              underhall2_depth, len(underhall2_external_blocks),
+              underhall2_external_blocks)
+        return 1
+    print("INFO: KQ UnderHall2 six-family command blocks:",
+          " || ".join(
+              "{0}:{1}:{2}".format(line_no, block, line)
+              for line_no, block, line in underhall2_external_blocks))
+    print("PASS: KQ UnderHall2 six-family occurrence count is source-locked at 74")
+
     waitlogin_targets = {}
     for key in sorted(PINE_SCRIPT_KEYS):
         lines = pine_source_lines_by_script.get(key, [])
