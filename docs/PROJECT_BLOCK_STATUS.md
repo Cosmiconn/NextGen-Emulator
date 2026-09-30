@@ -140,9 +140,16 @@ Still required for block completion:
   as one reusable block as well: **205/205 external sites** (**41 per script,
   11 families**) are locked by script/line/top-level block/exact command text
   and intercepted before the generic host. Their common source skeleton and
-  stage-specific Elderine/Uruga/Urg_Alruin/Adl return links are preserved,
-  while battle/item/chat/reward/revival/link mutation remains behind one
-  explicit fail-closed KQHBat owner boundary.
+  stage-specific Elderine/Uruga/Urg_Alruin/Adl return links are preserved.
+  Direct Zone.exe/PDB recovery now closes **45/205** of those occurrences
+  across five verbs: PK battle start/stop (map PK byte plus Header-6 Type
+  18/19 map protocol broadcast), targeted KQ success/fail result send,
+  named individual KQ reward dispatch and all-player revival. Native Pine
+  `%` is also executable as `pst_Merge` string concatenation, allowing the
+  original `HERO_<stage>_<rank>` reward IndexString to be calculated from
+  the runtime variables. The remaining **160/205** sites
+  (`abstateset/broadcast/chatwin/itemdrop/itemerase/linkto`) stay behind the
+  explicit fail-closed owner.
   The two reward sites and two questmobkill sites now reuse the already
   recovered shared native primitives rather than duplicating UnderHall logic:
   reward binds to the current KQElement plan, and questmobkill shares the exact

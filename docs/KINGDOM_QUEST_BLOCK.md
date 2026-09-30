@@ -1485,8 +1485,30 @@ line/block skeleton; only their two return `linkto` sites vary by stage
 `KingdomQuestKQHBatCommandRuntime` intercepts those 11 families for all five
 scripts before the generic unrecovered-verb guard, rebuilds an immutable exact
 source plan and crosses only an explicit KQHBat owner sink. Missing owners or
-changed source text remain Invalid/fail-closed. No battle, item, chat, reward,
-revival or link semantics are assigned by this routing layer.
+changed source text remain Invalid/fail-closed.
+
+Zone.exe/PDB recovery now closes **45/205 occurrences across five verb
+families** before that live owner. `battlestart PK` / `battlestop PK`
+write the native map PK state byte to 1/0 and broadcast
+`so_SendProtocol` Header **6**, Type **18/19** over the current map.
+`sendquestresult Suc/Fail PlayerHandle` evaluates the Pine handle, resolves it
+through `ShineObjectManager::som_GetObject`, then sends only Header **22**,
+Type **18/19** to that object; unlike `questresult`, it performs no KQ title
+hook and no map clear. `invidualreward` resolves the same native handle,
+calculates its reward-index expression, and calls virtual
+`so_ply_KQRewardIndex(char*)` at vtable **+0x770**. The previously unresolved
+Pine `%` operator is now recovered as `PineScriptToken::pst_Merge`
+(`0x004D63E0`): it concatenates token text, so the two Warrior's Code forms
+produce the actual `HERO_<stage>_<rank>` IndexString. Finally,
+`revival all` traverses the current map, accepts only native Player object
+type **2**, and invokes `ShinePlayer::sp_ReviveReqProcess` for each selected
+player. These paths are represented as typed immutable native plans; native
+ShineObject handles remain opaque and are never mapped to emulator MapObjectID.
+
+The other **160/205 occurrences across six families**
+(`abstateset/broadcast/chatwin/itemdrop/itemerase/linkto`) remain on the
+explicit unresolved owner path until their native mutation boundaries are
+equally proven.
 `Honeying` currently needs **13** families and `GordonMaster` **23**. This per-script matrix is derived directly from the
 hash-locked canonical Pine bundle and is CI-guarded, so implementation can
 close the smallest source-equivalent slice first without hiding broader gaps.

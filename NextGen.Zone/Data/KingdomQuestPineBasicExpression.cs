@@ -27,6 +27,10 @@ namespace NextGen.Zone.Data
     ///   PineScriptToken::operator-               0x004D74B0
     ///     preserve the left token prefix before its numeric suffix and append
     ///     the signed decimal result using native "%d" formatting.
+    ///   PineScriptToken::operator%= / pst_Merge   0x004D63E0
+    ///     appends the right token text at the left token's terminating NUL.
+    ///     The supplied KQ Pine source uses that operator to compose strings
+    ///     such as HERO_<stage>_<rank>.
     ///
     /// Quoted source strings are therefore represented at runtime without
     /// their surrounding quotation marks, exactly as native String::sa_Load
@@ -38,8 +42,8 @@ namespace NextGen.Zone.Data
     /// VariableStack token.
     ///
     /// Other system functions, dynamic '#(...)' identifiers,
-    /// multiply/divide/percent, and comparison operators remain outside this
-    /// helper.
+    /// multiply/divide and comparison operators remain outside this helper.
+    /// Native '%' token merge is handled here.
     /// </summary>
     public static class KingdomQuestPineBasicExpression
     {
@@ -86,6 +90,21 @@ namespace NextGen.Zone.Data
                     ? KingdomQuestPineExpressionResolution.Success
                     : KingdomQuestPineExpressionResolution.Invalid;
             }
+
+            bool percentRecognized;
+            string percentMerged;
+            if (TryPercentMerge(
+                    source,
+                    variables,
+                    out percentRecognized,
+                    out percentMerged))
+            {
+                return destination.TrySetAscii(percentMerged)
+                    ? KingdomQuestPineExpressionResolution.Success
+                    : KingdomQuestPineExpressionResolution.Invalid;
+            }
+            if (percentRecognized)
+                return KingdomQuestPineExpressionResolution.Invalid;
 
             string leftExpression;
             string rightExpression;
@@ -186,6 +205,86 @@ namespace NextGen.Zone.Data
 
             prefixLength = index + 1;
             return result;
+        }
+
+        private static bool TryPercentMerge(
+            string expression,
+            KingdomQuestPineVariableStack variables,
+            out bool recognized,
+            out string merged)
+        {
+            recognized = false;
+            merged = null;
+            if (expression == null || variables == null)
+                return false;
+
+            var parts = new System.Collections.Generic.List<string>();
+            bool quoted = false;
+            int depth = 0;
+            int partStart = 0;
+            for (int i = 0; i < expression.Length; i++)
+            {
+                char ch = expression[i];
+                if (ch == '"')
+                {
+                    quoted = !quoted;
+                    continue;
+                }
+                if (quoted)
+                    continue;
+
+                if (ch == '(')
+                {
+                    depth++;
+                    continue;
+                }
+                if (ch == ')')
+                {
+                    if (depth > 0)
+                        depth--;
+                    continue;
+                }
+                if (ch != '%' || depth != 0)
+                    continue;
+
+                recognized = true;
+                string part = expression.Substring(
+                    partStart, i - partStart).Trim();
+                if (part.Length == 0)
+                    return false;
+
+                parts.Add(part);
+                partStart = i + 1;
+            }
+
+            if (!recognized)
+                return false;
+
+            string finalPart = expression.Substring(partStart).Trim();
+            if (finalPart.Length == 0)
+                return false;
+            parts.Add(finalPart);
+
+            string result = string.Empty;
+            for (int i = 0; i < parts.Count; i++)
+            {
+                KingdomQuestPineTokenValue operand;
+                if (!TryResolveSimpleOperand(
+                        parts[i], variables, out operand) ||
+                    operand == null)
+                    return false;
+
+                result += operand.Text;
+                // PineScriptToken has a fixed 0x100-byte buffer. Fail closed
+                // instead of reproducing native unchecked writes if a source
+                // expression would overflow that storage.
+                if (System.Text.Encoding.ASCII.GetByteCount(result) >=
+                    KingdomQuestPineTokenValue.NativeByteCapacity)
+                    return false;
+            }
+
+            merged = result;
+            return true;
         }
 
         private static bool TryResolveSimpleOperand(

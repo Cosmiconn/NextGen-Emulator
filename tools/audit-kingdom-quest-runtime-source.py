@@ -54,6 +54,7 @@ KQHBAT_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatSourceFlow.cs"
 KQHBAT_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatExternalPlan.cs"
 KQHBAT_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandRuntime.cs"
 KQHBAT_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandState.cs"
+KQHBAT_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatNativePlans.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -296,7 +297,7 @@ def main():
                  UNDERHALL_EVENT_PREDICATE_PLAN, UNDERHALL_SOURCE_CATALOG,
                  KQHBAT_EXTERNAL_SOURCE, KQHBAT_SOURCE_FLOW,
                  KQHBAT_EXTERNAL_PLAN, KQHBAT_COMMAND_RUNTIME,
-                 KQHBAT_COMMAND_STATE,
+                 KQHBAT_COMMAND_STATE, KQHBAT_NATIVE_PLANS,
                  SCENARIO_START_PLAN, PINE_SCENARIO_RUNTIME,
                  LUA_SCENARIO_SCOPE, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN, PINE_REGEN_RUNTIME_PLAN,
@@ -1212,12 +1213,70 @@ def main():
                   forbidden)
             return 1
 
+    kqhbat_native_text = KQHBAT_NATIVE_PLANS.read_text(encoding="utf-8")
+    for token in (
+        "class KingdomQuestKQHBatBattlePkNativePlan",
+        "NativeStartStepAddress = 0x004F3CB0u",
+        "NativeStopStepAddress = 0x004F4070u",
+        "NativeProtocolHeader = 0x06",
+        "NativeStartProtocolType = 0x12",
+        "NativeStopProtocolType = 0x13",
+        "NativeSendProtocolVtableOffset = 0x304",
+        "class KingdomQuestKQHBatSendQuestResultNativePlan",
+        "NativeStepAddress = 0x004F4300u",
+        "NativeObjectLookupAddress = 0x0054FD10u",
+        "NativeHeader = 0x16",
+        "NativeSuccessType = 0x12",
+        "NativeFailType = 0x13",
+        "class KingdomQuestKQHBatIndividualRewardNativePlan",
+        "NativeStepAddress = 0x004F4470u",
+        "NativeKqRewardIndexVtableOffset = 0x770",
+        "class KingdomQuestKQHBatRevivalAllNativePlan",
+        "NativeStepAddress = 0x004F7070u",
+        "NativeAxialListCtorAddress = 0x0042A060u",
+        "NativeAxialListWorkAddress = 0x0042A4B0u",
+        "NativeReviveLoopAddress = 0x00429F40u",
+        "NativeReviveRequestAddress = 0x00451BD0u",
+        "NativePlayerObjectType = 2",
+        "class KingdomQuestKQHBatNativePlanBuilder",
+        "NativeClosedOccurrenceCount = 45",
+        "NativeClosedVerbCount = 5",
+        "RemainingUnresolvedOccurrenceCount = 160",
+        "RemainingUnresolvedVerbCount = 6",
+        "KingdomQuestPineBasicExpression.GetNativeNumberSuffix(",
+        "KingdomQuestPineBasicExpression.TryCalculate(",
+        '\"HERO_\\" % InitFlag % \\"_\\" % Count',
+        '\"HERO_\\" % InitFlag % \\"_3\\"',
+        "SnapshotTargetTokenNativeBytes()",
+        "SnapshotRewardIndexNativeBytes()",
+        "never treated as emulator",
+    ):
+        if token not in kqhbat_native_text:
+            print("FAIL: KQHBat native plan projection changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", ".MapObjectID", "ChangeMap(",
+            "SendPacket(", "Program.DatabaseManager", "System.Random",
+            "GiveExp(", "Inventory."):
+        if forbidden in kqhbat_native_text:
+            print("FAIL: KQHBat native plan invented live owner semantics",
+                  forbidden)
+            return 1
+
     kqhbat_state_text = KQHBAT_COMMAND_STATE.read_text(encoding="utf-8")
     for token in (
         "interface IKingdomQuestKQHBatExternalCommandSink",
         "class KingdomQuestKQHBatCommandState",
         "KingdomQuestKQHBatSourceFlow.IsSupportedScript(",
-        "externalSink.TryStep(",
+        "externalSink.TryBattlePk(",
+        "externalSink.TrySendQuestResult(",
+        "externalSink.TryIndividualReward(",
+        "externalSink.TryRevivalAll(",
+        "externalSink.TryUnresolved(",
+        "KingdomQuestKQHBatNativePlanBuilder.TryBuildBattlePk(",
+        ".TryBuildSendQuestResult(",
+        ".TryBuildIndividualReward(",
+        "KingdomQuestKQHBatNativePlanBuilder.TryBuildRevivalAll(",
         "currentKingdomQuestHandle",
         "KingdomQuestPineVariableStack variables",
     ):
@@ -2543,6 +2602,10 @@ def main():
         "PineScriptToken::pst_GetNumber           0x004D6360",
         "PineScriptToken::operator+               0x004D7390",
         "PineScriptToken::operator-               0x004D74B0",
+        "PineScriptToken::operator%= / pst_Merge   0x004D63E0",
+        "TryPercentMerge(",
+        "percentRecognized",
+        "result += operand.Text",
         "MergeNativeNumberSuffix(",
         "GetNativeNumberSuffix(",
         "result.ToString(CultureInfo.InvariantCulture)",
