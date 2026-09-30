@@ -1487,7 +1487,7 @@ scripts before the generic unrecovered-verb guard, rebuilds an immutable exact
 source plan and crosses only an explicit KQHBat owner sink. Missing owners or
 changed source text remain Invalid/fail-closed.
 
-Zone.exe/PDB recovery now closes **45/205 occurrences across five verb
+Zone.exe/PDB recovery now closes **60/205 occurrences across seven verb
 families** before that live owner. `battlestart PK` / `battlestop PK`
 write the native map PK state byte to 1/0 and broadcast
 `so_SendProtocol` Header **6**, Type **18/19** over the current map.
@@ -1505,10 +1505,20 @@ type **2**, and invokes `ShinePlayer::sp_ReviveReqProcess` for each selected
 player. These paths are represented as typed immutable native plans; native
 ShineObject handles remain opaque and are never mapped to emulator MapObjectID.
 
-The other **160/205 occurrences across six families**
-(`abstateset/broadcast/chatwin/itemdrop/itemerase/linkto`) remain on the
-explicit unresolved owner path until their native mutation boundaries are
-equally proven.
+Two more shared source families are now native-closed. The exact Warrior's Code
+`abstateset all "StaCommonStun01" 1 3000 LooterHandle` resolves the original
+AbState source identity **ID 8500 / native ABSTATEINDEX 306**, builds
+`AxialListPlayerStateSet` with strength **1** and **3000 ms**, resolves the
+opaque `LooterHandle`, and runs that player-state iterator on the handle's
+current map. The ten `linkto all` sites preserve the literal native
+`LinkInformTemplete` inputs (server/client map token plus X/Y), construct
+`AxialListLinkTo`, and traverse the current theater map; each visited object
+receives the native link virtual at **vtable +0x3FC**. No emulator
+`ChangeMap` shortcut is substituted.
+
+The other **145/205 occurrences across four families**
+(`broadcast/chatwin/itemdrop/itemerase`) remain on the explicit unresolved
+owner path until their native mutation boundaries are equally proven.
 `Honeying` currently needs **13** families and `GordonMaster` **23**. This per-script matrix is derived directly from the
 hash-locked canonical Pine bundle and is CI-guarded, so implementation can
 close the smallest source-equivalent slice first without hiding broader gaps.

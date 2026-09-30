@@ -7,6 +7,11 @@ namespace NextGen.Zone.Data
     /// </summary>
     public interface IKingdomQuestKQHBatExternalCommandSink
     {
+        bool TryAbStateSet(
+            KingdomQuestKQHBatAbStateSetNativePlan plan,
+            ref int nativeState,
+            out bool completed);
+
         bool TryBattlePk(
             KingdomQuestKQHBatBattlePkNativePlan plan,
             ref int nativeState,
@@ -24,6 +29,11 @@ namespace NextGen.Zone.Data
 
         bool TryRevivalAll(
             KingdomQuestKQHBatRevivalAllNativePlan plan,
+            ref int nativeState,
+            out bool completed);
+
+        bool TryLinkToAll(
+            KingdomQuestKQHBatLinkToAllNativePlan plan,
             ref int nativeState,
             out bool completed);
 
@@ -63,6 +73,17 @@ namespace NextGen.Zone.Data
 
             switch (plan.Kind)
             {
+                case KingdomQuestKQHBatExternalKind.AbStateSet:
+                    KingdomQuestKQHBatAbStateSetNativePlan abStatePlan;
+                    if (!KingdomQuestKQHBatNativePlanBuilder.TryBuildAbStateSet(
+                            plan, variables, out abStatePlan) ||
+                        abStatePlan == null)
+                        return false;
+                    return externalSink.TryAbStateSet(
+                        abStatePlan,
+                        ref nativeState,
+                        out completed);
+
                 case KingdomQuestKQHBatExternalKind.BattleStart:
                 case KingdomQuestKQHBatExternalKind.BattleStop:
                     KingdomQuestKQHBatBattlePkNativePlan battlePlan;
@@ -107,6 +128,17 @@ namespace NextGen.Zone.Data
                         return false;
                     return externalSink.TryRevivalAll(
                         revivalPlan,
+                        ref nativeState,
+                        out completed);
+
+                case KingdomQuestKQHBatExternalKind.LinkTo:
+                    KingdomQuestKQHBatLinkToAllNativePlan linkPlan;
+                    if (!KingdomQuestKQHBatNativePlanBuilder.TryBuildLinkToAll(
+                            plan, out linkPlan) ||
+                        linkPlan == null)
+                        return false;
+                    return externalSink.TryLinkToAll(
+                        linkPlan,
                         ref nativeState,
                         out completed);
 

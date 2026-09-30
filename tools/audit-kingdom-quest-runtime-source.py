@@ -1238,11 +1238,27 @@ def main():
         "NativeReviveLoopAddress = 0x00429F40u",
         "NativeReviveRequestAddress = 0x00451BD0u",
         "NativePlayerObjectType = 2",
+        "class KingdomQuestKQHBatAbStateSetNativePlan",
+        "NativeStepAddress = 0x004F1010u",
+        "NativeAxialListCtorAddress = 0x004285C0u",
+        "NativeAxialListApplyAddress = 0x004285F0u",
+        "SourceAbStateId = 8500",
+        "NativeAbStateIndex = 306",
+        "NativeStrength = 1",
+        "NativeDurationMilliseconds = 3000",
+        '"StaCommonStun01"',
+        '"LooterHandle"',
+        "class KingdomQuestKQHBatLinkToAllNativePlan",
+        "NativeStepAddress = 0x004EFB10u",
+        "NativeAxialListCtorAddress = 0x00428510u",
+        "NativeAxialListWorkAddress = 0x00428950u",
+        "NativeLinkVirtualOffset = 0x3FC",
+        "NativeMapNameBytes = 12",
         "class KingdomQuestKQHBatNativePlanBuilder",
-        "NativeClosedOccurrenceCount = 45",
-        "NativeClosedVerbCount = 5",
-        "RemainingUnresolvedOccurrenceCount = 160",
-        "RemainingUnresolvedVerbCount = 6",
+        "NativeClosedOccurrenceCount = 60",
+        "NativeClosedVerbCount = 7",
+        "RemainingUnresolvedOccurrenceCount = 145",
+        "RemainingUnresolvedVerbCount = 4",
         "KingdomQuestPineBasicExpression.GetNativeNumberSuffix(",
         "KingdomQuestPineBasicExpression.TryCalculate(",
         '\"HERO_\\" % InitFlag % \\"_\\" % Count',
@@ -1263,20 +1279,30 @@ def main():
                   forbidden)
             return 1
 
+    abstate_source_text = (ROOT / "sql/data/data_abstate.sql").read_text(
+        encoding="utf-8")
+    if "(8500, 'StaCommonStun01', 306," not in abstate_source_text:
+        print("FAIL: Warrior's Code StaCommonStun01 source identity changed")
+        return 1
+
     kqhbat_state_text = KQHBAT_COMMAND_STATE.read_text(encoding="utf-8")
     for token in (
         "interface IKingdomQuestKQHBatExternalCommandSink",
         "class KingdomQuestKQHBatCommandState",
         "KingdomQuestKQHBatSourceFlow.IsSupportedScript(",
+        "externalSink.TryAbStateSet(",
         "externalSink.TryBattlePk(",
         "externalSink.TrySendQuestResult(",
         "externalSink.TryIndividualReward(",
         "externalSink.TryRevivalAll(",
+        "externalSink.TryLinkToAll(",
         "externalSink.TryUnresolved(",
+        "KingdomQuestKQHBatNativePlanBuilder.TryBuildAbStateSet(",
         "KingdomQuestKQHBatNativePlanBuilder.TryBuildBattlePk(",
         ".TryBuildSendQuestResult(",
         ".TryBuildIndividualReward(",
         "KingdomQuestKQHBatNativePlanBuilder.TryBuildRevivalAll(",
+        "KingdomQuestKQHBatNativePlanBuilder.TryBuildLinkToAll(",
         "currentKingdomQuestHandle",
         "KingdomQuestPineVariableStack variables",
     ):
