@@ -580,6 +580,38 @@ namespace NextGen.Zone.Data
                 return;
             }
 
+            state = frame.State;
+            commandResolution =
+                KingdomQuestUnderHall2CommandRuntime.TryStep(
+                    document.ScriptLanguage,
+                    node.Text,
+                    node.CanonicalLine,
+                    commandContext == null
+                        ? (uint?)null
+                        : commandContext.CurrentKingdomQuestHandle,
+                    variables,
+                    commandContext == null
+                        ? null
+                        : commandContext.UnderHall2Sink,
+                    ref state,
+                    out completed);
+            if (commandResolution ==
+                KingdomQuestPineCommandResolution.Success)
+            {
+                frame.State = state;
+                if (completed)
+                    Pop();
+                return;
+            }
+            if (commandResolution ==
+                KingdomQuestPineCommandResolution.Invalid)
+            {
+                Fail(
+                    "Exact UnderHall2 Pine command dependency failed at canonical " +
+                    "line " + node.CanonicalLine + ": " + node.Text);
+                return;
+            }
+
             commandResolution =
                 KingdomQuestPineUsedCommandRuntime.TryStep(
                     node.Text,

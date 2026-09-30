@@ -1738,6 +1738,18 @@ KQ_BossRobo regen operands and all 12 summon line/block/mob/count identities,
 but no duplicate UnderHall-only Link/Regen/Summon plan class remains. The
 native mutation owner can therefore be implemented once for both scripts.
 
+UnderHall2 is now composed into the live Pine control boundary as well.
+`KingdomQuestUnderHall2CommandRuntime` intercepts exactly the same six
+external verbs only when `ScriptLanguage == "KQ/UnderHall2"`; all **74**
+source-used occurrences route through
+`KingdomQuestUnderHall2CommandState`. That state rebuilds the exact typed
+source plan, resolves runtime-handle variables for regen/summon, upgrades each
+family to the strongest existing native/source-resolved plan, then crosses an
+explicit `IKingdomQuestUnderHall2ExternalCommandSink`. Missing owner,
+runtime handle, current KQ Handle, message text, or any source/data mismatch is
+Invalid/fail-closed before the generic Pine host. The dispatcher itself performs
+no map transfer, spawning, quest mutation, reward persistence or packet send.
+
 Across all nine supplied Pine KQs the only common top-level block is
 `main`, and all **9/9** scripts contain it. Direct Zone.exe recovery now
 closes the native entry rule rather than relying on that corpus coincidence.

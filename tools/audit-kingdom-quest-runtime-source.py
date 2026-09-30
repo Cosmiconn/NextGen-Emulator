@@ -46,6 +46,8 @@ UNDERHALL2_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2Exter
 UNDERHALL2_COMMON_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommonNative.cs"
 UNDERHALL2_BROADCAST_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2BroadcastNative.cs"
 UNDERHALL2_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2OwnerPlans.cs"
+UNDERHALL2_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommandRuntime.cs"
+UNDERHALL2_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommandState.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1408,6 +1410,66 @@ def main():
             return 1
     print("PASS: KQ UnderHall2 link/regen/summon stop at shared fail-closed owner plans")
 
+    underhall2_runtime_text = UNDERHALL2_COMMAND_RUNTIME.read_text(
+        encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestUnderHall2CommandSink",
+        "class KingdomQuestUnderHall2CommandRuntime",
+        'ScriptLanguage = "KQ/UnderHall2"',
+        "SourceUsedFamilyCount = 6",
+        "SourceUsedOccurrenceCount = 74",
+        "SourceUsedVerbs.Contains(verb)",
+        "sink.TryStep(",
+        "currentKingdomQuestHandle",
+        "KingdomQuestPineVariableStack variables",
+    ):
+        if token not in underhall2_runtime_text:
+            print("FAIL: KQ UnderHall2 command runtime composition changed",
+                  token)
+            return 1
+    for verb in (
+            "broadcast", "linkto", "mobregen",
+            "questmobkill", "reward", "summonmob"):
+        if ('"' + verb + '"') not in underhall2_runtime_text:
+            print("FAIL: KQ UnderHall2 runtime lost external verb", verb)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "MobHatchery", "Program.DatabaseManager", "System.Random"):
+        if forbidden in underhall2_runtime_text:
+            print("FAIL: KQ UnderHall2 command runtime invented side effects",
+                  forbidden)
+            return 1
+
+    underhall2_state_text = UNDERHALL2_COMMAND_STATE.read_text(
+        encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestUnderHall2ExternalCommandSink",
+        "class KingdomQuestUnderHall2CommandState",
+        "KingdomQuestUnderHall2ExternalPlanBuilder.TryBuild(",
+        "KingdomQuestUnderHall2BroadcastNative.TryBuild(",
+        "KingdomQuestUnderHall2OwnerPlanBuilder.TryBuildLinkTo(",
+        "KingdomQuestUnderHall2OwnerPlanBuilder.TryBuildMobRegen(",
+        "KingdomQuestUnderHall2CommonNative.TryBuildQuestMobKill(",
+        "KingdomQuestUnderHall2CommonNative.TryBuildReward(",
+        "KingdomQuestUnderHall2OwnerPlanBuilder.TryBuildSummonMob(",
+        "variables.TryFind(plan.RuntimeHandleIdentifier, out token)",
+        "DataProvider.Instance",
+        "currentKingdomQuestHandle.Value",
+    ):
+        if token not in underhall2_state_text:
+            print("FAIL: KQ UnderHall2 command state changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "MobHatchery", "Program.DatabaseManager", "ExecuteQuery(",
+            "System.Random", "DateTime.Now", "Environment.TickCount"):
+        if forbidden in underhall2_state_text:
+            print("FAIL: KQ UnderHall2 command state invented live mutation",
+                  forbidden)
+            return 1
+    print("PASS: KQ UnderHall2 six-family dispatcher is composed fail-closed")
+
     waitlogin_targets = {}
     for key in sorted(PINE_SCRIPT_KEYS):
         lines = pine_source_lines_by_script.get(key, [])
@@ -2665,9 +2727,13 @@ def main():
 
     for token in (
         "KingdomQuestPineUsedCommandContext commandContext",
+        "IKingdomQuestUnderHall2CommandSink UnderHall2Sink",
         "KingdomQuestUnderHallCommandRuntime.TryStep(",
-        "variables,",
         "commandContext.UnderHallSink",
+        "KingdomQuestUnderHall2CommandRuntime.TryStep(",
+        "commandContext.UnderHall2Sink",
+        "Exact UnderHall2 Pine command dependency failed",
+        "variables,",
         "TryUsedIdentifierCall(node.Text, out identifier)",
         "StepIdentifierCall(frame, node, identifier)",
         'identifier, "InterruptBlock", StringComparison.Ordinal',
@@ -2729,6 +2795,8 @@ def main():
         "class KingdomQuestPineLocalCommandState",
         "CreateUnderHallCommandState(",
         "new KingdomQuestUnderHallCommandState(externalSink)",
+        "CreateUnderHall2CommandState(",
+        "new KingdomQuestUnderHall2CommandState(externalSink)",
         "IKingdomQuestPineUsedCommandSink",
         "KingdomQuestPineInterruptRegistryState interrupts",
         "KingdomQuestPineTimeLimitPlan timeLimit",
