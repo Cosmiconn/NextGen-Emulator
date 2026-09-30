@@ -4,7 +4,8 @@ namespace NextGen.Zone.Data
     /// External owner boundary for the six typed UnderHall2 command families.
     /// Every method receives a source/native-resolved immutable plan.
     /// </summary>
-    public interface IKingdomQuestUnderHall2ExternalCommandSink
+    public interface IKingdomQuestUnderHall2ExternalCommandSink :
+        IKingdomQuestPineSharedExternalOwner
     {
         bool TryChatWin(
             KingdomQuestUnderHall2ChatWinPlan plan,
@@ -17,17 +18,6 @@ namespace NextGen.Zone.Data
             ref int nativeState,
             out bool completed);
 
-        bool TryLinkTo(
-            KingdomQuestPineLinkToOwnerPlan plan,
-            KingdomQuestPineVariableStack variables,
-            ref int nativeState,
-            out bool completed);
-
-        bool TryMobRegen(
-            KingdomQuestPineMobRegenOwnerPlan plan,
-            ref int nativeState,
-            out bool completed);
-
         bool TryQuestMobKill(
             KingdomQuestUnderHall2QuestMobKillNativePlan plan,
             KingdomQuestPineVariableStack variables,
@@ -37,11 +27,6 @@ namespace NextGen.Zone.Data
         bool TryReward(
             KingdomQuestUnderHall2RewardNativePlan plan,
             KingdomQuestPineVariableStack variables,
-            ref int nativeState,
-            out bool completed);
-
-        bool TrySummonMob(
-            KingdomQuestPineSummonMobOwnerPlan plan,
             ref int nativeState,
             out bool completed);
     }

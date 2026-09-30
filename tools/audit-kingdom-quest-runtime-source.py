@@ -65,6 +65,8 @@ PINE_KQ_REWARD_COMMAND = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqRewardComma
 PINE_USED_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedQuestMobKillNative.cs"
 PINE_BROADCAST_ALL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineBroadcastAllNative.cs"
 PINE_EXTERNAL_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestPineExternalOwnerPlans.cs"
+PINE_SHARED_EXTERNAL_OWNER = ROOT / "NextGen.Zone/Data/KingdomQuestPineSharedExternalOwner.cs"
+PINE_MOB_HATCHERY_BREED_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineMobHatcheryBreedPlan.cs"
 PINE_REGEN_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenGroupPlan.cs"
 PINE_REGEN_RUNTIME_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenRuntimePlan.cs"
 PINE_REGEN_NATIVE_LAYOUT = ROOT / "NextGen.Zone/Data/KingdomQuestPineRegenNativeLayout.cs"
@@ -290,7 +292,9 @@ def main():
                  SCENARIO_START_PLAN, PINE_SCENARIO_RUNTIME,
                  LUA_SCENARIO_SCOPE, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN, PINE_REGEN_RUNTIME_PLAN,
-                 PINE_REGEN_NATIVE_LAYOUT, PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
+                 PINE_REGEN_NATIVE_LAYOUT, PINE_MOB_HATCHERY_BREED_PLAN,
+                 PINE_SHARED_EXTERNAL_OWNER,
+                 PINE_TIMING_PLAN, PINE_INTERRUPT_PLAN, PINE_INTERRUPT_RUNTIME,
                  PINE_WAITLOGIN,
                  PINE_WAITINTERRUPT, PINE_SCRIPTFILE,
                  SINGLE_DATA_SOURCE, SINGLE_DATA_PROJECTION):
@@ -1516,6 +1520,7 @@ def main():
         encoding="utf-8")
     for token in (
         "interface IKingdomQuestUnderHall2ExternalCommandSink",
+        "IKingdomQuestPineSharedExternalOwner",
         "TryChatWin(",
         "class KingdomQuestUnderHall2CommandState",
         "KingdomQuestUnderHall2ChatWinSource.TryBuild(",
@@ -2027,6 +2032,7 @@ def main():
         encoding="utf-8")
     for token in (
         "interface IKingdomQuestUnderHallExternalCommandSink",
+        "IKingdomQuestPineSharedExternalOwner",
         "class KingdomQuestUnderHallCommandState",
         "IKingdomQuestUnderHallCommandSink",
         "KingdomQuestUnderHallExternalPlanBuilder.TryBuild(",
@@ -2879,8 +2885,9 @@ def main():
         "interrupts.Erase(nativeName16)",
         "interrupts.Clear()",
         "KingdomQuestPineRegenRuntimePlanBuilder.TryBuild(",
+        "KingdomQuestPineMobHatcheryBreedPlanBuilder.TryBuild(",
         "DataProvider.Instance",
-        "externalSink.TryRunRegenGroup(runtimePlan)",
+        "externalSink.TryRunRegenGroup(breedPlan)",
         "externalSink.TryApplyQuestResult(plan)",
         "externalSink.TryEndKingdomQuest(plan)",
         "Zero matches still means the command itself ran.",
@@ -3228,6 +3235,30 @@ def main():
                   forbidden)
             return 1
 
+    pine_shared_external_owner_text = PINE_SHARED_EXTERNAL_OWNER.read_text(
+        encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestPineSharedExternalOwner",
+        "KingdomQuestPineLinkToOwnerPlan",
+        "KingdomQuestPineMobRegenOwnerPlan",
+        "KingdomQuestPineSummonMobOwnerPlan",
+        "KingdomQuestPineVariableStack variables",
+        "ref int nativeState",
+        "out bool completed",
+        "does not map",
+        "MobBreedLocation/Mobspawn",
+    ):
+        if token not in pine_shared_external_owner_text:
+            print("FAIL: shared KQ Pine external owner contract changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "new Mob(",
+            "SpawnMob(", "Program.Randomizer", "Program.DatabaseManager"):
+        if forbidden in pine_shared_external_owner_text:
+            print("FAIL: shared KQ Pine external owner contract went live",
+                  forbidden)
+            return 1
+
     pine_regen_text = PINE_REGEN_PLAN.read_text(encoding="utf-8")
     pine_regen_tokens = (
         "class KingdomQuestPineRegenGroupPlan",
@@ -3274,6 +3305,36 @@ def main():
             "Environment.TickCount", "SendPacket(", "Program.DatabaseManager"):
         if forbidden in pine_regen_runtime_text:
             print("FAIL: KQ Pine regen runtime plan invented live spawn semantics",
+                  forbidden)
+            return 1
+
+    pine_mob_hatchery_breed_text = PINE_MOB_HATCHERY_BREED_PLAN.read_text(
+        encoding="utf-8")
+    for token in (
+        "enum KingdomQuestPineRegenNativeAction",
+        "class KingdomQuestPineMobHatcheryBreedMobPlan",
+        "class KingdomQuestPineMobHatcheryBreedPlan",
+        "class KingdomQuestPineMobHatcheryBreedPlanBuilder",
+        "ShineRegenGroupStepAddress = 0x004EE0F0u",
+        "UsedCommandCount = 243",
+        "UsedOptionalGeometryOverrideCount = 0",
+        "ResolveMapNameServer",
+        "FindRegenerator",
+        "ScriptBreed",
+        "KingdomQuestPineRegenNativeLayout.TryBuild(",
+        "GetNativeOrder()",
+        "no emulator Mobspawn row",
+    ):
+        if token not in pine_mob_hatchery_breed_text:
+            print("FAIL: KQ Pine MobHatchery breed boundary changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "MobBreedLocation", "new Mob(",
+            "FullAddObject(", "SpawnMob(", "Program.Randomizer",
+            "System.Random", "DateTime.Now", "Environment.TickCount",
+            "Program.DatabaseManager", "ExecuteQuery("):
+        if forbidden in pine_mob_hatchery_breed_text:
+            print("FAIL: KQ Pine MobHatchery breed boundary guessed live behavior",
                   forbidden)
             return 1
 

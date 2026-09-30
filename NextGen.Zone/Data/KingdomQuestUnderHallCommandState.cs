@@ -7,22 +7,12 @@ namespace NextGen.Zone.Data
     /// families. It receives only source-resolved plans; raw Pine argument
     /// interpretation remains inside the checked source boundary.
     /// </summary>
-    public interface IKingdomQuestUnderHallExternalCommandSink
+    public interface IKingdomQuestUnderHallExternalCommandSink :
+        IKingdomQuestPineSharedExternalOwner
     {
         bool TryBroadcast(
             KingdomQuestUnderHallBroadcastNativePlan plan,
             KingdomQuestPineVariableStack variables,
-            ref int nativeState,
-            out bool completed);
-
-        bool TryLinkTo(
-            KingdomQuestPineLinkToOwnerPlan plan,
-            KingdomQuestPineVariableStack variables,
-            ref int nativeState,
-            out bool completed);
-
-        bool TryMobRegen(
-            KingdomQuestPineMobRegenOwnerPlan plan,
             ref int nativeState,
             out bool completed);
 
@@ -35,11 +25,6 @@ namespace NextGen.Zone.Data
         bool TryReward(
             KingdomQuestUnderHallRewardNativePlan plan,
             KingdomQuestPineVariableStack variables,
-            ref int nativeState,
-            out bool completed);
-
-        bool TrySummonMob(
-            KingdomQuestPineSummonMobOwnerPlan plan,
             ref int nativeState,
             out bool completed);
     }

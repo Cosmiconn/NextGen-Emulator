@@ -144,8 +144,10 @@ Still required for block completion:
   Header-8/type-17 metadata, while keeping their KQUnderHall2 message text
   explicitly UNRESOLVED rather than borrowing UnderHall's strings. Linkto,
   mobregen and summonmob now also terminate at shared immutable owner-plan
-  types; regen/summon snapshot the full 0x100-byte Pine runtime token and
-  revalidate MobInfo through both runtime data projections. No transfer,
+  types; both UnderHall variants inherit one common external-owner contract,
+  so those three future native mutations cannot diverge into script-specific
+  implementations. Regen/summon snapshot the full 0x100-byte Pine runtime token
+  and revalidate MobInfo through both runtime data projections. No transfer,
   spawning, regen scheduling or handle interpretation is activated. These
   wrappers remain mutation-free and source-site-specific. Their exact
   top-level source sites are also locked: UnderHall's sole
@@ -169,7 +171,12 @@ Still required for block completion:
   category 21/22 evaluator calls are now projected explicitly; concrete native
   title-state persistence and so_RetrateFromMap-compatible live owners remain.
   The `endofkq` terminal order remains Z2W END followed by that exact
-  FieldMap clear behind explicit owners. A Started Zone KQ can now be bound to a real
+  FieldMap clear behind explicit owners. The generic **243-call** `regengroup`
+  path now reaches a strict MobHatchery-ready plan: every source mob is
+  converted to its correlated native MobRegen layout and the recovered
+  **t_MapNameServer -> psmr_find -> mh_ScriptBreed** order is retained. The
+  legacy MobBreedLocation/Mobspawn random scheduler remains excluded. A Started
+  Zone KQ can now be bound to a real
   `KingdomQuestZonePineFilmSession` through the exact stored
   DropFilm -> CloseAllDoors -> PlayFilm envelope, and each explicit session
   `Step()` advances one native-style Pine top-frame step. The remaining live

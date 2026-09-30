@@ -1727,6 +1727,9 @@ fail-closed owner boundary rather than growing script-specific mutation code.
 `KingdomQuestPineLinkToOwnerPlan`,
 `KingdomQuestPineMobRegenOwnerPlan` and
 `KingdomQuestPineSummonMobOwnerPlan` are script-neutral immutable carriers.
+Both UnderHall and UnderHall2 external-sink contracts now inherit the same
+`IKingdomQuestPineSharedExternalOwner`, so the eventual native link/regen/
+summon mutation implementation cannot diverge into two script-specific owners.
 `KingdomQuestUnderHall2OwnerPlanBuilder` validates the exact typed source
 plan, rechecks MobInfo against both live DataProvider projections, and snapshots
 the complete 0x100-byte Pine runtime-handle token for regen/summon. No map
@@ -1828,9 +1831,16 @@ original MobNum/KillNum/RegStandard/RegMin/RegMax/RegDelta*/RegSec* values and
 group geometry are preserved unchanged. Native `ShineRegenGroup::sa_Step` at
 `0x004EE0F0` then reaches
 `PineScriptMobRegenerator::psmr_find` and
-`MobHatchery::mh_ScriptBreed`. Actual MobHatchery object creation,
-regeneration scheduling and kill/rebreed behavior remain the next live layer;
-they are not replaced by the emulator's unrelated persistent Mobspawn model.
+`MobHatchery::mh_ScriptBreed`. The generic `regengroup` path is now narrowed one layer further before that
+live owner. `KingdomQuestPineMobHatcheryBreedPlanBuilder` materializes every
+resolved source row through `KingdomQuestPineRegenNativeLayout` and locks the
+recovered native order **t_MapNameServer -> psmr_find -> mh_ScriptBreed** for
+all 243 used calls; the supplied corpus has zero optional geometry overrides.
+The external command sink now receives this MobHatchery-ready plan rather than
+the looser runtime projection. Actual MobHatchery object creation, random
+placement, regeneration scheduling and kill/rebreed behavior remain the next
+live layer; none is replaced by the emulator's unrelated persistent
+`MobBreedLocation`/Mobspawn model.
 
 
 The same 57 definitions use 18 distinct `KingdomQuestMap.BaseMap` values.
