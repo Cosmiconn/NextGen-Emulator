@@ -999,6 +999,40 @@ def main():
               for line_no, block, line in underhall2_external_blocks))
     print("PASS: KQ UnderHall2 six-family occurrence count is source-locked at 74")
 
+    underhall2_chatwin_blocks = []
+    underhall2_chatwin_top_block = None
+    underhall2_chatwin_depth = 0
+    for line_no, line in enumerate(
+            pine_source_lines_by_script.get("KQ/UnderHall2", []), 1):
+        lower = line.lower()
+        if lower.startswith("open [") and line.endswith("]"):
+            if underhall2_chatwin_depth == 0:
+                underhall2_chatwin_top_block = line[line.index("[") + 1:-1]
+            underhall2_chatwin_depth += 1
+            continue
+        if lower in ("open", "then open", "else open"):
+            underhall2_chatwin_depth += 1
+            continue
+        if lower == "close":
+            underhall2_chatwin_depth -= 1
+            if underhall2_chatwin_depth < 0:
+                print("FAIL: KQ UnderHall2 chatwin source depth became negative",
+                      line_no)
+                return 1
+            if underhall2_chatwin_depth == 0:
+                underhall2_chatwin_top_block = None
+            continue
+
+        verb = line.split(None, 1)[0].lower().rstrip(".")
+        if verb == "chatwin":
+            underhall2_chatwin_blocks.append(
+                (line_no, underhall2_chatwin_top_block, line))
+
+    print("INFO: KQ UnderHall2 chatwin command blocks:",
+          " || ".join(
+              "{0}:{1}:{2}".format(line_no, block, line)
+              for line_no, block, line in underhall2_chatwin_blocks))
+
     underhall2_source_rows = []
     with UNDERHALL2_EXTERNAL_SOURCE.open(
             "r", encoding="utf-8", newline="") as source_file:
