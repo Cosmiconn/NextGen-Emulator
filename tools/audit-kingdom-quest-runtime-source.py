@@ -1045,6 +1045,65 @@ def main():
         return 1
     print("PASS: KQ UnderHall2 four chatwin sites are source-locked")
 
+    kqhbat_external_verbs = {
+        "abstateset", "battlestart", "battlestop", "broadcast",
+        "chatwin", "invidualreward", "itemdrop", "itemerase",
+        "linkto", "revival", "sendquestresult",
+    }
+    kqhbat_external_total = 0
+    for kqhbat_key in (
+            "KQ/KQHBat1", "KQ/KQHBat2", "KQ/KQHBat3",
+            "KQ/KQHBat4", "KQ/KQHBat5"):
+        kqhbat_sites = []
+        kqhbat_top_block = None
+        kqhbat_depth = 0
+        for line_no, line in enumerate(
+                pine_source_lines_by_script.get(kqhbat_key, []), 1):
+            lower = line.lower()
+            if lower.startswith("open [") and line.endswith("]"):
+                if kqhbat_depth == 0:
+                    kqhbat_top_block = line[line.index("[") + 1:-1]
+                kqhbat_depth += 1
+                continue
+            if lower in ("open", "then open", "else open"):
+                kqhbat_depth += 1
+                continue
+            if lower == "close":
+                kqhbat_depth -= 1
+                if kqhbat_depth < 0:
+                    print("FAIL: KQHBat source depth became negative",
+                          kqhbat_key, line_no)
+                    return 1
+                if kqhbat_depth == 0:
+                    kqhbat_top_block = None
+                continue
+
+            verb = line.split(None, 1)[0].lower().rstrip(".")
+            if verb in kqhbat_external_verbs:
+                if kqhbat_depth <= 0 or not kqhbat_top_block:
+                    print("FAIL: KQHBat external command lost top-level block",
+                          kqhbat_key, line_no, line)
+                    return 1
+                kqhbat_sites.append(
+                    (line_no, kqhbat_top_block, line))
+
+        if kqhbat_depth != 0 or len(kqhbat_sites) != 41:
+            print("FAIL: KQHBat external source inventory changed",
+                  kqhbat_key, kqhbat_depth, len(kqhbat_sites))
+            return 1
+        kqhbat_external_total += len(kqhbat_sites)
+        print("INFO: KQHBAT_EXTERNAL",
+              kqhbat_key,
+              " || ".join(
+                  "{0}:{1}:{2}".format(line_no, block, line)
+                  for line_no, block, line in kqhbat_sites))
+
+    if kqhbat_external_total != 205:
+        print("FAIL: KQHBat total external source count changed",
+              kqhbat_external_total)
+        return 1
+    print("PASS: KQHBat1..5 external occurrence count is source-locked at 205")
+
     underhall2_source_rows = []
     with UNDERHALL2_EXTERNAL_SOURCE.open(
             "r", encoding="utf-8", newline="") as source_file:
