@@ -1,0 +1,212 @@
+# CanonicalPineBundleSha256	390c0e948eb035aee62078327cb63d81ddef54aa9e28c38d642d02c86a9f9e57
+# Scope	KQ/KQHBat1..5 exact source-used external command sites; source identity only, no gameplay semantics
+# ScriptCount	5
+# FamilyCount	11
+# OccurrencePerScript	41
+# TotalOccurrenceCount	205
+ScriptLanguage	CanonicalLine	TopLevelBlock	Verb	CommandText
+KQ/KQHBat1	14	main	battlestop	battlestop PK.
+KQ/KQHBat1	22	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro0".
+KQ/KQHBat1	24	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro1".
+KQ/KQHBat1	26	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro2".
+KQ/KQHBat1	28	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro3".
+KQ/KQHBat1	30	main	chatwin	chatwin "EldSpeGuard01" "Intro4".
+KQ/KQHBat1	32	main	chatwin	chatwin "EldSpeGuard01" "Intro5".
+KQ/KQHBat1	34	main	chatwin	chatwin "EldSpeGuard01" "Intro6".
+KQ/KQHBat1	36	main	chatwin	chatwin "EldSpeGuard01" "DualStart".
+KQ/KQHBat1	37	main	battlestart	battlestart PK.
+KQ/KQHBat1	49	main	itemerase	itemerase all Maul.
+KQ/KQHBat1	50	main	itemerase	itemerase all "KQ_Ice01".
+KQ/KQHBat1	51	main	chatwin	chatwin "RouTownChiefRoumenus" "DualStop".
+KQ/KQHBat1	52	main	battlestop	battlestop PK.
+KQ/KQHBat1	53	main	revival	revival all.
+KQ/KQHBat1	67	main	sendquestresult	sendquestresult Suc PlayerHandle.
+KQ/KQHBat1	68	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_" % Count.
+KQ/KQHBat1	72	main	sendquestresult	sendquestresult Fail PlayerHandle.
+KQ/KQHBat1	73	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_3".
+KQ/KQHBat1	78	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult" Winner0 Winner1 Winner2.
+KQ/KQHBat1	79	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult1".
+KQ/KQHBat1	80	main	chatwin	chatwin "EldSpeGuard01" "DualResult2".
+KQ/KQHBat1	81	main	chatwin	chatwin "EldSpeGuard01" "DualResult3".
+KQ/KQHBat1	82	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult4".
+KQ/KQHBat1	83	main	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat1	85	main	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat1	87	main	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat1	89	main	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat1	91	main	linkto	linkto all "Eld" "Eld" 17214 13445.
+KQ/KQHBat1	101	PickUpMaul	broadcast	broadcast all @CharName(LooterHandle) % " has obtained Invincible Hammer.".
+KQ/KQHBat1	102	PickUpMaul	broadcast	broadcast all "Everyone else will be immobilized for 3 seconds.".
+KQ/KQHBat1	105	PickUpMaul	abstateset	abstateset all "StaCommonStun01" 1 3000 LooterHandle.
+KQ/KQHBat1	110	RegenMaul	itemerase	itemerase all Maul.
+KQ/KQHBat1	120	LooterDead	itemerase	itemerase all Maul.
+KQ/KQHBat1	121	LooterDead	itemdrop	itemdrop InterruptArg Maul 1000000.
+KQ/KQHBat1	139	QuestEnd	battlestop	battlestop PK.
+KQ/KQHBat1	140	QuestEnd	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat1	142	QuestEnd	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat1	144	QuestEnd	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat1	146	QuestEnd	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat1	148	QuestEnd	linkto	linkto all "Eld" "Eld" 17214 13445.
+KQ/KQHBat2	14	main	battlestop	battlestop PK.
+KQ/KQHBat2	22	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro0".
+KQ/KQHBat2	24	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro1".
+KQ/KQHBat2	26	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro2".
+KQ/KQHBat2	28	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro3".
+KQ/KQHBat2	30	main	chatwin	chatwin "EldSpeGuard01" "Intro4".
+KQ/KQHBat2	32	main	chatwin	chatwin "EldSpeGuard01" "Intro5".
+KQ/KQHBat2	34	main	chatwin	chatwin "EldSpeGuard01" "Intro6".
+KQ/KQHBat2	36	main	chatwin	chatwin "EldSpeGuard01" "DualStart".
+KQ/KQHBat2	37	main	battlestart	battlestart PK.
+KQ/KQHBat2	49	main	itemerase	itemerase all Maul.
+KQ/KQHBat2	50	main	itemerase	itemerase all "KQ_Ice01".
+KQ/KQHBat2	51	main	chatwin	chatwin "RouTownChiefRoumenus" "DualStop".
+KQ/KQHBat2	52	main	battlestop	battlestop PK.
+KQ/KQHBat2	53	main	revival	revival all.
+KQ/KQHBat2	67	main	sendquestresult	sendquestresult Suc PlayerHandle.
+KQ/KQHBat2	68	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_" % Count.
+KQ/KQHBat2	72	main	sendquestresult	sendquestresult Fail PlayerHandle.
+KQ/KQHBat2	73	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_3".
+KQ/KQHBat2	78	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult" Winner0 Winner1 Winner2.
+KQ/KQHBat2	79	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult1".
+KQ/KQHBat2	80	main	chatwin	chatwin "EldSpeGuard01" "DualResult2".
+KQ/KQHBat2	81	main	chatwin	chatwin "EldSpeGuard01" "DualResult3".
+KQ/KQHBat2	82	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult4".
+KQ/KQHBat2	83	main	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat2	85	main	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat2	87	main	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat2	89	main	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat2	91	main	linkto	linkto all "Eld" "Eld" 17214 13445.
+KQ/KQHBat2	101	PickUpMaul	broadcast	broadcast all @CharName(LooterHandle) % " has obtained Invincible Hammer.".
+KQ/KQHBat2	102	PickUpMaul	broadcast	broadcast all "Everyone else will be immobilized for 3 seconds.".
+KQ/KQHBat2	105	PickUpMaul	abstateset	abstateset all "StaCommonStun01" 1 3000 LooterHandle.
+KQ/KQHBat2	110	RegenMaul	itemerase	itemerase all Maul.
+KQ/KQHBat2	120	LooterDead	itemerase	itemerase all Maul.
+KQ/KQHBat2	121	LooterDead	itemdrop	itemdrop InterruptArg Maul 1000000.
+KQ/KQHBat2	139	QuestEnd	battlestop	battlestop PK.
+KQ/KQHBat2	140	QuestEnd	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat2	142	QuestEnd	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat2	144	QuestEnd	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat2	146	QuestEnd	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat2	148	QuestEnd	linkto	linkto all "Eld" "Eld" 17214 13445.
+KQ/KQHBat3	14	main	battlestop	battlestop PK.
+KQ/KQHBat3	22	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro0".
+KQ/KQHBat3	24	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro1".
+KQ/KQHBat3	26	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro2".
+KQ/KQHBat3	28	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro3".
+KQ/KQHBat3	30	main	chatwin	chatwin "EldSpeGuard01" "Intro4".
+KQ/KQHBat3	32	main	chatwin	chatwin "EldSpeGuard01" "Intro5".
+KQ/KQHBat3	34	main	chatwin	chatwin "EldSpeGuard01" "Intro6".
+KQ/KQHBat3	36	main	chatwin	chatwin "EldSpeGuard01" "DualStart".
+KQ/KQHBat3	37	main	battlestart	battlestart PK.
+KQ/KQHBat3	49	main	itemerase	itemerase all Maul.
+KQ/KQHBat3	50	main	itemerase	itemerase all "KQ_Ice01".
+KQ/KQHBat3	51	main	chatwin	chatwin "RouTownChiefRoumenus" "DualStop".
+KQ/KQHBat3	52	main	battlestop	battlestop PK.
+KQ/KQHBat3	53	main	revival	revival all.
+KQ/KQHBat3	67	main	sendquestresult	sendquestresult Suc PlayerHandle.
+KQ/KQHBat3	68	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_" % Count.
+KQ/KQHBat3	72	main	sendquestresult	sendquestresult Fail PlayerHandle.
+KQ/KQHBat3	73	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_3".
+KQ/KQHBat3	78	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult" Winner0 Winner1 Winner2.
+KQ/KQHBat3	79	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult1".
+KQ/KQHBat3	80	main	chatwin	chatwin "EldSpeGuard01" "DualResult2".
+KQ/KQHBat3	81	main	chatwin	chatwin "EldSpeGuard01" "DualResult3".
+KQ/KQHBat3	82	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult4".
+KQ/KQHBat3	83	main	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat3	85	main	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat3	87	main	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat3	89	main	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat3	91	main	linkto	linkto all "Urg" "Urg" 6293 5477.
+KQ/KQHBat3	101	PickUpMaul	broadcast	broadcast all @CharName(LooterHandle) % " has obtained Invincible Hammer.".
+KQ/KQHBat3	102	PickUpMaul	broadcast	broadcast all "Everyone else will be immobilized for 3 seconds.".
+KQ/KQHBat3	105	PickUpMaul	abstateset	abstateset all "StaCommonStun01" 1 3000 LooterHandle.
+KQ/KQHBat3	110	RegenMaul	itemerase	itemerase all Maul.
+KQ/KQHBat3	120	LooterDead	itemerase	itemerase all Maul.
+KQ/KQHBat3	121	LooterDead	itemdrop	itemdrop InterruptArg Maul 1000000.
+KQ/KQHBat3	139	QuestEnd	battlestop	battlestop PK.
+KQ/KQHBat3	140	QuestEnd	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat3	142	QuestEnd	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat3	144	QuestEnd	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat3	146	QuestEnd	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat3	148	QuestEnd	linkto	linkto all "Urg" "Urg" 6293 5477.
+KQ/KQHBat4	14	main	battlestop	battlestop PK.
+KQ/KQHBat4	22	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro0".
+KQ/KQHBat4	24	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro1".
+KQ/KQHBat4	26	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro2".
+KQ/KQHBat4	28	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro3".
+KQ/KQHBat4	30	main	chatwin	chatwin "EldSpeGuard01" "Intro4".
+KQ/KQHBat4	32	main	chatwin	chatwin "EldSpeGuard01" "Intro5".
+KQ/KQHBat4	34	main	chatwin	chatwin "EldSpeGuard01" "Intro6".
+KQ/KQHBat4	36	main	chatwin	chatwin "EldSpeGuard01" "DualStart".
+KQ/KQHBat4	37	main	battlestart	battlestart PK.
+KQ/KQHBat4	49	main	itemerase	itemerase all Maul.
+KQ/KQHBat4	50	main	itemerase	itemerase all "KQ_Ice01".
+KQ/KQHBat4	51	main	chatwin	chatwin "RouTownChiefRoumenus" "DualStop".
+KQ/KQHBat4	52	main	battlestop	battlestop PK.
+KQ/KQHBat4	53	main	revival	revival all.
+KQ/KQHBat4	67	main	sendquestresult	sendquestresult Suc PlayerHandle.
+KQ/KQHBat4	68	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_" % Count.
+KQ/KQHBat4	72	main	sendquestresult	sendquestresult Fail PlayerHandle.
+KQ/KQHBat4	73	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_3".
+KQ/KQHBat4	78	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult" Winner0 Winner1 Winner2.
+KQ/KQHBat4	79	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult1".
+KQ/KQHBat4	80	main	chatwin	chatwin "EldSpeGuard01" "DualResult2".
+KQ/KQHBat4	81	main	chatwin	chatwin "EldSpeGuard01" "DualResult3".
+KQ/KQHBat4	82	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult4".
+KQ/KQHBat4	83	main	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat4	85	main	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat4	87	main	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat4	89	main	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat4	91	main	linkto	linkto all "Urg_Alruin" "Urg_Alruin" 6120 10286.
+KQ/KQHBat4	101	PickUpMaul	broadcast	broadcast all @CharName(LooterHandle) % " has obtained Invincible Hammer.".
+KQ/KQHBat4	102	PickUpMaul	broadcast	broadcast all "Everyone else will be immobilized for 3 seconds.".
+KQ/KQHBat4	105	PickUpMaul	abstateset	abstateset all "StaCommonStun01" 1 3000 LooterHandle.
+KQ/KQHBat4	110	RegenMaul	itemerase	itemerase all Maul.
+KQ/KQHBat4	120	LooterDead	itemerase	itemerase all Maul.
+KQ/KQHBat4	121	LooterDead	itemdrop	itemdrop InterruptArg Maul 1000000.
+KQ/KQHBat4	139	QuestEnd	battlestop	battlestop PK.
+KQ/KQHBat4	140	QuestEnd	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat4	142	QuestEnd	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat4	144	QuestEnd	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat4	146	QuestEnd	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat4	148	QuestEnd	linkto	linkto all "Urg_Alruin" "Urg_Alruin" 6120 10286.
+KQ/KQHBat5	14	main	battlestop	battlestop PK.
+KQ/KQHBat5	22	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro0".
+KQ/KQHBat5	24	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro1".
+KQ/KQHBat5	26	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro2".
+KQ/KQHBat5	28	main	chatwin	chatwin "RouTownChiefRoumenus" "Intro3".
+KQ/KQHBat5	30	main	chatwin	chatwin "EldSpeGuard01" "Intro4".
+KQ/KQHBat5	32	main	chatwin	chatwin "EldSpeGuard01" "Intro5".
+KQ/KQHBat5	34	main	chatwin	chatwin "EldSpeGuard01" "Intro6".
+KQ/KQHBat5	36	main	chatwin	chatwin "EldSpeGuard01" "DualStart".
+KQ/KQHBat5	37	main	battlestart	battlestart PK.
+KQ/KQHBat5	49	main	itemerase	itemerase all Maul.
+KQ/KQHBat5	50	main	itemerase	itemerase all "KQ_Ice01".
+KQ/KQHBat5	51	main	chatwin	chatwin "RouTownChiefRoumenus" "DualStop".
+KQ/KQHBat5	52	main	battlestop	battlestop PK.
+KQ/KQHBat5	53	main	revival	revival all.
+KQ/KQHBat5	67	main	sendquestresult	sendquestresult Suc PlayerHandle.
+KQ/KQHBat5	68	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_" % Count.
+KQ/KQHBat5	72	main	sendquestresult	sendquestresult Fail PlayerHandle.
+KQ/KQHBat5	73	main	invidualreward	invidualreward PlayerHandle "HERO_" % InitFlag % "_3".
+KQ/KQHBat5	78	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult" Winner0 Winner1 Winner2.
+KQ/KQHBat5	79	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult1".
+KQ/KQHBat5	80	main	chatwin	chatwin "EldSpeGuard01" "DualResult2".
+KQ/KQHBat5	81	main	chatwin	chatwin "EldSpeGuard01" "DualResult3".
+KQ/KQHBat5	82	main	chatwin	chatwin "RouTownChiefRoumenus" "DualResult4".
+KQ/KQHBat5	83	main	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat5	85	main	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat5	87	main	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat5	89	main	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat5	91	main	linkto	linkto all "Adl" "Adl" 11674 9329.
+KQ/KQHBat5	101	PickUpMaul	broadcast	broadcast all @CharName(LooterHandle) % " has obtained Invincible Hammer.".
+KQ/KQHBat5	102	PickUpMaul	broadcast	broadcast all "Everyone else will be immobilized for 3 seconds.".
+KQ/KQHBat5	105	PickUpMaul	abstateset	abstateset all "StaCommonStun01" 1 3000 LooterHandle.
+KQ/KQHBat5	110	RegenMaul	itemerase	itemerase all Maul.
+KQ/KQHBat5	120	LooterDead	itemerase	itemerase all Maul.
+KQ/KQHBat5	121	LooterDead	itemdrop	itemdrop InterruptArg Maul 1000000.
+KQ/KQHBat5	139	QuestEnd	battlestop	battlestop PK.
+KQ/KQHBat5	140	QuestEnd	broadcast	broadcast all "KQReturn30".
+KQ/KQHBat5	142	QuestEnd	broadcast	broadcast all "KQReturn20".
+KQ/KQHBat5	144	QuestEnd	broadcast	broadcast all "KQReturn10".
+KQ/KQHBat5	146	QuestEnd	broadcast	broadcast all "KQReturn5".
+KQ/KQHBat5	148	QuestEnd	linkto	linkto all "Adl" "Adl" 11674 9329.

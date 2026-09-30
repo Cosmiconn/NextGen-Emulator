@@ -612,6 +612,38 @@ namespace NextGen.Zone.Data
                 return;
             }
 
+            state = frame.State;
+            commandResolution =
+                KingdomQuestKQHBatCommandRuntime.TryStep(
+                    document.ScriptLanguage,
+                    node.Text,
+                    node.CanonicalLine,
+                    commandContext == null
+                        ? (uint?)null
+                        : commandContext.CurrentKingdomQuestHandle,
+                    variables,
+                    commandContext == null
+                        ? null
+                        : commandContext.KQHBatSink,
+                    ref state,
+                    out completed);
+            if (commandResolution ==
+                KingdomQuestPineCommandResolution.Success)
+            {
+                frame.State = state;
+                if (completed)
+                    Pop();
+                return;
+            }
+            if (commandResolution ==
+                KingdomQuestPineCommandResolution.Invalid)
+            {
+                Fail(
+                    "Exact KQHBat Pine command dependency failed at canonical " +
+                    "line " + node.CanonicalLine + ": " + node.Text);
+                return;
+            }
+
             commandResolution =
                 KingdomQuestPineUsedCommandRuntime.TryStep(
                     node.Text,

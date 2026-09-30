@@ -75,6 +75,11 @@ namespace NextGen.Zone.Data
             get;
             private set;
         }
+        public IKingdomQuestKQHBatCommandSink KQHBatSink
+        {
+            get;
+            private set;
+        }
         public IKingdomQuestPineWaitLoginSource WaitLoginSource
         {
             get;
@@ -115,13 +120,15 @@ namespace NextGen.Zone.Data
             IKingdomQuestPineWaitLoginSource waitLoginSource = null,
             IKingdomQuestPineWaitInterruptSource waitInterruptSource = null,
             KingdomQuestPineInterruptRegistryState interruptRegistry = null,
-            IKingdomQuestUnderHall2CommandSink underHall2Sink = null)
+            IKingdomQuestUnderHall2CommandSink underHall2Sink = null,
+            IKingdomQuestKQHBatCommandSink kqHBatSink = null)
         {
             TickSource = tickSource;
             RegenResolver = regenResolver;
             Sink = sink;
             UnderHallSink = underHallSink;
             UnderHall2Sink = underHall2Sink;
+            KQHBatSink = kqHBatSink;
             WaitLoginSource = waitLoginSource;
             WaitInterruptSource = waitInterruptSource;
 

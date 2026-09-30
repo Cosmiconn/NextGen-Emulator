@@ -49,6 +49,11 @@ UNDERHALL2_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2OwnerPl
 UNDERHALL2_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommandRuntime.cs"
 UNDERHALL2_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommandState.cs"
 UNDERHALL2_CHATWIN_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2ChatWinSource.cs"
+KQHBAT_EXTERNAL_SOURCE = ROOT / "docs/KINGDOM_QUEST_KQHBAT_EXTERNAL_SOURCE.tsv"
+KQHBAT_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatSourceFlow.cs"
+KQHBAT_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatExternalPlan.cs"
+KQHBAT_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandRuntime.cs"
+KQHBAT_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandState.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -289,6 +294,9 @@ def main():
                  UNDERHALL_EXTERNAL_PLAN, UNDERHALL_SOURCE_FLOW,
                  UNDERHALL_TIMED_INTERRUPT_DUE, UNDERHALL_INTERRUPT_CANDIDATE,
                  UNDERHALL_EVENT_PREDICATE_PLAN, UNDERHALL_SOURCE_CATALOG,
+                 KQHBAT_EXTERNAL_SOURCE, KQHBAT_SOURCE_FLOW,
+                 KQHBAT_EXTERNAL_PLAN, KQHBAT_COMMAND_RUNTIME,
+                 KQHBAT_COMMAND_STATE,
                  SCENARIO_START_PLAN, PINE_SCENARIO_RUNTIME,
                  LUA_SCENARIO_SCOPE, ZONE_RUNTIME,
                  PINE_KQ_TERMINAL, PINE_REGEN_PLAN, PINE_REGEN_RUNTIME_PLAN,
@@ -1050,7 +1058,7 @@ def main():
         "chatwin", "invidualreward", "itemdrop", "itemerase",
         "linkto", "revival", "sendquestresult",
     }
-    kqhbat_external_total = 0
+    kqhbat_external_rows = []
     for kqhbat_key in (
             "KQ/KQHBat1", "KQ/KQHBat2", "KQ/KQHBat3",
             "KQ/KQHBat4", "KQ/KQHBat5"):
@@ -1084,26 +1092,149 @@ def main():
                     print("FAIL: KQHBat external command lost top-level block",
                           kqhbat_key, line_no, line)
                     return 1
-                kqhbat_sites.append(
-                    (line_no, kqhbat_top_block, line))
+                site = (
+                    kqhbat_key, line_no, kqhbat_top_block, verb, line)
+                kqhbat_sites.append(site)
+                kqhbat_external_rows.append(site)
 
         if kqhbat_depth != 0 or len(kqhbat_sites) != 41:
             print("FAIL: KQHBat external source inventory changed",
                   kqhbat_key, kqhbat_depth, len(kqhbat_sites))
             return 1
-        kqhbat_external_total += len(kqhbat_sites)
-        print("INFO: KQHBAT_EXTERNAL",
-              kqhbat_key,
-              " || ".join(
-                  "{0}:{1}:{2}".format(line_no, block, line)
-                  for line_no, block, line in kqhbat_sites))
 
-    if kqhbat_external_total != 205:
+    if len(kqhbat_external_rows) != 205:
         print("FAIL: KQHBat total external source count changed",
-              kqhbat_external_total)
+              len(kqhbat_external_rows))
         return 1
-    print("PASS: KQHBat1..5 external occurrence count is source-locked at 205")
 
+    with KQHBAT_EXTERNAL_SOURCE.open(
+            "r", encoding="utf-8", newline="") as source_file:
+        kqhbat_data_lines = [
+            row for row in source_file.read().splitlines()
+            if row and not row.startswith("#")
+        ]
+    kqhbat_reader = csv.DictReader(kqhbat_data_lines, delimiter="\t")
+    expected_kqhbat_columns = [
+        "ScriptLanguage", "CanonicalLine", "TopLevelBlock",
+        "Verb", "CommandText"]
+    if kqhbat_reader.fieldnames != expected_kqhbat_columns:
+        print("FAIL: KQHBat external source columns changed",
+              kqhbat_reader.fieldnames)
+        return 1
+    kqhbat_source_rows = [
+        (
+            row["ScriptLanguage"],
+            int(row["CanonicalLine"]),
+            row["TopLevelBlock"],
+            row["Verb"],
+            row["CommandText"],
+        )
+        for row in kqhbat_reader
+    ]
+    if kqhbat_source_rows != kqhbat_external_rows:
+        print("FAIL: KQHBat exact 205-site source map changed")
+        return 1
+    print("PASS: KQHBat1..5 exact 205 external sites are TSV/source-locked")
+
+    kqhbat_flow_text = KQHBAT_SOURCE_FLOW.read_text(encoding="utf-8")
+    for token in (
+        "enum KingdomQuestKQHBatExternalKind : byte",
+        "class KingdomQuestKQHBatExternalSourceSite",
+        "class KingdomQuestKQHBatSourceFlow",
+        "ScriptCount = 5",
+        "FamilyCount = 11",
+        "OccurrencePerScript = 41",
+        "TotalOccurrenceCount = 205",
+        '"KQ/KQHBat1"',
+        '"KQ/KQHBat2"',
+        '"KQ/KQHBat3"',
+        '"KQ/KQHBat4"',
+        '"KQ/KQHBat5"',
+        'canonicalLine == 91 || canonicalLine == 148',
+        '"linkto all \\"Eld\\" \\"Eld\\" 17214 13445."',
+        '"linkto all \\"Urg\\" \\"Urg\\" 6293 5477."',
+        '"linkto all \\"Urg_Alruin\\" \\"Urg_Alruin\\" 6120 10286."',
+        '"linkto all \\"Adl\\" \\"Adl\\" 11674 9329."',
+        "StringComparison.Ordinal",
+        "CommonSites.TryGetValue",
+    ):
+        if token not in kqhbat_flow_text:
+            print("FAIL: KQHBat source-flow projection changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "System.Random", "MobHatchery",
+            "GiveExp(", "Inventory."):
+        if forbidden in kqhbat_flow_text:
+            print("FAIL: KQHBat source-flow invented gameplay semantics",
+                  forbidden)
+            return 1
+
+    kqhbat_plan_text = KQHBAT_EXTERNAL_PLAN.read_text(encoding="utf-8")
+    for token in (
+        "class KingdomQuestKQHBatExternalPlan",
+        "class KingdomQuestKQHBatExternalPlanBuilder",
+        "KingdomQuestKQHBatSourceFlow.TryResolve(",
+        "ScriptLanguage = source.ScriptLanguage",
+        "CanonicalLine = source.CanonicalLine",
+        "TopLevelBlock = source.TopLevelBlock",
+        "Kind = source.Kind",
+        "CommandText = source.CommandText",
+    ):
+        if token not in kqhbat_plan_text:
+            print("FAIL: KQHBat external plan changed", token)
+            return 1
+
+    kqhbat_runtime_text = KQHBAT_COMMAND_RUNTIME.read_text(encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestKQHBatCommandSink",
+        "class KingdomQuestKQHBatCommandRuntime",
+        "SourceUsedScriptCount = 5",
+        "SourceUsedFamilyCount = 11",
+        "SourceUsedOccurrenceCount = 205",
+        "KingdomQuestKQHBatSourceFlow.IsSupportedScript(",
+        "KingdomQuestKQHBatExternalPlanBuilder.TryBuild(",
+        "sink.TryStep(",
+    ):
+        if token not in kqhbat_runtime_text:
+            print("FAIL: KQHBat command runtime changed", token)
+            return 1
+    for verb in sorted(kqhbat_external_verbs):
+        if ('"' + verb + '"') not in kqhbat_runtime_text:
+            print("FAIL: KQHBat runtime lost external verb", verb)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "System.Random", "MobHatchery",
+            "GiveExp(", "Inventory."):
+        if forbidden in kqhbat_runtime_text:
+            print("FAIL: KQHBat command runtime invented side effects",
+                  forbidden)
+            return 1
+
+    kqhbat_state_text = KQHBAT_COMMAND_STATE.read_text(encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestKQHBatExternalCommandSink",
+        "class KingdomQuestKQHBatCommandState",
+        "KingdomQuestKQHBatSourceFlow.IsSupportedScript(",
+        "externalSink.TryStep(",
+        "currentKingdomQuestHandle",
+        "KingdomQuestPineVariableStack variables",
+    ):
+        if token not in kqhbat_state_text:
+            print("FAIL: KQHBat command state changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "System.Random", "MobHatchery",
+            "GiveExp(", "Inventory."):
+        if forbidden in kqhbat_state_text:
+            print("FAIL: KQHBat command state invented side effects",
+                  forbidden)
+            return 1
+    print("PASS: KQHBat1..5 share one 205-site fail-closed command runtime")
+
+    underhall2_source_rows = []
     underhall2_source_rows = []
     with UNDERHALL2_EXTERNAL_SOURCE.open(
             "r", encoding="utf-8", newline="") as source_file:
@@ -2807,6 +2938,7 @@ def main():
         "KingdomQuestPineInterruptRegistryState InterruptRegistry",
         "IKingdomQuestUnderHallCommandSink UnderHallSink",
         "IKingdomQuestUnderHall2CommandSink UnderHall2Sink",
+        "IKingdomQuestKQHBatCommandSink KQHBatSink",
         "class KingdomQuestPineUsedCommandRuntime",
         "UsedOneStepCommandCount = 608",
         "SourceUsedUnrecoveredVerbCount = 31",
@@ -2872,6 +3004,9 @@ def main():
         "KingdomQuestUnderHall2CommandRuntime.TryStep(",
         "commandContext.UnderHall2Sink",
         "Exact UnderHall2 Pine command dependency failed",
+        "KingdomQuestKQHBatCommandRuntime.TryStep(",
+        "commandContext.KQHBatSink",
+        "Exact KQHBat Pine command dependency failed",
         "variables,",
         "TryUsedIdentifierCall(node.Text, out identifier)",
         "StepIdentifierCall(frame, node, identifier)",
@@ -2936,6 +3071,8 @@ def main():
         "new KingdomQuestUnderHallCommandState(externalSink)",
         "CreateUnderHall2CommandState(",
         "new KingdomQuestUnderHall2CommandState(externalSink)",
+        "CreateKQHBatCommandState(",
+        "new KingdomQuestKQHBatCommandState(externalSink)",
         "IKingdomQuestPineUsedCommandSink",
         "KingdomQuestPineInterruptRegistryState interrupts",
         "KingdomQuestPineTimeLimitPlan timeLimit",

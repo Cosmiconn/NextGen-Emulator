@@ -136,6 +136,13 @@ Still required for block completion:
   invented.
   Missing runtime handles, KQ handles, source data or live owners fail closed
   before the generic host; the dispatcher itself performs no mutation.
+  The five Warrior's Code Pine scripts (`KQHBat1..5`) are now source-routed
+  as one reusable block as well: **205/205 external sites** (**41 per script,
+  11 families**) are locked by script/line/top-level block/exact command text
+  and intercepted before the generic host. Their common source skeleton and
+  stage-specific Elderine/Uruga/Urg_Alruin/Adl return links are preserved,
+  while battle/item/chat/reward/revival/link mutation remains behind one
+  explicit fail-closed KQHBat owner boundary.
   The two reward sites and two questmobkill sites now reuse the already
   recovered shared native primitives rather than duplicating UnderHall logic:
   reward binds to the current KQElement plan, and questmobkill shares the exact

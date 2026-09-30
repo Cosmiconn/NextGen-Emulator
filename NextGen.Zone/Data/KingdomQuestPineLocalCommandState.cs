@@ -75,6 +75,12 @@ namespace NextGen.Zone.Data
             return new KingdomQuestUnderHall2CommandState(externalSink);
         }
 
+        public KingdomQuestKQHBatCommandState CreateKQHBatCommandState(
+            IKingdomQuestKQHBatExternalCommandSink externalSink = null)
+        {
+            return new KingdomQuestKQHBatCommandState(externalSink);
+        }
+
         public bool TrySetTimeLimit(KingdomQuestPineTimeLimitPlan plan)
         {
             if (plan == null)

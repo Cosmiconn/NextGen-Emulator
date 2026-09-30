@@ -1476,9 +1476,18 @@ shared wait primitives, `UnderHall` needs **6** unresolved verb families
 (`broadcast/linkto/mobregen/questmobkill/reward/summonmob`);
 `UnderHall2` uses those same core families plus `chatwin`, for **7**.
 The five Warrior's Code scripts `KQHBat1..5` share **11** unresolved
-families and therefore form one reusable native-recovery target rather than
-five independent runtimes. `Honeying` currently needs **13** families and
-`GordonMaster` **23**. This per-script matrix is derived directly from the
+families. Their source layer is now unified: all **205/205** external command
+occurrences (**41 per script**) are locked by script, canonical line, top-level
+block, verb and exact command text in
+`KINGDOM_QUEST_KQHBAT_EXTERNAL_SOURCE.tsv`. The five scripts share the same
+line/block skeleton; only their two return `linkto` sites vary by stage
+(Eld, Urg, Urg_Alruin or Adl).
+`KingdomQuestKQHBatCommandRuntime` intercepts those 11 families for all five
+scripts before the generic unrecovered-verb guard, rebuilds an immutable exact
+source plan and crosses only an explicit KQHBat owner sink. Missing owners or
+changed source text remain Invalid/fail-closed. No battle, item, chat, reward,
+revival or link semantics are assigned by this routing layer.
+`Honeying` currently needs **13** families and `GordonMaster` **23**. This per-script matrix is derived directly from the
 hash-locked canonical Pine bundle and is CI-guarded, so implementation can
 close the smallest source-equivalent slice first without hiding broader gaps.
 
