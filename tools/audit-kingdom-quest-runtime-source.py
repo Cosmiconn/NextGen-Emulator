@@ -2667,6 +2667,7 @@ def main():
         "IKingdomQuestPineWaitInterruptSource WaitInterruptSource",
         "KingdomQuestPineInterruptRegistryState InterruptRegistry",
         "IKingdomQuestUnderHallCommandSink UnderHallSink",
+        "IKingdomQuestUnderHall2CommandSink UnderHall2Sink",
         "class KingdomQuestPineUsedCommandRuntime",
         "UsedOneStepCommandCount = 608",
         "SourceUsedUnrecoveredVerbCount = 31",
@@ -2727,7 +2728,6 @@ def main():
 
     for token in (
         "KingdomQuestPineUsedCommandContext commandContext",
-        "IKingdomQuestUnderHall2CommandSink UnderHall2Sink",
         "KingdomQuestUnderHallCommandRuntime.TryStep(",
         "commandContext.UnderHallSink",
         "KingdomQuestUnderHall2CommandRuntime.TryStep(",
