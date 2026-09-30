@@ -48,6 +48,7 @@ UNDERHALL2_BROADCAST_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2Br
 UNDERHALL2_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2OwnerPlans.cs"
 UNDERHALL2_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommandRuntime.cs"
 UNDERHALL2_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2CommandState.cs"
+UNDERHALL2_CHATWIN_SOURCE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHall2ChatWinSource.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1028,10 +1029,17 @@ def main():
             underhall2_chatwin_blocks.append(
                 (line_no, underhall2_chatwin_top_block, line))
 
-    print("INFO: KQ UnderHall2 chatwin command blocks:",
-          " || ".join(
-              "{0}:{1}:{2}".format(line_no, block, line)
-              for line_no, block, line in underhall2_chatwin_blocks))
+    expected_underhall2_chatwin_blocks = [
+        (394, "TwelveTwo", 'chatwin "KQ_GB_Spider" "Spider01".'),
+        (396, "TwelveTwo", 'chatwin "KQ_GB_Spider" "Spider02".'),
+        (398, "TwelveTwo", 'chatwin "RouTownChiefRoumenus" "Roumenus01".'),
+        (400, "TwelveTwo", 'chatwin "RouTownChiefRoumenus" "Roumenus02".'),
+    ]
+    if underhall2_chatwin_blocks != expected_underhall2_chatwin_blocks:
+        print("FAIL: KQ UnderHall2 chatwin source routing changed",
+              underhall2_chatwin_blocks)
+        return 1
+    print("PASS: KQ UnderHall2 four chatwin sites are source-locked")
 
     underhall2_source_rows = []
     with UNDERHALL2_EXTERNAL_SOURCE.open(
@@ -1444,14 +1452,43 @@ def main():
             return 1
     print("PASS: KQ UnderHall2 link/regen/summon stop at shared fail-closed owner plans")
 
+    underhall2_chatwin_text = UNDERHALL2_CHATWIN_SOURCE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestUnderHall2ChatWinPlan",
+        "class KingdomQuestUnderHall2ChatWinSource",
+        "SourceUsedOccurrenceCount = 4",
+        'TopLevelBlock = "TwelveTwo"',
+        '{ 394, new Expected(',
+        '{ 396, new Expected(',
+        '{ 398, new Expected(',
+        '{ 400, new Expected(',
+        '"KQ_GB_Spider", "Spider01"',
+        '"KQ_GB_Spider", "Spider02"',
+        '"RouTownChiefRoumenus", "Roumenus01"',
+        '"RouTownChiefRoumenus", "Roumenus02"',
+        "FirstToken",
+        "SecondToken",
+    ):
+        if token not in underhall2_chatwin_text:
+            print("FAIL: KQ UnderHall2 chatwin source plan changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "SendPacket(", "ChangeMap(",
+            "DataProvider.Instance", "MobHatchery", "Program.DatabaseManager"):
+        if forbidden in underhall2_chatwin_text:
+            print("FAIL: KQ UnderHall2 chatwin source plan invented semantics",
+                  forbidden)
+            return 1
+
     underhall2_runtime_text = UNDERHALL2_COMMAND_RUNTIME.read_text(
         encoding="utf-8")
     for token in (
         "interface IKingdomQuestUnderHall2CommandSink",
         "class KingdomQuestUnderHall2CommandRuntime",
         'ScriptLanguage = "KQ/UnderHall2"',
-        "SourceUsedFamilyCount = 6",
-        "SourceUsedOccurrenceCount = 74",
+        "SourceUsedFamilyCount = 7",
+        "SourceUsedOccurrenceCount = 78",
         "SourceUsedVerbs.Contains(verb)",
         "sink.TryStep(",
         "currentKingdomQuestHandle",
@@ -1462,7 +1499,7 @@ def main():
                   token)
             return 1
     for verb in (
-            "broadcast", "linkto", "mobregen",
+            "broadcast", "chatwin", "linkto", "mobregen",
             "questmobkill", "reward", "summonmob"):
         if ('"' + verb + '"') not in underhall2_runtime_text:
             print("FAIL: KQ UnderHall2 runtime lost external verb", verb)
@@ -1479,7 +1516,10 @@ def main():
         encoding="utf-8")
     for token in (
         "interface IKingdomQuestUnderHall2ExternalCommandSink",
+        "TryChatWin(",
         "class KingdomQuestUnderHall2CommandState",
+        "KingdomQuestUnderHall2ChatWinSource.TryBuild(",
+        "externalSink.TryChatWin(",
         "KingdomQuestUnderHall2ExternalPlanBuilder.TryBuild(",
         "KingdomQuestUnderHall2BroadcastNative.TryBuild(",
         "KingdomQuestUnderHall2OwnerPlanBuilder.TryBuildLinkTo(",

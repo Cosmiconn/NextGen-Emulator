@@ -128,9 +128,12 @@ Still required for block completion:
   summon/link literal are source-locked; importantly, Uruga's MapInfo regen
   point 6293/5477 is not conflated with the script link target 5835/6397.
   No UnderHall2 side effect is marked live merely from this source presence.
-  UnderHall2 is now wired into the Pine command-composition layer: all **74**
-  six-family occurrences are intercepted only for `KQ/UnderHall2`, rebuilt
-  into the exact typed/native plans and handed to an explicit external sink.
+  UnderHall2 is now wired into the Pine command-composition layer: its **74**
+  six-family occurrences plus **4 exact chatwin sites** are intercepted only
+  for `KQ/UnderHall2` (**78 external occurrences total**), rebuilt into exact
+  typed/source plans and handed to an explicit external sink. The two chatwin
+  operands remain neutral source tokens; no dialog/speaker semantics are
+  invented.
   Missing runtime handles, KQ handles, source data or live owners fail closed
   before the generic host; the dispatcher itself performs no mutation.
   The two reward sites and two questmobkill sites now reuse the already

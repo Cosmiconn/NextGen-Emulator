@@ -1739,10 +1739,16 @@ but no duplicate UnderHall-only Link/Regen/Summon plan class remains. The
 native mutation owner can therefore be implemented once for both scripts.
 
 UnderHall2 is now composed into the live Pine control boundary as well.
-`KingdomQuestUnderHall2CommandRuntime` intercepts exactly the same six
-external verbs only when `ScriptLanguage == "KQ/UnderHall2"`; all **74**
-source-used occurrences route through
-`KingdomQuestUnderHall2CommandState`. That state rebuilds the exact typed
+`KingdomQuestUnderHall2CommandRuntime` intercepts its **seven** unresolved
+external verbs only when `ScriptLanguage == "KQ/UnderHall2"`; the 74
+six-family sites plus all **four** exact `chatwin` sites (**78 total**) route
+through `KingdomQuestUnderHall2CommandState`.
+`KingdomQuestUnderHall2ChatWinSource` locks those four commands at lines
+394/396/398/400 in block `TwelveTwo`, preserving only their two literal
+tokens (`KQ_GB_Spider/Spider01`, `KQ_GB_Spider/Spider02`,
+`RouTownChiefRoumenus/Roumenus01`, `RouTownChiefRoumenus/Roumenus02`).
+No speaker/dialog/window semantics are assigned until Zone.exe/PDB recovery
+supports them. That state rebuilds the exact typed
 source plan, resolves runtime-handle variables for regen/summon, upgrades each
 family to the strongest existing native/source-resolved plan, then crosses an
 explicit `IKingdomQuestUnderHall2ExternalCommandSink`. Missing owner,

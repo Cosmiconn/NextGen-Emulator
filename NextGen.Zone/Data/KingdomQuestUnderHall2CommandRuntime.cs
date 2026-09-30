@@ -19,8 +19,9 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Pine control-runtime dispatcher for the exact 74 external command
-    /// occurrences in KQ/UnderHall2.
+    /// Pine control-runtime dispatcher for the exact 78 external command
+    /// occurrences in KQ/UnderHall2: the 74 shared external sites plus four
+    /// source-locked chatwin sites.
     ///
     /// It owns no gameplay mutation. Exact source/data/native plan resolution
     /// belongs to KingdomQuestUnderHall2CommandState; a missing dependency is
@@ -29,13 +30,14 @@ namespace NextGen.Zone.Data
     public static class KingdomQuestUnderHall2CommandRuntime
     {
         public const string ScriptLanguage = "KQ/UnderHall2";
-        public const int SourceUsedFamilyCount = 6;
-        public const int SourceUsedOccurrenceCount = 74;
+        public const int SourceUsedFamilyCount = 7;
+        public const int SourceUsedOccurrenceCount = 78;
 
         private static readonly HashSet<string> SourceUsedVerbs =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "broadcast",
+                "chatwin",
                 "linkto",
                 "mobregen",
                 "questmobkill",

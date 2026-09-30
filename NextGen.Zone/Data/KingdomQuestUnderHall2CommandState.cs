@@ -6,6 +6,11 @@ namespace NextGen.Zone.Data
     /// </summary>
     public interface IKingdomQuestUnderHall2ExternalCommandSink
     {
+        bool TryChatWin(
+            KingdomQuestUnderHall2ChatWinPlan plan,
+            ref int nativeState,
+            out bool completed);
+
         bool TryBroadcast(
             KingdomQuestUnderHall2BroadcastNativePlan plan,
             KingdomQuestPineVariableStack variables,
@@ -45,7 +50,9 @@ namespace NextGen.Zone.Data
     /// Exact source/native plan router for KQ/UnderHall2.
     ///
     /// This class turns canonical source text into the strongest recovered plan
-    /// for each family and then stops at an explicit external owner. It does
+    /// for each family and then stops at an explicit external owner. The four
+    /// chatwin sites are source-locked separately because their native token
+    /// semantics are not yet recovered. It does
     /// not transfer players, create mobs, mutate quests, persist rewards or send
     /// packets.
     /// </summary>
@@ -72,6 +79,17 @@ namespace NextGen.Zone.Data
             completed = false;
             if (variables == null || externalSink == null)
                 return false;
+
+            KingdomQuestUnderHall2ChatWinPlan chatWinPlan;
+            if (KingdomQuestUnderHall2ChatWinSource.TryBuild(
+                    canonicalLine, commandText, out chatWinPlan))
+            {
+                return chatWinPlan != null &&
+                    externalSink.TryChatWin(
+                        chatWinPlan,
+                        ref nativeState,
+                        out completed);
+            }
 
             KingdomQuestUnderHall2ExternalPlan plan;
             if (!KingdomQuestUnderHall2ExternalPlanBuilder.TryBuild(
