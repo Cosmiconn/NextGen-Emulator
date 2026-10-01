@@ -159,10 +159,18 @@ Still required for block completion:
   its Pine runtime value `KQ_InvincibleHammer` (ItemID 57000), retains the
   two WELL512 call boundaries, native ITI/DropItemMake/RandomOption ordering
   and the final `so_IsDropping` call. `KQ_Ice01` is source ItemID 57001.
-  No emulator MapObjectID/inventory/drop shortcut is used. Warrior's Code is
-  therefore **85/205 closed across nine verbs**; only the remaining
-  **120/205 broadcast/chatwin** sites stay behind the explicit fail-closed
-  owner.
+  No emulator MapObjectID/inventory/drop shortcut is used. Direct native and
+  original Script/KQHBat1..5 recovery now also closes the final **120**
+  `broadcast/chatwin` sites. Broadcast uses the shared AxialListWall /
+  so_AllInMap / notice-virtual path and stage-correct KQReturn text; the one
+  dynamic PickUpMaul message retains LooterHandle as an opaque native handle
+  and resolves CharName only through the explicit native-name boundary.
+  ChatWin resolves source speakers Roumenus=92 / EldSpeGuard01=103, original
+  script format strings and the exact **0x6C0C** wire
+  `opcode+NPCID+u8 length+text`, then AxialListPacketBroadcast/so_AllInMap.
+  **Warrior's Code is therefore 205/205 closed across all 11 source-used
+  external verb families at the native-plan boundary**, with no KQHBat
+  command remaining on the unresolved generic path.
   The two reward sites and two questmobkill sites now reuse the already
   recovered shared native primitives rather than duplicating UnderHall logic:
   reward binds to the current KQElement plan, and questmobkill shares the exact

@@ -1545,12 +1545,43 @@ slot **+0x708** is retained as opaque native metadata rather than assigned a
 guessed gameplay name. No native handle is mapped to emulator MapObjectID and
 no legacy emulator inventory/drop pipeline is substituted.
 
-The remaining **120/205 occurrences across only two families**
-(`broadcast/chatwin`) stay on the explicit unresolved owner path until their
-native text/UI boundaries are equally proven. `Honeying` currently needs
-**13** families and `GordonMaster` **23**. This per-script matrix is derived directly from the
-hash-locked canonical Pine bundle and is CI-guarded, so implementation can
-close the smallest source-equivalent slice first without hiding broader gaps.
+The last two Warrior's Code families are now native-plan closed as well.
+All five original `Script/KQHBat*.txt` sources are hash-locked; KQHBat1/2
+share SHA-256
+`ed41dc52b4b4042ae430f74e559ab547995e31667ff8b498825a3842a61ec156`,
+while stages 3/4/5 retain their distinct original hashes. Their KQReturn
+records resolve exactly to Elderine, Uruga, Alberstol Ruins and Adealia.
+
+All **50 broadcast** sites now use the recovered
+`ShineBroadcast::sa_Step` (**0x004EF830**) all-map branch:
+`AxialListWall` ctor/work (**0x004281A0/0x004281C0**) ->
+`so_AllInMap` -> player notice virtual **+0x784**. The eight return sites
+per stage resolve through the correct stage script table. The direct
+PickUpMaul notice remains direct text, while the dynamic notice keeps
+`LooterHandle` as an opaque native ShineObject handle and resolves its name
+only through the already-recovered native `so_CharName` boundary before
+appending `" has obtained Invincible Hammer."`. No MapObjectID identity is
+invented.
+
+All **70 chatwin** sites now use the exact original script format strings and
+MobInfo speaker identities (**RouTownChiefRoumenus=92**,
+**EldSpeGuard01=103**). Zone.exe
+`ShineChatWindow::sa_Step` (**0x004F50F0**) looks up the NPC ID, resolves
+the current ShineScript record, evaluates up to **7** argument tokens, formats
+the source text, and builds exact opcode **0x6C0C** wire
+`[u16 opcode][u16 NPCID][u8 textLen][text]`; text must remain below
+0x100 bytes. The one formatted Warrior's Code record `DualResult` consumes
+the runtime Winner0/Winner1/Winner2 values. Native sends that packet via
+`AxialListPacketBroadcast` ctor/work
+(**0x00428A40/0x00428B20**) and `so_AllInMap`.
+
+Therefore **205/205 Warrior's Code external command occurrences across all
+11 source-used verb families now reach immutable native/source-resolved plans**.
+Concrete emulator mutation/sending remains behind explicit owner sinks, but
+there is no source-used KQHBat command left on the unresolved generic path.
+`Honeying` currently needs **13** families and `GordonMaster` **23**.
+This per-script matrix is derived directly from the hash-locked canonical Pine
+bundle and is CI-guarded.
 
 The complete UnderHall source slice is source-locked as well.
 `KingdomQuestUnderHallCommandRuntime` now owns **only the six remaining

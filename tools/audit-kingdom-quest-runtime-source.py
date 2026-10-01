@@ -56,6 +56,7 @@ KQHBAT_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandRunt
 KQHBAT_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandState.cs"
 KQHBAT_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatNativePlans.cs"
 KQHBAT_ITEM_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatItemNativePlans.cs"
+KQHBAT_TEXT_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatTextNativePlans.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1256,10 +1257,10 @@ def main():
         "NativeLinkVirtualOffset = 0x3FC",
         "NativeMapNameBytes = 12",
         "class KingdomQuestKQHBatNativePlanBuilder",
-        "NativeClosedOccurrenceCount = 85",
-        "NativeClosedVerbCount = 9",
-        "RemainingUnresolvedOccurrenceCount = 120",
-        "RemainingUnresolvedVerbCount = 2",
+        "NativeClosedOccurrenceCount = 205",
+        "NativeClosedVerbCount = 11",
+        "RemainingUnresolvedOccurrenceCount = 0",
+        "RemainingUnresolvedVerbCount = 0",
         "KingdomQuestPineBasicExpression.GetNativeNumberSuffix(",
         "KingdomQuestPineBasicExpression.TryCalculate(",
         '\"HERO_\\" % InitFlag % \\"_\\" % Count',
@@ -1346,6 +1347,73 @@ def main():
                   forbidden)
             return 1
 
+    kqhbat_text_native_text = KQHBAT_TEXT_NATIVE_PLANS.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestKQHBatScriptTextSource",
+        "class KingdomQuestKQHBatTextSourceCatalog",
+        '"ed41dc52b4b4042ae430f74e559ab547995e31667ff8b498825a3842a61ec156"',
+        '"8f1073942debae21c847609c042aa4337717e2112f38c298b061e67313bc1943"',
+        '"ab821667e63fe85a9abd4b6ded493ad0eecbf3710183e3c9d36159854789c963"',
+        '"0e2cddcaad8028693807a62c04e977e32a6e1ba5a24846c2c54b8713bdc61e36"',
+        '"Returning to Elderine in "',
+        '"Returning to Uruga in "',
+        '"Returning to Alberstol Ruins in "',
+        '"Returning to Adealia in "',
+        '"DualResult"',
+        '"1st place %s, 2nd place %s, and 3rd place goes to %s.',
+        "class KingdomQuestKQHBatBroadcastAllNativePlan",
+        "NativeStepAddress = 0x004EF830u",
+        "NativeAxialListWallCtorAddress = 0x004281A0u",
+        "NativeAxialListWallWorkAddress = 0x004281C0u",
+        "NativeAllInMapAddress = 0x0054B9E0u",
+        "KingdomQuestPineBroadcastAllNative.NoticeVtableOffset",
+        "RequiresNativeCharName",
+        "NativeCharNameHandle",
+        '" has obtained Invincible Hammer."',
+        "TryResolveMessage(",
+        "class KingdomQuestKQHBatChatWindowNativePlan",
+        "NativeStepAddress = 0x004F50F0u",
+        "NativeNpcLookupAddress = 0x0063CC30u",
+        "NativeScriptStringLookupAddress = 0x0048CE60u",
+        "NativePacketOpcode = 0x6C0C",
+        "NativeArgumentSlotCount = 7",
+        "NativePacketBroadcastCtorAddress = 0x00428A40u",
+        "NativePacketBroadcastWorkAddress = 0x00428B20u",
+        "NativePacketBroadcastDtorAddress = 0x00428D00u",
+        "RoumenusMobId = 92",
+        "EldGuardMobId = 103",
+        "TryCreateNativeWire(",
+        "class KingdomQuestKQHBatTextNativePlanBuilder",
+        "BroadcastOccurrenceCount = 50",
+        "ChatWindowOccurrenceCount = 70",
+        "variables.TryFind(LooterHandleIdentifier",
+        "KingdomQuestPineBasicExpression.GetNativeNumberSuffix(",
+        "TryFormatPercentS(",
+        "KingdomQuestPineScriptFile.TryGetSource(",
+    ):
+        if token not in kqhbat_text_native_text:
+            print("FAIL: KQHBat text native plan projection changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", ".MapObjectID", "SendPacket(",
+            "Program.DatabaseManager", "ExecuteQuery(", "System.Random",
+            "Handler8.SendAdminNotice", "ChangeMap("):
+        if forbidden in kqhbat_text_native_text:
+            print("FAIL: KQHBat text native plan invented live mutation",
+                  forbidden)
+            return 1
+
+    mobinfo_source_text = MOB_INFO_SQL.read_text(encoding="utf-8")
+    if "(92, 'RouTownChiefRoumenus', 'Town Chief Roumenus'," not in (
+            mobinfo_source_text):
+        print("FAIL: Warrior's Code Roumenus source identity changed")
+        return 1
+    if "(103, 'EldSpeGuard01', 'Guard Spearman'," not in (
+            mobinfo_source_text):
+        print("FAIL: Warrior's Code EldSpeGuard01 source identity changed")
+        return 1
+
     kqhbat_state_text = KQHBAT_COMMAND_STATE.read_text(encoding="utf-8")
     for token in (
         "interface IKingdomQuestKQHBatExternalCommandSink",
@@ -1359,7 +1427,8 @@ def main():
         "externalSink.TryLinkToAll(",
         "externalSink.TryItemEraseAll(",
         "externalSink.TryItemDrop(",
-        "externalSink.TryUnresolved(",
+        "externalSink.TryBroadcastAll(",
+        "externalSink.TryChatWindow(",
         "KingdomQuestKQHBatNativePlanBuilder.TryBuildAbStateSet(",
         "KingdomQuestKQHBatNativePlanBuilder.TryBuildBattlePk(",
         ".TryBuildSendQuestResult(",
@@ -1369,6 +1438,9 @@ def main():
         "KingdomQuestKQHBatItemNativePlanBuilder",
         ".TryBuildItemEraseAll(",
         ".TryBuildItemDrop(",
+        "KingdomQuestKQHBatTextNativePlanBuilder",
+        ".TryBuildBroadcastAll(",
+        ".TryBuildChatWindow(",
         "currentKingdomQuestHandle",
         "KingdomQuestPineVariableStack variables",
     ):
@@ -1378,12 +1450,12 @@ def main():
     for forbidden in (
             "MapManager.Instance", "ChangeMap(", "SendPacket(",
             "Program.DatabaseManager", "System.Random", "MobHatchery",
-            "GiveExp(", "Inventory."):
+            "GiveExp(", "Inventory.", "TryUnresolved("):
         if forbidden in kqhbat_state_text:
-            print("FAIL: KQHBat command state invented side effects",
+            print("FAIL: KQHBat command state invented/unresolved side effects",
                   forbidden)
             return 1
-    print("PASS: KQHBat1..5 share one 205-site fail-closed command runtime")
+    print("PASS: KQHBat1..5 all 205 source-used external sites reach native plans")
 
     underhall2_source_rows = []
     underhall2_source_rows = []

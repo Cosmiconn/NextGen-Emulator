@@ -47,10 +47,13 @@ namespace NextGen.Zone.Data
             ref int nativeState,
             out bool completed);
 
-        bool TryUnresolved(
-            KingdomQuestKQHBatExternalPlan plan,
-            KingdomQuestPineVariableStack variables,
-            uint? currentKingdomQuestHandle,
+        bool TryBroadcastAll(
+            KingdomQuestKQHBatBroadcastAllNativePlan plan,
+            ref int nativeState,
+            out bool completed);
+
+        bool TryChatWindow(
+            KingdomQuestKQHBatChatWindowNativePlan plan,
             ref int nativeState,
             out bool completed);
     }
@@ -176,13 +179,32 @@ namespace NextGen.Zone.Data
                         ref nativeState,
                         out completed);
 
-                default:
-                    return externalSink.TryUnresolved(
-                        plan,
-                        variables,
-                        currentKingdomQuestHandle,
+                case KingdomQuestKQHBatExternalKind.Broadcast:
+                    KingdomQuestKQHBatBroadcastAllNativePlan broadcastPlan;
+                    if (!KingdomQuestKQHBatTextNativePlanBuilder
+                            .TryBuildBroadcastAll(
+                                plan, variables, out broadcastPlan) ||
+                        broadcastPlan == null)
+                        return false;
+                    return externalSink.TryBroadcastAll(
+                        broadcastPlan,
                         ref nativeState,
                         out completed);
+
+                case KingdomQuestKQHBatExternalKind.ChatWin:
+                    KingdomQuestKQHBatChatWindowNativePlan chatPlan;
+                    if (!KingdomQuestKQHBatTextNativePlanBuilder
+                            .TryBuildChatWindow(
+                                plan, variables, out chatPlan) ||
+                        chatPlan == null)
+                        return false;
+                    return externalSink.TryChatWindow(
+                        chatPlan,
+                        ref nativeState,
+                        out completed);
+
+                default:
+                    return false;
             }
         }
     }
