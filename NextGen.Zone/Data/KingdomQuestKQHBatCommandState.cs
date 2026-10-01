@@ -37,6 +37,16 @@ namespace NextGen.Zone.Data
             ref int nativeState,
             out bool completed);
 
+        bool TryItemEraseAll(
+            KingdomQuestKQHBatItemEraseAllNativePlan plan,
+            ref int nativeState,
+            out bool completed);
+
+        bool TryItemDrop(
+            KingdomQuestKQHBatItemDropNativePlan plan,
+            ref int nativeState,
+            out bool completed);
+
         bool TryUnresolved(
             KingdomQuestKQHBatExternalPlan plan,
             KingdomQuestPineVariableStack variables,
@@ -139,6 +149,30 @@ namespace NextGen.Zone.Data
                         return false;
                     return externalSink.TryLinkToAll(
                         linkPlan,
+                        ref nativeState,
+                        out completed);
+
+                case KingdomQuestKQHBatExternalKind.ItemErase:
+                    KingdomQuestKQHBatItemEraseAllNativePlan erasePlan;
+                    if (!KingdomQuestKQHBatItemNativePlanBuilder
+                            .TryBuildItemEraseAll(
+                                plan, variables, out erasePlan) ||
+                        erasePlan == null)
+                        return false;
+                    return externalSink.TryItemEraseAll(
+                        erasePlan,
+                        ref nativeState,
+                        out completed);
+
+                case KingdomQuestKQHBatExternalKind.ItemDrop:
+                    KingdomQuestKQHBatItemDropNativePlan dropPlan;
+                    if (!KingdomQuestKQHBatItemNativePlanBuilder
+                            .TryBuildItemDrop(
+                                plan, variables, out dropPlan) ||
+                        dropPlan == null)
+                        return false;
+                    return externalSink.TryItemDrop(
+                        dropPlan,
                         ref nativeState,
                         out completed);
 

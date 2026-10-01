@@ -1516,10 +1516,39 @@ current map. The ten `linkto all` sites preserve the literal native
 receives the native link virtual at **vtable +0x3FC**. No emulator
 `ChangeMap` shortcut is substituted.
 
-The other **145/205 occurrences across four families**
-(`broadcast/chatwin/itemdrop/itemerase`) remain on the explicit unresolved
-owner path until their native mutation boundaries are equally proven.
-`Honeying` currently needs **13** families and `GordonMaster` **23**. This per-script matrix is derived directly from the
+The item families are now native-closed too, bringing Warrior's Code to
+**85/205 occurrences across nine verb families**. The original ItemInfo source
+(SHA-256
+`7ef63c5463ac8a5d51c3cb5ca8c80ff9311bb8ecac05fd04e5107f2fce02d494`)
+fixes `KQ_InvincibleHammer` to ItemID **57000** and `KQ_Ice01` to
+ItemID **57001**. The Pine identifier `Maul` is not treated as an item name:
+the exact runtime variable must resolve to `KQ_InvincibleHammer`.
+
+`itemerase all` is recovered as
+`ShineItemErase::sa_Step` (**0x004F0570**) ->
+`AxialListItemErase4All` ctor (**0x004285A0**) ->
+`so_AllInMap` -> `ali_Work` (**0x00429750**), which calls each visited
+object's vtable **+0x8B8** with `(ItemID, -1)`. All 20 KQHBat erase
+occurrences use only this all-map branch.
+
+The five `itemdrop InterruptArg Maul 1000000.` sites are recovered through
+`ShineItemDrop::sa_Step` (**0x004EFF00**). The first operand remains an
+opaque Pine/ShineObject reference; native takes its `WhoIsKillMe` handle,
+resolves the killer through `som_GetObject`, preserves the killer Character
+Registration Number, gates the drop with WELL512 against **1,000,000**, clears
+and creates the ITI registration number, dispatches
+`ItemAttributeClass::iac_DropItemMake` through vtable **+0x2C** with a
+separate WELL512(1000) sample, applies the optional RandomOptionTable path,
+builds `ShineMultiTypeHandle` for the killer and finally calls
+`ShineObject::so_IsDropping` (**0x004B0A20**). The source-object virtual
+slot **+0x708** is retained as opaque native metadata rather than assigned a
+guessed gameplay name. No native handle is mapped to emulator MapObjectID and
+no legacy emulator inventory/drop pipeline is substituted.
+
+The remaining **120/205 occurrences across only two families**
+(`broadcast/chatwin`) stay on the explicit unresolved owner path until their
+native text/UI boundaries are equally proven. `Honeying` currently needs
+**13** families and `GordonMaster` **23**. This per-script matrix is derived directly from the
 hash-locked canonical Pine bundle and is CI-guarded, so implementation can
 close the smallest source-equivalent slice first without hiding broader gaps.
 

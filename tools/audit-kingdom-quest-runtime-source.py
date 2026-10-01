@@ -55,6 +55,7 @@ KQHBAT_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatExternalPlan.
 KQHBAT_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandRuntime.cs"
 KQHBAT_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandState.cs"
 KQHBAT_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatNativePlans.cs"
+KQHBAT_ITEM_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatItemNativePlans.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1255,10 +1256,10 @@ def main():
         "NativeLinkVirtualOffset = 0x3FC",
         "NativeMapNameBytes = 12",
         "class KingdomQuestKQHBatNativePlanBuilder",
-        "NativeClosedOccurrenceCount = 60",
-        "NativeClosedVerbCount = 7",
-        "RemainingUnresolvedOccurrenceCount = 145",
-        "RemainingUnresolvedVerbCount = 4",
+        "NativeClosedOccurrenceCount = 85",
+        "NativeClosedVerbCount = 9",
+        "RemainingUnresolvedOccurrenceCount = 120",
+        "RemainingUnresolvedVerbCount = 2",
         "KingdomQuestPineBasicExpression.GetNativeNumberSuffix(",
         "KingdomQuestPineBasicExpression.TryCalculate(",
         '\"HERO_\\" % InitFlag % \\"_\\" % Count',
@@ -1285,6 +1286,65 @@ def main():
         print("FAIL: Warrior's Code StaCommonStun01 source identity changed")
         return 1
 
+    kqhbat_item_native_text = KQHBAT_ITEM_NATIVE_PLANS.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestKQHBatItemEraseAllNativePlan",
+        "NativeStepAddress = 0x004F0570u",
+        "NativeAxialListCtorAddress = 0x004285A0u",
+        "NativeAxialListWorkAddress = 0x00429750u",
+        "NativeAllInMapAddress = 0x0054B9E0u",
+        "NativeEraseItemVtableOffset = 0x8B8",
+        "NativeEraseAllAmount = -1",
+        "class KingdomQuestKQHBatItemDropNativePlan",
+        "NativeStepAddress = 0x004EFF00u",
+        "NativeObjectResolverAddress = 0x004EBBB0u",
+        "NativeWhoKilledMeVtableOffset = 0x80C",
+        "NativeObjectLookupAddress = 0x0054FD10u",
+        "NativeCharRegistNumberVtableOffset = 0x344",
+        "NativeRateRandomMaximum = 1000000",
+        "NativeItemClearAddress = 0x00470CF0u",
+        "NativeMakeRegistrationAddress = 0x00640710u",
+        "NativeItemAttributeContainerLookupAddress = 0x0063E2A0u",
+        "NativeDropItemMakeVtableOffset = 0x2C",
+        "NativeDropAttributeRandomMaximum = 1000",
+        "NativeRandomAddress = 0x0063CB10u",
+        "NativeRandomOptionLookupAddress = 0x00493FF0u",
+        "NativeRandomOptionFillAddress = 0x00493590u",
+        "NativeMultiTypeHandleCtorAddress = 0x004C1460u",
+        "NativeSetHandleObjectAddress = 0x004C14A0u",
+        "NativeIsDroppingAddress = 0x004B0A20u",
+        "NativeSourceDropContextVtableOffset = 0x708",
+        "NativeDropDatabaseValue = 1",
+        "InvincibleHammerItemId = 57000",
+        'InvincibleHammerIndex = "KQ_InvincibleHammer"',
+        "IceItemId = 57001",
+        'IceItemIndex = "KQ_Ice01"',
+        '"7ef63c5463ac8a5d51c3cb5ca8c80ff9311bb8ecac05fd04e5107f2fce02d494"',
+        'MaulIdentifier = "Maul"',
+        'InterruptArgIdentifier = "InterruptArg"',
+        "source.CanonicalLine == 50",
+        "source.CanonicalLine == 121",
+        'source.CommandText, "itemerase all \\"KQ_Ice01\\"."',
+        'source.CommandText, "itemdrop InterruptArg Maul 1000000."',
+        "variables.TryFind(MaulIdentifier",
+        "variables.TryFind(InterruptArgIdentifier",
+        "SnapshotSourceObjectTokenNativeBytes()",
+        "SnapshotItemTokenNativeBytes()",
+        "never mapped to MapObjectID",
+    ):
+        if token not in kqhbat_item_native_text:
+            print("FAIL: KQHBat item native plan projection changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", ".MapObjectID", "new DropItem(",
+            "SendPacket(", "Program.DatabaseManager", "ExecuteQuery(",
+            "Inventory.", "System.Random"):
+        if forbidden in kqhbat_item_native_text:
+            print("FAIL: KQHBat item native plan invented live mutation",
+                  forbidden)
+            return 1
+
     kqhbat_state_text = KQHBAT_COMMAND_STATE.read_text(encoding="utf-8")
     for token in (
         "interface IKingdomQuestKQHBatExternalCommandSink",
@@ -1296,6 +1356,8 @@ def main():
         "externalSink.TryIndividualReward(",
         "externalSink.TryRevivalAll(",
         "externalSink.TryLinkToAll(",
+        "externalSink.TryItemEraseAll(",
+        "externalSink.TryItemDrop(",
         "externalSink.TryUnresolved(",
         "KingdomQuestKQHBatNativePlanBuilder.TryBuildAbStateSet(",
         "KingdomQuestKQHBatNativePlanBuilder.TryBuildBattlePk(",
@@ -1303,6 +1365,9 @@ def main():
         ".TryBuildIndividualReward(",
         "KingdomQuestKQHBatNativePlanBuilder.TryBuildRevivalAll(",
         "KingdomQuestKQHBatNativePlanBuilder.TryBuildLinkToAll(",
+        "KingdomQuestKQHBatItemNativePlanBuilder",
+        ".TryBuildItemEraseAll(",
+        ".TryBuildItemDrop(",
         "currentKingdomQuestHandle",
         "KingdomQuestPineVariableStack variables",
     ):

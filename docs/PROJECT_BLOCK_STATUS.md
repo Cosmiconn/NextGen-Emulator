@@ -151,9 +151,18 @@ Still required for block completion:
   StaCommonStun01 (source ID 8500/native index 306), strength 1, 3000 ms and
   the LooterHandle map context; all ten stage return `linkto all` sites now
   preserve the exact LinkInformTemplete inputs and AxialListLinkTo dispatch.
-  The remaining **145/205** sites
-  (`broadcast/chatwin/itemdrop/itemerase`) stay behind the explicit
-  fail-closed owner.
+  Direct Zone.exe/PDB recovery now additionally closes all **25**
+  `itemerase/itemdrop` sites. `itemerase all` uses
+  AxialListItemErase4All and the per-object erase virtual (+0x8B8) with
+  amount -1. `itemdrop InterruptArg Maul 1000000` preserves the source
+  object and killer handles as opaque native identities, resolves Maul through
+  its Pine runtime value `KQ_InvincibleHammer` (ItemID 57000), retains the
+  two WELL512 call boundaries, native ITI/DropItemMake/RandomOption ordering
+  and the final `so_IsDropping` call. `KQ_Ice01` is source ItemID 57001.
+  No emulator MapObjectID/inventory/drop shortcut is used. Warrior's Code is
+  therefore **85/205 closed across nine verbs**; only the remaining
+  **120/205 broadcast/chatwin** sites stay behind the explicit fail-closed
+  owner.
   The two reward sites and two questmobkill sites now reuse the already
   recovered shared native primitives rather than duplicating UnderHall logic:
   reward binds to the current KQElement plan, and questmobkill shares the exact

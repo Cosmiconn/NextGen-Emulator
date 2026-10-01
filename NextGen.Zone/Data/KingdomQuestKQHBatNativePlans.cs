@@ -201,10 +201,10 @@ namespace NextGen.Zone.Data
     /// </summary>
     public static class KingdomQuestKQHBatNativePlanBuilder
     {
-        public const int NativeClosedOccurrenceCount = 60;
-        public const int NativeClosedVerbCount = 7;
-        public const int RemainingUnresolvedOccurrenceCount = 145;
-        public const int RemainingUnresolvedVerbCount = 4;
+        public const int NativeClosedOccurrenceCount = 85;
+        public const int NativeClosedVerbCount = 9;
+        public const int RemainingUnresolvedOccurrenceCount = 120;
+        public const int RemainingUnresolvedVerbCount = 2;
 
         public static bool TryBuildBattlePk(
             KingdomQuestKQHBatExternalPlan source,
