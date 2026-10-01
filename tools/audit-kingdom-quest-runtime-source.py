@@ -1332,7 +1332,7 @@ def main():
         "InterruptArgIdentifier",
         "SnapshotSourceObjectTokenNativeBytes()",
         "SnapshotItemTokenNativeBytes()",
-        "never mapped to MapObjectID",
+        "MapObjectID here.",
     ):
         if token not in kqhbat_item_native_text:
             print("FAIL: KQHBat item native plan projection changed", token)
