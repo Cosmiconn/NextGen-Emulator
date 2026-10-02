@@ -39,6 +39,26 @@ namespace NextGen.Zone.Data
         }
     }
 
+    public sealed class KingdomQuestHoneyingChatWindowNativePlan
+    {
+        public int CanonicalLine { get; private set; }
+        public string TopLevelBlock { get; private set; }
+        public KingdomQuestPineChatWindowLookupPlan NativeLookup
+        {
+            get;
+            private set;
+        }
+
+        internal KingdomQuestHoneyingChatWindowNativePlan(
+            KingdomQuestHoneyingExternalPlan source,
+            KingdomQuestPineChatWindowLookupPlan nativeLookup)
+        {
+            CanonicalLine = source.CanonicalLine;
+            TopLevelBlock = source.TopLevelBlock ?? string.Empty;
+            NativeLookup = nativeLookup;
+        }
+    }
+
     public sealed class KingdomQuestHoneyingRewardNativePlan
     {
         public int CanonicalLine { get; private set; }
@@ -83,20 +103,20 @@ namespace NextGen.Zone.Data
     /// Reuses already-recovered common Pine KQ command semantics for the
     /// exact Honeying source sites.
     ///
-    /// Covered here: 8 broadcast, 2 linkto, 1 mobregen, 1 questmobkill,
-    /// 1 reward and 5 summonmob = 18/40 external Honeying occurrences.
-    /// Door/effect/chat/npcshout/vanish remain Honeying-specific and fail
-    /// closed at the command-state owner.
+    /// Covered here: 8 broadcast, 2 chatwin, 2 linkto, 1 mobregen,
+    /// 1 questmobkill, 1 reward and 5 summonmob = 20/40 external Honeying
+    /// occurrences. Door/effect/npcshout/vanish remain Honeying-specific and
+    /// fail closed at the command-state owner.
     ///
     /// No map transfer, spawning, player enumeration, quest mutation, reward
     /// persistence or packet send occurs in this projection.
     /// </summary>
     public static class KingdomQuestHoneyingCommonNative
     {
-        public const int NativeClosedOccurrenceCount = 18;
-        public const int NativeClosedFamilyCount = 6;
-        public const int RemainingOccurrenceCount = 22;
-        public const int RemainingFamilyCount = 7;
+        public const int NativeClosedOccurrenceCount = 20;
+        public const int NativeClosedFamilyCount = 7;
+        public const int RemainingOccurrenceCount = 20;
+        public const int RemainingFamilyCount = 6;
 
         public const string ScriptFileKey = "KQHoneying";
         public const string ScriptFilePath = "Script/KQHoneying.txt";
@@ -164,6 +184,51 @@ namespace NextGen.Zone.Data
                 return false;
 
             plan = new KingdomQuestHoneyingBroadcastNativePlan(source, key);
+            return true;
+        }
+
+        public static bool TryBuildChatWindow(
+            KingdomQuestHoneyingExternalPlan source,
+            DataProvider data,
+            out KingdomQuestHoneyingChatWindowNativePlan plan)
+        {
+            plan = null;
+            string recordKey;
+            if (source == null ||
+                source.Kind != KingdomQuestHoneyingExternalKind.ChatWin ||
+                !string.Equals(
+                    source.TopLevelBlock,
+                    "TopFloor",
+                    StringComparison.Ordinal))
+                return false;
+
+            switch (source.CanonicalLine)
+            {
+                case 140:
+                    recordKey = "Honeying01";
+                    break;
+                case 142:
+                    recordKey = "Honeying02";
+                    break;
+                default:
+                    return false;
+            }
+
+            KingdomQuestPineChatWindowLookupPlan nativeLookup;
+            if (!KingdomQuestPineChatWindowNative.TryBuildLookup(
+                    BossMobIndex,
+                    BossMobId,
+                    ScriptFileKey,
+                    ScriptFilePath,
+                    ScriptFileSha256,
+                    recordKey,
+                    data,
+                    out nativeLookup) ||
+                nativeLookup == null)
+                return false;
+
+            plan = new KingdomQuestHoneyingChatWindowNativePlan(
+                source, nativeLookup);
             return true;
         }
 

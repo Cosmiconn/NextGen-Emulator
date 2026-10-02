@@ -78,6 +78,7 @@ PINE_KQ_TITLE_HOOK = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqTitleHookNative
 PINE_KQ_REWARD_COMMAND = ROOT / "NextGen.Zone/Data/KingdomQuestPineKqRewardCommandNative.cs"
 PINE_USED_QUEST_MOB_KILL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineUsedQuestMobKillNative.cs"
 PINE_BROADCAST_ALL_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineBroadcastAllNative.cs"
+PINE_CHAT_WINDOW_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestPineChatWindowNative.cs"
 PINE_EXTERNAL_OWNER_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestPineExternalOwnerPlans.cs"
 PINE_SHARED_EXTERNAL_OWNER = ROOT / "NextGen.Zone/Data/KingdomQuestPineSharedExternalOwner.cs"
 PINE_MOB_HATCHERY_BREED_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestPineMobHatcheryBreedPlan.cs"
@@ -1638,17 +1639,49 @@ def main():
             return 1
     print("PASS: Honeying all 40 external sites share one fail-closed runtime")
 
+    pine_chat_window_native_text = PINE_CHAT_WINDOW_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestPineChatWindowLookupPlan",
+        "class KingdomQuestPineChatWindowNative",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativeStepAddress",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativeNpcLookupAddress",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativeScriptStringLookupAddress",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativePacketOpcode",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativeArgumentSlotCount",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativePacketTextCapacity",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativePacketBroadcastCtorAddress",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativePacketBroadcastWorkAddress",
+        "KingdomQuestKQHBatChatWindowNativePlan.NativeAllInMapAddress",
+        "data.MobsByName.TryGetValue(",
+        "data.MobData.TryGetValue(",
+        "KingdomQuestPineScriptFile.TryGetSource(",
+        "MessageTextResolved = false",
+        "does not synthesize text",
+    ):
+        if token not in pine_chat_window_native_text:
+            print("FAIL: shared Pine chatwin native boundary changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "SendPacket(", "Program.DatabaseManager",
+            "ExecuteQuery(", "ChangeMap(", "new Mob(", ".MapObjectID"):
+        if forbidden in pine_chat_window_native_text:
+            print("FAIL: shared Pine chatwin boundary invented live semantics",
+                  forbidden)
+            return 1
+
     honeying_common_native_text = HONEYING_COMMON_NATIVE.read_text(
         encoding="utf-8")
     for token in (
         "class KingdomQuestHoneyingBroadcastNativePlan",
+        "class KingdomQuestHoneyingChatWindowNativePlan",
         "class KingdomQuestHoneyingRewardNativePlan",
         "class KingdomQuestHoneyingQuestMobKillNativePlan",
         "class KingdomQuestHoneyingCommonNative",
-        "NativeClosedOccurrenceCount = 18",
-        "NativeClosedFamilyCount = 6",
-        "RemainingOccurrenceCount = 22",
-        "RemainingFamilyCount = 7",
+        "NativeClosedOccurrenceCount = 20",
+        "NativeClosedFamilyCount = 7",
+        "RemainingOccurrenceCount = 20",
+        "RemainingFamilyCount = 6",
         'ScriptFileKey = "KQHoneying"',
         '"3438e2d0144619b52fd4f66d7ea3f9b6384a0d67c76dbf712641b61d6bfdcc30"',
         'RuntimeHandleIdentifier = "Boss"',
@@ -1661,6 +1694,9 @@ def main():
         "ElderineY = 13445",
         "KingdomQuestPineBroadcastAllNative.IsAllTarget(",
         "KingdomQuestPineScriptFile.TryGetSource(",
+        "KingdomQuestPineChatWindowNative.TryBuildLookup(",
+        '"Honeying01"',
+        '"Honeying02"',
         "new KingdomQuestPineLinkToOwnerPlan(",
         "new KingdomQuestPineMobRegenOwnerPlan(",
         "new KingdomQuestPineSummonMobOwnerPlan(",
@@ -1695,10 +1731,12 @@ def main():
     for token in (
         "IKingdomQuestPineSharedExternalOwner",
         "TryBroadcast(",
+        "TryChatWindow(",
         "TryQuestMobKill(",
         "TryReward(",
         "TryUnresolved(",
         "KingdomQuestHoneyingCommonNative.TryBuildBroadcast(",
+        "KingdomQuestHoneyingCommonNative.TryBuildChatWindow(",
         "KingdomQuestHoneyingCommonNative.TryBuildLinkTo(",
         "KingdomQuestHoneyingCommonNative.TryBuildMobRegen(",
         "KingdomQuestHoneyingCommonNative.TryBuildQuestMobKill(",
@@ -1709,7 +1747,7 @@ def main():
         if token not in honeying_state_text:
             print("FAIL: Honeying native command-state routing changed", token)
             return 1
-    print("PASS: Honeying 18/40 shared-family sites reach recovered native plans")
+    print("PASS: Honeying 20/40 sites across seven families reach recovered native plans")
 
     underhall2_source_rows = []
     underhall2_source_rows = []

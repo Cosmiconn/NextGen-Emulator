@@ -8,6 +8,11 @@ namespace NextGen.Zone.Data
             ref int nativeState,
             out bool completed);
 
+        bool TryChatWindow(
+            KingdomQuestHoneyingChatWindowNativePlan plan,
+            ref int nativeState,
+            out bool completed);
+
         bool TryQuestMobKill(
             KingdomQuestHoneyingQuestMobKillNativePlan plan,
             KingdomQuestPineVariableStack variables,
@@ -29,9 +34,10 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Upgrades the six Honeying families that already share recovered native
-    /// KQ primitives to their strongest immutable plans. The seven remaining
-    /// Honeying-specific families stay on an explicit unresolved owner method.
+    /// Upgrades the seven Honeying families whose native Pine command
+    /// semantics are recovered to their strongest immutable plans. The six
+    /// remaining Honeying-specific families stay on an explicit unresolved
+    /// owner method.
     /// </summary>
     public sealed class KingdomQuestHoneyingCommandState :
         IKingdomQuestHoneyingCommandSink
@@ -67,6 +73,19 @@ namespace NextGen.Zone.Data
                         return false;
                     return externalSink.TryBroadcast(
                         broadcastPlan,
+                        ref nativeState,
+                        out completed);
+
+                case KingdomQuestHoneyingExternalKind.ChatWin:
+                    KingdomQuestHoneyingChatWindowNativePlan chatWindowPlan;
+                    if (!KingdomQuestHoneyingCommonNative.TryBuildChatWindow(
+                            plan,
+                            DataProvider.Instance,
+                            out chatWindowPlan) ||
+                        chatWindowPlan == null)
+                        return false;
+                    return externalSink.TryChatWindow(
+                        chatWindowPlan,
                         ref nativeState,
                         out completed);
 
