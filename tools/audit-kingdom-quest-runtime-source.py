@@ -1459,6 +1459,55 @@ def main():
             return 1
     print("PASS: KQHBat1..5 all 205 source-used external sites reach native plans")
 
+    honeying_external_verbs = {
+        "broadcast", "chatwin", "doorbuild", "doorclose", "dooropen",
+        "effectobj", "linkto", "mobregen", "npcshout",
+        "questmobkill", "reward", "summonmob", "vanish",
+    }
+    honeying_external_sites = []
+    honeying_top_block = None
+    honeying_depth = 0
+    for line_no, line in enumerate(
+            pine_source_lines_by_script.get("KQ/Honeying", []), 1):
+        lower = line.lower()
+        if lower.startswith("open [") and line.endswith("]"):
+            if honeying_depth == 0:
+                honeying_top_block = line[line.index("[") + 1:-1]
+            honeying_depth += 1
+            continue
+        if lower in ("open", "then open", "else open"):
+            honeying_depth += 1
+            continue
+        if lower == "close":
+            honeying_depth -= 1
+            if honeying_depth < 0:
+                print("FAIL: Honeying source depth became negative", line_no)
+                return 1
+            if honeying_depth == 0:
+                honeying_top_block = None
+            continue
+
+        verb = line.split(None, 1)[0].lower().rstrip(".")
+        if verb in honeying_external_verbs:
+            if honeying_depth <= 0 or not honeying_top_block:
+                print("FAIL: Honeying external command lost top-level block",
+                      line_no, line)
+                return 1
+            honeying_external_sites.append(
+                (line_no, honeying_top_block, verb, line))
+
+    if honeying_depth != 0 or len(honeying_external_sites) != 40:
+        print("FAIL: Honeying external source inventory changed",
+              honeying_depth, len(honeying_external_sites),
+              honeying_external_sites)
+        return 1
+
+    print("INFO: HONEYING_EXTERNAL",
+          " || ".join(
+              "{0}:{1}:{2}:{3}".format(line_no, block, verb, line)
+              for line_no, block, verb, line in honeying_external_sites))
+    print("PASS: Honeying external occurrence count is source-locked at 40")
+
     underhall2_source_rows = []
     underhall2_source_rows = []
     with UNDERHALL2_EXTERNAL_SOURCE.open(
