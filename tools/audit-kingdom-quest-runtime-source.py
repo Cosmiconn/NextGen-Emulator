@@ -1790,7 +1790,7 @@ def main():
             gordon_external_sites.append(
                 (line_no, gordon_top_block, verb, line))
 
-    if gordon_depth != 0 or len(gordon_external_sites) != 83:
+    if gordon_depth != 0 or len(gordon_external_sites) != 82:
         print("FAIL: GordonMaster external source inventory changed",
               gordon_depth, len(gordon_external_sites))
         return 1
@@ -1799,7 +1799,7 @@ def main():
           " || ".join(
               "{0}:{1}:{2}:{3}".format(line_no, block, verb, line)
               for line_no, block, verb, line in gordon_external_sites))
-    print("PASS: GordonMaster external occurrence count is source-locked at 83")
+    print("PASS: GordonMaster external occurrence count is source-locked at 82")
 
     underhall2_source_rows = []
     underhall2_source_rows = []
