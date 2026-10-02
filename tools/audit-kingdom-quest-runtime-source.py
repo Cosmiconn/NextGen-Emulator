@@ -1622,7 +1622,7 @@ def main():
     for token in (
         "interface IKingdomQuestHoneyingExternalCommandSink",
         "class KingdomQuestHoneyingCommandState",
-        "externalSink.TryStep(",
+        "externalSink.TryUnresolved(",
         "currentKingdomQuestHandle",
         "KingdomQuestPineVariableStack variables",
     ):
