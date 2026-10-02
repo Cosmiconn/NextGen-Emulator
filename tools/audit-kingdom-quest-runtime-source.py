@@ -1656,7 +1656,7 @@ def main():
         "data.MobsByName.TryGetValue(",
         "data.MobData.TryGetValue(",
         "KingdomQuestPineScriptFile.TryGetSource(",
-        "MessageTextResolved = false",
+        "KingdomQuestHoneyingTextSource.TryResolve(",
         "does not synthesize text",
     ):
         if token not in pine_chat_window_native_text:
@@ -1678,10 +1678,10 @@ def main():
         "class KingdomQuestHoneyingRewardNativePlan",
         "class KingdomQuestHoneyingQuestMobKillNativePlan",
         "class KingdomQuestHoneyingCommonNative",
-        "NativeClosedOccurrenceCount = 20",
-        "NativeClosedFamilyCount = 7",
-        "RemainingOccurrenceCount = 20",
-        "RemainingFamilyCount = 6",
+        "NativeClosedOccurrenceCount = 25",
+        "NativeClosedFamilyCount = 8",
+        "RemainingOccurrenceCount = 15",
+        "RemainingFamilyCount = 5",
         'ScriptFileKey = "KQHoneying"',
         '"3438e2d0144619b52fd4f66d7ea3f9b6384a0d67c76dbf712641b61d6bfdcc30"',
         'RuntimeHandleIdentifier = "Boss"',
@@ -1702,7 +1702,7 @@ def main():
         "new KingdomQuestPineSummonMobOwnerPlan(",
         "KingdomQuestPineUsedQuestMobKillNative.TryBuild(",
         "KingdomQuestPineKqRewardCommandNative.TryBuild(",
-        "MessageTextResolved = false",
+        "KingdomQuestHoneyingTextSource.TryResolve(",
     ):
         if token not in honeying_common_native_text:
             print("FAIL: Honeying shared native projection changed", token)
@@ -1747,7 +1747,7 @@ def main():
         if token not in honeying_state_text:
             print("FAIL: Honeying native command-state routing changed", token)
             return 1
-    print("PASS: Honeying 20/40 sites across seven families reach recovered native plans")
+    print("PASS: Honeying 25/40 sites across eight families reach recovered native plans")
 
     gordon_external_verbs = {
         "abstatereset", "abstateset", "broadcast", "chatwin",

@@ -4,6 +4,65 @@
 
 **IN PROGRESS** on branch `nextgen-step15-kingdom-quests`.
 
+### Completion review, 2026-10-02
+
+The reviewed baseline `37e002d` passed Build #986 on Windows and Ubuntu.
+That is a build/source-audit result, **not a playable, source-equivalent KQ
+completion result**. This block must not be merged as complete yet.
+
+The remaining completion gates are:
+
+| Boundary | Still required |
+| --- | --- |
+| Live scenario ownership | Attach the Pine film bridge to the live map scheduler with recovered cadence, object identity, interrupt delivery and cleanup. |
+| Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
+| Pine command coverage | Finish Honeying's doorbuild/doorclose/dooropen/effectobj/vanish and GordonMaster's 23 external families (82 sites); execute recovered plans through real owners. |
+| Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
+| Rewards | Finish base ITI/registration, authoritative native-thread RNG ordering and GameDB/InventoryCellLockList persistence. |
+| End-to-end acceptance | Demonstrate success and failure, interrupts/kills, reward ACK/rollback, reconnect, return transfer and terminal cleanup with the real runtime; keep ordinary Quest regression checks green. |
+
+Source-plan coverage and live execution coverage must be reported separately.
+Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
+separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Honeying text and NPC shout recovery, 2026-10-02
+
+The complete original `Script/KQHoneying.txt` Script table (14 records) is now
+projected and retained as a byte-exact regression fixture. Its SHA-256 remains
+`3438e2d0144619b52fd4f66d7ea3f9b6384a0d67c76dbf712641b61d6bfdcc30`.
+All eight return broadcasts now resolve their exact source text. Both boss
+dialogues resolve their text and serialize the recovered 0x6C0C chat envelope.
+This does not activate a guessed map audience or notice-category byte.
+
+`ShineNPCShout::sa_Step` at **0x004EECD0** resolves the native object through
+`OtherStatement::os_ShineObject` (**0x004EBBB0**), evaluates the record token,
+requires the current script at ProcessStack +0x10130, then calls
+`ShineScript::ss_String` (**0x0048CE60**). It dispatches object vtable
+**+0x534** with `(0xFFFF, empty sender name, text, strlen(text), 0)` and
+pops the Pine frame. A missing source object/current script performs no shout;
+the live owner must preserve those gates.
+
+The four `Summon01` sites resolve to the supplied text. The death-site key
+`KQ_H_GHoneyingDead` is absent from the complete table. This is **not** an
+invented dialogue or unresolved alias: `ss_String` at 0x0048CEA3 checks the
+selection result and at 0x0048CEAD returns the empty string at 0x006A5AFD
+for a miss. The resulting shout plan preserves an empty message and a distinct
+`RecordPresent=false` flag. Unknown source identities still fail closed.
+
+Evidence binaries: Zone.exe SHA-256
+`db1cb42912556a4ea5cde5c18f15f2495b81465c70ca9c18ad5bc7e36611aff5`,
+Zone.pdb SHA-256
+`569a9d3ee6c4478b8e96d176f15ce64a9aab3f42e52d29d17c3c4d5af8f9ec6c`.
+
+Honeying native-plan coverage is now **25/40 occurrences across 8/13 families**;
+the remaining **15 occurrences across five families** are the door, effect and
+vanish commands. Concrete object resolution and sending remain external owner
+dependencies. `tools/KingdomQuestRuntimeTests` executes the real production
+classes to check the original fixture/hash, all records, exact chat bytes,
+missing-record behavior, NPC identity mismatch, immutable opaque handles,
+source-site rejection and the absent-owner failure boundary. CI runs these
+behavior tests on both platforms alongside the existing seven audits.
+
 This block starts from the merged Quest runtime baseline. Normal Quest behavior
 must remain closed and CI-green while Kingdom Quest work proceeds separately.
 
@@ -1580,7 +1639,7 @@ Therefore **205/205 Warrior's Code external command occurrences across all
 Concrete emulator mutation/sending remains behind explicit owner sinks, but
 there is no source-used KQHBat command left on the unresolved generic path.
 
-Honeying is now source-routed too: **40/40** external occurrences across
+The initial Honeying slice (superseded by the 2026-10-02 update above) was source-routed too: **40/40** external occurrences across
 **13** families are locked by canonical line/top-level block/exact text and
 intercepted before the generic host. Of those, **20 occurrences across seven
 families** already reach recovered native/source plans: eight `broadcast all`

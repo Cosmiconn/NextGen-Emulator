@@ -11,6 +11,7 @@ namespace NextGen.Zone.Data
         public string ScriptFileKey { get; private set; }
         public string MessageKey { get; private set; }
         public bool MessageTextResolved { get; private set; }
+        public string MessageText { get; private set; }
 
         internal KingdomQuestHoneyingBroadcastNativePlan(
             KingdomQuestHoneyingExternalPlan source,
@@ -20,7 +21,16 @@ namespace NextGen.Zone.Data
             TopLevelBlock = source.TopLevelBlock;
             ScriptFileKey = KingdomQuestHoneyingCommonNative.ScriptFileKey;
             MessageKey = messageKey ?? string.Empty;
-            MessageTextResolved = false;
+            KingdomQuestPineScriptFileSource scriptSource;
+            string text;
+            bool present;
+            if (KingdomQuestPineScriptFile.TryGetSource(ScriptFileKey, out scriptSource) &&
+                KingdomQuestHoneyingTextSource.TryResolve(
+                    scriptSource, MessageKey, out text, out present))
+            {
+                MessageTextResolved = true;
+                MessageText = text;
+            }
         }
 
         public int NoticeVtableOffset
@@ -104,8 +114,8 @@ namespace NextGen.Zone.Data
     /// exact Honeying source sites.
     ///
     /// Covered here: 8 broadcast, 2 chatwin, 2 linkto, 1 mobregen,
-    /// 1 questmobkill, 1 reward and 5 summonmob = 20/40 external Honeying
-    /// occurrences. Door/effect/npcshout/vanish remain Honeying-specific and
+    /// 1 questmobkill, 1 reward, 5 summonmob and 5 npcshout = 25/40 external Honeying
+    /// occurrences. Door/effect/vanish remain Honeying-specific and
     /// fail closed at the command-state owner.
     ///
     /// No map transfer, spawning, player enumeration, quest mutation, reward
@@ -113,10 +123,10 @@ namespace NextGen.Zone.Data
     /// </summary>
     public static class KingdomQuestHoneyingCommonNative
     {
-        public const int NativeClosedOccurrenceCount = 20;
-        public const int NativeClosedFamilyCount = 7;
-        public const int RemainingOccurrenceCount = 20;
-        public const int RemainingFamilyCount = 6;
+        public const int NativeClosedOccurrenceCount = 25;
+        public const int NativeClosedFamilyCount = 8;
+        public const int RemainingOccurrenceCount = 15;
+        public const int RemainingFamilyCount = 5;
 
         public const string ScriptFileKey = "KQHoneying";
         public const string ScriptFilePath = "Script/KQHoneying.txt";

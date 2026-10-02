@@ -22,6 +22,8 @@ namespace NextGen.Zone.Data
         public string ScriptFileSha256 { get; private set; }
         public string RecordKey { get; private set; }
         public bool MessageTextResolved { get; private set; }
+        public string MessageText { get; private set; }
+        public bool RecordPresent { get; private set; }
 
         internal KingdomQuestPineChatWindowLookupPlan(
             ushort npcId,
@@ -41,7 +43,28 @@ namespace NextGen.Zone.Data
                 ? string.Empty
                 : scriptSource.Sha256;
             RecordKey = recordKey ?? string.Empty;
-            MessageTextResolved = false;
+            string text;
+            bool present;
+            MessageTextResolved = KingdomQuestHoneyingTextSource.TryResolve(
+                scriptSource, recordKey, out text, out present);
+            MessageText = text;
+            RecordPresent = present;
+        }
+        // Literal, zero-format-argument source records only. Formatted records
+        // need the separately recovered Pine argument evaluator.
+        public bool TryCreateNativeWire(out byte[] wire)
+        {
+            wire = null;
+            if (!MessageTextResolved || MessageText == null ||
+                MessageText.IndexOf('%') >= 0)
+                return false;
+            foreach (char c in MessageText)
+                if (c == 0 || c > 127)
+                    return false;
+            var plan = new KingdomQuestKQHBatChatWindowNativePlan(
+                NpcId, NpcIndex, ScriptFileKey, RecordKey,
+                MessageText, MessageText, new string[0]);
+            return plan.TryCreateNativeWire(out wire);
         }
     }
 

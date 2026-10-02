@@ -25,6 +25,11 @@ namespace NextGen.Zone.Data
             ref int nativeState,
             out bool completed);
 
+        bool TryNpcShout(
+            KingdomQuestHoneyingNpcShoutNativePlan plan,
+            ref int nativeState,
+            out bool completed);
+
         bool TryUnresolved(
             KingdomQuestHoneyingExternalPlan plan,
             KingdomQuestPineVariableStack variables,
@@ -34,8 +39,8 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Upgrades the seven Honeying families whose native Pine command
-    /// semantics are recovered to their strongest immutable plans. The six
+    /// Upgrades the eight Honeying families whose native Pine command
+    /// semantics are recovered to their strongest immutable plans. The five
     /// remaining Honeying-specific families stay on an explicit unresolved
     /// owner method.
     /// </summary>
@@ -65,6 +70,14 @@ namespace NextGen.Zone.Data
 
             switch (plan.Kind)
             {
+                case KingdomQuestHoneyingExternalKind.NpcShout:
+                    KingdomQuestHoneyingNpcShoutNativePlan shoutPlan;
+                    if (!KingdomQuestHoneyingNpcShoutNativePlan.TryBuild(
+                            plan, variables, out shoutPlan))
+                        return false;
+                    return externalSink.TryNpcShout(
+                        shoutPlan, ref nativeState, out completed);
+
                 case KingdomQuestHoneyingExternalKind.Broadcast:
                     KingdomQuestHoneyingBroadcastNativePlan broadcastPlan;
                     if (!KingdomQuestHoneyingCommonNative.TryBuildBroadcast(

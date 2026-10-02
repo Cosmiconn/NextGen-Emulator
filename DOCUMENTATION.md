@@ -3369,3 +3369,26 @@ Abschnitt verwendet wurde.
   Netzwerk-Request (vermutlich rein aus bereits beim Login geladenen
   Daten wie `CharacterTitles` gespeist), was eine gezielte Analyse
   schwieriger macht als angenommen.
+
+
+## 55. Kingdomquests: Honeying-Dialoge und NPC-Rufe gegen Originalquelle geprüft
+
+Am 2026-10-02 wurden Server.zip/Zone00/Zone.exe und Zone.pdb sowie die
+vollständige Script/KQHoneying.txt geprüft. Die 14 Textdatensätze sind jetzt
+als Originalfixture hashgesichert; Rückkehrtexte und beide Bossdialoge sind
+aufgelöst. Für die Dialoge wird das native 0x6C0C-Wireformat erzeugt.
+
+ShineNPCShout::sa_Step (0x004EECD0) und ShineScript::ss_String (0x0048CE60)
+belegen die fünf NPC-Rufe einschließlich des fehlenden Todesruf-Eintrags:
+Dieser liefert nativ einen leeren String. Opaque Objekthandles bleiben erhalten;
+ein fehlender Live-Owner meldet weiterhin keinen erfolgreichen Vollzug.
+
+Ein neuer ausführbarer Verhaltenstest prüft Produktionsklassen, Originalhash,
+Textinhalt, exakte Paketbytes und Fehlergrenzen auf Windows und Ubuntu.
+Build und die sieben bisherigen Audits wurden lokal erfolgreich ausgeführt.
+
+Der Gesamtblock ist ausdrücklich noch nicht abgeschlossen. Der aktuelle
+Abschlusskatalog in docs/KINGDOM_QUEST_BLOCK.md trennt native Ausführungspläne
+von tatsächlich angebundener Laufzeit: Scheduler/Objekt-Owner, MobHatchery,
+verbleibende Pine-Befehle, 18 Lua-KQs, Belohnungspersistenz und echte
+Ende-zu-Ende-Nachweise stehen weiterhin aus.

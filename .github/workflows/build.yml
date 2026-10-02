@@ -75,3 +75,6 @@ jobs:
       - name: Run Kingdom Quest instance audit
         shell: bash
         run: python3 tools/audit-kingdom-quest-instance.py
+
+      - name: Run Kingdom Quest behavior tests
+        run: dotnet run --project tools/KingdomQuestRuntimeTests/KingdomQuestRuntimeTests.csproj --configuration Release
