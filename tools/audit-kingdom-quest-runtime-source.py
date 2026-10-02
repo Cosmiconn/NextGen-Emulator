@@ -1749,6 +1749,58 @@ def main():
             return 1
     print("PASS: Honeying 20/40 sites across seven families reach recovered native plans")
 
+    gordon_external_verbs = {
+        "abstatereset", "abstateset", "broadcast", "chatwin",
+        "doorbuild", "doorclose", "dooropen", "exchange2mob",
+        "invensearch", "itemdrop", "itemerase", "itemowner",
+        "linkto", "mobattr", "mobregen", "npcchat", "npcstand",
+        "questmobkill", "reward", "suicide", "summonmob",
+        "teleport", "whoclickme",
+    }
+    gordon_external_sites = []
+    gordon_top_block = None
+    gordon_depth = 0
+    for line_no, line in enumerate(
+            pine_source_lines_by_script.get("KQ/GordonMaster", []), 1):
+        lower = line.lower()
+        if lower.startswith("open [") and line.endswith("]"):
+            if gordon_depth == 0:
+                gordon_top_block = line[line.index("[") + 1:-1]
+            gordon_depth += 1
+            continue
+        if lower in ("open", "then open", "else open"):
+            gordon_depth += 1
+            continue
+        if lower == "close":
+            gordon_depth -= 1
+            if gordon_depth < 0:
+                print("FAIL: GordonMaster source depth became negative",
+                      line_no)
+                return 1
+            if gordon_depth == 0:
+                gordon_top_block = None
+            continue
+
+        verb = line.split(None, 1)[0].lower().rstrip(".")
+        if verb in gordon_external_verbs:
+            if gordon_depth <= 0 or not gordon_top_block:
+                print("FAIL: GordonMaster external command lost top-level block",
+                      line_no, line)
+                return 1
+            gordon_external_sites.append(
+                (line_no, gordon_top_block, verb, line))
+
+    if gordon_depth != 0 or len(gordon_external_sites) != 83:
+        print("FAIL: GordonMaster external source inventory changed",
+              gordon_depth, len(gordon_external_sites))
+        return 1
+
+    print("INFO: GORDONMASTER_EXTERNAL",
+          " || ".join(
+              "{0}:{1}:{2}:{3}".format(line_no, block, verb, line)
+              for line_no, block, verb, line in gordon_external_sites))
+    print("PASS: GordonMaster external occurrence count is source-locked at 83")
+
     underhall2_source_rows = []
     underhall2_source_rows = []
     underhall2_source_rows = []
