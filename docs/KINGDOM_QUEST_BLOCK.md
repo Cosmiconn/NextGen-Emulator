@@ -1579,8 +1579,22 @@ Therefore **205/205 Warrior's Code external command occurrences across all
 11 source-used verb families now reach immutable native/source-resolved plans**.
 Concrete emulator mutation/sending remains behind explicit owner sinks, but
 there is no source-used KQHBat command left on the unresolved generic path.
-`Honeying` currently needs **13** families and `GordonMaster` **23**.
-This per-script matrix is derived directly from the hash-locked canonical Pine
+
+Honeying is now source-routed too: **40/40** external occurrences across
+**13** families are locked by canonical line/top-level block/exact text and
+intercepted before the generic host. Of those, **18 occurrences across six
+families** already reuse recovered common KQ primitives: eight `broadcast all`
+sites retain the KQHoneying script identity and shared all-map notice audience
+(message text remains unresolved); two Elderine `linkto all` sites stop at
+the shared transfer owner plan; the Boss regen and five Honeying summons stop
+at shared MobRegen/Summon owner plans with source MobInfo IDs **1129/1128**;
+the success `questmobkill 2668 "Daliy_Check" 1` and
+`reward KingdomQuest` use the common native QMK/reward gates. The remaining
+**22 Honeying occurrences / seven families** are
+`chatwin/doorbuild/doorclose/dooropen/effectobj/npcshout/vanish` and remain
+explicitly fail-closed pending native recovery. `GordonMaster` remains the
+largest Pine-specific source block at **23** unresolved families. This
+per-script matrix is derived directly from the hash-locked canonical Pine
 bundle and is CI-guarded.
 
 The complete UnderHall source slice is source-locked as well.

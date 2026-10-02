@@ -62,6 +62,7 @@ HONEYING_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingSourceFlow.
 HONEYING_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingExternalPlan.cs"
 HONEYING_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingCommandRuntime.cs"
 HONEYING_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingCommandState.cs"
+HONEYING_COMMON_NATIVE = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingCommonNative.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1636,6 +1637,79 @@ def main():
                   forbidden)
             return 1
     print("PASS: Honeying all 40 external sites share one fail-closed runtime")
+
+    honeying_common_native_text = HONEYING_COMMON_NATIVE.read_text(
+        encoding="utf-8")
+    for token in (
+        "class KingdomQuestHoneyingBroadcastNativePlan",
+        "class KingdomQuestHoneyingRewardNativePlan",
+        "class KingdomQuestHoneyingQuestMobKillNativePlan",
+        "class KingdomQuestHoneyingCommonNative",
+        "NativeClosedOccurrenceCount = 18",
+        "NativeClosedFamilyCount = 6",
+        "RemainingOccurrenceCount = 22",
+        "RemainingFamilyCount = 7",
+        'ScriptFileKey = "KQHoneying"',
+        '"3438e2d0144619b52fd4f66d7ea3f9b6384a0d67c76dbf712641b61d6bfdcc30"',
+        'RuntimeHandleIdentifier = "Boss"',
+        "BossMobId = 1129",
+        'BossMobIndex = "KQ_H_GHoneying"',
+        "SummonMobId = 1128",
+        'SummonMobIndex = "KQ_H_Honeying"',
+        "ElderineMapId = 9",
+        "ElderineX = 17214",
+        "ElderineY = 13445",
+        "KingdomQuestPineBroadcastAllNative.IsAllTarget(",
+        "KingdomQuestPineScriptFile.TryGetSource(",
+        "new KingdomQuestPineLinkToOwnerPlan(",
+        "new KingdomQuestPineMobRegenOwnerPlan(",
+        "new KingdomQuestPineSummonMobOwnerPlan(",
+        "KingdomQuestPineUsedQuestMobKillNative.TryBuild(",
+        "KingdomQuestPineKqRewardCommandNative.TryBuild(",
+        "MessageTextResolved = false",
+    ):
+        if token not in honeying_common_native_text:
+            print("FAIL: Honeying shared native projection changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "new Mob(", "MobHatchery", "Program.DatabaseManager",
+            "ExecuteQuery(", "System.Random", ".MapObjectID"):
+        if forbidden in honeying_common_native_text:
+            print("FAIL: Honeying shared native projection went live", forbidden)
+            return 1
+
+    honeying_mob_source = MOB_INFO_SQL.read_text(encoding="utf-8")
+    if "(1128, 'KQ_H_Honeying', 'Shadow Honeying'," not in honeying_mob_source:
+        print("FAIL: Honeying summon MobInfo source identity changed")
+        return 1
+    if "(1129, 'KQ_H_GHoneying', 'Giant Honeying'," not in honeying_mob_source:
+        print("FAIL: Honeying boss MobInfo source identity changed")
+        return 1
+    honeying_map_source = MAP_INFO_SQL.read_text(encoding="utf-8")
+    if "(9, 'Eld', 'Elderine', 7, 17214, 13445," not in honeying_map_source:
+        print("FAIL: Honeying Elderine MapInfo source identity changed")
+        return 1
+
+    honeying_state_text = HONEYING_COMMAND_STATE.read_text(encoding="utf-8")
+    for token in (
+        "IKingdomQuestPineSharedExternalOwner",
+        "TryBroadcast(",
+        "TryQuestMobKill(",
+        "TryReward(",
+        "TryUnresolved(",
+        "KingdomQuestHoneyingCommonNative.TryBuildBroadcast(",
+        "KingdomQuestHoneyingCommonNative.TryBuildLinkTo(",
+        "KingdomQuestHoneyingCommonNative.TryBuildMobRegen(",
+        "KingdomQuestHoneyingCommonNative.TryBuildQuestMobKill(",
+        "KingdomQuestHoneyingCommonNative.TryBuildReward(",
+        "KingdomQuestHoneyingCommonNative.TryBuildSummonMob(",
+        "DataProvider.Instance",
+    ):
+        if token not in honeying_state_text:
+            print("FAIL: Honeying native command-state routing changed", token)
+            return 1
+    print("PASS: Honeying 18/40 shared-family sites reach recovered native plans")
 
     underhall2_source_rows = []
     underhall2_source_rows = []

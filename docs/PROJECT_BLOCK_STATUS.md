@@ -170,7 +170,12 @@ Still required for block completion:
   `opcode+NPCID+u8 length+text`, then AxialListPacketBroadcast/so_AllInMap.
   **Warrior's Code is therefore 205/205 closed across all 11 source-used
   external verb families at the native-plan boundary**, with no KQHBat
-  command remaining on the unresolved generic path.
+  command remaining on the unresolved generic path. Honeying is now
+  source-routed **40/40 across 13 families**; **18 occurrences / six families**
+  already reuse shared native plans for broadcast audience, Elderine link,
+  Boss regen, Honeying summons, questmobkill and reward. The remaining
+  **22 occurrences / seven Honeying-specific families** (chatwin,
+  doorbuild/close/open, effectobj, npcshout, vanish) stay fail-closed.
   The two reward sites and two questmobkill sites now reuse the already
   recovered shared native primitives rather than duplicating UnderHall logic:
   reward binds to the current KQElement plan, and questmobkill shares the exact
