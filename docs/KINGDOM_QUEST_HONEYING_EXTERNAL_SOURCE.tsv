@@ -1,0 +1,46 @@
+# CanonicalPineBundleSha256	390c0e948eb035aee62078327cb63d81ddef54aa9e28c38d642d02c86a9f9e57
+# ScriptLanguage	KQ/Honeying
+# Scope	exact source-used external command sites; source identity only, no gameplay semantics
+# FamilyCount	13
+# TotalOccurrenceCount	40
+CanonicalLine	TopLevelBlock	Verb	CommandText
+12	main	doorbuild	doorbuild Door1 "KQ_SlimeGate" 9860 6094  272 1000 "Normal".
+13	main	doorbuild	doorbuild Door2 "KQ_SlimeGate" 6692 3944    6 1000 "Normal".
+14	main	doorbuild	doorbuild Door3 "KQ_SlimeGate" 5894 6098   88 1000 "Normal".
+15	main	doorclose	doorclose Door1 "CloseGate01".
+16	main	doorclose	doorclose Door2 "CloseGate02".
+17	main	doorclose	doorclose Door3 "CloseGate03".
+18	main	effectobj	effectobj EffDoor1 Door1 "KQ_SlimeGate" 3600000 1000.
+19	main	effectobj	effectobj EffDoor2 Door2 "KQ_SlimeGate" 3600000 1000.
+20	main	effectobj	effectobj EffDoor3 Door3 "KQ_SlimeGate" 3600000 1000.
+61	FirstMobEleminate	dooropen	dooropen Door1 "CloseGate01".
+62	FirstMobEleminate	vanish	vanish EffDoor1.
+97	SecondMobEleminate	dooropen	dooropen Door2 "CloseGate02".
+98	SecondMobEleminate	vanish	vanish EffDoor2.
+130	ThirdMobEleminate	dooropen	dooropen Door3 "CloseGate03".
+131	ThirdMobEleminate	vanish	vanish EffDoor3.
+139	TopFloor	mobregen	mobregen Boss "KQ_H_GHoneying" 7081 5972 90 1000 "Normal".
+140	TopFloor	chatwin	chatwin "KQ_H_GHoneying" "Honeying01".
+142	TopFloor	chatwin	chatwin "KQ_H_GHoneying" "Honeying02".
+160	Summon1	npcshout	npcshout Boss "Summon01".
+161	Summon1	summonmob	summonmob Boss "KQ_H_Honeying" 2.
+164	Summon2	npcshout	npcshout Boss "Summon01".
+165	Summon2	summonmob	summonmob Boss "KQ_H_Honeying" 4.
+168	Summon3	npcshout	npcshout Boss "Summon01".
+169	Summon3	summonmob	summonmob Boss "KQ_H_Honeying" 8.
+172	Summon4	npcshout	npcshout Boss "Summon01".
+173	Summon4	summonmob	summonmob Boss "KQ_H_Honeying" 10.
+174	Summon4	summonmob	summonmob Boss "KQ_H_Honeying" 10.
+177	Dead	npcshout	npcshout Boss "KQ_H_GHoneyingDead".
+181	QuestSuccess	reward	reward KingdomQuest.
+182	QuestSuccess	questmobkill	questmobkill 2668 "Daliy_Check" 1.
+183	QuestSuccess	broadcast	broadcast all "KQReturn30".
+185	QuestSuccess	broadcast	broadcast all "KQReturn20".
+187	QuestSuccess	broadcast	broadcast all "KQReturn10".
+189	QuestSuccess	broadcast	broadcast all "KQReturn5".
+191	QuestSuccess	linkto	linkto all "Eld" "Eld" 17214 13445.
+197	QuestFail	broadcast	broadcast all "KQReturn30".
+199	QuestFail	broadcast	broadcast all "KQReturn20".
+201	QuestFail	broadcast	broadcast all "KQReturn10".
+203	QuestFail	broadcast	broadcast all "KQReturn5".
+205	QuestFail	linkto	linkto all "Eld" "Eld" 17214 13445.

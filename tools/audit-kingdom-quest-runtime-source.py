@@ -57,6 +57,11 @@ KQHBAT_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatCommandState.
 KQHBAT_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatNativePlans.cs"
 KQHBAT_ITEM_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatItemNativePlans.cs"
 KQHBAT_TEXT_NATIVE_PLANS = ROOT / "NextGen.Zone/Data/KingdomQuestKQHBatTextNativePlans.cs"
+HONEYING_EXTERNAL_SOURCE = ROOT / "docs/KINGDOM_QUEST_HONEYING_EXTERNAL_SOURCE.tsv"
+HONEYING_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingSourceFlow.cs"
+HONEYING_EXTERNAL_PLAN = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingExternalPlan.cs"
+HONEYING_COMMAND_RUNTIME = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingCommandRuntime.cs"
+HONEYING_COMMAND_STATE = ROOT / "NextGen.Zone/Data/KingdomQuestHoneyingCommandState.cs"
 UNDERHALL_SOURCE_FLOW = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallSourceFlow.cs"
 UNDERHALL_TIMED_INTERRUPT_DUE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallTimedInterruptDue.cs"
 UNDERHALL_INTERRUPT_CANDIDATE = ROOT / "NextGen.Zone/Data/KingdomQuestUnderHallInterruptCandidate.cs"
@@ -1498,16 +1503,141 @@ def main():
 
     if honeying_depth != 0 or len(honeying_external_sites) != 40:
         print("FAIL: Honeying external source inventory changed",
-              honeying_depth, len(honeying_external_sites),
-              honeying_external_sites)
+              honeying_depth, len(honeying_external_sites))
         return 1
 
-    print("INFO: HONEYING_EXTERNAL",
-          " || ".join(
-              "{0}:{1}:{2}:{3}".format(line_no, block, verb, line)
-              for line_no, block, verb, line in honeying_external_sites))
-    print("PASS: Honeying external occurrence count is source-locked at 40")
+    with HONEYING_EXTERNAL_SOURCE.open(
+            "r", encoding="utf-8", newline="") as source_file:
+        honeying_data_lines = [
+            row for row in source_file.read().splitlines()
+            if row and not row.startswith("#")
+        ]
+    honeying_reader = csv.DictReader(honeying_data_lines, delimiter="\t")
+    expected_honeying_columns = [
+        "CanonicalLine", "TopLevelBlock", "Verb", "CommandText"]
+    if honeying_reader.fieldnames != expected_honeying_columns:
+        print("FAIL: Honeying external source columns changed",
+              honeying_reader.fieldnames)
+        return 1
+    honeying_source_rows = [
+        (
+            int(row["CanonicalLine"]),
+            row["TopLevelBlock"],
+            row["Verb"],
+            row["CommandText"],
+        )
+        for row in honeying_reader
+    ]
+    if honeying_source_rows != honeying_external_sites:
+        print("FAIL: Honeying exact 40-site source map changed")
+        return 1
+    print("PASS: Honeying exact 40 external sites are TSV/source-locked")
 
+    honeying_flow_text = HONEYING_SOURCE_FLOW.read_text(encoding="utf-8")
+    for token in (
+        "enum KingdomQuestHoneyingExternalKind : byte",
+        "class KingdomQuestHoneyingExternalSourceSite",
+        "class KingdomQuestHoneyingSourceFlow",
+        'ScriptLanguage = "KQ/Honeying"',
+        "SourceUsedFamilyCount = 13",
+        "SourceUsedOccurrenceCount = 40",
+        "StringComparison.Ordinal",
+    ):
+        if token not in honeying_flow_text:
+            print("FAIL: Honeying source-flow projection changed", token)
+            return 1
+    for canonical_line, block_name, verb, command_text in honeying_external_sites:
+        kind = {
+            "broadcast": "Broadcast",
+            "chatwin": "ChatWin",
+            "doorbuild": "DoorBuild",
+            "doorclose": "DoorClose",
+            "dooropen": "DoorOpen",
+            "effectobj": "EffectObject",
+            "linkto": "LinkTo",
+            "mobregen": "MobRegen",
+            "npcshout": "NpcShout",
+            "questmobkill": "QuestMobKill",
+            "reward": "Reward",
+            "summonmob": "SummonMob",
+            "vanish": "Vanish",
+        }[verb]
+        expected_site = (
+            '{ ' + str(canonical_line) + ', Site(')
+        if expected_site not in honeying_flow_text or (
+                "KingdomQuestHoneyingExternalKind." + kind) not in (
+                    honeying_flow_text):
+            print("FAIL: Honeying C# source flow lost exact site",
+                  canonical_line, kind)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "MobHatchery", "System.Random"):
+        if forbidden in honeying_flow_text:
+            print("FAIL: Honeying source-flow invented gameplay semantics",
+                  forbidden)
+            return 1
+
+    honeying_plan_text = HONEYING_EXTERNAL_PLAN.read_text(encoding="utf-8")
+    for token in (
+        "class KingdomQuestHoneyingExternalPlan",
+        "class KingdomQuestHoneyingExternalPlanBuilder",
+        "KingdomQuestHoneyingSourceFlow.TryResolve(",
+        "CanonicalLine = source.CanonicalLine",
+        "TopLevelBlock = source.TopLevelBlock",
+        "Kind = source.Kind",
+        "CommandText = source.CommandText",
+    ):
+        if token not in honeying_plan_text:
+            print("FAIL: Honeying external plan changed", token)
+            return 1
+
+    honeying_runtime_text = HONEYING_COMMAND_RUNTIME.read_text(encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestHoneyingCommandSink",
+        "class KingdomQuestHoneyingCommandRuntime",
+        'ScriptLanguage = "KQ/Honeying"',
+        "SourceUsedFamilyCount = 13",
+        "SourceUsedOccurrenceCount = 40",
+        "KingdomQuestHoneyingExternalPlanBuilder.TryBuild(",
+        "sink.TryStep(",
+    ):
+        if token not in honeying_runtime_text:
+            print("FAIL: Honeying command runtime changed", token)
+            return 1
+    for verb in sorted(honeying_external_verbs):
+        if ('"' + verb + '"') not in honeying_runtime_text:
+            print("FAIL: Honeying runtime lost external verb", verb)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "MobHatchery", "System.Random"):
+        if forbidden in honeying_runtime_text:
+            print("FAIL: Honeying command runtime invented side effects",
+                  forbidden)
+            return 1
+
+    honeying_state_text = HONEYING_COMMAND_STATE.read_text(encoding="utf-8")
+    for token in (
+        "interface IKingdomQuestHoneyingExternalCommandSink",
+        "class KingdomQuestHoneyingCommandState",
+        "externalSink.TryStep(",
+        "currentKingdomQuestHandle",
+        "KingdomQuestPineVariableStack variables",
+    ):
+        if token not in honeying_state_text:
+            print("FAIL: Honeying command state changed", token)
+            return 1
+    for forbidden in (
+            "MapManager.Instance", "ChangeMap(", "SendPacket(",
+            "Program.DatabaseManager", "MobHatchery", "System.Random"):
+        if forbidden in honeying_state_text:
+            print("FAIL: Honeying command state invented side effects",
+                  forbidden)
+            return 1
+    print("PASS: Honeying all 40 external sites share one fail-closed runtime")
+
+    underhall2_source_rows = []
     underhall2_source_rows = []
     underhall2_source_rows = []
     with UNDERHALL2_EXTERNAL_SOURCE.open(
@@ -3217,6 +3347,7 @@ def main():
         "IKingdomQuestUnderHallCommandSink UnderHallSink",
         "IKingdomQuestUnderHall2CommandSink UnderHall2Sink",
         "IKingdomQuestKQHBatCommandSink KQHBatSink",
+        "IKingdomQuestHoneyingCommandSink HoneyingSink",
         "class KingdomQuestPineUsedCommandRuntime",
         "UsedOneStepCommandCount = 608",
         "SourceUsedUnrecoveredVerbCount = 31",
@@ -3285,6 +3416,9 @@ def main():
         "KingdomQuestKQHBatCommandRuntime.TryStep(",
         "commandContext.KQHBatSink",
         "Exact KQHBat Pine command dependency failed",
+        "KingdomQuestHoneyingCommandRuntime.TryStep(",
+        "commandContext.HoneyingSink",
+        "Exact Honeying Pine command dependency failed",
         "variables,",
         "TryUsedIdentifierCall(node.Text, out identifier)",
         "StepIdentifierCall(frame, node, identifier)",
@@ -3351,6 +3485,8 @@ def main():
         "new KingdomQuestUnderHall2CommandState(externalSink)",
         "CreateKQHBatCommandState(",
         "new KingdomQuestKQHBatCommandState(externalSink)",
+        "CreateHoneyingCommandState(",
+        "new KingdomQuestHoneyingCommandState(externalSink)",
         "IKingdomQuestPineUsedCommandSink",
         "KingdomQuestPineInterruptRegistryState interrupts",
         "KingdomQuestPineTimeLimitPlan timeLimit",
