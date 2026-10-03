@@ -204,6 +204,11 @@ namespace NextGen.Zone.Data
             return true;
         }
 
+        internal void FailOwner(string message)
+        {
+            Fail(message);
+        }
+
         /// <summary>
         /// Performs one native-style top-frame step. It does not spin through
         /// multiple statements in one call. Callers therefore retain control of

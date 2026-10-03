@@ -103,6 +103,11 @@ namespace NextGen.Zone
                         }
                     }
 
+                    // Native map-anchor movies advance once per mainthread
+                    // pass, independently of the one-second maintenance timer.
+                    Data.KingdomQuestZonePineFilmScheduler.Instance.Step(
+                        unchecked((uint)Environment.TickCount));
+
                     if (now.Subtract(lastCheck).TotalSeconds >= 1)
                     {
                         TicksPerSecond = i - last;

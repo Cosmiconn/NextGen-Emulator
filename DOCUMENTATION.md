@@ -3392,3 +3392,17 @@ Abschlusskatalog in docs/KINGDOM_QUEST_BLOCK.md trennt native Ausführungspläne
 von tatsächlich angebundener Laufzeit: Scheduler/Objekt-Owner, MobHatchery,
 verbleibende Pine-Befehle, 18 Lua-KQs, Belohnungspersistenz und echte
 Ende-zu-Ende-Nachweise stehen weiterhin aus.
+
+## 56. Kingdomquests: nativer waitlogin und Film-Takt
+
+Am 2026-10-04 wurden der 10-Hz-Takt aus timeGetTime, der 2400-Tick-waitlogin
+und der Film-Aufrufer gegen Zone.exe/PDB geprüft. waitlogin liest die echten
+Spieler der gebundenen Map, erhält die Modi 1/2/4/6, den strikten unsigned
+Deadline-Vergleich und den Vorrang eines vorhandenen Spielers.
+
+Der Zone-Worker ruft die neue Pine-Filmverwaltung einmal pro Schleifendurchlauf
+auf. Explizit angebundene Filme werden einzeln weitergeschaltet; Neustart,
+Zerstörung und Fehler entfernen den jeweiligen Film. START verlangt weiterhin
+eine echte Tür-/Kollisionsoperation. Der automatische Start und die vollständige
+Spielbarkeit bleiben offen, bis die dokumentierten Live-Owner vorhanden sind.
+Details, Originaladressen und Verhaltenstests: docs/KINGDOM_QUEST_BLOCK.md.

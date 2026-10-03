@@ -309,6 +309,21 @@ namespace NextGen.Zone.Data
             }
         }
 
+        // Worker hot path: compare the immutable START identity without
+        // cloning a 377-byte protocol definition on every film step. Roster
+        // updates preserve this identity; a restart always replaces it.
+        internal static bool IsCurrentScenario(uint handle, ushort mapId,
+            short mapInstance, KingdomQuestScenarioStartPlan startIdentity)
+        {
+            lock (Sync)
+            {
+                KingdomQuestZoneRuntimeState current;
+                return startIdentity != null && ByHandle.TryGetValue(handle, out current) &&
+                    current.MapID == mapId && current.MapInstance == mapInstance &&
+                    ReferenceEquals(current.ScenarioStartPlan, startIdentity);
+            }
+        }
+
         public static void Clear()
         {
             lock (Sync)

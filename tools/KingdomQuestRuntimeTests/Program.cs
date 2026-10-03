@@ -107,3 +107,5 @@ Check(!new KingdomQuestHoneyingCommandState().TryStep(
     !completed && state == 0, "missing live owner never pretends to complete");
 
 Console.WriteLine("PASS: Honeying source text, native missing record, chat wire, shout plans and fail-closed boundaries");
+WaitLoginTests.Run();
+FilmSchedulerTests.Run();

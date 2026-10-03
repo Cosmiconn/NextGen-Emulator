@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Attach the Pine film bridge to the live map scheduler with recovered cadence, object identity, interrupt delivery and cleanup. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached (see 2026-10-04 below); automatic START still needs real door/collision and gameplay owners, native object identity and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Finish Honeying's doorbuild/doorclose/dooropen/effectobj/vanish and GordonMaster's 23 external families (82 sites); execute recovered plans through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,57 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Pine worker cadence and native waitlogin, 2026-10-04
+
+`ShineWaitUserLogin::sa_Step` (**0x004EE430**) initializes ProcessStack
++0x1010C to `currentTick + 2400` when command state is zero, sets that state
+to one, then checks the map on the same call. The iterator at **0x00428020**
+accepts only player object type 2 and player modes **1, 2, 4, 6**. An accepted
+player writes token `1` and completes, even after the deadline. With no
+accepted player, the unsigned `deadline < now` branch at **0x004EE59F** writes
+`0` and completes; equality still waits without changing the destination.
+The original unsigned overflow behavior is preserved, not replaced by a
+signed wrap-safe comparison. A fresh command frame resets the deadline.
+
+The original mainthread (**0x005ACAFB..0x005ACB7A**) reads `timeGetTime`
+(IAT **0x006A226C**), accumulates unsigned millisecond deltas in 64 bits and
+publishes `elapsedMilliseconds * 10 / 1000` at **0x14D41A70**. Thus 2400
+ticks are **240 seconds**, not 2400 milliseconds. The live monotonic clock
+uses this conversion, samples once per worker pass and retains the remainder
+across the 32-bit millisecond counter wrap.
+
+`ShineAxialFlag::so_Routine` (**0x00569E00**) visits its movies each mainthread
+pass. The visitor **0x00508E40** calls `Movie::m_Routine` (**0x005085F0**) ->
+`Theater::t_Routine` (**0x00508090**) -> `ProcessStack::ps_Step`
+(**0x004D6B90**) once, removing a movie when it stops. The Zone Worker now
+calls `KingdomQuestZonePineFilmScheduler` at that per-pass boundary, outside
+its one-second maintenance and `i % 2000` map-update conditions.
+
+The scheduler accepts an explicitly owned START, executes drop -> actual
+door-close owner -> film creation, binds waitlogin to the map's live objects,
+and removes completed/faulted films. It drops stale START generations and
+destroyed instances before another step, while a roster-only update retains
+the current film. Faults are logged and never synthesize COMPLETE or END.
+The hot-path identity check does not serialize/clone the protocol definition.
+
+**Remaining activation gate:** the W2Z START handler still records the native
+start state only. It must not automatically attach a film until concrete
+`MapDoorArray::mda_CloseAllDoor` (**0x0049E1E0**) collision mutation and the
+scenario's live command/object owners exist. `BlockInfo.CanWalk` still lacks
+the native collision bitmap implementation; a no-op door callback is not a
+production implementation. Callers must supply fresh, map-bound command
+state for each film. Lua is still a separate unresolved backend. The tests'
+explicit door stand-in validates ordering only, and is not used by the server.
+
+Behavior tests execute both original UnderHall mains through waitlogin, all
+256 player mode values, exact timeout boundaries, reentry and clock overflow.
+Scheduler tests cover one step per pass, instance isolation, live arrival,
+restart/destroy cleanup and absent gameplay-owner failure. The solution build
+and all seven existing audits pass. This is not end-to-end KQ acceptance.
+
+The separately reuploaded binary archive is now readable. Its Zone.exe and
+Zone.pdb hashes exactly match the Server.zip binaries listed below.
 
 ### Honeying text and NPC shout recovery, 2026-10-02
 
