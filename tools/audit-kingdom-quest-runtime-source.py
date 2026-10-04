@@ -1678,10 +1678,10 @@ def main():
         "class KingdomQuestHoneyingRewardNativePlan",
         "class KingdomQuestHoneyingQuestMobKillNativePlan",
         "class KingdomQuestHoneyingCommonNative",
-        "NativeClosedOccurrenceCount = 31",
-        "NativeClosedFamilyCount = 10",
-        "RemainingOccurrenceCount = 9",
-        "RemainingFamilyCount = 3",
+        "NativeClosedOccurrenceCount = 34",
+        "NativeClosedFamilyCount = 11",
+        "RemainingOccurrenceCount = 6",
+        "RemainingFamilyCount = 2",
         'ScriptFileKey = "KQHoneying"',
         '"3438e2d0144619b52fd4f66d7ea3f9b6384a0d67c76dbf712641b61d6bfdcc30"',
         'RuntimeHandleIdentifier = "Boss"',
@@ -1747,7 +1747,7 @@ def main():
         if token not in honeying_state_text:
             print("FAIL: Honeying native command-state routing changed", token)
             return 1
-    print("PASS: Honeying 31/40 sites across ten families reach recovered native plans")
+    print("PASS: Honeying 34/40 sites across eleven families reach recovered native plans")
 
     gordon_external_verbs = {
         "abstatereset", "abstateset", "broadcast", "chatwin",

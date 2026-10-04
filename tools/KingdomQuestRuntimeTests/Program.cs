@@ -111,3 +111,4 @@ WaitLoginTests.Run();
 FilmSchedulerTests.Run();
 CollisionTests.Run();
 DoorActionTests.Run();
+DoorBuildTests.Run();

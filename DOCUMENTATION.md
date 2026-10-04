@@ -3434,3 +3434,17 @@ mit Originalkarten und exakter Reihenfolge.
 Damit sind 31 von 40 Honeying-Stellen in 10 von 13 Befehlsfamilien semantisch
 aufgelöst. Türerzeugung, native Objektzuordnung und Kartenempfänger müssen
 weiterhin angebunden werden; automatische Spielbarkeit wird nicht behauptet.
+
+## 59. Kingdomquests: Honeying-Türerzeugung und BriefInfo
+
+Die drei originalen doorbuild-Stellen verwenden jetzt belegte Pläne und einen
+ausführbaren Ablauf für Allokation, Index-/Mapauflösung, Erzeugung, Handle-
+rückgabe und Fehlerbereinigung. Der native doppelte Freigabeaufruf bei einem
+Markierungsfehler bleibt mit den Gründen 22 und 23 erhalten. Fehlende Live-
+Dienste dürfen keine erfolgreiche Erzeugung melden.
+
+Das 50-Byte-Paket 0x1C0F sowie Richtungs- und Türhandle-Konvertierung sind
+gegen Zone.exe/PDB aufgelöst. Tests prüfen die drei Quellstellen, genaue
+Paketbytes, Variablenschatten und Fehlerreihenfolge. Honeying steht damit bei
+34/40 semantisch aufgelösten Stellen in 11/13 Familien. Native Objektpools,
+Kartenmarkierung und Sichtbarkeit benötigen weiterhin konkrete Live-Owner.

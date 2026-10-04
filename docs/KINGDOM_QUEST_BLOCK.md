@@ -16,7 +16,7 @@ The remaining completion gates are:
 | --- | --- |
 | Live scenario ownership | Worker film stepping and waitlogin are attached (see 2026-10-04 below); original collision/START door closure is implemented; automatic START still needs gameplay owners, native object identity and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
-| Pine command coverage | Finish Honeying's doorbuild/effectobj/vanish and bind recovered door actions to native object lifecycle and GordonMaster's 23 external families (82 sites); execute recovered plans through real owners. |
+| Pine command coverage | Finish Honeying's effectobj/vanish and bind recovered door actions to native object lifecycle and GordonMaster's 23 external families (82 sites); execute recovered plans through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
 | Rewards | Finish base ITI/registration, authoritative native-thread RNG ordering and GameDB/InventoryCellLockList persistence. |
 | End-to-end acceptance | Demonstrate success and failure, interrupts/kills, reward ACK/rollback, reconnect, return transfer and terminal cleanup with the real runtime; keep ordinary Quest regression checks green. |
@@ -24,6 +24,58 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Honeying doorbuild, native handles and brief wire, 2026-10-04
+
+`ShineDoorBuild::sa_Step` (**0x004F9440**) first calls
+`ShineObjectManager::som_AllocObject` (**0x0054FE20**) for type **7**. A null
+allocation logs and pops without freeing or changing the destination. Only
+then does `OtherStatement::os_ObjectRegen` (**0x004F8C40**) resolve the
+Identify destination, look up the mob index, evaluate coordinates/direction/
+scale/Normal, and get the current theater's server map Name3 (12 bytes).
+The three original Honeying sites have nonzero X/Y, so the separate random
+position branch is not entered. Original MobInfo fixes KQ_SlimeGate to **1091**.
+The evaluated Normal token is unused by the type-7 branch.
+
+The door virtual at **+0x6DC** receives map Name3, X, Y, direction, allocated
+u16 handle, mob ID, scale and zero u64 registration number. A nonzero
+FM_MarkingError logs and calls `som_FreeObject(handle, 0, 22)`. The outer
+statement additionally calls `som_FreeObject(handle, 0, 23)` on any failed
+ObjectRegen result, even after that first call. Both return values are ignored.
+This call sequence is retained, not collapsed into one guessed disposal.
+`som_FreeObject` (**0x00557D70**) looks the handle up again and handles a miss
+without dereferencing an already-freed object. On success, ObjectRegen clears
+the destination text and `pst_MergeNumber` (**0x004D7310**, format `%d`) writes
+the allocated handle before the outer statement pops.
+
+`Identify::i_GetVariable` (**0x004D9F60**) calls the process variable lookup at
+**0x004D8CE0**. An ordinary unknown variable returns a shared fallback token,
+not null. The explicit owner must preserve that native behavior; the new
+runtime does not silently push variables or turn lookup misses into failures.
+Source plans retain only literal source sites; unresolved live services are
+rejected before allocation. Invalid owner map widths fail with allocation
+cleanup instead of being truncated into a fabricated map alias.
+
+`ShineDoor::so_door_Build` (**0x0043F7B0**) fills the initial door fields,
+sets action 0 and empty Name32, resolves MobInfo, marks the map and calls
+BuildComplete before returning success. These map/object lifecycle services
+remain required owner dependencies. The recovered packet projection is
+`BriefInformationDoor` (**0x00549260**) and its field copy at **0x00555AF0**:
+**50 bytes**, `u16 0x1C0F, u16 handle, u16 mobId, i32 X, i32 Y,
+u8 direction, u8 action, byte[32] name, u16 scale`. Direction is signed
+truncation of degrees/2; negative halves add 180 before byte truncation.
+`so_RemakeHandle` (**0x00555BA0**) maps pool indices 0..999 to
+`0x509E + index`, returning 0xFFFF outside that range. This pure conversion
+does not allocate a native pool slot or equate one with MapObjectID.
+
+Behavior tests execute all three source plans, verify original arguments,
+latest-shadowed-variable writes, immutable map aliases, literal golden wire,
+direction/handle boundaries, failure precedence and both cleanup calls.
+Honeying source-plan coverage is now **34/40 sites across 11/13 families**;
+the remaining six sites are effectobj and vanish. Native pool ownership,
+map marking, BuildComplete visibility/recipients and automatic film activation
+remain open. This is command orchestration and packet recovery, not a claim
+that door objects are automatically live or that KQ is playable end-to-end.
 
 ### Honeying door actions and native wire, 2026-10-04
 
@@ -183,9 +235,9 @@ Evidence binaries: Zone.exe SHA-256
 Zone.pdb SHA-256
 `569a9d3ee6c4478b8e96d176f15ce64a9aab3f42e52d29d17c3c4d5af8f9ec6c`.
 
-Honeying native-plan coverage is now **31/40 occurrences across 10/13 families**;
-the remaining **9 occurrences across three families** are doorbuild, effectobj
-and vanish (door action recovery is documented above). Concrete object resolution and sending remain external owner
+Honeying native-plan coverage is now **34/40 occurrences across 11/13 families**;
+the remaining **6 occurrences across two families** are effectobj and vanish
+(door recovery is documented above). Concrete object resolution and sending remain external owner
 dependencies. `tools/KingdomQuestRuntimeTests` executes the real production
 classes to check the original fixture/hash, all records, exact chat bytes,
 missing-record behavior, NPC identity mismatch, immutable opaque handles,
