@@ -110,3 +110,4 @@ Console.WriteLine("PASS: Honeying source text, native missing record, chat wire,
 WaitLoginTests.Run();
 FilmSchedulerTests.Run();
 CollisionTests.Run();
+DoorActionTests.Run();

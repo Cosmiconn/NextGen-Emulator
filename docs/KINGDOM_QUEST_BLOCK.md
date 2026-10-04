@@ -16,7 +16,7 @@ The remaining completion gates are:
 | --- | --- |
 | Live scenario ownership | Worker film stepping and waitlogin are attached (see 2026-10-04 below); original collision/START door closure is implemented; automatic START still needs gameplay owners, native object identity and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
-| Pine command coverage | Finish Honeying's doorbuild/doorclose/dooropen/effectobj/vanish and GordonMaster's 23 external families (82 sites); execute recovered plans through real owners. |
+| Pine command coverage | Finish Honeying's doorbuild/effectobj/vanish and bind recovered door actions to native object lifecycle and GordonMaster's 23 external families (82 sites); execute recovered plans through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
 | Rewards | Finish base ITI/registration, authoritative native-thread RNG ordering and GameDB/InventoryCellLockList persistence. |
 | End-to-end acceptance | Demonstrate success and failure, interrupts/kills, reward ACK/rollback, reconnect, return transfer and terminal cleanup with the real runtime; keep ordinary Quest regression checks green. |
@@ -24,6 +24,40 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Honeying door actions and native wire, 2026-10-04
+
+`ShineDoorOpen::sa_Step` (**0x004ED970**) and `ShineDoorClose::sa_Step`
+(**0x004EDB30**) first resolve the opaque source object with
+`OtherStatement::os_ShineObject` (**0x004EBBB0**). A null object or native
+type other than **7** logs and calls `ProcessStack::ps_Pop`
+(**0x004D6C20**), with no door side effects. A valid door evaluates the name
+and calls vtable **+0x318** with action **1=open / 0=close**, then pops.
+The action's return value is ignored; native command state is not modified.
+
+`ShineDoor::so_door_DoorAction` (**0x00550770**) writes action at object
+extension +0x0D, zeroes its Name32 at +0x0E, and copies with `strncpy(...,32)`.
+It then calls `MapBlockInformation::mbi_DoorAction` (**0x0049EC60**) and
+ignores its Boolean result. Finally it broadcasts the five bytes
+`u16 0x6C09, u16 actualDoorHandle, u8 action` via
+`ShineObject::so_AllInMap` (**0x0054B9E0**) and returns 1. Therefore a
+missing collision name still updates object state and broadcasts.
+
+All six Honeying dooropen/doorclose sites now build typed, immutable plans,
+retaining the complete opaque token and exact padded collision name. The
+command-state dispatcher routes them to a typed owner. An execution helper
+preserves the native null/wrong-type completion path, while distinguishing
+an unavailable resolver (failure) from a real native lookup miss (logged
+completion). The explicit action owner performs state -> actual bitmap
+attempt -> original wire broadcast through supplied live dependencies.
+Tests execute all six sites against KDHoneying, verify the packet bytes and
+operation order, and verify the missing-name behavior using original KDUnHall.
+
+Object creation, native identity resolution and the all-map recipient owner
+are still required before automatic live activation. The helper neither
+fabricates a ShineDoor nor truncates the opaque token into a network handle.
+Honeying source-plan coverage rises to **31/40 sites, 10/13 families**; this
+is not a claim that those sites are all live or end-to-end accepted.
 
 ### Original map collision and START door closure, 2026-10-04
 
@@ -149,9 +183,9 @@ Evidence binaries: Zone.exe SHA-256
 Zone.pdb SHA-256
 `569a9d3ee6c4478b8e96d176f15ce64a9aab3f42e52d29d17c3c4d5af8f9ec6c`.
 
-Honeying native-plan coverage is now **25/40 occurrences across 8/13 families**;
-the remaining **15 occurrences across five families** are the door, effect and
-vanish commands. Concrete object resolution and sending remain external owner
+Honeying native-plan coverage is now **31/40 occurrences across 10/13 families**;
+the remaining **9 occurrences across three families** are doorbuild, effectobj
+and vanish (door action recovery is documented above). Concrete object resolution and sending remain external owner
 dependencies. `tools/KingdomQuestRuntimeTests` executes the real production
 classes to check the original fixture/hash, all records, exact chat bytes,
 missing-record behavior, NPC identity mismatch, immutable opaque handles,

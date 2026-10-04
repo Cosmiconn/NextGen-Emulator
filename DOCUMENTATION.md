@@ -3421,3 +3421,16 @@ Fehlergrenzen. Der Quellen-Audit vergleicht Dateien, Hashes und SQL-Karten.
 Automatischer START, sichtbare Tür-/Mobobjekte, Lua und Belohnungspersistenz
 bleiben offen; native MobHatchery-Platzierung ersetzt noch nicht Mobspawn.
 Quellenadressen und Abschlussgrenzen: docs/KINGDOM_QUEST_BLOCK.md.
+
+## 58. Kingdomquests: Honeying-Türbefehle und Originalpaket
+
+Die sechs dooropen/doorclose-Stellen besitzen jetzt typisierte Ausführungspläne
+und einen expliziten Owner für Objektzustand, Kollisionsänderung und Paket
+0x6C09. Native Sonderfälle sind belegt: fehlendes/falsches Objekt wird
+protokolliert und der Befehl beendet; ein fehlender Kollisionsname verhindert
+die Zustandsänderung und das Paket nicht. Die Tests prüfen alle sechs Stellen
+mit Originalkarten und exakter Reihenfolge.
+
+Damit sind 31 von 40 Honeying-Stellen in 10 von 13 Befehlsfamilien semantisch
+aufgelöst. Türerzeugung, native Objektzuordnung und Kartenempfänger müssen
+weiterhin angebunden werden; automatische Spielbarkeit wird nicht behauptet.
