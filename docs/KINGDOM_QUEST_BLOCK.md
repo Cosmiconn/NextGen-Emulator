@@ -16,7 +16,7 @@ The remaining completion gates are:
 | --- | --- |
 | Live scenario ownership | Worker film stepping and waitlogin are attached (see 2026-10-04 below); original collision/START door closure is implemented; automatic START still needs gameplay owners, native object identity and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
-| Pine command coverage | Finish Honeying's effectobj/vanish and bind recovered door actions to native object lifecycle and GordonMaster's 23 external families (82 sites); execute recovered plans through real owners. |
+| Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
 | Rewards | Finish base ITI/registration, authoritative native-thread RNG ordering and GameDB/InventoryCellLockList persistence. |
 | End-to-end acceptance | Demonstrate success and failure, interrupts/kills, reward ACK/rollback, reconnect, return transfer and terminal cleanup with the real runtime; keep ordinary Quest regression checks green. |
@@ -24,6 +24,58 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Honeying effectobj and deferred vanish, 2026-10-04
+
+All **40/40 Honeying external source sites across 13/13 families** now reach
+recovered native command plans. The final six sites are effectobj at lines
+18/19/20 and identifier vanish at 62/98/131. This closes source-plan coverage,
+not live execution or end-to-end KQ acceptance. Missing live owners remain
+unresolved; automatic START is not enabled by these changes.
+
+`ShineEffectObject::sa_Step` (**0x004F2570**) resolves the destination first,
+then the parent through native numeric-token/object lookup. A missing parent
+silently pops without allocating; a missing destination logs and pops. Only
+then does it allocate native object type **9**. A failed allocation logs and
+pops. The three source plans preserve opaque Door1/2/3 tokens, the exact
+Name32 `KQ_SlimeGate`, **3600000 milliseconds**, scale **1000**, and trailing
+argument **0**. Missing runtime tokens are unresolved, not invented handles.
+
+After allocation, the original checks the parent's map. A null map takes the
+pop branch **without freeing the allocation or writing the destination**.
+The helper retains that observed ordering rather than inventing cleanup.
+Otherwise it passes the theater's map Name3, even a null MapNameServer result,
+to the effect's virtual **+0x6E4**. The parent-based EffectBlast overload does
+not use that map argument. A malformed non-null owner Name3 is an unresolved
+contract violation, not a native marking result.
+
+At **0x004F2851** the virtual returns FM_MarkingError. The command clears and
+writes the allocated handle as decimal to EffDoor1/2/3 **before checking the
+error** at **0x004F286F**. A nonzero result calls
+`som_FreeObject(handle, 0, 31)` and ignores its return value, leaving the
+written token intact. These semantics differ from doorbuild's failed-write
+and double-free-call paths and have separate behavior tests.
+
+`ShineEffectObject::so_effect_EffectBlast` (**0x004B1540**) calculates an
+unsigned expiry as `now + ((milliseconds * 10u) / 1000u)`, with 32-bit wrap
+before division and at addition. The recovered lifetime helper preserves
+this arithmetic and the absolute unsigned comparison, including wrap cases.
+
+Honeying's `ShineObjectVanish::sa_Step` (**0x004EDCF0**) takes the identifier
+branch at **0x004EE027**, resolves through `os_ShineObject`, and calls the
+object virtual **+0x3F4** through **0x004283A0** without a type filter. A native
+lookup miss logs and pops; an unavailable owner is not a lookup miss. For an
+effect, `so_RetrateFromMap` (**0x00495CC0**) only sets expiry to **zero**. It
+does not immediately unmark, send or free. The later effect routine at
+**0x00569FD0** expires when unsigned `now >= deadline`, then unmarks with
+`(0, 1, 3)` and calls `som_FreeObject(handle, 0, 5)`. Actual routine scheduling,
+parent following, map marking, visibility and object-pool cleanup still need
+live effect owners; the pure lifetime helper does not claim to perform them.
+
+Executable tests cover all six exact source sites through the production
+dispatcher, opaque-token/name/map isolation, shadowed and fallback variables,
+failure precedence, handle-before-free ordering, absent services, no type
+filter, delayed expiry, equality, integer truncation and unsigned overflow.
 
 ### Honeying doorbuild, native handles and brief wire, 2026-10-04
 
@@ -71,8 +123,8 @@ does not allocate a native pool slot or equate one with MapObjectID.
 Behavior tests execute all three source plans, verify original arguments,
 latest-shadowed-variable writes, immutable map aliases, literal golden wire,
 direction/handle boundaries, failure precedence and both cleanup calls.
-Honeying source-plan coverage is now **34/40 sites across 11/13 families**;
-the remaining six sites are effectobj and vanish. Native pool ownership,
+This increment reached **34/40 sites across 11/13 families**; the later
+effectobj/vanish increment above completes source-plan coverage. Native pool ownership,
 map marking, BuildComplete visibility/recipients and automatic film activation
 remain open. This is command orchestration and packet recovery, not a claim
 that door objects are automatically live or that KQ is playable end-to-end.
@@ -235,9 +287,8 @@ Evidence binaries: Zone.exe SHA-256
 Zone.pdb SHA-256
 `569a9d3ee6c4478b8e96d176f15ce64a9aab3f42e52d29d17c3c4d5af8f9ec6c`.
 
-Honeying native-plan coverage is now **34/40 occurrences across 11/13 families**;
-the remaining **6 occurrences across two families** are effectobj and vanish
-(door recovery is documented above). Concrete object resolution and sending remain external owner
+Current Honeying native-plan coverage is **40/40 occurrences across 13/13 families**
+(door and effect/vanish recovery is documented above). Concrete object resolution and sending remain external owner
 dependencies. `tools/KingdomQuestRuntimeTests` executes the real production
 classes to check the original fixture/hash, all records, exact chat bytes,
 missing-record behavior, NPC identity mismatch, immutable opaque handles,

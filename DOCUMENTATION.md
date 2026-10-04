@@ -3448,3 +3448,24 @@ gegen Zone.exe/PDB aufgelöst. Tests prüfen die drei Quellstellen, genaue
 Paketbytes, Variablenschatten und Fehlerreihenfolge. Honeying steht damit bei
 34/40 semantisch aufgelösten Stellen in 11/13 Familien. Native Objektpools,
 Kartenmarkierung und Sichtbarkeit benötigen weiterhin konkrete Live-Owner.
+
+## 60. Kingdomquests: Honeying-Effekte und verzögertes vanish
+
+Die letzten sechs Honeying-Stellen sind gegen Zone.exe/PDB aufgelöst und
+über typisierte Pläne angebunden. effectobj löst Ziel und Elternobjekt vor
+der Allokation auf. Nach EffectBlast schreibt es den Handle auch bei einem
+Markierungsfehler und ruft erst danach Free(handle, 0, 31) auf. Der native
+Sonderfall eines fehlenden Elternkartenzeigers beendet den Befehl nach der
+Allokation ohne Freigabe oder Variablenänderung; diese Reihenfolge bleibt
+quellgetreu erhalten.
+
+vanish ruft den Rückzug ohne Typfilter auf. Beim Effekt setzt dieser nur die
+Ablaufzeit auf null; Entfernung und Freigabe folgen erst in der Effektroutine.
+Der Ablaufzeithelfer erhält 10-Hz-Umrechnung, unsigned Überlauf und Ablauf
+bei Gleichheit. Verhaltenstests prüfen alle sechs Stellen über den echten
+Dispatcher, Fehlerpfade, Handle-vor-Free und die verzögerte Ablaufsemantik.
+
+Damit sind 40/40 externe Honeying-Stellen in 13/13 Familien als native
+Befehlspläne erfasst. Das ist kein Spielbarkeitsabschluss: Objektpools,
+Effektroutine, Kartenmarkierung, Sichtbarkeit und weitere Live-Owner bleiben
+offen, ebenso GordonMaster, Lua, Belohnungspersistenz und Ende-zu-Ende-Abnahme.

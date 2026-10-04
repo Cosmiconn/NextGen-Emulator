@@ -115,18 +115,18 @@ namespace NextGen.Zone.Data
     ///
     /// Covered here: 8 broadcast, 2 chatwin, 2 linkto, 1 mobregen,
     /// 1 questmobkill, 1 reward, 5 summonmob, 5 npcshout and 6 door actions, 3 door builds
-    /// = 34/40 external Honeying occurrences. Effect/vanish remain unresolved and
-    /// fail closed at the command-state owner.
+    /// plus 3 effectobj and 3 vanish = all 40 external Honeying occurrences.
+    /// Live services remain explicit command-state owner dependencies.
     ///
     /// No map transfer, spawning, player enumeration, quest mutation, reward
     /// persistence or packet send occurs in this projection.
     /// </summary>
     public static class KingdomQuestHoneyingCommonNative
     {
-        public const int NativeClosedOccurrenceCount = 34;
-        public const int NativeClosedFamilyCount = 11;
-        public const int RemainingOccurrenceCount = 6;
-        public const int RemainingFamilyCount = 2;
+        public const int NativeClosedOccurrenceCount = 40;
+        public const int NativeClosedFamilyCount = 13;
+        public const int RemainingOccurrenceCount = 0;
+        public const int RemainingFamilyCount = 0;
 
         public const string ScriptFileKey = "KQHoneying";
         public const string ScriptFilePath = "Script/KQHoneying.txt";

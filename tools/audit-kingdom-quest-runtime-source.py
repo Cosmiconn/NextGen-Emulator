@@ -1678,10 +1678,10 @@ def main():
         "class KingdomQuestHoneyingRewardNativePlan",
         "class KingdomQuestHoneyingQuestMobKillNativePlan",
         "class KingdomQuestHoneyingCommonNative",
-        "NativeClosedOccurrenceCount = 34",
-        "NativeClosedFamilyCount = 11",
-        "RemainingOccurrenceCount = 6",
-        "RemainingFamilyCount = 2",
+        "NativeClosedOccurrenceCount = 40",
+        "NativeClosedFamilyCount = 13",
+        "RemainingOccurrenceCount = 0",
+        "RemainingFamilyCount = 0",
         'ScriptFileKey = "KQHoneying"',
         '"3438e2d0144619b52fd4f66d7ea3f9b6384a0d67c76dbf712641b61d6bfdcc30"',
         'RuntimeHandleIdentifier = "Boss"',
@@ -1742,12 +1742,18 @@ def main():
         "KingdomQuestHoneyingCommonNative.TryBuildQuestMobKill(",
         "KingdomQuestHoneyingCommonNative.TryBuildReward(",
         "KingdomQuestHoneyingCommonNative.TryBuildSummonMob(",
+        "case KingdomQuestHoneyingExternalKind.EffectObject:",
+        "case KingdomQuestHoneyingExternalKind.Vanish:",
+        "KingdomQuestHoneyingEffectNativePlan.TryBuild(",
+        "KingdomQuestHoneyingVanishNativePlan.TryBuild(",
+        "externalSink.TryEffectObject(",
+        "externalSink.TryVanish(",
         "DataProvider.Instance",
     ):
         if token not in honeying_state_text:
             print("FAIL: Honeying native command-state routing changed", token)
             return 1
-    print("PASS: Honeying 34/40 sites across eleven families reach recovered native plans")
+    print("PASS: Honeying 40/40 sites across thirteen families reach recovered native plans")
 
     gordon_external_verbs = {
         "abstatereset", "abstateset", "broadcast", "chatwin",

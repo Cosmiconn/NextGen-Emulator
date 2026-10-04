@@ -30,6 +30,12 @@ namespace NextGen.Zone.Data
             ref int nativeState,
             out bool completed);
 
+        bool TryEffectObject(KingdomQuestHoneyingEffectNativePlan plan,
+            KingdomQuestPineVariableStack variables, ref int nativeState, out bool completed);
+
+        bool TryVanish(KingdomQuestHoneyingVanishNativePlan plan,
+            ref int nativeState, out bool completed);
+
         bool TryDoorBuild(
             KingdomQuestHoneyingDoorBuildNativePlan plan,
             KingdomQuestPineVariableStack variables,
@@ -50,10 +56,9 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Upgrades the eleven Honeying families whose native Pine command
-    /// semantics are recovered to their strongest immutable plans. The two
-    /// remaining Honeying-specific families stay on an explicit unresolved
-    /// owner method.
+    /// Routes all thirteen source-used Honeying families to recovered native
+    /// plans. Concrete live services remain owner dependencies. Unknown
+    /// future source kinds retain the explicit unresolved owner method.
     /// </summary>
     public sealed class KingdomQuestHoneyingCommandState :
         IKingdomQuestHoneyingCommandSink
@@ -81,6 +86,16 @@ namespace NextGen.Zone.Data
 
             switch (plan.Kind)
             {
+                case KingdomQuestHoneyingExternalKind.EffectObject:
+                    KingdomQuestHoneyingEffectNativePlan effectPlan;
+                    if (!KingdomQuestHoneyingEffectNativePlan.TryBuild(plan, variables, out effectPlan)) return false;
+                    return externalSink.TryEffectObject(effectPlan, variables, ref nativeState, out completed);
+
+                case KingdomQuestHoneyingExternalKind.Vanish:
+                    KingdomQuestHoneyingVanishNativePlan vanishPlan;
+                    if (!KingdomQuestHoneyingVanishNativePlan.TryBuild(plan, variables, out vanishPlan)) return false;
+                    return externalSink.TryVanish(vanishPlan, ref nativeState, out completed);
+
                 case KingdomQuestHoneyingExternalKind.DoorBuild:
                     KingdomQuestHoneyingDoorBuildNativePlan buildPlan;
                     if (!KingdomQuestHoneyingDoorBuildNativePlan.TryBuild(plan, out buildPlan)) return false;

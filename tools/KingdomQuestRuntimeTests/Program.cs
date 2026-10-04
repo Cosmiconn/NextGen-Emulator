@@ -112,3 +112,4 @@ FilmSchedulerTests.Run();
 CollisionTests.Run();
 DoorActionTests.Run();
 DoorBuildTests.Run();
+EffectTests.Run();
