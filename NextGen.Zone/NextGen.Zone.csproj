@@ -25,6 +25,10 @@
 
   <!-- Siehe Kommentar in NextGen.Login.csproj. -->
   <ItemGroup>
+    <EmbeddedResource Include="Data\Sources\KingdomQuestCollision.zip" LogicalName="NextGen.Zone.KingdomQuestCollision.zip" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\Config.cfg" Link="Config.cfg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

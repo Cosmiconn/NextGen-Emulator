@@ -44,6 +44,18 @@ namespace NextGen.Zone.Data
 
         public int Count { get { lock (sync) return films.Count; } }
 
+        // Production entry point: closes the bound map's actual collision
+        // doors. Gameplay dependencies must still be supplied for this film.
+        public bool TryStartStartedSession(Map map, uint handle,
+            IKingdomQuestPineRuntimeHost host,
+            KingdomQuestPineUsedExpressionContext expressionContext,
+            KingdomQuestPineUsedCommandContext commandContext,
+            out KingdomQuestZonePineFilmSession session)
+        {
+            return TryStartStartedSession(map, handle, KingdomQuestPineMapStartOwner.Instance,
+                host, expressionContext, commandContext, out session);
+        }
+
         public bool TryStartStartedSession(Map map, uint handle,
             IKingdomQuestPineMapStartOwner startOwner,
             IKingdomQuestPineRuntimeHost host,

@@ -23,6 +23,14 @@ namespace NextGen.Zone.Game
 		public ConcurrentDictionary<ushort, MapObject> Objects { get; private set; }
 		public ConcurrentDictionary<ushort, Drop> Drops { get; private set; }
 		public BlockInfo Block { get; private set; }
+		public KingdomQuestMapCollision KingdomQuestCollision { get; private set; }
+		public bool HasCollision { get { return Block != null || KingdomQuestCollision != null; } }
+
+		public bool CanWalk(int x, int y)
+		{
+			if (KingdomQuestCollision != null) return KingdomQuestCollision.CanWalk(x, y);
+			return Block == null || Block.CanWalk(x, y);
+		}
 		private readonly Queue<ushort> availableLifeKeys = new Queue<ushort>();
 		private ushort lifeIndexer = 1;
 		private readonly Queue<ushort> availableDropKeys = new Queue<ushort>();
@@ -38,6 +46,9 @@ namespace NextGen.Zone.Game
 			this.MapInfo = info;
 			this.Block = block;
 			this.InstanceID = instanceID;
+			KingdomQuestMapCollision collision;
+			if (info.Kingdom == 1 && KingdomQuestMapCollisionSource.TryCreate(info.ShortName, out collision))
+				KingdomQuestCollision = collision;
 			this.Objects = new ConcurrentDictionary<ushort, MapObject>();
 			this.Drops = new ConcurrentDictionary<ushort, Drop>();
 			Load();

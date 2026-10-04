@@ -3406,3 +3406,18 @@ Zerstörung und Fehler entfernen den jeweiligen Film. START verlangt weiterhin
 eine echte Tür-/Kollisionsoperation. Der automatische Start und die vollständige
 Spielbarkeit bleiben offen, bis die dokumentierten Live-Owner vorhanden sind.
 Details, Originaladressen und Verhaltenstests: docs/KINGDOM_QUEST_BLOCK.md.
+
+## 57. Kingdomquests: Originalkollision und START-Türen
+
+Am 2026-10-04 wurden SHBD/SHAB/SBI-Lader und Türaktionen gegen Zone.exe/PDB
+abgeglichen. Alle 23 verwendeten Basiskarten sind mit 38 Originaldateien und
+31 Türen hashgesichert eingebettet. Jede Instanz besitzt ihr eigenes Bitmap;
+Bewegungsprüfungen verwenden die nativen Bits. Schließen verknüpft die Maske
+per OR, Öffnen kopiert die ursprünglichen Zeilen zurück.
+
+Der produktive Pine-Start verwendet jetzt den echten CloseAllDoors-Owner.
+Verhaltenstests prüfen den gesamten Originalbestand, Instanztrennung und
+Fehlergrenzen. Der Quellen-Audit vergleicht Dateien, Hashes und SQL-Karten.
+Automatischer START, sichtbare Tür-/Mobobjekte, Lua und Belohnungspersistenz
+bleiben offen; native MobHatchery-Platzierung ersetzt noch nicht Mobspawn.
+Quellenadressen und Abschlussgrenzen: docs/KINGDOM_QUEST_BLOCK.md.

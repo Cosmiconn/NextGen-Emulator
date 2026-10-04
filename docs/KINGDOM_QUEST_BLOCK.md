@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached (see 2026-10-04 below); automatic START still needs real door/collision and gameplay owners, native object identity and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached (see 2026-10-04 below); original collision/START door closure is implemented; automatic START still needs gameplay owners, native object identity and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Finish Honeying's doorbuild/doorclose/dooropen/effectobj/vanish and GordonMaster's 23 external families (82 sites); execute recovered plans through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,51 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Original map collision and START door closure, 2026-10-04
+
+`KingdomQuestMapCollision` implements `MapBlockInformation::mbi_Load`
+(**0x0049E3B0**) and the bitmap lookup at **0x0049DF70**. Required SHBD
+stores two little-endian DWORD dimensions (bytes per row, rows), followed by
+one bitmap; optional SHAB is ORed into it. Coordinates use native unsigned
+`(coordinate * 8) / 50`, with multiplication wrapping before division. Bit 1
+blocks movement; coordinates outside the grid are blocked.
+
+`MapDoorArray::mda_Load` (**0x0049DD30**) reads an optional SBI: count < 32,
+then 56-byte records (raw Name32 and six DWORDs: Left, Top, Right, Bottom,
+Size, Offset), then two Size-byte planes per door. `mdbe_Load`
+(**0x0049DC20**) fixes inclusive bounds and width/8 * height = Size.
+`mdbe_DoorAction` (**0x0049E080**) closes by ORing the first plane into
+bitmap rows; opening copies the second plane, preserving adjacent bytes.
+`mda_CloseAllDoor` (**0x0049E1E0**) applies source order. Named lookup at
+**0x0049EA40/0x0049EB60** compares all 32 bytes and stops at the first match.
+Malformed dimensions/offsets are rejected before mutation.
+
+The embedded archive contains byte-exact original BlockInfo data for all
+**23** BaseMap identities used by KingdomQuestMap.shn: **23 SHBD, 3 SHAB,
+12 SBI, 31 doors**. `docs/KINGDOM_QUEST_COLLISION_SOURCE.tsv` records each
+file hash and original optional absence. Reproduce it with
+`python tools/import-kingdom-quest-collision.py /path/to/Server.zip`.
+The deterministic bundle SHA-256 is
+`6798b510b21d2de11319b3b3808a87ca6d7e826822c2cc489f23784d513a1002`.
+The runtime verifies that hash, caches immutable source bytes and allocates a
+private mutable bitmap for each KQ map instance. Existing movement/entry
+checks use it through `Map.CanWalk`. Legacy Mobspawn constructor placement
+is deliberately unchanged: its unbounded retry loop cannot safely consume
+the new bitmap before native MobHatchery placement is recovered.
+
+The scheduler's production overload now uses
+`KingdomQuestPineMapStartOwner` for real close-all mutation between dropping
+the old film and creating the new one. KDUnHall has no SBI in the original
+corpus, so its empty close is source-proven. The source audit verifies all
+38 files against the manifest and all 23 identities against source SQL.
+Behavior tests cover byte operations, coordinate boundaries, malformed input,
+all original door records, instance isolation, golden closed bitmap hashes,
+and production scheduler startup with the original UnderHall collision.
+
+This closes the collision and START close-all dependency only. It does not
+create visible ShineDoor objects, implement doorbuild/network lifecycle,
+activate automatic W2Z START, or complete native mob placement/gameplay.
 
 ### Pine worker cadence and native waitlogin, 2026-10-04
 
@@ -59,13 +104,12 @@ the current film. Faults are logged and never synthesize COMPLETE or END.
 The hot-path identity check does not serialize/clone the protocol definition.
 
 **Remaining activation gate:** the W2Z START handler still records the native
-start state only. It must not automatically attach a film until concrete
-`MapDoorArray::mda_CloseAllDoor` (**0x0049E1E0**) collision mutation and the
-scenario's live command/object owners exist. `BlockInfo.CanWalk` still lacks
-the native collision bitmap implementation; a no-op door callback is not a
-production implementation. Callers must supply fresh, map-bound command
-state for each film. Lua is still a separate unresolved backend. The tests'
-explicit door stand-in validates ordering only, and is not used by the server.
+start state only. The collision/door-close dependency is now implemented (see
+below), but automatic film attachment still requires the scenario's live
+command/object owners. Callers must supply fresh, map-bound command state for
+each film. Lua is still a separate unresolved backend. Tests retain explicit
+door stand-ins for ordering/failure checks; the production overload uses the
+real map collision owner.
 
 Behavior tests execute both original UnderHall mains through waitlogin, all
 256 player mode values, exact timeout boundaries, reentry and clock overflow.

@@ -514,9 +514,9 @@ namespace NextGen.Zone.Handlers
 				oldY = character.Position.Y;
 			}
 
-			if (character.Map.Block != null)
+			if (character.Map.HasCollision)
 			{
-				if (!character.Map.Block.CanWalk(newX, newY))
+				if (!character.Map.CanWalk(newX, newY))
 				{
 					Log.WriteLine(LogLevel.Debug, "Blocking walk at {0}:{1}.", newX, newY);
 					SendPositionBlock(character, newX, newY);

@@ -275,7 +275,7 @@ namespace NextGen.Zone.Game
                 {
                     if (Vector2.Distance(Target.Position, Position) < 800)
                     {
-                        if (Map.Block.CanWalk(Target.Position.X, Target.Position.Y))
+                        if (Map.CanWalk(Target.Position.X, Target.Position.Y))
                         {
                             Move(Position.X, Position.Y, Target.Position.X, Target.Position.Y, false, false);
                         }
@@ -299,7 +299,7 @@ namespace NextGen.Zone.Game
                     // Generate new position, and check if it's in valid bounds, else recheck
                     
                         newpos = Vector2.GetRandomSpotAround(Program.Randomizer, newpos, 60);
-                        if (newpos.X > 0 && newpos.Y > 0 && Map.Block.CanWalk(newpos.X, newpos.Y) && PositionIsInBoundries(newpos))
+                        if (newpos.X > 0 && newpos.Y > 0 && Map.CanWalk(newpos.X, newpos.Y) && PositionIsInBoundries(newpos))
                         {
                             ok = true;
                             break;

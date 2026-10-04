@@ -35,6 +35,8 @@ static class FilmSchedulerTests
         Set(map, "Objects", new ConcurrentDictionary<ushort, MapObject>());
         var map2 = Empty<Map>();
         Set(map2, "MapInfo", info);
+        Check(KingdomQuestMapCollisionSource.TryCreate("KDUnHall", out var collision), "original collision");
+        Set(map2, "KingdomQuestCollision", collision);
         Set(map2, "InstanceID", (short)1);
         Set(map2, "Objects", new ConcurrentDictionary<ushort, MapObject>());
         Set(data, "MapsByID", new Dictionary<ushort, MapInfo> { [126] = info });
@@ -113,7 +115,7 @@ static class FilmSchedulerTests
             Check(!ReferenceEquals(previous.Runtime, film.Runtime), "no process-stack reuse");
             Check(KingdomQuestZoneRuntimeRegistry.TryStart(definition2,
                 Array.Empty<KingdomQuestZoneJoinerInfo>()) &&
-                scheduler.TryStartStartedSession(map2, 102, door, host, null, context, out var film2),
+                scheduler.TryStartStartedSession(map2, 102, host, null, context, out var film2),
                 "second instance plays independently");
             // First film will fault at its first missing gameplay owner. The
             // second stays in waitlogin (no player), and must still be stepped.

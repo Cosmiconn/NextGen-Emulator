@@ -109,3 +109,4 @@ Check(!new KingdomQuestHoneyingCommandState().TryStep(
 Console.WriteLine("PASS: Honeying source text, native missing record, chat wire, shout plans and fail-closed boundaries");
 WaitLoginTests.Run();
 FilmSchedulerTests.Run();
+CollisionTests.Run();

@@ -4,6 +4,8 @@ from pathlib import Path
 import base64
 import gzip
 import hashlib
+import csv
+import zipfile
 import re
 import sys
 from collections import Counter
@@ -2044,6 +2046,27 @@ def main():
     if '!DataProvider.Instance.MapsByID.ContainsKey(id)' not in zone_character:
         print('FAIL: ChangeMap is no longer validated against loaded map data')
         return 1
+
+    manifest_path = ROOT / 'docs/KINGDOM_QUEST_COLLISION_SOURCE.tsv'
+    with manifest_path.open(encoding='utf-8', newline='') as f:
+        collision_rows = list(csv.DictReader(f, delimiter='\t'))
+    expected_files = {b + ext for b in source_map_bases for ext in ('.shbd', '.shab', '.sbi')}
+    assert len(collision_rows) == 69
+    assert {r['File'] for r in collision_rows} == expected_files
+    bundle_path = ROOT / 'NextGen.Zone/Data/Sources/KingdomQuestCollision.zip'
+    assert hashlib.sha256(bundle_path.read_bytes()).hexdigest() == '6798b510b21d2de11319b3b3808a87ca6d7e826822c2cc489f23784d513a1002'
+    with zipfile.ZipFile(bundle_path) as bundle:
+        present = {r['File'] for r in collision_rows if r['SHA256'] != 'ABSENT'}
+        assert len(present) == 38 and set(bundle.namelist()) == present
+        for row in collision_rows:
+            assert row['File'].startswith(row['MapBase'] + '.') and row['MapBase'] in source_map_bases
+            if row['SHA256'] == 'ABSENT':
+                assert not row['File'].endswith('.shbd') and row['Size'] == '0'
+            else:
+                data = bundle.read(row['File'])
+                assert len(data) == int(row['Size'])
+                assert hashlib.sha256(data).hexdigest() == row['SHA256']
+    print('PASS: original collision corpus locked to all 23 source MapBase identities, 38 files and explicit optional absences')
 
     print('PASS: 25 KingdomMap=1 source maps locked')
     print('PASS: KQ description/team/vote metadata corpus locked (39/8/30/4/2)')

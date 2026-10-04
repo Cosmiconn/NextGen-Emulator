@@ -1941,9 +1941,9 @@ namespace NextGen.Zone.Game
 			if (DataProvider.Instance.MapsByID.TryGetValue(pMapId, out info))
 			{
 				Map = MapManager.Instance.GetMap(info, instance < 0 ? (short)0 : instance);
-				if (Map.Block != null)
+				if (Map.HasCollision)
 				{
-					if (!Map.Block.CanWalk(Character.PositionInfo.XPos, Character.PositionInfo.YPos))
+					if (!Map.CanWalk(Character.PositionInfo.XPos, Character.PositionInfo.YPos))
 					{
 						Character.PositionInfo.XPos = Map.MapInfo.RegenX;
 						Character.PositionInfo.YPos = Map.MapInfo.RegenY;
