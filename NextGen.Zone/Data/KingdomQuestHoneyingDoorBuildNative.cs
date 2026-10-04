@@ -181,7 +181,7 @@ namespace NextGen.Zone.Data
         // ShineDoor::so_RemakeHandle 0x00555BA0. This translates a native
         // pool index only; it does not allocate a slot or consume a MapObjectID.
         public static ushort RemakeNativeHandle(ushort poolIndex) =>
-            poolIndex < 1000 ? (ushort)(0x509E + poolIndex) : ushort.MaxValue;
+            KingdomQuestPineNativeObjectHandles.Encode(7, poolIndex);
 
         public static byte EncodeDirection(int degrees)
         {

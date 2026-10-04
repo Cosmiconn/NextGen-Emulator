@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached (see 2026-10-04 below); original collision/START door closure is implemented; automatic START still needs gameplay owners, native object identity and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure and native pool bookkeeping are implemented. Automatic START still needs concrete pool objects, gameplay/map owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,85 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Zone-wide native object pools and identity, 2026-10-04
+
+`KingdomQuestPineNativeObjectManager` now implements the native allocation,
+lookup, occupancy, reuse and free sequence. Its complete preconstructed pools
+must be bound **once per Zone and shared across maps**, as in the original
+manager. A missing pool remains UNRESOLVED; it is not reported as full or empty.
+Binding rejects incomplete pools, wrong types/handles and replacement of an
+existing pool. Objects own the original virtual initialization/list/free
+callbacks; the manager never fabricates map objects or calls Dispose instead.
+
+`ShineObjectHandleUnion::sohu_HandleSplit` (**0x00633650**) and its handle
+constructors (**0x00548E00..0x00549062**) fix these ranges:
+
+| Native type | Object | First handle | Last handle | Slots |
+| --- | --- | --- | --- | --- |
+| 0 | AxialFlag | 0x34BC | 0x42BB | 3584 |
+| 1 | DropItem | 0x2904 | 0x34BB | 3000 |
+| 2 | Player | 0x1F40 | 0x251B | 1500 |
+| 3 | MiniHouse | 0x251C | 0x2903 | 1000 |
+| 4 | NPC | 0x42BC | 0x43BB | 256 |
+| 5 | Mob | 0x0000 | 0x1F3F | 8000 |
+| 6 | MagicField | 0x4FA4 | 0x509D | 250 |
+| 7 | Door | 0x509E | 0x5485 | 1000 |
+| 8 | Bandit | 0x43BC | 0x4BBB | 2048 |
+| 9 | EffectObject | 0x4BBC | 0x4FA3 | 1000 |
+| 10 | Servant | 0x5486 | 0x5679 | 500 |
+| 11 | Mover | 0x567A | 0x5A61 | 1000 |
+| 12 | Pet | 0x5C56 | 0x6231 | 1500 |
+
+There are **24638** valid handles. The gap **0x5A62..0x5C55** and everything
+from **0x6232** upward are invalid; zero is a valid Mob slot. Invalid split
+returns type 0xFF/index 0xFFFF. Door and effect brief helpers now use this
+shared encoding rather than maintaining separate range arithmetic.
+
+`som_Initialize` (**0x0055C260**) constructs all objects and assigns permanent
+handles before use. `som_GetObject` (**0x0054FD10**) checks the slot's occupied
+byte; `som_GetObjectAbsolute` (**0x0054FC20**) ignores it and returns the stored
+object even before allocation or after free. Pine `os_ShineObject` uses the
+absolute lookup, whereas effectobj's parent lookup uses the occupied lookup.
+These operations must not be collapsed into one emulator object dictionary.
+
+The list constructor (**0x005546F0**) creates an ascending circular free list
+and an occupied-list sentinel. AllocationZ (**0x004025D0**) takes the free head;
+AllocZ (**0x005D08C0**) moves it to the occupied tail. Free (**0x004B1300**)
+appends the released slot to the free tail. Thus unused slots are consumed
+before previously freed slots, and object identity/data survive release.
+The native list vtable **0x006E46D4** confirms these shared-template bodies;
+their PDB COMDAT aliases name other template instantiations.
+
+`som_AllocObject` (**0x0054FE20**) encodes and writes the output handle before
+calling the object's Init virtual **+0xE78**. On full-pool failure,
+AllocationZ leaves its index output untouched: that local still contains the
+requested type. The manager **still encodes that value** and returns null.
+For example, an exhausted door pool reports 0x50A5 with a null object; this
+is not successful allocation. An invalid type instead logs, returns null and
+leaves the caller's output unchanged. Both unusual branches are preserved.
+
+`som_FreeObject` (**0x00557D70**) with RemoveWhen value **1** returns true
+immediately without lookup, queuing or removal. All other values perform
+occupied lookup, then virtual **+0x2C** (FreeFromList), **+0x2F0** with the
+original shared argument at **0x132815E8**, and only then clear list occupancy.
+A missing object returns false and logs once per `(reason << 16) | handle`
+key; upper reason bits therefore do not distinguish diagnostic keys. A second
+door-error free observes a lookup miss, not a second object disposal.
+
+The used-list visitor follows **0x004026E0**: cache the successor before its
+callback, stop on a false callback or a now-unoccupied successor, and preserve
+native append visibility. It can safely execute the recovered effect routine
+which frees its own current pool slot. Calls require owning-thread serialization.
+
+Tests exhaust all thirteen pools, check every u16 handle, verify callback and
+output ordering, FIFO reuse, inactive absolute lookup, duplicate-free logging,
+list mutation during traversal, and source doorbuild -> effectobj -> vanish ->
+effect-routine removal through the actual command/routine/manager code. Map
+marking and object callbacks in that integration test are explicit test owners.
+Production pool object classes, axis/map integration, native scheduling order,
+visibility and automatic START remain open; the manager alone is not a playable
+KQ or an integration with legacy MapObjectID allocation.
 
 ### Native effect routine and brief wire, 2026-10-04
 

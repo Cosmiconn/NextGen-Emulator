@@ -114,3 +114,4 @@ DoorActionTests.Run();
 DoorBuildTests.Run();
 EffectTests.Run();
 EffectRoutineTests.Run();
+NativeObjectManagerTests.Run();

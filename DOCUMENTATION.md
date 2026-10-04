@@ -3489,3 +3489,24 @@ Verhaltenstests prüfen Wire-Golden, Überläufe, Grenzwerte, Fehlergrenzen und
 die Reihenfolge bis zur erneuten Handle-/Map-/Lua-Abfrage nach Free. Konkrete
 Poolverwaltung, Karten-/Achsenoperationen, Empfänger und Laufzeitanschluss
 bleiben offen; der Gesamtblock ist weiterhin nicht vollständig spielbar.
+
+## 62. Kingdomquests: native Objektpools und Handle-Lebenszyklus
+
+Die originale Objektverwaltung besitzt jetzt einen ausführbaren Poolkern:
+13 feste Typbereiche mit 24638 gültigen Handles, getrennte belegte/absolute
+Objektauflösung, vorab erzeugte Slotobjekte, FIFO-Wiederverwendung und native
+Init-/Freigabereihenfolge. Alle 65536 Handlewerte und die vollständige
+Ausschöpfung sämtlicher Typbereiche werden in Verhaltenstests geprüft.
+
+Wichtige Originalfälle bleiben erhalten: Ein voller Pool kann trotz null
+Objekt einen abgeleiteten Handle zurückschreiben; RemoveWhen 1 bestätigt ohne
+Entfernung; erneute Freigaben protokollieren einen deduplizierten Lookup-Miss.
+Der absolute Zugriff behält die Identität eines freigegebenen Poolobjekts.
+Die Iteration erlaubt die Freigabe des aktuellen Effekts und erhält das
+native Verhalten bei Änderungen an nachfolgenden Listeneinträgen.
+
+Ein Integrationstest führt die originalen Honeying-Befehle von doorbuild über
+effectobj/vanish bis zur Effektroutine und Poolfreigabe aus. Die konkreten
+Spielwelt-/Kartenoperationen bleiben dabei explizite Testdienste. Für den
+produktiven Anschluss fehlen weiter echte Poolobjektklassen, Achsen-/Karten-
+und Sichtbarkeitsintegration sowie der automatische Szenariostart.

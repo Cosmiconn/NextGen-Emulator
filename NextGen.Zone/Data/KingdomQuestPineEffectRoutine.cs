@@ -144,7 +144,7 @@ namespace NextGen.Zone.Data
         public const int NativeWireSize = 50;
         // so_RemakeHandle 0x00555450. This does not allocate a pool slot.
         public static ushort RemakeNativeHandle(ushort poolIndex) =>
-            poolIndex < 1000 ? (ushort)(0x4BBC + poolIndex) : ushort.MaxValue;
+            KingdomQuestPineNativeObjectHandles.Encode(9, poolIndex);
         // EffectBlast changes only bit zero; retain all other stored bits.
         public static byte ApplyBlastFlag(byte previousFlags, int argument) =>
             (byte)((previousFlags & 0xFE) | (argument & 1));
