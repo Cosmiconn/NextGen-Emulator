@@ -44,6 +44,12 @@ static class EffectTests
                 KingdomQuestHoneyingEffectNativePlan.DurationMilliseconds == 3600000 &&
                 KingdomQuestHoneyingEffectNativePlan.Scale == 1000 &&
                 KingdomQuestHoneyingEffectNativePlan.TrailingArgument == 0, "original Blast arguments");
+            byte[] brief = owner.Request.CreateInitialBriefWire(0x509E, 9860, 6094, 136, 0xA5);
+            Check(brief.Length == 50 && BitConverter.ToUInt16(brief, 0) == 0x1C11 &&
+                BitConverter.ToUInt16(brief, 2) == 0x1234 && brief[44] == 136 &&
+                BitConverter.ToUInt16(brief, 45) == 0x509E && brief[49] == 0xA4, "Blast request projects actual parent fields and preserves flag bits");
+            var routine = owner.Request.CreateRoutine(10, 11);
+            Check(routine.Deadline == 36010 && routine.NextFollowTick == 61, "Blast source duration binds the native routine state");
             var map = owner.Request.SnapshotMapName12();
             Check(Encoding.ASCII.GetString(map).TrimEnd('\0') == "KQAlias", "theater map alias");
             map[0] = 0; owner.MapName[0] = 0;

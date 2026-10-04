@@ -25,6 +25,60 @@ Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
 
+### Native effect routine and brief wire, 2026-10-04
+
+The effect command's missing routine core is now executable in
+`KingdomQuestPineEffectRoutine`, recovered from **0x00569EF0..0x0056A075**.
+This covers the call sequence below through explicit live dependencies. It
+does not yet allocate/register native pool objects, implement map-axis
+relinking or attach an independent timer to the Zone worker.
+
+1. If a map exists, compare unsigned X/Y against the FieldMap limits at
+   **+0x18/+0x1C**. Equality and negative signed coordinates are outside.
+   Log an outside coordinate and set expiry to zero; do not return early.
+2. Follow is due only when unsigned `now > nextFollow`. EffectBlast initially
+   sets `nextFollow = now + 50`. Each due routine adds **50 to the previous
+   deadline exactly once**, even without a parent. There is no catch-up loop.
+3. With a parent, `so_DistanceSquar` (**0x004028F0**) first checks both maps,
+   all **12 Name3 bytes**, and both objects' DWORD modes. A mismatch returns
+   **999999999**. Otherwise it subtracts coordinates, squares and adds with
+   32-bit wrap. A result **greater than 100** calls `so_MoveTo(parentX,
+   parentY, 5)` (**0x00452A70**). It neither transfers to the parent's map
+   nor copies the parent's direction in this routine. Map/axis/update work
+   inside MoveTo remains an explicit dependency, not a Position assignment.
+4. Re-read the clock and expire at unsigned `now >= deadline`: call virtual
+   **+0x33C** as `Unmark(0, 1, 3)`, then read the current handle and call
+   `som_FreeObject(handle, 0, 5)`. Ignore its return. Following still happens
+   before this stage when vanish or the bounds check already set expiry zero.
+5. Re-read the attached Lua-script pointer **after Free**. If present, invoke
+   `LuaScriptScenario::lss_Routine` (**0x00507200**) using
+   `LuaArgumentMobAI` (**0x005D6EF0**) with the current handle and current map.
+   Do not cache the script/map/handle before unmarking or return early on expiry.
+
+The explicit owner contract keeps an unavailable service distinct from a
+native null map/parent. The owner must serialize calls on the object's owning
+thread, provide real Unmark/Free/Lua services, and stop scheduling pool objects
+according to actual pool removal. A successful routine call does not mean
+Free succeeded. The Honeying Blast request creates the matching routine state
+with its source duration and the two separate native initialization clock reads.
+
+`BriefInformationEffect` (**0x005491F0**) and the field copy at
+**0x005553D0** fix **50 bytes** before transport framing:
+`u16 0x1C11, u16 handle, Name32 effect, i32 X, i32 Y, u8 direction,
+u16 parentHandle, u16 scale, u8 flags`. The parent-based Blast copies the
+parent's direction byte directly and changes only flags bit zero, preserving
+all other stored bits. Scale truncates to u16. `so_RemakeHandle`
+(**0x00555450**) maps indices 0..999 to **0x4BBC + index**, otherwise 0xFFFF;
+the conversion does not itself allocate a pool slot. Honeying requests can
+project the brief using actual parent fields supplied by their owner.
+
+Behavior tests check the original wire against a literal golden byte string,
+the source-request binding, timer equality and overflow, one-step late timers,
+no-parent behavior, unsigned bounds, distance/name/mode comparisons, expiry
+after follow, ignored Free results, and post-Free Lua/map/handle re-reads.
+Native identity/pool allocation, recipient selection, axis/marking operations,
+global scheduling order and a working Lua backend remain live acceptance gates.
+
 ### Honeying effectobj and deferred vanish, 2026-10-04
 
 All **40/40 Honeying external source sites across 13/13 families** now reach
@@ -68,9 +122,9 @@ lookup miss logs and pops; an unavailable owner is not a lookup miss. For an
 effect, `so_RetrateFromMap` (**0x00495CC0**) only sets expiry to **zero**. It
 does not immediately unmark, send or free. The later effect routine at
 **0x00569FD0** expires when unsigned `now >= deadline`, then unmarks with
-`(0, 1, 3)` and calls `som_FreeObject(handle, 0, 5)`. Actual routine scheduling,
-parent following, map marking, visibility and object-pool cleanup still need
-live effect owners; the pure lifetime helper does not claim to perform them.
+`(0, 1, 3)` and calls `som_FreeObject(handle, 0, 5)`. The routine core above now
+executes this order and the follow decision. Actual routine scheduling,
+movement/map marking, visibility and object-pool cleanup still need live owners.
 
 Executable tests cover all six exact source sites through the production
 dispatcher, opaque-token/name/map isolation, shadowed and fallback variables,

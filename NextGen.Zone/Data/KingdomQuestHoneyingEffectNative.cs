@@ -52,6 +52,18 @@ namespace NextGen.Zone.Data
         public object Parent { get; }
         private readonly byte[] mapName12;
         public byte[] SnapshotMapName12() => mapName12 == null ? null : (byte[])mapName12.Clone();
+        // Native EffectBlast obtains these values from the resolved parent;
+        // neither the opaque Pine token nor the theater alias supplies them.
+        public byte[] CreateInitialBriefWire(ushort parentHandle, int parentX,
+            int parentY, byte parentDirection, byte previousFlags) =>
+            KingdomQuestPineEffectBrief.CreateNativeWire(Handle, Source.CreateEffectName32(),
+                parentX, parentY, parentDirection, parentHandle,
+                KingdomQuestHoneyingEffectNativePlan.Scale,
+                KingdomQuestPineEffectBrief.ApplyBlastFlag(previousFlags,
+                    KingdomQuestHoneyingEffectNativePlan.TrailingArgument));
+        public KingdomQuestPineEffectRoutine CreateRoutine(uint expiryClock, uint followClock) =>
+            new KingdomQuestPineEffectRoutine(expiryClock, followClock,
+                KingdomQuestHoneyingEffectNativePlan.DurationMilliseconds);
         internal KingdomQuestPineEffectBlastRequest(KingdomQuestHoneyingEffectNativePlan source,
             ushort handle, object parent, byte[] mapName)
         {
@@ -163,8 +175,8 @@ namespace NextGen.Zone.Data
     /// <summary>
     /// EffectBlast 0x004B1540 sets the unsigned expiry. Effect retreat
     /// 0x00495CC0 sets it to zero; it does NOT send/free immediately.
-    /// Routine 0x00569FD0 expires at equality. Actual unmark/free and parent
-    /// follow remain the native effect scheduler owner's responsibility.
+    /// Routine 0x00569FD0 expires at equality. KingdomQuestPineEffectRoutine
+    /// owns its call order; actual map/pool operations remain live dependencies.
     /// </summary>
     public sealed class KingdomQuestPineEffectLifetime : IKingdomQuestPineRetreatObject
     {

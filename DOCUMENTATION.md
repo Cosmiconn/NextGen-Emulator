@@ -3469,3 +3469,23 @@ Damit sind 40/40 externe Honeying-Stellen in 13/13 Familien als native
 Befehlspläne erfasst. Das ist kein Spielbarkeitsabschluss: Objektpools,
 Effektroutine, Kartenmarkierung, Sichtbarkeit und weitere Live-Owner bleiben
 offen, ebenso GordonMaster, Lua, Belohnungspersistenz und Ende-zu-Ende-Abnahme.
+
+## 61. Kingdomquests: Effekt-Routine, Nachführung und BriefInfo
+
+Der native Ablauf nach effectobj/vanish ist als ausführbare Routine ergänzt:
+unsigned Kartenrandprüfung, strikter 50-Tick-Nachführtimer, originaler
+quadratischer Abstand mit Map-/Modusprüfung, danach Ablauf bei Gleichheit,
+Unmark(0, 1, 3), Free(handle, 0, 5) und anschließende Lua-Routineprüfung.
+Ein verspäteter Aufruf erhöht die alte Nachführfrist genau einmal. Auch nach
+vanish wird eine fällige Nachführung noch vor der Freigabe ausgeführt.
+
+Das ursprüngliche 50-Byte-Effektpaket 0x1C11 ist aufgelöst, einschließlich
+kopierter Elternrichtung, Elternhandle, u16-Skalierung und Erhalt der oberen
+Flagbits. Der native Effekthandlebereich beginnt bei 0x4BBC und umfasst 1000
+Poolindizes. Honeying-Blast-Anfragen erzeugen Paketprojektion und Routinezustand
+aus ihren belegten Quellparametern und explizit gelieferten Live-Elterndaten.
+
+Verhaltenstests prüfen Wire-Golden, Überläufe, Grenzwerte, Fehlergrenzen und
+die Reihenfolge bis zur erneuten Handle-/Map-/Lua-Abfrage nach Free. Konkrete
+Poolverwaltung, Karten-/Achsenoperationen, Empfänger und Laufzeitanschluss
+bleiben offen; der Gesamtblock ist weiterhin nicht vollständig spielbar.

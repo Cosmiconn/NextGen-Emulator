@@ -113,3 +113,4 @@ CollisionTests.Run();
 DoorActionTests.Run();
 DoorBuildTests.Run();
 EffectTests.Run();
+EffectRoutineTests.Run();
