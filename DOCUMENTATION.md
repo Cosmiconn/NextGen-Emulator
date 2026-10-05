@@ -3510,3 +3510,25 @@ effectobj/vanish bis zur Effektroutine und Poolfreigabe aus. Die konkreten
 Spielwelt-/Kartenoperationen bleiben dabei explizite Testdienste. Für den
 produktiven Anschluss fehlen weiter echte Poolobjektklassen, Achsen-/Karten-
 und Sichtbarkeitsintegration sowie der automatische Szenariostart.
+
+## 63. Kingdomquests: persistente Tür- und Effektobjekte
+
+Konkrete native Tür-/Effektobjekte können jetzt direkt in die jeweils 1000
+Poolplätze gebunden werden. Sie erhalten ihre Objektidentität und verwalten
+Brief-Pakete, aktuelle Position, Login-Position und Elternreferenz getrennt.
+Die originalen Build-/Blast-Pfade setzen Felder vor beziehungsweise nach der
+Kartenplatzierung; auch fehlgeschlagene Aufrufe behalten ihre nachgewiesenen
+Teiländerungen. Türaktionen ändern den persistenten Zustand und die echte
+Kollisionsbitmap vor dem Paketversand. Effekte nutzen die vorhandene Routine
+und geben ihren tatsächlichen Poolplatz frei.
+
+Die erneute Allokation setzt beim Effekt keine Felder zurück; bei Türen nur
+die statischen Laufgeschwindigkeiten. Anfangsbytes des original nicht
+genullten Brief-Puffers müssen ausdrücklich geliefert werden. Verhaltenstests
+prüfen alle drei Honeying-Tür-/Effektpaare, Fehlerpfade, Poolwiederverwendung,
+Timer-Reihenfolge und Lua-Abfrage nach Freigabe.
+
+Kartenachsen, Sichtbarkeit, Bewegungs-/AI-Dienste und mobile Abschlusslogik
+bleiben erforderliche Laufzeitabhängigkeiten. Die neuen Klassen stellen diese
+Anbindung nicht automatisch bereit; automatische START-Freigabe und der
+vollständig spielbare Kingdom-Quest-Block bleiben offen.

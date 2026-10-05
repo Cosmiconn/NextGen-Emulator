@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure and native pool bookkeeping are implemented. Automatic START still needs concrete pool objects, gameplay/map owners and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pool bookkeeping and persistent door/effect slot state are implemented. Automatic START still needs actual map/axis/visibility services, remaining object types, gameplay owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,77 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Persistent door/effect pool objects, 2026-10-05
+
+`KingdomQuestPineNativeSceneObjects` adds concrete native door/effect slot
+objects for the recovered Honeying Build, Blast, door-action and effect-routine
+paths. They implement the pool object's permanent identity and keep native
+brief bytes, current map/position/mode, login location and parent references
+across release/reallocation. The manager can bind all 1000 doors and 1000
+effects directly. These are **not yet automatically attached to live maps**:
+map marking/axes, visibility, AI/Lua, movement and mobile completion remain
+required explicit services, with no successful fallback for unavailable owners.
+
+New executable evidence from the same original Zone.exe/Zone.pdb:
+
+- Door vtable **0x006E1A34** and effect vtable **0x006DFB9C** both use
+  `so_Init` **0x005551C0**. It calls virtual **+0xE7C(0,0)** followed by
+  **+0xE80(0,0)**; it does not reconstruct or zero the object. Door targets
+  **0x005558F0/0x00555910** reset only the two static-speed flag/u16 pairs.
+  Both effect targets are **0x00509900**, a `ret 8` no-op (the PDB COMDAT
+  alias names an unrelated item method). Both manager-free callbacks +0x2F0
+  target **0x00549070**, a `ret 4` no-op. These are real native no-ops, not
+  substitutes for missing implementations. Axis removal +0x2C remains a
+  separate required callback and does not reset object storage.
+- Brief constructors **0x005491F0/0x00549260** set scale to 1000. Their call
+  to **0x004C8CE0** only changes packet length; it does **not** clear the
+  packet buffer. Initial payload bytes are therefore explicit constructor
+  inputs. No first-allocation zeroing or high effect-flag defaults are claimed.
+  Unknown pre-Build login coordinate bytes/pre-Blast routine state are not
+  exposed as recovered values or scheduled as an initialized effect.
+- Base constructor **0x00558F70** sets map pointer, mode, mode flags and
+  marked flag to zero. Derived constructors **0x00559130/0x0055AF50** clear
+  the login Name3 and redirect current XY/direction to the brief payload.
+  LoginLocation is **21 bytes**, Name3 + i32 X + i32 Y + u8 direction.
+
+Door Build **0x0043F7B0** clears the native word at +0x168, writes login
+and current coordinates/direction, action 0 and empty Name32, and only then
+looks up MobDataBox. A native data miss reports error **3** without marking.
+On marking failure, those early writes survive but the old brief handle,
+mob ID, scale and post-marking fields survive too. Only after success does
+it copy the source row DWORD +0x46, write brief handle/mob/scale, set the
+registration number, call BuildComplete **0x004422A0**, execute the mobile
+movement tail **0x0043F9B0..0x0043F9FD**, and clear +0x168 again. The latter
+two operations require their complete native services; their internal
+visibility/mobile effects are not approximated by an emulator broadcast.
+
+Parent-based EffectBlast **0x004B1540** stores the parent reference first,
+then stores expiry before its separate follow-clock read. The persistent
+routine now supports that reset ordering. All effect brief fields are
+written **before** marking, with only flag bit 0 changed. The parent's
+current XY/direction replace the XY/direction in its copied LoginLocation;
+the login Name3 is retained, and the theater map argument is unused. The
+current FieldMap pointer is owned by marking, not copied from the parent or
+guessed from an emulator map ID. Successful marking calls BlastComplete
+**0x004423E0**; failure preserves the prepared fields for the command's
+handle-write-before-free behavior. The original `so_MapMarking` success
+write at **0x00466599** sets the marked flag without clearing it on failure.
+
+Door actions now operate directly on the slot's persistent brief state and
+the existing original collision bitmap implementation. Effect follow/expiry
+uses the retained parent **object reference**, and frees the actual manager
+slot before the existing routine re-reads Lua state. Map, login, brief and
+parent storage survive free; the required Unmark service owns its distinct
+marked/axis/visibility effects. This does not invent a second worker timer.
+
+Behavior tests bind complete concrete door/effect pools and execute all
+three original Honeying Build/Blast pairs, comparing field timing and wire
+bytes. They cover different login/current/theater map identities, original
+allocation initialization, clock-read order, data/marking errors, double-free
+diagnostics, real collision/action order, follow -> vanish -> free -> Lua,
+full-pool FIFO reuse and re-Blast. Test map/axis/visibility services are
+explicit test doubles; remaining live services and E2E acceptance stay open.
 
 ### Zone-wide native object pools and identity, 2026-10-04
 

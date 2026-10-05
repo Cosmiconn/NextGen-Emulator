@@ -73,7 +73,7 @@ namespace NextGen.Zone.Data
         public const uint NativeDistanceSquaredAddress = 0x004028F0;
         public const uint FollowInterval = 50;
         public const uint DifferentSpaceDistanceSquared = 999999999;
-        private readonly KingdomQuestPineEffectLifetime lifetime;
+        private KingdomQuestPineEffectLifetime lifetime;
         public uint Deadline => lifetime.Deadline;
         public uint NextFollowTick { get; private set; }
 
@@ -82,6 +82,13 @@ namespace NextGen.Zone.Data
         {
             lifetime = new KingdomQuestPineEffectLifetime(expiryClock, milliseconds);
             NextFollowTick = unchecked(followClock + FollowInterval);
+        }
+        // EffectBlast overwrites these fields on a persistent pool object;
+        // expiry is stored BEFORE the separate follow-clock read.
+        internal void ResetForBlast(Func<uint> readClock, uint milliseconds)
+        {
+            lifetime = new KingdomQuestPineEffectLifetime(readClock(), milliseconds);
+            NextFollowTick = unchecked(readClock() + FollowInterval);
         }
         public void RetreatFromMap() => lifetime.RetreatFromMap();
 
