@@ -116,3 +116,4 @@ EffectTests.Run();
 EffectRoutineTests.Run();
 NativeObjectManagerTests.Run();
 NativeSceneObjectTests.Run();
+NativeMapAxesTests.Run();

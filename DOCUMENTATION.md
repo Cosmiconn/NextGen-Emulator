@@ -3532,3 +3532,26 @@ Kartenachsen, Sichtbarkeit, Bewegungs-/AI-Dienste und mobile Abschlusslogik
 bleiben erforderliche Laufzeitabhängigkeiten. Die neuen Klassen stellen diese
 Anbindung nicht automatisch bereit; automatische START-Freigabe und der
 vollständig spielbare Kingdom-Quest-Block bleiben offen.
+
+## 64. Kingdomquests: Kartenachsen, Platzierung und Bewegung
+
+Die nativen Kartenlisten für Tür- und Effektobjekte sind implementiert:
+zwei sortierte Koordinatenlisten mit sieben echten Hilfsobjekten pro Karte,
+exakte Suche über den 12-Byte-Kartennamen und die originalen Abläufe für
+Markieren, Bewegen, Entfernen und Freigeben. Gleichstände beim Einfügen,
+unterschiedliche Grenzprüfungen, Zählerüberlauf und Teiländerungen bei Fehlern
+folgen den nachgewiesenen Zone.exe-Funktionen. Die ungewöhnliche Verwendung
+des X-Schritts für beide Hilfsobjektachsen auf rechteckigen Karten bleibt erhalten.
+
+Verhaltenstests verbinden Honeying-Build/Blast mit vollständigen nativen
+Objektpools und den echten Kartenlisten. Sie prüfen unter anderem, dass ein
+Effekt seiner Tür folgt, vor dem Entfernen den Logout-Aufruf ausführt, beide
+Listenknoten entfernt, den Poolplatz freigibt und erst danach Lua abfragt.
+Sichtbarkeit, AI/mobile Abschlusslogik und Lua selbst sind dabei weiterhin
+ausdrücklich Testdienste. Der kollisionsabhängige Markierungspfad für andere
+Objekttypen ist noch nicht freigegeben.
+
+Dieser Block schließt die Listenalgorithmen und die Tür-/Effektbewegung.
+Die tatsächliche Karteninitialisierung und Anbindung der übrigen Dienste,
+Mob-Lebenszyklus, restliche Pine-/Lua-Ausführung, Belohnungspersistenz und
+vollständige Durchlauftests bleiben offen. Automatischer START bleibt gesperrt.

@@ -71,12 +71,17 @@ namespace NextGen.Zone.Data
         private readonly int positionOffset, directionOffset;
         private readonly ushort opcode;
         private bool hasLogin;
+        private KingdomQuestPineNativeAxisCounters? axisCounters;
         public KingdomQuestPineNativeObjectType NativeObjectType { get; }
         public ushort NativeHandle { get; }
         public KingdomQuestPineEffectMapIdentity Map { get; private set; }
         public uint Mode { get; private set; }
         public byte ModeFlags { get; private set; }
         public bool IsMarked { get; private set; }
+        public KingdomQuestPineNativeAxes Axes { get; }
+        public bool HasNativeAxisCounters => axisCounters.HasValue;
+        public KingdomQuestPineNativeAxisCounters AxisCounters => axisCounters ??
+            throw new InvalidOperationException("Native list counters have not been initialized by marking.");
         public KingdomQuestPineEffectLocation Location => new KingdomQuestPineEffectLocation(
             Map, Mode, ReadInt32(positionOffset), ReadInt32(positionOffset + 4), payload[directionOffset]);
 
@@ -93,6 +98,7 @@ namespace NextGen.Zone.Data
             payload = (byte[])initialPayload48.Clone();
             this.opcode = opcode; this.positionOffset = positionOffset; this.directionOffset = directionOffset;
             WriteUInt16(scaleOffset, 1000); // BriefInformationDoor/Effect constructors
+            Axes = new KingdomQuestPineNativeAxes(this, true, () => Location.X, () => Location.Y);
             // ShineObject ctor initializes map, mode, mode flags and marked flag
             // to zero; derived ctors clear only the Name3 portion of LoginLocation.
             // Its remaining bytes are unavailable until Build/Blast assigns them.
@@ -120,6 +126,7 @@ namespace NextGen.Zone.Data
         public void SetNativeMap(KingdomQuestPineEffectMapIdentity map) { Map = map; }
         public void SetNativeMode(uint mode, byte flags) { Mode = mode; ModeFlags = flags; }
         public void SetNativeMarked(bool marked) { IsMarked = marked; }
+        public void SetNativeAxisCounters(KingdomQuestPineNativeAxisCounters counters) { axisCounters = counters; }
         public void SetNativePosition(int x, int y)
         { WriteInt32(payload, positionOffset, x); WriteInt32(payload, positionOffset + 4, y); }
         public void SetNativeDirection(byte direction) { payload[directionOffset] = direction; }

@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pool bookkeeping and persistent door/effect slot state are implemented. Automatic START still needs actual map/axis/visibility services, remaining object types, gameplay owners and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pool bookkeeping, persistent door/effect slots and their map-axis marking/movement/removal are implemented. Automatic START still needs live map construction/binding, visibility/AI/mobile services, remaining object types, gameplay owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -25,6 +25,64 @@ Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
 
+### Native map axes, marking and movement, 2026-10-06
+
+`KingdomQuestPineNativeMapAxes` implements the original two sorted coordinate
+lists, concrete type-0 axial flags and the door/effect marking, movement and
+removal paths. The existing persistent door/effect slots now own their actual
+X/Y nodes and four native list counters. Counter bytes before the first marking
+are unavailable, since the base constructor does not initialize them. This
+closes those algorithms; live map construction, visibility, AI/Lua and mobile
+completion remain explicit dependencies. Automatic START is still disabled.
+
+Evidence is the same original Zone.exe/Zone.pdb fingerprint documented below.
+The relevant entry points and ordering are:
+
+| Native entry | Recovered behavior |
+| --- | --- |
+| `CoordedNode` **0x00587D50**, `cn_AppendList` **0x00587D60** | Self-linked detached nodes, X/Y type matching, left/right search with 10,000-step bounds, signed wrapped coordinate differences, equal-coordinate insertion relative to the supplied anchor, validation before and after insertion. Failed post-validation retains the insertion writes. |
+| `cn_IsValid` **0x0054B4C0**, `cn_MakeLink` **0x00588060** | Nonzero object types require reciprocal neighbours; type-0 flags have special endpoint checks at 0 and `0xFFFFFF`. Boundary creation links a detached low/high pair. Invalid managed inputs outside native assertions are rejected before writes. |
+| `cn_Delink` **0x00553900**, `so_FreeFromList` **0x00554220** | Removal reconnects neighbours, validates them without using the result, then self-links the removed node. Free tests `previous != next` independently for X then Y and reports unequal removal. |
+| `cn_Relocate` **0x005883A0** | Only a strictly interior coordinate skips reinsertion; equality also relocates. Cache the old successor before unlinking. Failure invokes object relink, field-information save and map dump without rollback. |
+| `so_MapMarking` **0x00466470**, `fm_Marking` **0x00452FD0**, `lcs_Init` **0x00552C70** | Search native used-map order by all 12 login-name bytes; absent map returns 1 without writes. Set map/counters before bounds and again after bounds. Each counter copies the current global DWORD minus one with wrap. Bounds/reserved-coordinate failure returns 3 and retains prior writes. |
+| `so_MoveTo` **0x00452A70**, `fm_InMapCoord` **0x00461D80** | Null map is a no-op. Accept signed `0 <= X < XLimit` and `0 <= Y < YLimit`, write XY, relocate X then Y. Login, direction, mode and map remain unchanged. The door/effect +0xA38 target **0x004C2450** is a `ret 12` no-op, so this path adds no packet. |
+| `so_Unmark` **0x00553970** | Door/effect +0x310 target **0x00417480** is a no-op. A nonzero broadcast byte calls logout before either unlink, then X/Y detach and marked becomes zero. RemoveWhen/reason are unused here; map, login, brief and parent remain stored. |
+
+`fm_Init`'s axial segment **0x00464D7A..0x00464E93** configures two
+endpoint flags at `(0,0)` and `(0xFFFFFF,0xFFFFFF)`. Before linking their
+axes it sets the global title-zone object's pointer through
+**0x005CA610**. Five more flags start at `(XLimit/5/2, YLimit/5/2)`.
+The original adds **XLimit/5 to both coordinates** for each subsequent flag;
+the rectangular-map asymmetry is preserved. Endpoints have null range objects,
+intermediate flags point to themselves, and `so_SlantedFlag` **0x00556270**
+sets direction zero and the map pointer. Their allocation Init and final
+manager callback are verified no-ops; list removal uses the real axes.
+
+The map-axis constructor requires seven already allocated native flag slots
+and the title-zone setter. It does not represent all of `fm_Init` or invent
+pool-exhaustion handling. The registry accepts only successfully initialized
+axes in the supplied native map-list order, with actual FieldMap limits;
+bitmap dimensions and emulator MapID/InstanceID are not substitutes.
+
+Marking uses **unsigned inclusive** map bounds, unlike MoveTo's signed
+exclusive bounds. It then rejects coordinates at or above `0xFFFFFF`, chooses
+each search anchor as `min(4, coordinate*5/limit)`, and appends X before Y.
+A failed X append skips Y. Either append failure calls relink and diagnostics,
+yet the recovered **ignoreBlock=1** branch still marks successfully and returns
+zero. Door relink **0x00566E80** writes the current map center through
+**0x00461D60** without repairing lists; effect relink **0x00549070** is a
+no-op. The collision-aware ignoreBlock=0 branch remains unresolved and is
+rejected before mutations. Unknown map pointers remain unresolved for movement.
+
+Behavior tests use the original-size pools (3584 flags, 1000 doors, 1000
+effects) with real source Build/Blast commands, flags, map lists and pool
+cleanup. They check map isolation, exact-name/list-order lookup, rectangular
+flag spacing, bounded searches, equal-coordinate reorder, partial failures,
+counter wrapping/read order, boundary differences, logout-before-detach and
+effect follow -> vanish -> actual unlink/free -> script-after-free. Visibility,
+AI/mobile completion and Lua execution still use explicit test callbacks;
+these tests are not a playable KQ acceptance result.
+
 ### Persistent door/effect pool objects, 2026-10-05
 
 `KingdomQuestPineNativeSceneObjects` adds concrete native door/effect slot
@@ -33,8 +91,8 @@ paths. They implement the pool object's permanent identity and keep native
 brief bytes, current map/position/mode, login location and parent references
 across release/reallocation. The manager can bind all 1000 doors and 1000
 effects directly. These are **not yet automatically attached to live maps**:
-map marking/axes, visibility, AI/Lua, movement and mobile completion remain
-required explicit services, with no successful fallback for unavailable owners.
+the recovered map-axis services above, visibility, AI/Lua and mobile completion
+still require explicit binding, with no successful fallback for unavailable owners.
 
 New executable evidence from the same original Zone.exe/Zone.pdb:
 
