@@ -117,3 +117,4 @@ EffectRoutineTests.Run();
 NativeObjectManagerTests.Run();
 NativeSceneObjectTests.Run();
 NativeMapAxesTests.Run();
+NativeMapTraversalTests.Run();

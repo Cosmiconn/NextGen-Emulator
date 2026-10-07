@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pool bookkeeping, persistent door/effect slots and their map-axis marking/movement/removal are implemented. Automatic START still needs live map construction/binding, visibility/AI/mobile services, remaining object types, gameplay owners and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal and the normal-map member-callback traversal are implemented. Automatic START still needs live map construction/dispatch, remaining visibility/brief-packet exchange and AI/mobile services, remaining object types, gameplay owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,84 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Normal-map traversal and native visit stamps, 2026-10-07
+
+`KingdomQuestPineNativeMapTraversal` implements the original member-function
+overload of `so_AllInMapNomal` **0x0054BE00** (native spelling). It walks
+the existing concrete flag/door/effect nodes through
+`IKingdomQuestPineNativeAxialObject`, preserving mutable list traversal,
+source/candidate roles, layer filtering, visit stamps and native false returns.
+This closes the normal-map traversal algorithm, **not** full visibility or
+Build/Blast completion. The production completion services remain required.
+
+Original Door BuildComplete **0x004422A0** and Effect BlastComplete
+**0x004423E0** both call `so_AllInMap` **0x0054B8C0** with member callback
+`so_ExchageBriefInfo` **0x00441460** and include-self zero. The dispatcher
+requires a non-null map and a non-null map-owned function at +0x58; other
+map types have their own implementations. This new API explicitly invokes
+the **normal** implementation; it does not select it as a default for unknown
+maps or claim the MiniHouse/iterator overloads are equivalent.
+
+The original normal traversal is:
+
+1. Enter `BroadcastEventPopper` **0x005496D0**. Global depth at
+   **0x0074D71C** is initialized to -1 and supports levels 0..3. A fifth
+   enter returns false. Its destructor **0x005497C0** nevertheless decrements
+   the global depth when greater than -1, even after failed construction.
+   The implementation preserves that unusual behavior; it does not silently
+   fix the original. Access outside the recovered four-counter domain is
+   surfaced as UNRESOLVED instead of emulating an out-of-bounds memory access.
+2. If both X neighbours' `so_AllOfRange_Getthis` results equal the source,
+   save field information and return false before incrementing the visit stamp.
+   Otherwise increment the current depth's DWORD in **0x132728E4** with wrap.
+3. Walk **Y predecessors first**, then **Y successors**. Each pass resets the
+   global signed loop counter **0x13272C30**. The 10,001st candidate aborts
+   before its stamp/callback. Nested traversal resets that same global counter;
+   the caller's earlier count is not restored.
+4. `so_SlantedListCheck` **0x0054A500** compares the candidate's +0x3E
+   counter for the current depth. An equal stamp aborts the traversal rather
+   than skipping the object. Otherwise it writes the current stamp **before**
+   checking its X predecessor and before layer filtering. A self-valued X
+   predecessor reports the fault, calls that candidate's relink(1), saves
+   field information, dumps the map and returns false without list repair.
+5. Compare the full 64-bit layer registration at +0x4E/+0x52, unless either
+   object's +0x56 view byte is nonzero. The setters are **0x0054AAB0** and
+   **0x0054AAE0**. These fields are independent of mode at +0x76. The callback
+   runs **on the candidate**, passing the initiating source and native squared
+   distance **0x004028F0**; it is not invoked on the source with the roles
+   reversed. Different modes can still reach the callback with distance
+   999999999. There is no radius cutoff in this traversal function itself.
+6. Read the candidate's next Y neighbour **after** the callback. No list
+   snapshot or cached successor is substituted. Callback false stops both
+   passes immediately. Only after successful passes does nonzero include-self
+   invoke the source callback with source and distance zero, without stamping
+   or filtering the source. All exits unwind the depth helper.
+
+Door/effect +0x66C targets **0x00450350**, which returns `this`; PDB COMDAT
+naming alone is misleading here. Axial flag **0x005562A0** returns its stored
+range object: null for endpoints, the flag itself for intermediate flags.
+Intermediate flags therefore participate in traversal and stamping; they are
+not prefiltered as if only player recipients existed.
+
+`KingdomQuestPineNativeListCheckState` must be shared across map traversals on
+the owning Zone thread. Marking can read the same state through its existing
+`SnapshotCounters` provider. Initial counter seeds are explicit. Flag
+configuration/Init does not initialize +0x3E counters, so unavailable flag
+state remains UNRESOLVED rather than assuming zero. Existing object allocation
+and release retain layer and counter state. Fault callbacks expose the source
+diagnostic/relink sites; the caller supplies their concrete native services.
+
+Behavior tests use real flag pools and concrete door/effect list nodes. They
+verify both traversal passes, intermediate flags, self-call ordering, full
+64-bit layer comparison, nonzero view bytes, independent mode/distance rules,
+filtered-object stamps, callback cancellation, unknown seeds, broken lists,
+insertion/removal during callbacks, exceptional unwind, all four recursion
+levels, counter wrap, failed fifth-level cleanup and shared loop-counter state.
+A synthetic participant fixture verifies the 10,000-visit limit without
+pretending to implement native mobs. Full brief exchange/batching, logout's
+iterator overload, AI/mobile completion, map dispatch and live player binding
+remain open; automatic START is still disabled.
 
 ### Native map axes, marking and movement, 2026-10-06
 

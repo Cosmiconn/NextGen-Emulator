@@ -142,16 +142,26 @@ namespace NextGen.Zone.Data
         }
     }
 
-    public sealed class KingdomQuestPineNativeAxialFlag : IKingdomQuestPineNativePoolObject
+    public sealed class KingdomQuestPineNativeAxialFlag : IKingdomQuestPineNativePoolObject, IKingdomQuestPineNativeAxialObject
     {
         private readonly Action<KingdomQuestPineAxisError, object> report;
         private int x, y;
         private bool configured;
+        private KingdomQuestPineNativeAxisCounters? axisCounters;
         public KingdomQuestPineNativeObjectType NativeObjectType => (KingdomQuestPineNativeObjectType)0;
         public ushort NativeHandle { get; }
         public KingdomQuestPineNativeAxes Axes { get; }
         public KingdomQuestPineEffectMapIdentity Map { get; private set; }
         public object RangeObject { get; private set; } // +0x167: endpoints null, intermediate flag itself
+        public KingdomQuestPineEffectLocation Location => new KingdomQuestPineEffectLocation(Map, 0, X, Y, Direction);
+        public ulong LayerRegistrationNumber { get; private set; }
+        public byte LayerObjectViewType { get; private set; }
+        public bool HasNativeAxisCounters => axisCounters.HasValue;
+        public KingdomQuestPineNativeAxisCounters AxisCounters => axisCounters ??
+            throw new InvalidOperationException("Explicit native flag counter seed required.");
+        public void SetNativeAxisCounters(KingdomQuestPineNativeAxisCounters counters) { axisCounters = counters; }
+        public void SetNativeLayer(ulong registrationNumber, byte viewType)
+        { LayerRegistrationNumber = registrationNumber; LayerObjectViewType = viewType; }
         public int X => configured ? x : throw new InvalidOperationException("Uninitialized native axial coordinate.");
         public int Y => configured ? y : throw new InvalidOperationException("Uninitialized native axial coordinate.");
         public byte Direction => configured ? (byte)0 :
@@ -178,6 +188,22 @@ namespace NextGen.Zone.Data
         public uint D { get; }
         public KingdomQuestPineNativeAxisCounters(uint a, uint b, uint c, uint d)
         { A = a; B = b; C = c; D = d; }
+        public uint At(int index)
+        {
+            switch (index) { case 0: return A; case 1: return B; case 2: return C; case 3: return D;
+                default: throw new ArgumentOutOfRangeException(nameof(index)); }
+        }
+        public KingdomQuestPineNativeAxisCounters With(int index, uint value)
+        {
+            switch (index)
+            {
+                case 0: return new KingdomQuestPineNativeAxisCounters(value, B, C, D);
+                case 1: return new KingdomQuestPineNativeAxisCounters(A, value, C, D);
+                case 2: return new KingdomQuestPineNativeAxisCounters(A, B, value, D);
+                case 3: return new KingdomQuestPineNativeAxisCounters(A, B, C, value);
+                default: throw new ArgumentOutOfRangeException(nameof(index));
+            }
+        }
         public KingdomQuestPineNativeAxisCounters Previous() => new KingdomQuestPineNativeAxisCounters(
             unchecked(A - 1), unchecked(B - 1), unchecked(C - 1), unchecked(D - 1));
     }

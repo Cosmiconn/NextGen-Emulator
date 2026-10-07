@@ -3555,3 +3555,24 @@ Dieser Block schließt die Listenalgorithmen und die Tür-/Effektbewegung.
 Die tatsächliche Karteninitialisierung und Anbindung der übrigen Dienste,
 Mob-Lebenszyklus, restliche Pine-/Lua-Ausführung, Belohnungspersistenz und
 vollständige Durchlauftests bleiben offen. Automatischer START bleibt gesperrt.
+
+## 65. Kingdomquests: native Kartenabfrage für Sichtbarkeit
+
+Der normale Kartenabfragekern aus `so_AllInMapNomal` ist implementiert.
+Er besucht zuerst Y-Vorgänger, dann Y-Nachfolger und berücksichtigt die
+vollständige 64-Bit-Layerkennung sowie die originalen Sichtbarkeitsbytes.
+Layer und Objektmodus bleiben getrennt. Der Empfänger des Rückrufs ist das
+besuchte Objekt; Ausgangsobjekt und berechnete Distanz werden ihm übergeben.
+Hilfsobjekte in der Mitte der Kartenlisten nehmen an Abfrage und Zählerprüfung teil.
+
+Die Abfrage erhält die vier nativen Zähler für verschachtelte Aufrufe,
+DWORD-Überläufe, die 10.000-Besuchsgrenze und das ungewöhnliche Aufräumen
+eines abgelehnten fünften Aufrufs. Listenänderungen im Rückruf wirken sofort:
+Nachbarn werden danach erneut gelesen. Tests prüfen diese Reihenfolgen mit
+echten Tür-, Effekt- und Hilfsobjekten sowie gezielten Fehlerfällen.
+
+Der Kern ist eine Voraussetzung für Build-/Blast-Sichtbarkeit. Vollständiger
+Brief-Paketaustausch, Logout-Iterator, AI/mobile Abschlusslogik und die Auswahl
+der passenden Kartenabfrage bleiben noch anzubinden. Unbekannte Anfangszähler
+werden nicht als null angenommen. Der Kingdom-Quest-Block bleibt in Arbeit;
+automatischer START ist weiterhin gesperrt.

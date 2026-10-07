@@ -63,7 +63,7 @@ namespace NextGen.Zone.Data
     /// Map/axis/visibility services remain mandatory before live attachment.
     /// </summary>
     public abstract class KingdomQuestPineNativeSceneObject : IKingdomQuestPineNativePoolObject,
-        IKingdomQuestPineNativeEffectParent
+        IKingdomQuestPineNativeEffectParent, IKingdomQuestPineNativeAxialObject
     {
         protected readonly byte[] payload;
         protected readonly byte[] login = new byte[21];
@@ -79,6 +79,9 @@ namespace NextGen.Zone.Data
         public byte ModeFlags { get; private set; }
         public bool IsMarked { get; private set; }
         public KingdomQuestPineNativeAxes Axes { get; }
+        public object RangeObject => this; // +0x66C target 0x00450350: mov eax,ecx; ret
+        public ulong LayerRegistrationNumber { get; private set; }
+        public byte LayerObjectViewType { get; private set; }
         public bool HasNativeAxisCounters => axisCounters.HasValue;
         public KingdomQuestPineNativeAxisCounters AxisCounters => axisCounters ??
             throw new InvalidOperationException("Native list counters have not been initialized by marking.");
@@ -127,6 +130,9 @@ namespace NextGen.Zone.Data
         public void SetNativeMode(uint mode, byte flags) { Mode = mode; ModeFlags = flags; }
         public void SetNativeMarked(bool marked) { IsMarked = marked; }
         public void SetNativeAxisCounters(KingdomQuestPineNativeAxisCounters counters) { axisCounters = counters; }
+        // Source +0x4E/+0x52 and +0x56; independent of mode at +0x76.
+        public void SetNativeLayer(ulong registrationNumber, byte viewType)
+        { LayerRegistrationNumber = registrationNumber; LayerObjectViewType = viewType; }
         public void SetNativePosition(int x, int y)
         { WriteInt32(payload, positionOffset, x); WriteInt32(payload, positionOffset + 4, y); }
         public void SetNativeDirection(byte direction) { payload[directionOffset] = direction; }
