@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal and the normal-map member-callback traversal are implemented. Automatic START still needs live map construction/dispatch, remaining visibility/brief-packet exchange and AI/mobile services, remaining object types, gameplay owners and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal the normal-map member-callback traversal, native brief dispatch and door/effect packet batching are implemented. Automatic START still needs live map construction/dispatch, remaining visibility families/transport and AI/mobile services, remaining object types, gameplay owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,59 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Native brief dispatch and door/effect packet batching, 2026-10-11
+
+`KingdomQuestPineNativeBriefExchange` now implements the visibility callback
+used by the existing normal-map traversal and the concrete door/effect
+accumulators. This is a source-backed algorithm block, **not** a claim that
+live player visibility, Build/Blast completion or the whole KQ is complete.
+Automatic START remains disabled and this branch must not be merged as done.
+
+Evidence is the original Zone.exe/Zone.pdb from Server.zip with the fingerprints
+recorded below. The original code and initialized data establish:
+
+| Native evidence | Implemented behavior |
+| --- | --- |
+| `so_FieldSightSquar` **0x0043C330** | Missing map or map-data pointer returns zero before testing unlimited flags. Object sight state +0x163 or map +0x124 must equal exactly 1 to return `uint.MaxValue`; otherwise square map-data +0x48 with DWORD wrap. |
+| `so_ExchageBriefInfo` **0x00441460**, jump tables **0x004416BC / 0x004416CC** | Candidate view kind 0 skips, 1 ignores distance, 2 uses candidate field sight and 3 uses the shared source limit at 0x008B7834. Distances are unsigned and inclusive. Invalid view logs and continues. Test mobile-mode byte before short-circuited +0xA18 / +0x7B4 state queries; queue movement before type dispatch. All resolved paths return native true. |
+| Concrete vtables **0x006E1A34 / 0x006DFB9C / 0x006E46FC** | Door view returns 1, effect 2, axial flag 0. Effect mobile mode returns 1. Door/effect +0xA18 returns zero; effect movement state returns zero; door reads the real movement state through the required service. Intermediate flags are visited/stamped by traversal but skipped by this callback. |
+| Door/effect exchange **0x0043FF60 / 0x004400A0** | Only initiating type 2 collects entries, including a temporarily invisible source. Door first reads the source name into the native diagnostic ring; this remains an explicit service, not a fabricated string. At count >=28 call Send, reset count unconditionally after it returns, then copy the candidate payload and increment count. Entry 28 does not flush; entry 29 flushes the preceding 28. |
+| Door/effect Send **0x0043D7D0 / 0x0043D900** | Empty count, non-type-2 source or zero mobile-mode byte skips sending. Otherwise set length to `3 + 48*count` and hand the packet to the required native transport owner. Send itself does **not** clear count. Invisible overflow still discards the previous count after Send skips. |
+| Initialized data **0x00750D50 / 0x007512D8** | Independent global door/effect buffers: capacity 0x570 (1392), initial length/count zero, opcodes **0x1C10 / 0x1C12** followed by one count byte and 48-byte entries. 28 entries produce 1347 bytes. This differs from individual brief opcodes 0x1C0F / 0x1C11. |
+| `pp_SetPacketLen` **0x004C8CE0**, copy helpers **0x00555AF0 / 0x005553D0** | Length must be strictly below capacity; all reachable batch sizes satisfy it. Copy all 48 persistent payload bytes without the individual opcode, including retained flag/name bytes. |
+
+The original type table is fully preserved: 1 item; 2/8 character followed
+by character abstate; 3 mini-house; 4/5/10 mob followed by mob abstate; 6 magic
+field; 7 door; 9 effect; 11 mover followed by character abstate; 12 pet; 0 no
+exchange. Unknown types report after movement queueing and return native true.
+Only door/effect payload families are implemented here. The other families
+remain required `TryExchangeOther` bindings; false means UNRESOLVED and does
+not manufacture successful native exchange or run the next abstate family.
+
+One exchange owner must be shared by the native Zone thread. It must not be
+created per recipient or traversal. Init clears count only; it retains payload
+storage and the last protocol length. Send also retains count. Nested callbacks
+can change buffers, source sight and scene payloads. The outer overflow reset
+runs after nested Send callbacks, and payload copying follows that reset.
+Exceptions retain already-written packet length/count and previous side effects.
+`TryVisitNormalMap` binds the existing mutable traversal, preserves stamp/layer
+ordering and reports unresolved visitor services separately from native false.
+It does not implicitly initialize, flush, choose a map dispatch or run AI.
+
+Tests cover the exact field-sight guards and overflow, all dispatch families,
+short-circuit state reads, invalid view/type paths, flags, inclusive/unsigned
+visibility, concrete door/effect payloads, separate packet opcodes and buffers,
+28/29-entry limits, skipped sends, repeat sends, Init's retained length,
+shared recipient state, callback exceptions and reentrant mutation. Integration
+uses real flag/door/effect nodes in the native X/Y lists with an explicit
+synthetic recipient; this is not a claimed production character implementation.
+
+Still required: native player and other object-family bindings, source-name
+ring owner, movement queue processing, live map sight data/dispatch, remaining
+packet families and actual transport, logout iterator/handle removal, AI/mobile
+completion, MobHatchery, remaining Pine/Lua gameplay and reward persistence,
+then real end-to-end success/failure/reconnect/cleanup acceptance.
 
 ### Normal-map traversal and native visit stamps, 2026-10-07
 

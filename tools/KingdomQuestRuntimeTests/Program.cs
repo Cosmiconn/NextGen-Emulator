@@ -118,3 +118,4 @@ NativeObjectManagerTests.Run();
 NativeSceneObjectTests.Run();
 NativeMapAxesTests.Run();
 NativeMapTraversalTests.Run();
+NativeBriefExchangeTests.Run();

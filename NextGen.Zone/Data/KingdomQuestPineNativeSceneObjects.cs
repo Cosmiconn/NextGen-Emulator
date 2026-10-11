@@ -112,6 +112,13 @@ namespace NextGen.Zone.Data
             var wire = new byte[50]; wire[0] = (byte)opcode; wire[1] = (byte)(opcode >> 8);
             payload.CopyTo(wire, 2); return wire;
         }
+        // +0x4C4: door 0x00555C00 / effect 0x005554A0 copy exactly the
+        // persistent 48-byte payload, with no individual packet opcode.
+        public void CopyNativeBriefPayload(Span<byte> destination)
+        {
+            if (destination.Length != 48) throw new ArgumentException("Native brief payload is 48 bytes.", nameof(destination));
+            payload.AsSpan().CopyTo(destination);
+        }
         public byte[] SnapshotLoginLocation21() => hasLogin ? (byte[])login.Clone() : null;
         protected void SetLogin(byte[] value)
         {

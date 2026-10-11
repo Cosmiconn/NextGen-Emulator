@@ -3576,3 +3576,28 @@ Brief-Paketaustausch, Logout-Iterator, AI/mobile Abschlusslogik und die Auswahl
 der passenden Kartenabfrage bleiben noch anzubinden. Unbekannte Anfangszähler
 werden nicht als null angenommen. Der Kingdom-Quest-Block bleibt in Arbeit;
 automatischer START ist weiterhin gesperrt.
+
+
+## 66. Kingdomquests: Sichtprüfung und Tür-/Effekt-Sammelpakete
+
+`KingdomQuestPineNativeBriefExchange` setzt die Originalroutine
+`so_ExchageBriefInfo` (0x00441460), die Tür-/Effekt-Exchanger
+(0x0043FF60 / 0x004400A0) und ihre Sendepfade um. Der Callback ist an die
+vorhandene native Kartenabfrage anschließbar. Türen ignorieren die Distanz;
+Effekte verwenden die Sichtweite des Kandidaten. Sichtgrenzen werden inklusive
+und unsigned verglichen. Bewegungszustände werden vor der Typverteilung
+vorgemerkt; andere Paketfamilien bleiben ausdrücklich erforderliche Bindungen.
+
+Die aus der EXE belegten Sammelpakete verwenden 0x1C10 bzw. 0x1C12, ein
+Anzahlbyte und je 48 unveränderte BriefInfo-Bytes. Der 29. Eintrag löst das
+Senden der vorherigen 28 aus. Send leert den Puffer nicht; ein übersprungener
+Send bei unsichtbarem Empfänger wird im Überlaufpfad trotzdem von einem Reset
+gefolgt. Init löscht nur die Anzahl. Gemeinsamer Zustand, Callback-Reentranz,
+Paketlänge und Reihenfolge bleiben erhalten. Einzelpakete bleiben separat.
+
+Verhaltenstests prüfen Sichtgrenzen, alle Typzweige, Paketbytes, 28/29-Grenze,
+verworfene und wiederholte Sends, verschachtelte Änderungen und die Einbindung
+in echte Flag-/Tür-/Effekt-Kartenlisten. Der Testempfänger ist ausdrücklich
+synthetisch. Live-Spieler, weitere Paketfamilien, Transport, AI/Mobile,
+MobHatchery, Pine/Lua und Reward-Persistenz bleiben offen. KQ ist weiterhin
+nicht als vollständig spielbar freigegeben; automatischer START bleibt aus.
