@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal the normal-map member-callback traversal, native brief dispatch and door/effect packet batching are implemented. Automatic START still needs live map construction/dispatch, remaining visibility families/transport and AI/mobile services, remaining object types, gameplay owners and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal the normal-map member-callback traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange and door/effect/character/abstate packet algorithms are implemented. Automatic START still needs live map construction/dispatch, remaining visibility families/transport and AI/mobile services, remaining object types, gameplay owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,61 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Reciprocal character/scene briefs and source sublayers, 2026-10-11
+
+`KingdomQuestPineNativeReciprocalBrief` closes the character exchange and
+character/mob abstate exchange algorithms. The existing brief dispatcher can
+bind this shared owner explicitly. In normal-map tests, a concrete door or
+effect now sends its individual brief to the visited synthetic player through
+the original character branch. Character construction, real mobile abstate
+storage, transport, AI/completion and gameplay are still explicit dependencies.
+This is not live-player or full-KQ acceptance. Automatic START remains off.
+
+`KingdomQuestPineNativeSubLayer` projects the supplied original
+`Server - Kopie/9Data/Shine/World/SubLayerInteract.txt`, SHA-256
+`c0b77f1a70cb941fc2402cdbfbf8456fd71c120dfc74f9d90651a613547739da`.
+The unchanged source bytes are a hashed fixture, protected against Git line
+ending conversion on Windows. All 36 SendMyBrief and 36 CanAttack cells are
+checked. Original EXE/PDB fingerprints are unchanged from the sections below.
+
+| Evidence | Implemented behavior |
+| --- | --- |
+| `slil_Load` **0x0049AA10** | Two six-row tables, six byte cells per row, record checksum bytes at +0 / +0x1B; only their mutual equality is tested. Row order determines the matrix, not the index text or checksum number. Parser is deliberately a validated projection of the supplied physical schema, not a general OptionReader replacement. |
+| `so_SubLayer_CanSee` **0x0049AC70** | Read mode-flags byte from each object's +0x76 pointer, then table at **0x0D67A118**, offset `sender*6 + receiver`. Preserve raw byte result. The first object is the brief sender. The matrix is directional and independent of 64-bit map-traversal layer registration. Flags outside 0..5 expose UNRESOLVED native memory, without clamping. |
+| `so_SubLayer_CanAttack` **0x0049ACB0** | Target abstate 0xC7 blocks before matrix access; otherwise use the separate table at **0x0D67A13C**. The helper requires the actual target-state result and does not invent combat ownership. |
+| `bixc_Exchange` **0x0043FD00** | Compare source/candidate DWORD modes; equal or either 0xFFFFFFFF permits exchange. Check source-to-candidate matrix cell and invoke source +0x4C8 immediately. Re-read reverse flags after that callback, without repeating mode equality. Reverse visibility and initiating type 2 permit copying candidate's 235-byte brief into the shared character batch. |
+| Character initialized data **0x0074E1A0**, Send **0x0043D570** | Opcode **0x1C07**, capacity 0x1A9F, count/length initially zero, 28-entry threshold, `3 + 235*count` wire length. Overflow sends then resets; Send alone retains count. Reentrant oversized length rejection logs and skips without changing the prior length. Character payload filling remains a required native +0x4C4 binding. |
+| Door/effect +0x4C8 **0x00555B60 / 0x00555280** | Send the stored individual 0x1C0F / 0x1C11 packet to the candidate's transport with no added recipient type/mobile/sight test. The effect target has a misleading MagicField COMDAT symbol; its vtable and +0x167 packet offset establish the actual path. |
+| `bixa_Exchange` **0x00440510** | Recheck modes, then reverse visibility first: if zero, skip both directions. Forward visibility builds/sends the source's immediate status packet before queuing candidate status for initiating type 2. Character/mover and mob use separate object queues, but share the immediate packet. |
+| `so_FillBriefABState` **0x00417330** / effect **0x00509900** | Door uses the mobile owner's real status enumeration through the required service. Effect's virtual is literally `ret 8`, preserving the zero count written by its caller. No empty-door status is assumed. |
+| Immediate abstate **0x0043CC00**, constructor **0x0043DDC0**, Send **0x0043DF50** | Opcode **0x1C19**, native WORD handle, byte count and 12-byte status entries. Each queued packet has capacity 0x155, initial handle 0xFFFF and zero count/length. Send walks current queue count, skips empty entries, then resets count/current pointer. Invisible/non-type-2 recipients retain the queue. Init **0x0043C6B0** is a no-op after the current pointer has been initialized. |
+
+Two awkward native limits are retained explicitly. First, 28 abstate entries
+request 341 bytes, exactly the packet capacity; `pp_SetPacketLen` accepts only
+strictly smaller lengths. Queued Send logs and skips that packet. Immediate
+Fill ignores the failed length update, so its subsequent send retains the
+previous length, including initial zero. Tests verify these distinct outcomes.
+Second, the object queue has 28 constructed slots but exchange flushes only
+when count is **greater than** 28. A normal 29th insertion attempts slot 28;
+that unavailable out-of-array memory is UNRESOLVED, with previous sends and
+queue state retained. It is not silently changed to a >=28 flush. Reentrant
+fill can increment the shared count twice and produce 29 without that access;
+the next exchange then follows the proven >28 branch: skipped Send, reset,
+new slot-zero fill. Tests cover both paths.
+
+Behavior tests also cover exact directional cells and wildcard modes,
+mutation between the two visibility checks, concrete door/effect packets,
+235-byte payload boundaries, independent queue roles, source-before-candidate
+status order, late shared count increments, callback-added entries during Send,
+exception retention, unbound payloads, and actual native-axis traversal with
+synthetic recipients. No production character or mobile status data is faked.
+
+The source loader also tries a language-specific
+`World/<Name4>/SubLayerInteractLoader.txt` before the fallback file above.
+This block does not automatically choose a locale or attach the fixture as
+runtime configuration. Runtime source selection remains the owning loader's
+responsibility. Remaining KQ completion gates at the top are unchanged in scope.
 
 ### Native brief dispatch and door/effect packet batching, 2026-10-11
 

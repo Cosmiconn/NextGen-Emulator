@@ -1,2 +1,3 @@
 # Source fixtures are hashed as original bytes on Windows and Unix alike.
 tools/KingdomQuestRuntimeTests/Fixtures/KQHoneying.txt -text
+tools/KingdomQuestRuntimeTests/Fixtures/SubLayerInteract.txt -text

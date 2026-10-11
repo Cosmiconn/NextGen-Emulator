@@ -58,9 +58,13 @@ namespace NextGen.Zone.Data
         public int EffectPacketLength => effects.Length;
         // 0x008B7834. Caller sets this at the source's completion/login site.
         public uint SourceSightSquared { get; set; }
+        public KingdomQuestPineNativeReciprocalBrief Reciprocal { get; }
 
         public KingdomQuestPineNativeBriefExchange(IKingdomQuestPineNativeBriefServices services)
         { this.services = services ?? throw new ArgumentNullException(nameof(services)); }
+        public KingdomQuestPineNativeBriefExchange(IKingdomQuestPineNativeBriefServices services,
+            IKingdomQuestPineNativeReciprocalServices reciprocal, KingdomQuestPineNativeSubLayer layers) : this(services)
+        { Reciprocal = new KingdomQuestPineNativeReciprocalBrief(services, reciprocal, layers); }
 
         // 0x0043C330. Missing map/data is checked BEFORE either unlimited flag.
         // Sight state +0x163 and map +0x124 compare exactly to 1; DWORD square
@@ -135,7 +139,16 @@ namespace NextGen.Zone.Data
         }
 
         private bool Other(KingdomQuestPineBriefFamily family, IKingdomQuestPineNativeAxialObject source,
-            IKingdomQuestPineNativeAxialObject candidate) => services.TryExchangeOther(family, source, candidate);
+            IKingdomQuestPineNativeAxialObject candidate)
+        {
+            if (Reciprocal != null)
+            {
+                if (family == KingdomQuestPineBriefFamily.Character) return Reciprocal.TryExchangeCharacter(source, candidate);
+                if (family == KingdomQuestPineBriefFamily.CharacterAbstate) return Reciprocal.TryExchangeAbstates(false, source, candidate);
+                if (family == KingdomQuestPineBriefFamily.MobAbstate) return Reciprocal.TryExchangeAbstates(true, source, candidate);
+            }
+            return services.TryExchangeOther(family, source, candidate);
+        }
 
         // False means UNRESOLVED, not a native visitor false: every original
         // branch returns true. Side effects before an unresolved call remain.

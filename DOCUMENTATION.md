@@ -3601,3 +3601,31 @@ in echte Flag-/Tür-/Effekt-Kartenlisten. Der Testempfänger ist ausdrücklich
 synthetisch. Live-Spieler, weitere Paketfamilien, Transport, AI/Mobile,
 MobHatchery, Pine/Lua und Reward-Persistenz bleiben offen. KQ ist weiterhin
 nicht als vollständig spielbar freigegeben; automatischer START bleibt aus.
+
+
+## 67. Kingdomquests: gegenseitiger Sichtbarkeits- und Statusaustausch
+
+Der Charakterzweig des originalen BriefInfo-Austauschs ist implementiert und
+an den vorhandenen Dispatcher angebunden. Die originale `SubLayerInteract.txt`
+ist unverändert und mit SHA-256-Prüfung als Testquelle hinterlegt. Ihre
+Sichtbarkeitsmatrix ist richtungsabhängig: Senden eigener Informationen und
+Empfangen fremder Informationen verwenden unterschiedliche Zellen. DWORD-Modus,
+Sichtbarkeitsbyte und 64-Bit-Kartenlayer bleiben getrennt.
+
+Türen und Effekte senden im Charakterzweig ihre echten Einzelpakete. Der
+Charakterpuffer erhält 235-Byte-Einträge und Opcode 0x1C07. Der Statusaustausch
+verwendet 0x1C19, native Handles und 12-Byte-Einträge; Charakter-/Mover- und
+Mob-Puffer bleiben getrennt. Reihenfolge, wiederholte Matrixlesungen,
+verschachtelte Callbacks, Pufferzustand und Fehlerpfade folgen der EXE.
+
+Die Originalgrenzen sind ausdrücklich geprüft: Statuspakete mit genau 341
+Bytes werden bei gleicher Pufferkapazität abgewiesen. Der Einzel-Statuspfad
+behält dabei die vorherige Paketlänge. Ein normaler 29. vorgemerkter Empfänger
+würde außerhalb der 28 Slots zugreifen und bleibt deshalb UNRESOLVED; die
+native >28-Prüfung wird nicht erfunden korrigiert.
+
+Tests prüfen alle 72 Matrixzellen, Paketbytes und Grenzfälle sowie Tür-/Effekt-
+Sichtbarkeit auf echten Kartenlisten mit einem synthetischen Spieler. Die
+realen Charakter-/Mobile-Statusbesitzer und der Transport bleiben anzubinden.
+Weitere Paketfamilien, AI/Mobile-Abschluss, MobHatchery, Pine/Lua, Belohnungen
+und Ende-zu-Ende-Abnahme sind weiterhin offen. Automatischer START bleibt aus.
