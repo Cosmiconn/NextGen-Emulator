@@ -77,6 +77,13 @@ namespace NextGen.Zone.Data
         public KingdomQuestPineEffectMapIdentity Map { get; private set; }
         public uint Mode { get; private set; }
         public byte ModeFlags { get; private set; }
+        // +0x163 is a DWORD, not a byte. The base/door/effect constructors
+        // do not initialize it; the source owner must provide its state.
+        public uint? NativeSightState { get; set; }
+        public KingdomQuestPineNativeAiState NativeAi { get; set; }
+        // Explicit binding selects the concrete completion path. An unresolved
+        // dependency must propagate; never fall back after partial execution.
+        public KingdomQuestPineNativeSceneCompletion NativeCompletion { get; set; }
         public bool IsMarked { get; private set; }
         public KingdomQuestPineNativeAxes Axes { get; }
         public object RangeObject => this; // +0x66C target 0x00450350: mov eax,ecx; ret
@@ -172,6 +179,10 @@ namespace NextGen.Zone.Data
         public byte StaticRunEnabled { get; private set; }
         public ushort StaticRunSpeed { get; private set; }
         public ushort NativeWord168 { get; set; }
+        public byte? NativeMobileMode { get; set; } // pointed-to byte at +0xE9C
+        public byte? NativeByte1F0C { get; set; }
+        public byte NativeFlags1E78 { get; set; } // mobile ctor explicitly initializes zero
+        public KingdomQuestPineNativeDoorMovement NativeMovement { get; set; }
         public KingdomQuestPineNativeDoorMobData MobData { get; private set; }
         public uint NativeMobField46 { get; private set; }
         public ulong RegistrationNumber { get; private set; }
@@ -207,8 +218,16 @@ namespace NextGen.Zone.Data
             WriteUInt16(0, request.Handle); WriteUInt16(2, request.MobId);
             WriteUInt16(46, KingdomQuestHoneyingDoorBuildNativePlan.Scale);
             RegistrationNumber = KingdomQuestHoneyingDoorBuildNativePlan.RegistrationNumber;
-            services.BuildComplete(this, request.Handle);
-            services.FinishBuildMovement(this);
+            if (NativeCompletion != null)
+            {
+                if (!NativeCompletion.TryDoorBuildComplete(this, request.Handle) ||
+                    !KingdomQuestPineNativeSceneCompletion.TryFinishDoorBuildMovement(this)) return false;
+            }
+            else
+            {
+                services.BuildComplete(this, request.Handle);
+                services.FinishBuildMovement(this);
+            }
             NativeWord168 = 0;
             return true;
         }
@@ -260,7 +279,12 @@ namespace NextGen.Zone.Data
             WriteInt32(login, 12, own.X); WriteInt32(login, 16, own.Y); login[20] = own.Direction;
             hasBlastState = true;
             nativeError = Mark();
-            if (nativeError == 0) services.BlastComplete(this, request.Handle);
+            if (nativeError == 0)
+            {
+                if (NativeCompletion != null)
+                { if (!NativeCompletion.TryEffectBlastComplete(this, request.Handle)) return false; }
+                else services.BlastComplete(this, request.Handle);
+            }
             return true;
         }
         public void RetreatFromMap() => Routine.RetreatFromMap();

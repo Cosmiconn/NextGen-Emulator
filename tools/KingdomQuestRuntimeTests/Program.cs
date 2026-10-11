@@ -120,3 +120,4 @@ NativeMapAxesTests.Run();
 NativeMapTraversalTests.Run();
 NativeBriefExchangeTests.Run();
 NativeReciprocalBriefTests.Run();
+NativeSceneCompletionTests.Run();

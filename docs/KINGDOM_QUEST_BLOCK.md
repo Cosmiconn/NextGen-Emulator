@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal the normal-map member-callback traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange and door/effect/character/abstate packet algorithms are implemented. Automatic START still needs live map construction/dispatch, remaining visibility families/transport and AI/mobile services, remaining object types, gameplay owners and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal, normal-map member-callback traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange, packet algorithms and concrete door/effect completion (AI reset, sight, movement tail) are implemented. Automatic START still needs live map construction/dispatch and explicit state bindings, remaining visibility families/transport, AI execution/mobile loops, remaining object types, gameplay owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,74 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Concrete door/effect completion and movement tail, 2026-10-11
+
+`KingdomQuestPineNativeSceneCompletion` implements door BuildComplete
+`0x004422A0` and effect BlastComplete `0x004423E0`. An explicit
+`NativeCompletion` binding selects this path in the persistent objects'
+`TryBuild` / `TryBlast`; unresolved dependencies return false, preserving
+completed writes and never falling back to the legacy service callbacks.
+This is implementation/integration coverage, **not live-KQ acceptance**.
+
+The original order is AI reset, object field/mode writes, reset of ONLY the
+respective door/effect accumulator count, shared source-sight assignment,
+normal-map visibility exchange with includeSelf=0, then the door-only tail
+(`+0x1E78 &= 0xFD`, WORD `+0x168 = 0`). Completion ignores a known native
+false traversal return, but not an unresolved binding. Exceptions preserve
+earlier writes without executing the later tail. The handle argument is
+unused by both original completion functions. No implicit buffer flush,
+character/abstate reset or restoration of nested shared sight is added.
+
+Source correction: `so_GetSightState` at `0x0054B000` reads a **DWORD** at
+`+0x163`, not a byte. Only the full value 1 means unlimited sight; 0x101 does
+not. Missing map/data returns zero before reading this state. Map `+0x124`
+is also DWORD; data `+0x48` is squared with 32-bit wrap. The base/derived
+constructors do not initialize the object sight DWORD, so it remains an
+explicit nullable dependency rather than a fabricated zero.
+
+`so_InitAIScript` (`0x00558C80`) nulls `+0x7E` then assigns empty strings at
+`+0x82 + n*0x1C`, n=0..7. The zero-length branch of `0x00424590` clears each
+length and first backing-storage byte, preserving capacity, remaining bytes
+and the adjacent `+0x18` DWORD. Both inline and heap-capacity states are
+represented by explicit persistent storage. The aggregate constructor at
+`0x00554C90` establishes empty strings/capacity 15, but does not supply the
+untouched tail/adjacent metadata; these are not invented by the managed
+binding. AI reset does not implement AI execution.
+
+The map wrapper at `0x0054B8C0` uses the actual map identity and member target
+at `+0x58`, adding the this-adjustment at `+0x5C`. Null map/member target is a
+known native false. Normal-map target `0x0054BE00` with adjustment zero is
+supported; unknown targets, nonzero adjustments and unbound map identities
+stay UNRESOLVED. Matching names/dimensions do not establish identity or
+select a dispatch algorithm. Live construction/binding remains required.
+
+The Build movement tail (`0x0043F9B0..0x0043F9FD`) preserves all 64
+MoveManager bytes at `+0x18C` in state 3. Otherwise it clears DWORDs at
+`+0x18C`, `+0x194`, `+0x1A8..+0x1B8`, then copies **current** XY to
+`+0x1A0/+0x1A4`. Other bytes, including the opaque owner-pointer field, are
+retained. The original MoveManager constructor `0x00450350` is a no-op;
+the mobile constructor assigns its owner pointer and zeroes `+0x1E78`, but
+does not initialize the movement state/mobile byte/`+0x1F0C`. No guessed
+initial movement state is used. Brief dispatch now consumes bound concrete
+door mobile/movement state; the existing external binding remains available
+when those fields are not bound. Allocation Init does not clear these fields.
+
+Regression tests cover the DWORD correction, exact writes and retained bytes,
+same-name/different-map identity, known-false versus unresolved dispatch,
+callback mutation/exception/nesting, independent packet buffers and state-3
+preservation. Original Honeying door/effect commands run through concrete
+Build/Blast, real map marking/movement, normal-map traversal and reciprocal
+individual packets to a **synthetic** player/transport. The movement test
+changes position through real axes during visibility, proving the later tail
+copies current coordinates rather than login coordinates. No automatic START
+or live character/transport/AI execution is enabled.
+
+Evidence: existing extracted Zone.exe / Zone.pdb / symbol-map fingerprints
+were reverified as `db1cb42912556a4ea5cde5c18f15f2495b81465c70ca9c18ad5bc7e36611aff5`,
+`569a9d3ee6c4478b8e96d176f15ce64a9aab3f42e52d29d17c3c4d5af8f9ec6c`, and
+`ab737e89ce65b94ee33f5a4f2a0d9c14ea58a3b1ad2d3b64958dedb1f2d1f5cd`.
+No newly provisioned archive is claimed as inspected by this block.
 
 ### Reciprocal character/scene briefs and source sublayers, 2026-10-11
 

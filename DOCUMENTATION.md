@@ -3629,3 +3629,34 @@ Sichtbarkeit auf echten Kartenlisten mit einem synthetischen Spieler. Die
 realen Charakter-/Mobile-Statusbesitzer und der Transport bleiben anzubinden.
 Weitere Paketfamilien, AI/Mobile-Abschluss, MobHatchery, Pine/Lua, Belohnungen
 und Ende-zu-Ende-Abnahme sind weiterhin offen. Automatischer START bleibt aus.
+
+
+## 68. Kingdomquests: konkreter Tür-/Effekt-Abschluss
+
+`KingdomQuestPineNativeSceneCompletion` setzt die originalen BuildComplete-
+und BlastComplete-Routinen um. Eine ausdrückliche Bindung in den persistenten
+Objekten verbindet Build/Blast mit AI-Rücksetzung, Objektfeldern, eigenem
+Sammelpuffer, Sichtweitenberechnung und der nativen Kartenabfrage. Der
+Tür-Nachlauf löscht anschließend nur das belegte Flagbit und Statuswort.
+Ein bekannter nativer false-Rückgabewert wird wie im Original ignoriert;
+eine ungelöste Abhängigkeit beendet dagegen den verwalteten Pfad ohne
+erfundenen Erfolg oder Rückfall auf andere Abschluss-Callbacks.
+
+Der Quellabgleich korrigiert die Sichtzustandsbreite: `+0x163` ist DWORD,
+nicht Byte. Deshalb bedeutet 0x101 keine unbegrenzte Sicht. Die acht
+AI-Strings behalten beim Leeren Kapazität, restlichen Speicher und
+benachbarte Metadaten. Nicht initialisierte Originalfelder bleiben explizite
+Bindungen; AI-Ausführung wird durch diese Rücksetzung nicht ersetzt.
+
+Der Bewegungsabschluss erhält in Zustand 3 alle Bytes. Sonst löscht er die
+belegten DWORDs und übernimmt die aktuellen Koordinaten nach dem
+Sichtbarkeitsaustausch, nicht die Login-Koordinaten. Native Kartenidentität,
+Member-Funktionsziel und this-Anpassung werden ausdrücklich geprüft.
+
+Neue Regressionstests prüfen Originalreihenfolge, Byte-Erhalt, Fehlerpfade,
+verschachtelte/werfende Callbacks, unabhängige Puffer und den vollständigen
+Weg der originalen Honeying-Befehle durch Build/Blast, echte Kartenmarkierung,
+Bewegung und Sichtbarkeit bis zu Einzelpaketen an einen synthetischen Spieler.
+Reale Spieler/Transport, weitere Objektfamilien, AI-/Bewegungsschleifen,
+MobHatchery, Pine/Lua, Belohnungspersistenz und Ende-zu-Ende-Abnahme bleiben
+offen. KQ ist nicht vollständig spielbar; automatischer START bleibt aus.

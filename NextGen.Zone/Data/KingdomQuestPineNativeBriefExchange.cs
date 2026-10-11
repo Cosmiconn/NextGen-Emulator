@@ -70,7 +70,7 @@ namespace NextGen.Zone.Data
         // Sight state +0x163 and map +0x124 compare exactly to 1; DWORD square
         // wraps. These values cannot be inferred from emulator map dimensions.
         public static uint FieldSightSquared(bool hasMap, bool hasMapData,
-            byte sightState, uint mapState, uint sightDistance)
+            uint sightState, uint mapState, uint sightDistance)
         {
             if (!hasMap || !hasMapData) return 0;
             if (sightState == 1 || mapState == 1) return uint.MaxValue;
@@ -89,13 +89,15 @@ namespace NextGen.Zone.Data
             obj is KingdomQuestPineNativeAxialFlag ? 0 : services.ViewKind(obj);
         private byte MobileMode(IKingdomQuestPineNativeAxialObject obj) =>
             obj is KingdomQuestPineNativeEffectObject || obj is KingdomQuestPineNativeAxialFlag
-                ? (byte)1 : services.MobileMode(obj);
+                ? (byte)1 : obj is KingdomQuestPineNativeDoorObject door && door.NativeMobileMode.HasValue
+                    ? door.NativeMobileMode.Value : services.MobileMode(obj);
         private int StateA18(IKingdomQuestPineNativeAxialObject obj) =>
             obj is KingdomQuestPineNativeSceneObject || obj is KingdomQuestPineNativeAxialFlag
                 ? 0 : services.StateA18(obj);
         private int MovementState(IKingdomQuestPineNativeAxialObject obj) =>
             obj is KingdomQuestPineNativeEffectObject || obj is KingdomQuestPineNativeAxialFlag
-                ? 0 : services.MovementState(obj);
+                ? 0 : obj is KingdomQuestPineNativeDoorObject door && door.NativeMovement != null
+                    ? unchecked((int)door.NativeMovement.State) : services.MovementState(obj);
 
         private void Send(Batch batch, IKingdomQuestPineNativeAxialObject source)
         {
