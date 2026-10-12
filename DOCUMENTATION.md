@@ -3660,3 +3660,36 @@ Bewegung und Sichtbarkeit bis zu Einzelpaketen an einen synthetischen Spieler.
 Reale Spieler/Transport, weitere Objektfamilien, AI-/Bewegungsschleifen,
 MobHatchery, Pine/Lua, Belohnungspersistenz und Ende-zu-Ende-Abnahme bleiben
 offen. KQ ist nicht vollständig spielbar; automatischer START bleibt aus.
+
+
+## 69. Kingdomquests: nativer Logout und Entfernen-Paket
+
+Der Tür-/Effekt-Logout ist an die vorhandene Kartenentfernung angebunden.
+`KingdomQuestPineNativeSceneLogout` prüft Karten-/Achszustand, führt die
+belegte Verkaufsstand-Prüfung aus und erstellt das originale 4-Byte-Paket
+mit Opcode 0x1805 und nativem WORD-Handle. Erst danach werden X-/Y-Liste
+gelöst und die Markierung entfernt. Fehlende Laufzeitbindungen bleiben
+UNRESOLVED; sie werden nicht als leere Verkaufsstände oder erfolgreiche
+Übertragungen behandelt.
+
+Der allgemeine `AxialListPacketBroadcast`-Iterator prüft Empfängertyp,
+Mobile-Byte, Modus, richtungsabhängige Sichtbarkeit, IsEmpty und SoloingMode
+in Originalreihenfolge. Der Sonderfall für eigene Mover liest die
+Besitzer-Charakternummer zweimal. Die Kartenabfrage verwendet ihre eigenen
+Iterator-Funktionsfelder und den vorhandenen nativen Listendurchlauf.
+
+Ein bekannter false-Rückgabewert löst genau einen zweiten Durchlauf aus.
+Bereits erreichte Empfänger können deshalb erneut ein Paket erhalten.
+Der ursprüngliche 8192-Byte-Paketpuffer bleibt gemeinsam genutzt; ein
+verschachtelter Broadcast kann die Daten späterer äußerer Sends verändern.
+Diese beobachteten Abläufe werden weder dedupliziert noch durch private
+Paketkopien verdeckt. Fehler und Exceptions behalten frühere Änderungen.
+
+Tests prüfen Paketbytes, Empfängerfilter, virtuelle Lesereihenfolge,
+Wiederholung, Verschachtelung und die Integration eines ablaufenden Effekts:
+Elternposition übernehmen, Logout senden, Listen lösen, Pool freigeben und
+erst danach Script-Callback. Echte Pool-, Build-/Blast-, Abschluss-, Karten-
+und Effektimplementierungen laufen zusammen; Spieler, Verkaufsstand und
+Transport sind ausdrücklich Testbindungen. Live-Anbindung, weitere
+Objektfamilien, MobHatchery, Pine/Lua, Belohnungspersistenz und vollständige
+KQ-Abnahme bleiben offen. Automatischer START bleibt deaktiviert.

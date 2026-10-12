@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal, normal-map member-callback traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange, packet algorithms and concrete door/effect completion (AI reset, sight, movement tail) are implemented. Automatic START still needs live map construction/dispatch and explicit state bindings, remaining visibility families/transport, AI execution/mobile loops, remaining object types, gameplay owners and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal, normal-map member/iterator traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange, packet algorithms, concrete door/effect completion and logout/unmark packet flow are implemented. Automatic START still needs live map construction/dispatch and explicit state bindings, player/BoothManager/transport owners, remaining visibility families, AI execution/mobile loops, remaining object types, gameplay owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,64 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Native door/effect logout and axial packet iterator, 2026-10-12
+
+Baseline `faa5d6c` passed Build #1000 on Windows and Ubuntu. This block
+implements the source door/effect logout packet flow and connects it to
+`KingdomQuestPineNativeMapRegistry.TryUnmark` through an explicit
+`NativeLogout` owner. It does not activate automatic START or claim live
+player, shop, transport or complete-KQ acceptance.
+
+| Original evidence | Implemented behavior |
+| --- | --- |
+| `so_BroadcastLogout` **0x0054F290** | Null actual map pointer returns before any axis/booth/packet work. Door/effect vtable slot +0x51C selects this implementation. |
+| `so_Logout` **0x0054B780** | Inspect X predecessor and successor through their range-object virtuals. Either self-reference returns early. Use the actual map's BoothManager at +0x1F0, call CheckStoreIsOpening; exactly byte 1 calls CloseStore. A known false close is logged and packet broadcast still follows. The stored booth pointer survives callback mutation; packet broadcast rereads the object's map. This is a **BoothManager**, not a handle manager. |
+| `so_LogoutPacketBroadcast` **0x00553A40** | Shared packet receives opcode **0x1805** and the WORD native object handle, then length 4. Only a nonzero map DWORD +0x0C triggers traversal. Include-self is zero. A known false first traversal invokes the same iterator once more; the second native result is ignored. No packet reset or duplicate-recipient suppression occurs between attempts. |
+| `AxialListPacketBroadcast` **0x00428A40 / 0x00428B20** | Constructor sets shared packet length and stores a separate requested-length gate. A zero gate returns native false before virtual calls. Candidate must be type 2, mobile byte nonzero, matching mode or either DWORD mode FFFFFFFF, allowed directional SendMyBrief cell, and nonempty. Soloing-mode recipients only accept themselves or a type-11 mover owned by their CharacterNumber; the mover owner is read twice, preserving the original sentinel/equality order. Squared distance is unused. |
+| `so_AllInMap(iterator)` **0x0054B9E0** | Dispatch uses map +0x68 and this-adjustment +0x6C, separately from the member-callback fields +0x58/+0x5C. Null target is known native false. Only proven normal-map target **0x0054C370**, adjustment zero, is bound here. Unknown targets/adjustments/actual map identities stay UNRESOLVED. |
+| `so_AllInMapNomal(iterator)` **0x0054C370** | Shares the recovered normal-map walk, stamps, layer checks, mutable-neighbor reads, nesting/visit limits and false-return behavior. The iterator receives source, candidate, distance, in that order. Optional final self callback remains supported by the general iterator path. |
+| `so_Unmark` **0x00553970** | Native logout completes before X unlink, Y unlink and marked-byte reset. A known second traversal false still permits these writes. Unresolved dependencies or exceptions stop before unlinking; prior booth calls/packet writes/sends remain observable. Existing explicit callback owners remain available when no concrete NativeLogout owner is bound. |
+
+The original shared `ProtocolPacket` at **0x0084D908** contains pointer
+**0x0084D914**, capacity **0x2000**, length zero and 8192 zero storage bytes
+in the supplied EXE's initialized data. `KingdomQuestPineNativeSharedPacket`
+preserves its identity across broadcasts. `pp_SetPacketLen` **0x004C8CE0**
+requires length strictly below capacity; a rejected length retains the old
+shared length while the iterator's gate becomes zero. Negative native lengths
+would expose invalid memory and are rejected explicitly by the managed API.
+Nested broadcasts can replace both bytes and length seen by later outer
+recipients. Transport gets the shared packet owner, allowing the native stream
+lookup/send sequence to observe its current state; no per-logout snapshot is
+substituted. This shared packet is separate from BriefInfo batch buffers.
+
+The BoothManager check/close operations and recipient virtuals/stream remain
+mandatory explicit native-owner bindings. A missing binding does not mean
+"no store" or a successful send. The map +0x0C field is preserved as an explicit
+DWORD gate without assigning an unproven gameplay interpretation. The
+drop-item-specific logout iterator and MiniHouse dispatch are not selected
+for concrete doors/effects and remain separate work.
+
+Regression tests cover filter/read order, directional visibility, wildcard
+modes, empty/solo flags, the mover's two owner reads, packet length boundaries,
+iterator argument/layer order, native-false versus unresolved results, booth
+failure/mutation, retry duplicates, no third retry, exceptions and nested
+packet overwrites. An integration test executes original Honeying Build/Blast
+through real completion/marking, moves the parent on real axes, and runs an
+expired pooled effect through follow -> logout packet -> unmark -> native
+pool free -> script callback. The retained slot/map/parent/login state and
+native handle bytes are checked. Player state, BoothManager and transport in
+these tests are synthetic; real-world KQ acceptance remains open.
+
+Evidence reverified from the newly available `Server.zip` entry
+`Server - Kopie/Zone00/Zone.exe` (SHA-256
+`db1cb42912556a4ea5cde5c18f15f2495b81465c70ca9c18ad5bc7e36611aff5`) and
+`Zone.pdb` (`569a9d3ee6c4478b8e96d176f15ce64a9aab3f42e52d29d17c3c4d5af8f9ec6c`),
+matching the existing extracted binaries. Door/effect vtables **0x006E1A34 /
+0x006DFB9C** select +0x14 -> 0x00553A40. Player vtable **0x006EA61C**
+correlates +0x300 with IsEmpty, +0x79C with SoloingMode, +0x344 with
+GetCharRegistNumber and +0x2FC with GetGameSocketStream. Folded generic PDB
+symbol names are not used to infer unrelated semantics.
 
 ### Concrete door/effect completion and movement tail, 2026-10-11
 

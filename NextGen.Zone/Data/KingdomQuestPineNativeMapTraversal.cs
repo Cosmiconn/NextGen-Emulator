@@ -24,6 +24,14 @@ namespace NextGen.Zone.Data
         UnknownAxisOwner, UninitializedCounters, InvalidCounterDepth
     }
 
+    public interface IKingdomQuestPineNativeAxialIterator
+    {
+        // Iterator +0 receives source, candidate, distance (unlike the member
+        // callback, invoked on candidate). False means an unresolved dependency.
+        bool TryWork(IKingdomQuestPineNativeAxialObject source,
+            IKingdomQuestPineNativeAxialObject candidate, uint distanceSquared, out bool nativeResult);
+    }
+
     /// <summary>
     /// Zone-thread state shared by ALL map traversals and marking counters:
     /// depth 0x0074D71C, four DWORDs 0x132728E4, loop count 0x13272C30.
@@ -54,8 +62,8 @@ namespace NextGen.Zone.Data
 
     /// <summary>
     /// so_AllInMapNomal member-function overload 0x0054BE00. The spelling is
-    /// native. This is the normal-map algorithm used by Build/Blast completion;
-    /// MiniHouse dispatch, iterator overload and packet exchange remain separate.
+    /// native. Build/Blast completion and the iterator overload share this
+    /// normal-map walk. MiniHouse dispatch and packet exchange are separate.
     /// </summary>
     public sealed class KingdomQuestPineNativeMapTraversal
     {
@@ -82,6 +90,22 @@ namespace NextGen.Zone.Data
                 if (obj != null) return true;
             }
             report(KingdomQuestPineTraversalEvent.UnknownAxisOwner, context); return false;
+        }
+        // 0x0054C370 has the same normal-map walk/stamps/layer checks as
+        // 0x0054BE00; only invocation uses the iterator vtable and argument order.
+        public bool TryAllInMapNormalIterator(IKingdomQuestPineNativeAxialObject source, byte includeSelf,
+            IKingdomQuestPineNativeAxialIterator iterator, out bool nativeResult)
+        {
+            nativeResult = false;
+            if (iterator == null) return false;
+            bool resolved = true;
+            bool walked = TryAllInMapNormal(source, includeSelf, (candidate, initiator, distance) =>
+            {
+                if (!iterator.TryWork(initiator, candidate, distance, out bool result))
+                { resolved = false; return false; }
+                return result;
+            }, out nativeResult);
+            return walked && resolved;
         }
         // Returns false only for an unresolved managed dependency. On true,
         // nativeResult preserves the source's traversal/visitor return value.

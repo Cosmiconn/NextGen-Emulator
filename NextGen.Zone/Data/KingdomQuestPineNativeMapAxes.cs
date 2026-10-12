@@ -315,6 +315,9 @@ namespace NextGen.Zone.Data
     /// <summary>Source-owned map-list order, exact Name3 lookup and concrete door/effect axes.</summary>
     public sealed class KingdomQuestPineNativeMapRegistry
     {
+        // Explicitly selects the concrete logout path, shared by these maps.
+        // Its unresolved result stops Unmark before either axis is detached.
+        public KingdomQuestPineNativeSceneLogout NativeLogout { get; set; }
         private readonly KingdomQuestPineNativeFieldMapAxes[] maps;
         private readonly Func<KingdomQuestPineNativeAxisCounters> counters;
         private readonly Action<KingdomQuestPineAxisError, object> report;
@@ -344,12 +347,16 @@ namespace NextGen.Zone.Data
         }
         public void FreeFromLists(KingdomQuestPineNativeSceneObject obj) => obj.Axes.FreeFromLists(report);
         public bool TryUnmark(KingdomQuestPineNativeSceneObject obj, int when, byte broadcast, byte reason,
-            Action<KingdomQuestPineNativeSceneObject> broadcastLogout)
+            Action<KingdomQuestPineNativeSceneObject> broadcastLogout = null)
         {
             if (!(obj is KingdomQuestPineNativeDoorObject || obj is KingdomQuestPineNativeEffectObject) ||
-                (broadcast != 0 && broadcastLogout == null)) return false;
+                (broadcast != 0 && NativeLogout == null && broadcastLogout == null)) return false;
             // Both +310 targets are ret. RemoveWhen/reason are unused here.
-            if (broadcast != 0) broadcastLogout(obj);
+            if (broadcast != 0)
+            {
+                if (NativeLogout != null) { if (!NativeLogout.TryBroadcastLogout(obj)) return false; }
+                else broadcastLogout(obj);
+            }
             obj.Axes.X.Unlink(report); obj.Axes.Y.Unlink(report); obj.SetNativeMarked(false);
             return true;
         }
