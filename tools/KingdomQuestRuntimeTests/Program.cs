@@ -121,4 +121,5 @@ NativeMapTraversalTests.Run();
 NativeBriefExchangeTests.Run();
 NativeReciprocalBriefTests.Run();
 NativeSceneCompletionTests.Run();
+NativeBoothManagerTests.Run();
 NativeSceneLogoutTests.Run();

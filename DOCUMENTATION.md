@@ -3693,3 +3693,35 @@ und Effektimplementierungen laufen zusammen; Spieler, Verkaufsstand und
 Transport sind ausdrücklich Testbindungen. Live-Anbindung, weitere
 Objektfamilien, MobHatchery, Pine/Lua, Belohnungspersistenz und vollständige
 KQ-Abnahme bleiben offen. Automatischer START bleibt deaktiviert.
+
+
+## 70. Kingdomquests: konkrete Verkaufsstand-Verwaltung im Logout
+
+`KingdomQuestPineNativeBoothManager` ersetzt die bisher ausschließlich
+extern gebundene Standprüfung und Schließung durch konkrete, geordnete
+Stand- und Artikellisten. Der originale Konstruktor, Öffnen, Prüfen,
+Artikelanlage, Suche, Entfernen, Existenzprüfung und Schließen sind anhand
+von Zone.exe/PDB umgesetzt. Die Bindung erfolgt ausdrücklich an die
+jeweilige Karte; unbekannter Live-Zustand wird nicht als leer angenommen.
+
+Die Reihenfolge und ungewöhnlichen Rückgabewerte bleiben erhalten:
+Schließen entfernt zuerst alle Artikel des Besitzers, anschließend den
+ersten passenden Standeintrag. Ein fehlender Stand macht vorherige
+Artikelentfernungen nicht rückgängig. Doppelte Stände und Artikelregistrierungen
+sind zulässig. Artikelanlage verbraucht einen Handle vor der Standzuordnung;
+eine erfolgreiche Rücknahme nach gescheiterter Zuordnung meldet im Original
+trotzdem Erfolg. Entfernen einer Referenz bleibt erfolgreich, wenn der
+anschließende Artikel schon fehlt. Diese Fälle sind gezielt getestet.
+
+Die Artikelkopie bewahrt alle 118 Bytes einschließlich vollständigem Preis,
+WORD-Standhandle und 101 Attributbytes. Die Klassentabelle bestimmt nur das
+Längenbyte. Zweimalige Quelldatenabfrage, 64-Bit-Registrierungen und der
+native Handle-Überlauf sind belegt und implementiert. Fehlende Quelldaten-
+Bindungen bleiben UNRESOLVED.
+
+Integrationstests führen Tür-Logout und ablaufende Effekte mit echten
+Standlisten durch: Standdaten entfernen, Logout-Paket senden, Kartenachsen
+lösen und Pool freigeben. Spieler, Transport und ItemDataBox sind weiterhin
+Testbindungen. Live-Kartenbindung, Inventar-/StreetBooth-Abläufe, weitere
+KQ-Besitzer und vollständige Ende-zu-Ende-Abnahme bleiben offen.
+Automatischer START bleibt deaktiviert.

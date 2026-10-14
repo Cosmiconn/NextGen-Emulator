@@ -14,7 +14,7 @@ The remaining completion gates are:
 
 | Boundary | Still required |
 | --- | --- |
-| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal, normal-map member/iterator traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange, packet algorithms, concrete door/effect completion and logout/unmark packet flow are implemented. Automatic START still needs live map construction/dispatch and explicit state bindings, player/BoothManager/transport owners, remaining visibility families, AI execution/mobile loops, remaining object types, gameplay owners and interrupt delivery. |
+| Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal, normal-map member/iterator traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange, packet algorithms, concrete door/effect completion and logout/unmark packet flow are implemented. Automatic START still needs live map construction/dispatch and explicit state bindings, player/transport owners, map-to-BoothManager bindings, remaining visibility families, AI execution/mobile loops, remaining object types, gameplay owners and interrupt delivery. |
 | Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
@@ -24,6 +24,60 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Concrete BoothManager storage and logout ownership, 2026-10-14
+
+Baseline `1bdb0b7` passed Build #1001 on Windows and Ubuntu and was rechecked
+before this block. `KingdomQuestPineNativeBoothManager` now implements the
+ordered store and item owners used by the map's logout path, through the
+existing `IKingdomQuestPineNativeLogoutBooths` binding. Constructing a fresh
+owner establishes the original two empty lists and FFFFFFFF item-handle
+counter. It does **not** silently substitute an empty owner for unknown live
+map state. Automatic START remains disabled.
+
+| Original evidence | Implemented behavior |
+| --- | --- |
+| BoothManager constructor **0x0043B550** | Separate store list and item list at manager +0x0C; item counter at +0x18 starts FFFFFFFF. FieldMap constructors **0x00466170 / 0x004662E0** call it at map +0x1F0. |
+| OpenStore **0x0043B820 -> 0x0043B6A0** | FFFF store handle returns false before the inner assertion. Otherwise append a new empty store, preserving signed XY. Duplicate store handles are accepted. |
+| CheckStoreIsOpening **0x00439C50 -> 0x00439AD0**, GetStorePosition **0x00439C30 -> 0x00439A20** | Search insertion order by WORD handle; first match wins. The wrapper's sentinel guard does not emit the inner assertion. Missing position logs; a missing opening check returns zero without logging. |
+| GenerateNewItemHandleNo **0x00439760** | FFFFFFFF starts at zero; otherwise increment with unsigned wrap and reset when the result is at least FFFFFFFE. No duplicate-handle scan or reset during store closure. |
+| BoothItemManager AddItem **0x0043A6C0** | Copy the entire 103-byte SHINE_ITEM_STRUCT before lookups. FFFF item ID returns the failure sentinel. Perform two separate ItemDataBox index lookups; only the second index supplies the base-data pointer and item class. Missing binding stays UNRESOLVED. A known null first index or null base pointer logs and returns a native failure. A null second index would be a native dereference fault and stays UNRESOLVED. |
+| GetAttrSize / GetValidSize **0x0062DCA0 / 0x0062DDC0** | Exact class switch from jump table **0x0062DD1C**, including unsigned out-of-range behavior and the unreachable class-zero table slot. Valid-size byte is 16 plus attribute size. |
+| Item list node copy **0x00439850**, store reference add **0x0043AA30** | Retain all 118 packed item bytes: size +0, DWORD handle +1, WORD store +5, QWORD price +7, WORD item ID +15, all 101 opaque attribute bytes +17. The valid-size byte does not truncate storage. Store references retain the full 64-bit registration plus DWORD item handle; duplicates and missing referenced records are not normalized. |
+| BoothManager AddItem **0x0043AB80** | Add the item record first, then the reference in the first matching store. If reference insertion returns false, log and remove the item. A successful rollback **still returns native true**; the generated handle remains consumed. Failed rollback emits both original diagnostics and returns false. Exceptions preserve earlier mutations. |
+| Lookup/remove **0x004398C0 / 0x00439950 / 0x0043A420 / 0x0043A890 / 0x0043AD30** | First item/key match, full 64-bit registration comparisons. Remove reference before item record; a missing underlying record logs but the wrapper still returns true. Missing reference returns false after inner and outer diagnostics. |
+| ReconfirmExisting **0x00439B70** | Invalid store, invalid item handle, missing store, missing reference/item and success preserve codes 31D1, 31D2, 31D3, 31D4 and 31C8. The two list searches do not add an item-owner equality check. Native null-this/overflowed-member-address branches are not reachable through a managed instance. |
+| CloseStore **0x0043B410 -> 0x0043A950 -> 0x0043B2A0** | Remove **all** item records with matching WORD store owner, including unreferenced records, before searching/removing the first store. Missing store returns false after the item removals, without rollback. Clear store references, invalidate its handle to FFFF, then unlink the store. Other stores/items and the item counter remain intact. |
+
+The native close path only removes these list records. It does not invoke
+player inventory writes, StreetBooth trading, refunds or a packet send, so
+none are invented here. The managed data structures maintain valid list
+links/counts; allocator internals, dangling-pointer behavior and native list
+corruption are not emulated. A caller can retain a managed removed record
+for inspection, but that is not a claim that the corresponding native freed
+pointer remains usable.
+
+Tests cover fresh construction, sentinel guards, duplicate stores/keys,
+all attribute-size table cases, packed bytes and input-copy isolation,
+unsigned handle boundaries, the two lookups and unresolved/native-false
+separation, rollback diagnostics/return quirks, full registration matching,
+reference-before-item removal and item-before-store closure. Real Honeying
+Build/Blast, map axes, logout packet traversal and pool cleanup run with the
+concrete BoothManager. Packet send observes completed booth cleanup while
+both object axes are still linked; an expired effect also runs through a
+fresh concrete empty map owner. Player state, transport and item-data lookup
+are explicitly synthetic fixtures in these tests.
+
+Live map construction/binding, authoritative ItemDataBox ownership,
+BoothManager UpdateItem (inventory-cell attribute mutation), player
+StreetBooth APIs and transaction/persistence integration remain separate
+work. This closes the required logout **bookkeeping algorithm**, not complete
+live player-shop or KQ acceptance.
+
+Evidence extracted again from supplied `Server.zip`, Zone00 entries:
+Zone.exe SHA-256 `db1cb42912556a4ea5cde5c18f15f2495b81465c70ca9c18ad5bc7e36611aff5`;
+Zone.pdb SHA-256 `569a9d3ee6c4478b8e96d176f15ce64a9aab3f42e52d29d17c3c4d5af8f9ec6c`.
+The separate unavailable binary archive was not used.
 
 ### Native door/effect logout and axial packet iterator, 2026-10-12
 

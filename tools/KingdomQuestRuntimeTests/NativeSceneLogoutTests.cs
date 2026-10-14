@@ -6,8 +6,27 @@ static class NativeSceneLogoutTests
     static void Check(bool ok, string name) { if (!ok) throw new Exception("native scene logout: " + name); }
     public static void Run()
     {
-        RecipientFilters(); IteratorWalk(); LogoutAndUnmark(); RetryAndSharedPacket(); PooledEffectExpiry();
+        RecipientFilters(); IteratorWalk(); LogoutAndUnmark(); RetryAndSharedPacket(); PooledEffectExpiry(); ConcreteBoothLogout();
         Console.WriteLine("PASS: native axial packet iterator, directional logout recipients, booth ordering, one retry, shared packet reentrancy and pooled effect unmark/send/free lifecycle");
+    }
+    static void ConcreteBoothLogout()
+    {
+        var f = new Fixture(); var door = f.BuildDoor(); f.Player(9000, 5000);
+        var booths = new KingdomQuestPineNativeBoothManager((_, _) => throw new Exception("unexpected booth assertion"), new NativeBoothManagerTests.Source());
+        f.Binding.Booths = booths;
+        Check(booths.OpenStore(door.NativeHandle, door.Location.X, door.Location.Y) && booths.OpenStore(200, 1, 2), "concrete store setup");
+        Check(booths.TryAddItem(door.NativeHandle, 0x100000001, 77, NativeBoothManagerTests.Item(), out bool added) && added &&
+            booths.TryAddItem(200, 1, 88, NativeBoothManagerTests.Item(), out added) && added, "concrete item ownership");
+        f.OnSend = _ => Check(booths.Stores.Single().Handle == 200 && booths.Items.Single().StoreHandle == 200 &&
+            door.IsMarked && !door.Axes.X.IsDetached && !door.Axes.Y.IsDetached, "actual lists cleaned before packet, both map axes still linked");
+        Check(f.Registry.TryUnmark(door, 0, 1, 3) && !door.IsMarked && door.Axes.X.IsDetached &&
+            f.Packets.Single().Wire.SequenceEqual(new byte[] { 5, 24, 158, 80 }) && !f.Events.Contains("store-close"),
+            "real BoothManager supplies native logout dependency without callback substitute");
+        var f2 = new Fixture(); var parent = f2.BuildDoor(); var effect = f2.Blast(parent); f2.Player(9000, 5000);
+        f2.Binding.Booths = new KingdomQuestPineNativeBoothManager((_, _) => throw new Exception("fresh native manager"));
+        f2.Clock = 100; effect.RetreatFromMap();
+        Check(effect.TryRunRoutine() && !effect.IsMarked && effect.Axes.X.IsDetached && f2.Events.Contains("lua"),
+            "expired effect traverses concrete empty map booth owner then send/unmark/free/script");
     }
     static void RecipientFilters()
     {
