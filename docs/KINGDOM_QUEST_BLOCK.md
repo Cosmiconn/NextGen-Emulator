@@ -15,7 +15,7 @@ The remaining completion gates are:
 | Boundary | Still required |
 | --- | --- |
 | Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal, normal-map member/iterator traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange, packet algorithms, concrete door/effect completion and logout/unmark packet flow are implemented. Automatic START still needs live map construction/dispatch and explicit state bindings, player/transport owners, map-to-BoothManager bindings, remaining visibility families, AI execution/mobile loops, remaining object types, gameplay owners and interrupt delivery. |
-| Mob lifecycle | Implement native-equivalent MobHatchery breed/regen/summon, timers, deaths and objective events. |
+| Mob lifecycle | Concrete MobBreeder state/timers, family counters, mb_regen dispatch and 64-slot group ownership are implemented. Still required: outer MobHatchery/ScriptBreed, native geometry/roaming, concrete mob/actor virtual bodies and timestamp writes, owning-thread bindings, summon and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
 | Rewards | Finish base ITI/registration, authoritative native-thread RNG ordering and GameDB/InventoryCellLockList persistence. |
@@ -24,6 +24,57 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Concrete MobBreeder lifecycle and group slots, 2026-10-15
+
+Baseline `b05ca43` passed Build #1002 on Windows and Ubuntu and was rechecked
+before these changes. Three concrete owners now cover the breeder scheduler,
+family counters, native object-pool regeneration dispatch and the group's 64
+persistent breeder slots. This is **not** a complete MobHatchery or playable
+KQ release. Automatic START remains disabled.
+
+Evidence is the supplied `Server.zip` Zone00 binary pair, independently
+re-extracted and hash-checked after workspace restoration:
+
+- Zone.exe SHA256: `db1cb42912556a4ea5cde5c18f15f2495b81465c70ca9c18ad5bc7e36611aff5`
+- Zone.pdb SHA256: `569a9d3ee6c4478b8e96d176f15ce64a9aab3f42e52d29d17c3c4d5af8f9ec6c`
+
+| Original evidence | Implemented behavior |
+| --- | --- |
+| MobBreeder constructor **0x004B0E40** | Initialize only enabled=1, MobID=0, field +08=-1, handle=FFFF and remaining=-1. Every other used field is explicitly seeded; unknown timestamp/brief state is never invented as zero. |
+| mb_Set **0x004B3110** | Copy twelve timing DWORDs, set group/MobID, field +08=-1, pending=1, remaining and current interval. Initial deadline is **timing word 7 (RegDelta2) times 10**, without adding the clock. Reused handle, enabled flag, timestamps, links and brief survive. |
+| mb_Setregentime **0x004B1B90**, SetLeader **0x004B2400** | Uniform assignment of all twelve timing words and current interval; deadline untouched. Append to the last family member and preserve the appended breeder's existing successor. |
+| FamilyMobManager **0x004B5050 / 0x004B5120 / 0x004B5A40 / 0x004B5CF0** | Root identity plus WORD species IDs. First registration wins, zero kill count becomes 60000 before WORD truncation, death counters wrap at 16 bits, unsigned threshold comparison, reset and removal. |
+| mb_Routine **0x004B52C0** | Remaining zero checks current object and frees the breeder slot only when absent, before any family/timer logic. Missing tracked object invalidates the handle and records its family death. Followers and disabled roots do not schedule themselves. |
+| Family death dispatch **0x004B53ED..0x004B5452** | Skip mode 3 and already-dead objects; otherwise invoke HP then KilledBy(self, HP, 1000, 1). The pushes of 1000 and 1 belong to KilledBy, **not GetHP**. Confirmed against ShineMob vtable **0x006E5594**, GetHP **0x005568A0**, KilledBy **0x00432760**. Read family successor after callbacks. |
+| Pending wave **0x004B5486..0x004B54D1** | Unsigned clock must be strictly greater than deadline. Reset family counters, clear each member's pending byte before regeneration, store returned handle, decrement positive attempts even on known regeneration failure. Negative counts remain unchanged. |
+| Rebreed schedule **0x004B54D6..0x004B5560** | Any allocated member object blocks scheduling, including already-dead objects. Unsigned wrapped timestamp subtraction divided by 10; signed threshold comparisons with strict/equality boundaries; wrapped delta addition followed by ordered unsigned min/max clamp; wrapped clock + interval*10. Set pending before reading clock. |
+| mb_regen **0x004B2CF0** | Allocate concrete native pool type 5 or 8 according to null/non-null login-character brief. Missing leader returns FFFF **without freeing the allocation**, preserving the original behavior. Group-location rejection frees immediately with reason 0x23. |
+| RNG/coordinates **0x004B2E23..0x004B2F09** | Increment/mask/store the shared native WORD-ring index, read a word, multiply by 5, overriding group direction. Optional roaming changes XY. Unsigned X or Y >= FFFFFF invokes diagnostics then free reason 0x24. Explicit ring seed and owning-thread sharing required; no new RNG is substituted. |
+| Mob dispatch **0x004B2F09..0x004B2F8C** | Preserve all Regenerate arguments and full direction width. Nonzero marking error frees with reason 0x25. Success rereads group/path, calls RoamingPathSet, rereads MobID for MobDataBox, then calls SetLifeTime with the DWORD at index +24 only if the index exists. This DWORD is a lifetime value, not a pointer. |
+| Group constructor **0x004B3CE0**, AllocZ **0x004B2180**, Free **0x004B5C00** | 64 persistent seeded objects, group/pending/deadline initialization, FIFO recycling with separate occupied order. Allocation clears only family links. Free clears its own links without repairing neighbors, removes family state, then releases occupancy. Invalid/inactive Free still removes the absolute-slot/null family key after reporting. |
+| Group Routine **0x004B55A0**, traversal **0x004026E0**, RegenFromLua **0x004B30C0** | Empty group requests parent release on entry; becoming empty during iteration waits for the next call. Routine caches successor and ignores known native traversal false. Lua regeneration skips inactive slots and deliberately discards returned handles without updating pending/attempt counts. |
+
+The pool manager and family/scheduling algorithms are concrete. Tests bind
+synthetic mob/actor virtual methods, native clock/global reads, geometry,
+roaming, lifetime data and diagnostic owners. They use the actual 8000-slot
+mob and 2048-slot actor allocation ranges and the actual 64-slot breeder pool.
+A successful test is not evidence that these synthetic services are live.
+
+Missing dependencies return UNRESOLVED separately from known native failures.
+Earlier allocations, RNG consumption, pending writes and callback effects
+survive unresolved exits/exceptions; callers must not assume transactional
+retry. Corrupt/cyclic linked structures are reported as unresolved instead
+of hanging or inventing repair. Native heap corruption and allocator internals
+are outside this valid-object model.
+
+Remaining in this area: outer 4096-group hatchery and ScriptBreed ingestion,
+original group geometry/roaming implementation, complete ShineMob/actor
+Regenerate/KilledBy bodies (including breeder timestamp writes), runtime
+registration of families, live native-thread clock/RNG/data/diagnostic
+bindings, summon and KQ objective delivery. The Pine plans are not silently
+wired to these partial bindings, and the separate 18-KQ Lua backend remains
+open. End-to-end completion/reward/return/cleanup gates above still apply.
 
 ### Concrete BoothManager storage and logout ownership, 2026-10-14
 

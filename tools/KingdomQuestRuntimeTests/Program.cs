@@ -122,4 +122,5 @@ NativeBriefExchangeTests.Run();
 NativeReciprocalBriefTests.Run();
 NativeSceneCompletionTests.Run();
 NativeBoothManagerTests.Run();
+NativeMobBreederTests.Run();
 NativeSceneLogoutTests.Run();

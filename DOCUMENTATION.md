@@ -3725,3 +3725,39 @@ lösen und Pool freigeben. Spieler, Transport und ItemDataBox sind weiterhin
 Testbindungen. Live-Kartenbindung, Inventar-/StreetBooth-Abläufe, weitere
 KQ-Besitzer und vollständige Ende-zu-Ende-Abnahme bleiben offen.
 Automatischer START bleibt deaktiviert.
+
+
+## 71. Kingdomquests: Mob-Regeneration, Familien und persistente Brüter-Slots
+
+Die Originalfunktionen von MobBreeder sind jetzt als zusammenhängender
+Laufzeitabschnitt umgesetzt: persistenter Zustand, Zeitsteuerung,
+Familien-Todeszähler, Regenerationsaufruf über den nativen Objektpool und
+64 wiederverwendbare Brüter-Slots pro Gruppe. Konstruktoren und erneute
+Belegung verändern nur die im Original geschriebenen Felder. Für nicht
+initialisierte Felder sind ausdrückliche Ausgangswerte erforderlich.
+
+Der Timer startet erst nach Überschreiten der Frist. Familien werden in
+Listenreihenfolge erzeugt; auch bekannte Erzeugungsfehler verbrauchen einen
+positiven Versuch. Todeszähler laufen als WORD über. Bei erreichter Schwelle
+werden die übrigen Mitglieder über die belegte HP-/KilledBy-Folge behandelt.
+Eine noch belegte Objektposition blockiert die nächste Welle, auch wenn das
+Objekt bereits als tot markiert ist. Timerarithmetik, Grenzvergleiche und
+Überläufe folgen den ursprünglichen DWORD-Operationen.
+
+Regeneration verwendet die vorhandenen nativen Mob-/Actor-Pools. Sie erhält
+Positionswahl, gemeinsamen Zufallsring, Argumente und Fehlerreihenfolge.
+Ein im Original beobachteter Sonderfall bleibt erhalten: Fehlt der Anführer
+nach erfolgreicher Objektallokation, wird der neue Slot nicht freigegeben.
+Andere bekannte Fehler führen mit den originalen Gründen 0x23/0x24/0x25
+zur Freigabe. Unbekannte Bindungen erzeugen keinen erfundenen Rollback.
+
+Tests decken Timergrenzen, Überläufe, Familienereignisse, Fehler nach
+Teiländerungen, Pool-Erschöpfung, Wiederverwendung, Freigabereihenfolge und
+die abweichende Handle-Behandlung von RegenFromLua ab. Die tatsächlichen
+Pool- und Brüterimplementierungen laufen zusammen; Mob-Virtualfunktionen,
+Kartenpositionen, Uhr, Quelldaten und Diagnoseausgabe sind Testbindungen.
+
+Offen bleiben insbesondere der äußere MobHatchery mit ScriptBreed,
+konkrete Mob-/Actor-Spielabläufe und Zeitstempel-Schreibstellen, Live-Bindung,
+Beschwörung und KQ-Zielereignisse. Der gesamte Kingdomquest-Block ist damit
+weiterhin nicht abgeschlossen. Automatischer START bleibt deaktiviert.
