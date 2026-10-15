@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Buffers.Binary;
+using System.Security.Cryptography;
 using NextGen.FiestaLib.Data;
 using NextGen.Zone.Data;
 
@@ -7,8 +9,8 @@ static class NativeMobGeometryTests
     static void Check(bool ok, string name) { if (!ok) throw new Exception("native mob geometry: " + name); }
     public static void Run()
     {
-        OriginalX86Vectors(); UnresolvedAndTableBoundaries();
-        Console.WriteLine("PASS: 18 original-x86 mob geometry vectors, CRT/ring consumption, signed wrap/division faults, table lookup boundaries and unresolved-state ordering");
+        OriginalX86Vectors(); OriginalStartupTable(); UnresolvedAndTableBoundaries();
+        Console.WriteLine("PASS: 18 original-x86 mob geometry vectors, CRT/ring consumption, signed wrap/division faults, original startup table in eight FP paths, table lookup boundaries and unresolved-state ordering");
     }
     static void OriginalX86Vectors()
     {
@@ -37,6 +39,41 @@ static class NativeMobGeometryTests
                 rings.Select(r => r.Index).SequenceEqual(expected.GetProperty("indices").EnumerateArray().Select(v => v.GetUInt32())), name + " original state transitions");
         }
         Check(cases == 18, "complete original-x86 vector set");
+    }
+    static void OriginalStartupTable()
+    {
+        using var file = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "NativeMobGeometry.json")));
+        var fixture = file.RootElement;
+        const string expectedHash = "50aca2c9f617c45ebfdde052be10ff95095edb93fb79ad519aed77c2e7b28bad";
+        Check(fixture.GetProperty("startupSha256").GetString() == expectedHash, "recorded original constructor fingerprint");
+        var expected = fixture.GetProperty("originalStartupTable").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+        Check(expected.Length == 360, "complete recovered table");
+        var profiles = new HashSet<(int, int, ushort, uint)>();
+        foreach (var profile in fixture.GetProperty("startupProfiles").EnumerateArray())
+        {
+            ushort cw = profile.GetProperty("x87ControlWord").GetUInt16(); uint mxcsr = profile.GetProperty("mxcsr").GetUInt32();
+            profiles.Add((profile.GetProperty("mathSse").GetInt32(), profile.GetProperty("conversionSse").GetInt32(), cw, mxcsr));
+            Check(KingdomQuestPineNativeMobAngleTable.TryCreateOriginalStartup(cw, mxcsr, out var table), "verified native FP profile");
+            var bytes = new byte[1440];
+            for (int i = 0; i < 180; i++)
+            {
+                Check(table.TryFirst(i, out int first) && first == expected[i], "original first half " + i);
+                Check(table.TrySecond(i, out int second) && second == expected[i + 180], "original second half " + i);
+                BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(i * 4), first);
+                BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan((i + 180) * 4), second);
+            }
+            Check(Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant() == expectedHash, "all 1440 native bytes");
+            Check(table.TryFirst(45, out int peak) && peak == 1023 && table.TrySecond(90, out peak) && peak == -1023,
+                "native approximate-pi/truncation peaks are not normalized to +/-1024");
+        }
+        var expectedProfiles = from m in new[] { 0, 1 } from c in new[] { 0, 1 } from cw in new ushort[] { 0x027F, 0x037F }
+            select (m, c, cw, 0x1F80u);
+        Check(profiles.SetEquals(expectedProfiles), "all eight independent CRT feature/control paths recorded");
+        foreach (var cw in new ushort[] { 0, 0x007F, 0x067F, 0x0A7F, 0x0E7F, 0xFFFF })
+            Check(!KingdomQuestPineNativeMobAngleTable.TryCreateOriginalStartup(cw, 0x1F80, out var unknown) && unknown == null,
+                "unverified native x87 state stays unresolved");
+        Check(!KingdomQuestPineNativeMobAngleTable.TryCreateOriginalStartup(0x027F, 0x1F81, out _) &&
+            !KingdomQuestPineNativeMobAngleTable.TryCreateOriginalStartup(0x037F, 0x9F80, out _), "MXCSR is not silently normalized");
     }
     static void UnresolvedAndTableBoundaries()
     {

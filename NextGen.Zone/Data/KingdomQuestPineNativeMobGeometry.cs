@@ -6,8 +6,8 @@ namespace NextGen.Zone.Data
     /// <summary>
     /// Runtime table at 0x13283770: two 180-DWORD halves. Lookup routines
     /// 0x5790E0/0x579110 use signed remainder, not degree normalization.
-    /// Require an explicit native table; the x87/CRT constructor (0x579070)
-    /// is NOT replaced by Math.Sin/Math.Cos or a generated approximate table.
+    /// Accept an explicit native table or the original constructor's recovered
+    /// output for verified FP modes. No host Math.Sin/Math.Cos approximation.
     /// </summary>
     public sealed class KingdomQuestPineNativeMobAngleTable
     {
@@ -16,6 +16,50 @@ namespace NextGen.Zone.Data
         {
             if (nativeValues == null || nativeValues.Length != 360) throw new ArgumentException("360 native DWORDs required.");
             values = (int[])nativeValues.Clone();
+        }
+        // Constructor 0x579070: original x86/CRT execution, eight FP paths.
+        // SHA256 of 360 little-endian DWORDs:
+        // 50aca2c9f617c45ebfdde052be10ff95095edb93fb79ad519aed77c2e7b28bad
+        private static readonly int[] originalStartup = {
+            0, 35, 71, 107, 142, 177, 212, 247, 282, 316, 350, 383,
+            416, 448, 480, 512, 542, 572, 601, 630, 658, 685, 711, 736,
+            760, 784, 806, 828, 848, 868, 886, 904, 920, 935, 949, 962,
+            973, 984, 993, 1001, 1008, 1014, 1018, 1021, 1023, 1023, 1023, 1021,
+            1018, 1014, 1008, 1001, 993, 984, 973, 962, 949, 935, 920, 904,
+            886, 868, 848, 828, 806, 784, 760, 736, 711, 685, 658, 630,
+            601, 572, 542, 511, 480, 448, 416, 383, 350, 316, 282, 247,
+            212, 177, 142, 107, 71, 35, 0, -35, -71, -107, -142, -177,
+            -212, -247, -282, -316, -350, -383, -416, -448, -480, -512, -542, -572,
+            -601, -630, -658, -685, -711, -736, -760, -784, -806, -828, -848, -868,
+            -886, -904, -920, -935, -949, -962, -973, -984, -993, -1001, -1008, -1014,
+            -1018, -1021, -1023, -1023, -1023, -1021, -1018, -1014, -1008, -1001, -993, -984,
+            -973, -962, -949, -935, -920, -904, -886, -868, -848, -828, -806, -784,
+            -760, -736, -711, -685, -658, -630, -601, -572, -542, -511, -480, -448,
+            -416, -383, -350, -316, -282, -247, -212, -177, -142, -107, -71, -35,
+            1024, 1023, 1021, 1018, 1014, 1008, 1001, 993, 984, 973, 962, 949,
+            935, 920, 904, 886, 868, 848, 828, 806, 784, 760, 736, 711,
+            685, 658, 630, 601, 572, 542, 511, 480, 448, 416, 383, 350,
+            316, 282, 247, 212, 177, 142, 107, 71, 35, 0, -35, -71,
+            -107, -142, -177, -212, -247, -282, -316, -350, -383, -416, -448, -480,
+            -512, -542, -572, -601, -630, -658, -685, -711, -736, -760, -784, -806,
+            -828, -848, -868, -886, -904, -920, -935, -949, -962, -973, -984, -993,
+            -1001, -1008, -1014, -1018, -1021, -1023, -1023, -1023, -1021, -1018, -1014, -1008,
+            -1001, -993, -984, -973, -962, -949, -935, -920, -904, -886, -868, -848,
+            -828, -806, -784, -760, -736, -711, -685, -658, -630, -601, -572, -542,
+            -511, -480, -448, -416, -383, -350, -316, -282, -247, -212, -177, -142,
+            -107, -71, -35, 0, 35, 71, 107, 142, 177, 212, 247, 282,
+            316, 350, 383, 416, 448, 480, 512, 542, 572, 601, 630, 658,
+            685, 711, 736, 760, 784, 806, 828, 848, 868, 886, 904, 920,
+            935, 949, 962, 973, 984, 993, 1001, 1008, 1014, 1018, 1021, 1023,
+        };
+        public static bool TryCreateOriginalStartup(ushort x87ControlWord, uint mxcsr,
+            out KingdomQuestPineNativeMobAngleTable table)
+        {
+            table = null;
+            // Actual native FP state at constructor entry, NOT the managed
+            // thread's current state. Other modes require explicit native data.
+            if ((x87ControlWord != 0x027F && x87ControlWord != 0x037F) || mxcsr != 0x1F80) return false;
+            table = new KingdomQuestPineNativeMobAngleTable(originalStartup); return true;
         }
         public bool TryFirst(int angle, out int value) => TryRead(angle % 180, out value);
         public bool TrySecond(int angle, out int value) => TryRead(180 + angle % 180, out value);

@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 import pefile
 from unicorn import Uc, UcError, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
-from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_ECX, UC_X86_REG_EIP, UC_X86_REG_ESP
+from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_ECX, UC_X86_REG_EIP, UC_X86_REG_ESP, UC_X86_REG_FPCW, UC_X86_REG_MXCSR
 
 EXPECTED_SHA = 'db1cb42912556a4ea5cde5c18f15f2495b81465c70ca9c18ad5bc7e36611aff5'
 exe = Path(sys.argv[1]).read_bytes()
@@ -122,8 +122,37 @@ for c in cases:
                          nativeResult=(u.reg_read(UC_X86_REG_EAX) & 255) if returned else 0,
                          crtState=read32(THREAD + 0x14),
                          indices=[read32(address) for _, address in RINGS], fault=fault)
+# Recover the actual angle-table constructor too. No trigonometric or
+# conversion calls are shimmed. Both CRT feature flags are exercised separately.
+startup = None
+profiles = []
+for math_sse in (0, 1):
+    for conversion_sse in (0, 1):
+        for control_word in (0x027F, 0x037F):
+            write32(0x1550CC20, math_sse)
+            write32(0x1550CD40, conversion_sse)
+            write32(STACK, STOP)
+            u.reg_write(UC_X86_REG_ESP, STACK)
+            u.reg_write(UC_X86_REG_ECX, 0x13283770)
+            u.reg_write(UC_X86_REG_FPCW, control_word)
+            u.reg_write(UC_X86_REG_MXCSR, 0x1F80)
+            returned = False
+            u.emu_start(0x579070, STOP + 1, count=1000000)
+            if not returned:
+                raise RuntimeError('Native angle constructor did not return')
+            data = bytes(u.mem_read(0x13283770, 1440))
+            if startup is not None and data != startup:
+                raise RuntimeError('Native angle table differs between verified FP paths')
+            startup = data
+            profiles.append(dict(mathSse=math_sse, conversionSse=conversion_sse,
+                                 x87ControlWord=control_word, mxcsr=0x1F80))
+if hashlib.sha256(startup).hexdigest() != '50aca2c9f617c45ebfdde052be10ff95095edb93fb79ad519aed77c2e7b28bad':
+    raise RuntimeError('Native startup table differs from the recorded original execution')
+
 output = dict(sourceSha256=EXPECTED_SHA, nativeEntry='0x004B1D60',
-              note='Original x86 execution with explicit synthetic runtime states; startup tables are not recovered.',
+              note='Geometry vectors use synthetic runtime states; original startup table separately recovered in eight FP paths.',
+              originalStartupTable=list(struct.unpack('<360i', startup)), startupProfiles=profiles,
+              startupSha256=hashlib.sha256(startup).hexdigest(),
               angleTable=table, cases=cases)
 Path(sys.argv[2]).write_text(json.dumps(output, indent=2) + '\n', encoding='utf-8')
-print(f'Wrote {len(cases)} original-x86 geometry cases')
+print(f'Wrote {len(cases)} original-x86 geometry cases and {len(profiles)} startup FP profiles')

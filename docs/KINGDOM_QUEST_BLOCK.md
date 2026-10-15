@@ -25,6 +25,47 @@ Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
 
+### Recovered native startup angle table, 2026-10-15
+
+Baseline `b746826` passed Build #1004 on Windows and Ubuntu. The angle-table
+constructor gap from the preceding geometry block is now closed for the
+explicitly verified startup FP modes. `TryCreateOriginalStartup` supplies the
+original 360-DWORD table without runtime host trigonometry. It requires the
+actual **native constructor-entry** x87 control word (027F or 037F) and MXCSR
+1F80; it does not infer them from the managed thread. Other modes remain
+UNRESOLVED and may still use an explicitly captured native table.
+
+Original constructor **0x00579070** was executed under Unicorn with its
+original CRT sine, cosine and integer-conversion instructions. Both CRT
+feature flags (**0x1550CC20**, **0x1550CD40**) were varied independently over
+zero/nonzero, with both control words: eight completed executions produced
+identical 1440-byte tables. No math or conversion function was shimmed.
+
+SHA256 of the 360 little-endian signed DWORDs:
+`50aca2c9f617c45ebfdde052be10ff95095edb93fb79ad519aed77c2e7b28bad`.
+
+The output preserves the native constant/truncation effects: first-half
+index 45 is 1023 and second-half index 90 is -1023, not normalized +/-1024.
+The runtime stores literal recovered values and copies them into each owner.
+The recovery tool now regenerates the constructor table and checks all eight
+profiles plus this fingerprint, alongside the existing geometry vectors.
+
+Verification provenance: the eight original executions and their hashes
+were observed before workspace maintenance removed the uncommitted output.
+The table was restored and its full binary hash matched against that recorded
+original fingerprint. The current `Server.zip` attachment was unavailable;
+no fresh EXE execution is claimed for this restoration. The updated recovery
+script was syntax-checked; a new end-to-end generator run requires that same
+original executable again. Existing geometry vectors are unchanged.
+
+Behavior tests compare every table entry and the complete byte hash for all
+recorded profiles, reject unsupported x87/MXCSR states, and run an actual
+circle -> breeder -> native object-pool integration with the recovered table.
+The mob virtual methods and RNG initial state in that test remain synthetic.
+This does not establish live thread/global bindings or a complete KQ run.
+Group rotation initialization, roaming, outer hatchery ingestion and the
+broader completion gates remain open. Automatic START remains disabled.
+
 ### Native mob spawn geometry with original-x86 comparison, 2026-10-15
 
 Baseline `b961556` passed Build #1003 on Windows and Ubuntu and was rechecked.
@@ -64,11 +105,11 @@ cover unavailable bindings, signed table boundaries, ring identity, assertion
 exceptions and concrete rectangle -> breeder -> native object-pool execution.
 
 Still open: mbg_Set **0x004B1F30** rotation initialization (original x87/CRT,
-constant 0.01745329 then scale 1024), angle-table constructor **0x00579070**
-(original constants 3.1415927/90 and separate sine/cosine halves), authoritative
-startup seeds and global/native-thread sharing, roaming paths and outer
-hatchery ingestion. These initializers are deliberately not approximated with
-host Math.Sin/Math.Cos. Concrete mob virtual bodies and the broader KQ
+constant 0.01745329 then scale 1024), authoritative startup seeds and
+global/native-thread sharing, roaming paths and outer hatchery ingestion.
+The angle-table constructor **0x00579070** now has a recovered output for
+verified FP modes in the follow-up above; other modes remain unresolved.
+Initializers are not approximated with host Math.Sin/Math.Cos. Concrete mob virtual bodies and the broader KQ
 completion gates remain open. Automatic START remains disabled.
 
 ### Concrete MobBreeder lifecycle and group slots, 2026-10-15

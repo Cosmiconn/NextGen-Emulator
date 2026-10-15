@@ -95,6 +95,16 @@ static class NativeMobBreederTests
             f.Random.Index == 1, "concrete geometry -> breeder -> native pool: CRT position then separate direction ring");
         var reference = new NextGen.FiestaLib.Data.MsvcCrtRand(1); reference.Consume(2);
         Check(random.State == reference.State && !f.Events.Contains("location"), "real rectangle consumes exactly two native-thread CRT values");
+        f = new Fixture(); b = f.Breeder(1);
+        Check(KingdomQuestPineNativeMobAngleTable.TryCreateOriginalStartup(0x027F, 0x1F80, out var nativeTable), "original startup angle table");
+        var selector = new KingdomQuestPineNativeMobRandomWords(new ushort[] { 0, 0 }, 0, 1);
+        var angular = new KingdomQuestPineNativeMobRandomWords(new ushort[] { 0, 64, 1, 0 }, 0, 3);
+        f.Group.Location = new KingdomQuestPineNativeMobGeometry(1000, 2000, 0, 0, 0, 0, 0, 128, -99,
+            null, selector, null, angular, nativeTable, null);
+        Check(b.TryRoutine(f.Runtime, null) && b.Handle == 0 && b.Remaining == 0 && f.Occupied == 1 &&
+            f.Mobs[0].Request.X == 1004 && f.Mobs[0].Request.Y == 2063 && f.Mobs[0].Request.Direction == 65 &&
+            selector.Index == 1 && angular.Index == 2 && f.Random.Index == 1,
+            "original angle table -> circle geometry -> breeder -> pool with separate radial/angle/direction consumption");
     }
     static void StorageAndFamilies()
     {

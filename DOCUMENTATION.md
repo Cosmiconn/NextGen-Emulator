@@ -3787,3 +3787,28 @@ Offen bleiben unter anderem die originale x87-Initialisierung von Rotation
 und Winkeltabelle, globale Zufallsinitialisierung, Roaming und die äußere
 MobHatchery. Der Gesamtabschluss von Kingdomquests ist weiterhin offen;
 automatischer START bleibt deaktiviert.
+
+
+## 73. Kingdomquests: belegte Starttabelle für Kreispositionen
+
+Die 360 Werte der nativen Winkeltabelle stehen jetzt für die geprüften
+Startbedingungen direkt zur Verfügung. Acht Ausführungen des originalen
+Konstruktors mit unabhängigen CRT-SSE-Schaltern und zwei x87-Einstellungen
+lieferten dieselben 1.440 Bytes. Die Laufzeit verwendet diese belegten Werte;
+sie berechnet keine Ersatzwerte mit der Mathematikbibliothek des Hosts.
+
+Die Bindung verlangt die tatsächlichen nativen Einstellungen beim
+Konstruktoraufruf: x87-Controlword 027F oder 037F und MXCSR 1F80. Andere
+Einstellungen werden nicht stillschweigend angepasst. Alle Tabellenwerte,
+der vollständige SHA-256 und ein Kreis-Spawn durch Geometrie, Brüter und
+Objektpool sind getestet. Die ursprünglichen Rundungseffekte bleiben erhalten.
+
+Die Originalausführungen fanden vor der zwischenzeitlichen Bereinigung der
+Arbeitsumgebung statt. Die verlorene Tabelle wurde anhand des zuvor erfassten
+Byte-Hashes exakt wiederhergestellt. Ein erneuter vollständiger Lauf des
+aktualisierten Rekonstruktionswerkzeugs benötigt die derzeit fehlende
+Original-EXE aus Server.zip. Der .NET-Test benötigt diese Datei nicht.
+
+Damit ist die Starttabelle für diese belegten Modi abgedeckt. Live-Bindungen,
+Gruppenrotation, Roaming, äußere MobHatchery und die übrigen KQ-Abnahmekriterien
+bleiben offen. Automatischer START bleibt deaktiviert.
