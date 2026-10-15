@@ -11,7 +11,7 @@ static class NativeMobBreederTests
         new(group, Timings(), 456, 9, 123, 77, 88, null, null, null);
     public static void Run()
     {
-        StorageAndFamilies(); Timers(); Regeneration(); Failures(); FamilyDeath(); PoolLifecycle();
+        StorageAndFamilies(); Timers(); Regeneration(); Failures(); FamilyDeath(); PoolLifecycle(); GeometryIntegration();
         Console.WriteLine("PASS: native mob breeder storage, family counters, strict timers, regeneration/pool failure order, family death dispatch, persistent 64-slot groups and Lua handle semantics");
     }
     sealed class Fixture : IKingdomQuestPineNativeMobRegenLocation, IKingdomQuestPineNativeMobLifeTimeSource,
@@ -83,6 +83,18 @@ static class NativeMobBreederTests
         public bool TrySetRoamingPath(IKingdomQuestPineNativeMobRoamingPath path)
         { f.Events.Add("path:" + NativeHandle); Path = path; return true; }
         public bool TrySetLifeTime(uint life) { f.Events.Add("life:" + life); return true; }
+    }
+    static void GeometryIntegration()
+    {
+        var f = new Fixture(); var b = f.Breeder(1);
+        var random = new NextGen.FiestaLib.Data.MsvcCrtRand(1);
+        f.Group.Location = new KingdomQuestPineNativeMobGeometry(1000, 2000, 1, 17, 31, 1024, 0, 0, -99,
+            random, null, null, null, null, () => throw new Exception("valid rectangle"));
+        Check(b.TryRoutine(f.Runtime, null) && b.Handle == 0 && b.Remaining == 0 && f.Occupied == 1 &&
+            f.Mobs[0].Request.X == 990 && f.Mobs[0].Request.Y == 2022 && f.Mobs[0].Request.Direction == 65 &&
+            f.Random.Index == 1, "concrete geometry -> breeder -> native pool: CRT position then separate direction ring");
+        var reference = new NextGen.FiestaLib.Data.MsvcCrtRand(1); reference.Consume(2);
+        Check(random.State == reference.State && !f.Events.Contains("location"), "real rectangle consumes exactly two native-thread CRT values");
     }
     static void StorageAndFamilies()
     {

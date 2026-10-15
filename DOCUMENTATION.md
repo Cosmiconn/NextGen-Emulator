@@ -3761,3 +3761,29 @@ Offen bleiben insbesondere der äußere MobHatchery mit ScriptBreed,
 konkrete Mob-/Actor-Spielabläufe und Zeitstempel-Schreibstellen, Live-Bindung,
 Beschwörung und KQ-Zielereignisse. Der gesamte Kingdomquest-Block ist damit
 weiterhin nicht abgeschlossen. Automatischer START bleibt deaktiviert.
+
+
+## 72. Kingdomquests: originale Mob-Positionswahl mit X86-Vergleich
+
+Rechteck- und Kreispositionen für Mob-Regeneration sind als konkrete Bindung
+an den Mob-Brüter umgesetzt. Rechtecke verwenden den vorhandenen
+threadgebundenen CRT-Zufallsgenerator; Kreise verwenden drei getrennte
+native WORD-Ringe. Verbrauchsreihenfolge, vorzeichenbehaftete Division,
+32-Bit-Überläufe und feste Winkeltabellenzugriffe folgen der Original-EXE.
+
+18 Vergleichsfälle wurden durch Ausführung der originalen X86-Funktionen
+gewonnen. Sie prüfen neben Positionen auch Zufallszustände, Assertions und
+CPU-Divisionsfehler. Ein reproduzierbares Werkzeug mit EXE-Hashprüfung und
+die resultierende Testdatei sind enthalten. Die Eingaben sind ausdrücklich
+synthetische Laufzeitzustände; die Startinitialisierung wird damit nicht als
+abgeschlossen behauptet. CI benötigt nur die Vergleichsdatei.
+
+Der Integrationstest verbindet echte Positionswahl, Brütersteuerung und
+nativen Objektpool. Die gesonderte Richtungswahl nach der Positionierung
+bleibt erhalten. Fehlende Tabellenbindungen und native Speicher-/Divisions-
+fehler werden nicht durch erfundene Positionen ersetzt.
+
+Offen bleiben unter anderem die originale x87-Initialisierung von Rotation
+und Winkeltabelle, globale Zufallsinitialisierung, Roaming und die äußere
+MobHatchery. Der Gesamtabschluss von Kingdomquests ist weiterhin offen;
+automatischer START bleibt deaktiviert.

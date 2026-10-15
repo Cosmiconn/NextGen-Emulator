@@ -79,7 +79,8 @@ namespace NextGen.Zone.Data
     }
 
     /// <summary>
-    /// Shared native WORD ring: 14FBA310 index, 14FBA314 mask, 14FB2310 data.
+    /// Shared native WORD ring. The direction instance uses 14FBA310 index,
+    /// 14FBA314 mask, 14FB2310 data; geometry uses three distinct instances.
     /// Explicit native seed required; this is NOT a new random-number generator.
     /// Every consumer on the owning Zone thread must share this same instance.
     /// </summary>

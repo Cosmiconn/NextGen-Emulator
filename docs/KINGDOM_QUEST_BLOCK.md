@@ -15,7 +15,7 @@ The remaining completion gates are:
 | Boundary | Still required |
 | --- | --- |
 | Live scenario ownership | Worker film stepping and waitlogin are attached; collision/START door closure, native pools/door/effect slots, map-axis marking/movement/removal, normal-map member/iterator traversal, native brief dispatch, directional sublayers, reciprocal character/scene exchange, packet algorithms, concrete door/effect completion and logout/unmark packet flow are implemented. Automatic START still needs live map construction/dispatch and explicit state bindings, player/transport owners, map-to-BoothManager bindings, remaining visibility families, AI execution/mobile loops, remaining object types, gameplay owners and interrupt delivery. |
-| Mob lifecycle | Concrete MobBreeder state/timers, family counters, mb_regen dispatch and 64-slot group ownership are implemented. Still required: outer MobHatchery/ScriptBreed, native geometry/roaming, concrete mob/actor virtual bodies and timestamp writes, owning-thread bindings, summon and objective events. |
+| Mob lifecycle | Concrete MobBreeder state/timers, family counters, mb_regen dispatch and 64-slot group ownership are implemented. Still required: outer MobHatchery/ScriptBreed, native geometry initialization/roaming, concrete mob/actor virtual bodies and timestamp writes, owning-thread bindings, summon and objective events. |
 | Pine command coverage | Honeying has recovered plans for all 40 sites/13 families; bind them to real object, map and timer owners. Recover GordonMaster's 23 external families (82 sites) and execute them through real owners. |
 | Lua | Implement and verify the distinct backend/API behavior for the 18 source-used Lua KQs. |
 | Rewards | Finish base ITI/registration, authoritative native-thread RNG ordering and GameDB/InventoryCellLockList persistence. |
@@ -24,6 +24,52 @@ The remaining completion gates are:
 Source-plan coverage and live execution coverage must be reported separately.
 Original Zone.exe/Zone.pdb are present in the supplied Server.zip; the missing
 separate binary archive is not a blocker for inspecting those Zone functions.
+
+### Native mob spawn geometry with original-x86 comparison, 2026-10-15
+
+Baseline `b961556` passed Build #1003 on Windows and Ubuntu and was rechecked.
+`KingdomQuestPineNativeMobGeometry` now supplies a concrete position owner to
+the previously implemented breeder regeneration path. It executes the bodies
+of group RegenLoc **0x004B1D60** and circle picker **0x004B0E80** from explicit
+native runtime fields. It does not synthesize uninitialized group state.
+
+| Original evidence | Implemented behavior |
+| --- | --- |
+| Group +0x19AC, region +0x198C | Return stored direction before geometry work. Zero region height selects circle; any nonzero DWORD selects rectangle. mb_regen subsequently overwrites direction with its separate WORD-ring result. |
+| Rectangle **0x004B1E29..0x004B1EF2** | Positive half-width consumes two values from the existing native-thread `MsvcCrtRand` owner. Use signed remainder with doubled dimensions, then wrapped offsets and fixed-point rotation. Each product and sum/subtraction wraps at 32 bits before signed division by 1024, truncating toward zero. Center additions wrap too. |
+| Invalid rectangle width / IDIV | Nonpositive half-width reports the native assertion, consumes no CRT values, uses zero offsets and still returns native success. Zero or wrapping-to-zero height divisor faults after both CRT draws; represented as UNRESOLVED with consumed state retained. No replacement location or rollback is invented. |
+| Circle selector **0x14D920E8**, radial **0x14E7A1D0**, angular **0x14F7A2D0** | Three distinct shared WORD-ring owners. Selector 0 consumes angular twice, first for radial scale and then angle. Selectors 1/2 consume radial once with +64/+96 and angular once. Radius zero still consumes all of these values. |
+| Circle arithmetic **0x004B0F0C..0x004B0F89** | Wrapped radius*scale divided by 128; WORD angle*180 divided by 64; table coefficients multiplied by distance with wrapping before division by 1024. No continuous angle approximation, rejection sampling or uniform-area replacement. |
+| Table lookups **0x005790E0 / 0x00579110** | First table index is signed angle remainder 180; second is 180 plus that remainder. Preserve the negative-remainder behavior. The complete 360-DWORD native table is explicitly supplied and copied. |
+| Unsupported native memory cases | A selector outside 0..2 makes the original use the output address as its radial scale. That process-address-dependent behavior remains UNRESOLVED after selector consumption. Missing data/owners stop at the corresponding access, retaining earlier RNG advancement. |
+
+The regression fixture contains **18 results produced by running the original
+x86 instruction bodies**, including CRT rand **0x006594B2** and both table
+lookups, under Unicorn. The recovery script verifies the exact Zone.exe hash
+recorded below. Only profiler calls, diagnostic output, security-cookie check
+and CRT thread-data lookup are replaced with explicit shims. Inputs are
+synthetic runtime seeds, including deliberately artificial table coefficients;
+they are not presented as captured live startup state. Native CPU division
+faults are retained in the fixture, along with post-fault CRT state.
+
+To reproduce with the original executable and Python `pefile`/`unicorn`:
+
+```sh
+python tools/recover-kingdom-quest-mob-geometry.py Zone.exe tools/KingdomQuestRuntimeTests/Fixtures/NativeMobGeometry.json
+```
+
+The .NET behavior suite consumes the committed fixture on both CI platforms;
+CI does not need the proprietary executable or Unicorn. Additional tests
+cover unavailable bindings, signed table boundaries, ring identity, assertion
+exceptions and concrete rectangle -> breeder -> native object-pool execution.
+
+Still open: mbg_Set **0x004B1F30** rotation initialization (original x87/CRT,
+constant 0.01745329 then scale 1024), angle-table constructor **0x00579070**
+(original constants 3.1415927/90 and separate sine/cosine halves), authoritative
+startup seeds and global/native-thread sharing, roaming paths and outer
+hatchery ingestion. These initializers are deliberately not approximated with
+host Math.Sin/Math.Cos. Concrete mob virtual bodies and the broader KQ
+completion gates remain open. Automatic START remains disabled.
 
 ### Concrete MobBreeder lifecycle and group slots, 2026-10-15
 
